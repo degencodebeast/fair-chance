@@ -1,361 +1,541 @@
-token,n_blocks,t_share_supply,window,net_or_gross,ordinary_sellers_above_allowance,share_of_ordinary_sellers_who_carried_tokens,reason
-cosmicfrog.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-cosmicfrog.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-blocknear.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearhunt.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-rot.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-goblin.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nullss.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-speed.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-openjep.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearusd.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
-nearstar.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,historical DCL token-reserve snapshots and full FT transfer history are unavailable from the free sources
+token,n_blocks,t_share_supply,window,net_or_gross,ordinary_sellers_above_allowance,share_of_ordinary_sellers_who_carried_tokens,pool_snapshot_block,pool_snapshot,pool_total_x_raw,pool_total_y_raw,reason
+cosmicfrog.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+cosmicfrog.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224077803,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+blocknear.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224069988,VERIFIED_GET_POOL,960382251990586240234159412,42508346662247254625000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearhunt.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224063343,VERIFIED_GET_POOL,992296239816656508660205798,8000000000000000419430400,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+rot.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224061203,VERIFIED_GET_POOL,999708951247036883828535035,299999999999999988897770,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+goblin.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224058043,VERIFIED_GET_POOL,962632672691235727471749151,39999999999999999999999999,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nullss.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224018509,VERIFIED_GET_POOL,971710225871407648254425364,30000000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+speed.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223994937,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+openjep.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223992082,VERIFIED_GET_POOL,999515012761560375275736339,500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearusd.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223980140,VERIFIED_GET_POOL,992774245339939334226474099,7500000000000000000000000,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+nearstar.nearlytrade.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223978519,VERIFIED_GET_POOL,999611972606408878081967964,400000000000000022204460,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+bagflip.v2-launchpad.justhoot.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224045076,VERIFIED_GET_POOL,997694392714206358600110628,3377601706371190764193896,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+nulls-2.v2-launchpad.justhoot.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224131496,VERIFIED_GET_POOL,995095238682780600605357989,7229459446543357223667959,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+imam.v2-launchpad.justhoot.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,224191060,VERIFIED_GET_POOL,999059812742890156261680468,1335246523286188457523910,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+bemi.v2-launchpad.justhoot.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223935001,VERIFIED_GET_POOL,999267958644398120694201226,1058680076580411167826897,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.01,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.01,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.01,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.01,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.02,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.02,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.02,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.02,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.05,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.05,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.05,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,5,0.05,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.01,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.01,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.01,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.01,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.02,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.02,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.02,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.02,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.05,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.05,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.05,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,17,0.05,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.01,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.01,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.01,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.01,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.02,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.02,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.02,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.02,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.05,1h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.05,1h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.05,24h,gross,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable
+lunc.v2-launchpad.justhoot.near,50,0.05,24h,net,UNKNOWN,UNKNOWN,223932796,VERIFIED_GET_POOL,999296123485195452101599763,1207864340578653813660317,full per-touch reserve snapshots and FT transfer history remain unavailable

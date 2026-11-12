@@ -5,30 +5,33 @@ Status: receipt-verified where a table's status says so; otherwise `UNKNOWN`.
 ## Fixed selection rule
 
 At `1794496145054` Unix milliseconds (2026-11-12T15:09:05.054Z), request
-`https://nearly.trade/api/launches?sort=new&limit=60&offset=0`. Select the
-first ten records in its descending `created_at_ms` order that are at least
-24 hours old. There is no outcome, price, volume, holder, or trade-count
-filter. This permits complete 1-hour and 24-hour observation windows.
-
-Issue #1 says the JustHoot link is "to follow". No public endpoint was
-provided, so its portion of the intended 10–20 launch universe is `UNKNOWN`;
-this checkpoint is deliberately a ten-coin Nearly-only cohort, not an
-unannounced substitute for a cross-platform sample.
+the Nearly launch list and the JustHoot room list. Select the first ten Nearly
+records and first five JustHoot records in each API's descending creation order
+that are at least 24 hours old. There is no outcome, price, volume, holder, or
+trade-count filter. This yields a 15-coin, two-launchpad cohort with complete
+1-hour and 24-hour observation windows.
 
 ## Data and boundaries
 
-The script reads only Nearly's public, unauthenticated launch and trade
-endpoints and caches the raw JSON under `.cache/` (git-ignored). It stops on
-an unknown HTTP failure and retries only HTTP 429, with a bounded backoff.
+The runner reads public Nearly and JustHoot endpoints, FastNEAR's public
+transaction index, and a public archival RPC. Its
+committed `fixtures/` directory contains the exact public responses used for
+the replay; a clean checkout therefore produces the same tables without
+depending on an evolving launch list. The local `.cache/` is only for an
+explicit fresh collection and remains git-ignored. It stops on an unknown
+HTTP failure and retries only HTTP 429, with bounded backoff.
 
-Its first observed pool trade is a **proxy**, not the launch receipt. Its
-measure-1 figures are observed pool buys, not account balances at block N.
-Its measure-2 figures are observed per-account pool sells less buys, floored
-at zero; token transfers are not yet reconciled. This is necessary because
-the sample already shows a launch-side `lock_8.nearlytrade.near` account whose
-relationship to the stated creator is not proved by the public trade feed.
-All affected cells say `UNVERIFIED_PROXY`; the final replay must instead use
-the receipt method in `DATA_SOURCES.md`.
+The launch point for every measure is the signed launch transaction. Its signer
+is the creator; token-account parents and launchpad display fields are not used
+for that purpose. Nearly supplies a DEX receipt ID, so a receipt action supplies
+a swap owner only when its signer proves it. JustHoot's public trade feed has no
+receipt ID, so its `trader` field is never used as an owner. Any sell without a proven owner
+makes all measure-2 group shares `UNKNOWN`; it is never folded into
+`everyone_else`. Creator and early-buyer amounts in measure 2 are explicitly
+named `net_pool_trades`, not token-balance claims, because transfer discovery
+is incomplete. The creator group includes the signer, its subaccounts, and
+parents below the top-level account; received amounts are `UNKNOWN` until
+transfer receipts are indexed, never silently omitted.
 
 Amounts remain integers until CSV rendering. Token decimals and total supply
 are read from the token's public archival-RPC `ft_metadata` and

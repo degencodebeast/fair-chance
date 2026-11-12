@@ -1,136 +1,178 @@
 #!/usr/bin/env python3
-"""Deterministic, synthetic 60-day exercise of Issue #2's stated rules."""
+"""Deterministic synthetic exercise of the Issue #2 sell rules."""
 from __future__ import annotations
 import argparse, csv, random
+from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-SUPPLY, VIRTUAL, FEE, ALLOWANCE, CAP, FLOOR = 1_000_000_000., 100., .01, .010153, .05, .001
+SUPPLY, VIRTUAL, FEE, ALLOWANCE, CAP, FLOOR = 1e9, 100., .01, .010153, .05, .001
 
 @dataclass(frozen=True)
 class Policy:
-    n: int; threshold: float; brake: float | None; penalty: float; window: float = 1.
+    n: int; threshold: float; brake: float | None; penalty: float; creator_fee_share: float = 0.; window: float = 1.
 
 @dataclass
 class Pool:
-    token: float = SUPPLY; near: float = VIRTUAL; real: float = 0.
-    def quote(self, token: float) -> float: return max(0., self.near - self.token * self.near / (self.token + token))
-    def buy(self, near: float, fee: float = FEE) -> float:
-        out = self.token - self.token * self.near / (self.near + near * (1 - fee))
-        self.token -= out; self.near += near; self.real += near
+    token: float = SUPPLY; near: float = VIRTUAL; real: float = 0.; creator_fees: float = 0.
+    def price(self): return self.near / self.token
+    def gross(self, tokens): return max(0., self.near - self.token * self.near / (self.token + tokens))
+    def buy(self, near, share, extra=0.):
+        creator = near * FEE * share; effective = near * (1 - FEE - extra)
+        out = self.token - self.token * self.near / (self.near + effective)
+        self.token -= out; self.near += near - creator; self.real += near - creator; self.creator_fees += creator
         return out
-    def sell(self, token: float, penalty: float = 0.) -> tuple[float, float]:
-        gross = min(self.quote(token), self.real); fee = gross * penalty
-        self.token += token; self.near += fee - gross; self.real += fee - gross
-        return gross - fee, fee
-    def tokens_for(self, near: float) -> float:
+    def sell(self, tokens, share, penalty=0.):
+        gross = min(self.gross(tokens), self.real); normal = gross * FEE; creator = normal * share
+        payout = max(0., gross - normal - gross * penalty)
+        self.token += tokens; self.near -= payout + creator; self.real -= payout + creator; self.creator_fees += creator
+        return payout, normal - creator + gross * penalty
+    def tokens_for(self, payout, share, penalty=0.):
         lo, hi = 0., self.token
         for _ in range(64):
             mid = (lo + hi) / 2
-            if self.quote(mid) <= near: lo = mid
+            if min(self.gross(mid), self.real) * (1 - FEE - penalty) <= payout: lo = mid
             else: hi = mid
         return lo
 
 @dataclass
 class Wallet:
-    name: str; tokens: float = 0.; marked: float = 0.; ever_large: bool = False; spent: float = 0.; received: float = 0.
+    name: str; tokens: float = 0.; marked: float = 0.; creator: bool = False; ever_large: bool = False; received: float = 0.
 
 @dataclass
 class Engine:
-    policy: Policy; pool: Pool = field(default_factory=Pool); wallets: dict[str, Wallet] = field(default_factory=dict)
-    sold: dict[tuple[str, int], float] = field(default_factory=dict); cap: dict[int, float] = field(default_factory=dict)
-    marked_sold: dict[int, float] = field(default_factory=dict); prices: dict[int, float] = field(default_factory=dict)
-    allowances: dict[tuple[bool, int], float] = field(default_factory=dict)
-    brakes: int = 0; penalties: float = 0.; max_drawdown: float = 0.
-    def wallet(self, name: str) -> Wallet: return self.wallets.setdefault(name, Wallet(name))
-    def bucket(self, hour: int, marked: bool = False) -> int: return int(hour // (24 if marked else self.policy.window))
-    def price(self) -> float: return self.pool.near / self.pool.token
-    def buy(self, name: str, near: float, hour: int, early: bool = False, block: int = 10_000) -> float:
-        fee = .10 - .09 * min(block, self.policy.n) / self.policy.n if early else FEE
-        w = self.wallet(name); out = self.pool.buy(near, fee); w.tokens += out; w.marked += out if early else 0.; w.spent += near
-        w.ever_large |= w.tokens >= self.policy.threshold * SUPPLY
+    policy: Policy; pool: Pool = field(default_factory=Pool); wallets: dict = field(default_factory=dict)
+    sold: dict = field(default_factory=lambda: defaultdict(float)); bought: dict = field(default_factory=lambda: defaultdict(float))
+    cap_out: dict = field(default_factory=lambda: defaultdict(float)); cap_buy: dict = field(default_factory=lambda: defaultdict(float)); marked_out: dict = field(default_factory=lambda: defaultdict(float))
+    snaps: dict = field(default_factory=dict); prices: dict = field(default_factory=dict); brakes: int = 0; penalties: float = 0.; max_drawdown: float = 0.
+    def __post_init__(self): self.initial_price = self.pool.price()
+    def wallet(self, name, creator=False):
+        w = self.wallets.setdefault(name, Wallet(name)); w.creator |= creator; return w
+    def bucket(self, hour, marked=False): return int(hour // (24 if marked else self.policy.window))
+    def cap_bucket(self, hour): return int(hour // self.policy.window)
+    def price(self): return self.pool.price()
+    def creator_tokens(self): return sum(w.tokens for w in self.wallets.values() if w.creator)
+    def snapshot(self, hour, block):
+        if block <= self.policy.n: return
+        k = self.bucket(hour, True)
+        if k not in self.snaps:
+            amounts = {n:w.marked for n,w in self.wallets.items() if w.marked}; self.snaps[k] = amounts, sum(amounts.values())
+    def buy(self, name, near, hour, early=False, block=10_000, creator=False):
+        self.snapshot(hour, block); extra = .09 * max(0., 1 - block / self.policy.n) if early else 0.
+        estimate = self.pool.token - self.pool.token * self.pool.near / (self.pool.near + near * (1-FEE-extra))
+        group = creator or self.wallet(name).creator
+        if group and self.creator_tokens() + estimate > .04 * SUPPLY: return 0.
+        out = self.pool.buy(near, self.policy.creator_fee_share, extra); w = self.wallet(name, group)
+        w.tokens += out; w.marked += out if early or group else 0.; w.ever_large |= w.tokens >= self.policy.threshold * SUPPLY
+        self.bought[name, self.bucket(hour)] += out
+        if not group: self.cap_buy[self.cap_bucket(hour)] += near
         return out
-    def sell(self, name: str, wanted: float, hour: int) -> tuple[float, float]:
-        w = self.wallet(name); marked = w.marked > 0; bucket = self.bucket(hour, marked); allowance = self.allowances.setdefault((marked, bucket), ALLOWANCE * self.pool.token)
-        limited = marked or w.ever_large or w.tokens > allowance; prior = self.sold.get((name, bucket), 0.); allowed = min(wanted, w.tokens)
+    def transfer(self, source, target, amount, block, target_creator=False):
+        a,b = self.wallet(source),self.wallet(target,target_creator)
+        if amount > a.tokens or (b.creator and self.creator_tokens() + amount > .04*SUPPLY): return False
+        marked=min(amount,a.marked); a.tokens-=amount; a.marked-=marked; b.tokens+=amount; b.marked+=amount if b.creator else marked
+        b.ever_large |= b.tokens >= self.policy.threshold*SUPPLY; return True
+    def cap_room(self, hour):
+        k=self.cap_bucket(hour); used=self.marked_out[k]+max(0.,self.cap_out[k]-self.cap_buy[k]); return max(0.,CAP*self.pool.real-used)
+    def floor_tokens(self, penalty):
+        lo,hi=0.,self.pool.token; floor=self.initial_price*FLOOR
+        for _ in range(64):
+            mid=(lo+hi)/2; gross=min(self.pool.gross(mid),self.pool.real)
+            near=self.pool.near-gross*(1-FEE*(1-self.policy.creator_fee_share)-penalty)
+            if near/(self.pool.token+mid)>=floor: lo=mid
+            else: hi=mid
+        return lo
+    def limited(self, wanted, hour, penalty, counted):
+        if not counted: return wanted
+        room=self.cap_room(hour)
+        return min(wanted, self.floor_tokens(penalty) if room <= 0 else self.pool.tokens_for(room,self.policy.creator_fee_share,penalty))
+    def sell(self, name, wanted, hour, block=10_000):
+        self.snapshot(hour, block); w=self.wallet(name); wanted=min(wanted,w.tokens); marked=min(wanted,w.marked); unmarked=wanted-marked
+        if block<=self.policy.n: marked=0.
+        total=payout=0.
         if marked:
-            total_marked = sum(x.marked for x in self.wallets.values())
-            share = allowance * w.marked / total_marked if total_marked else 0.
-            allowed = min(allowed, max(0., share - prior), max(0., allowance - self.marked_sold.get(bucket, 0.)))
-        elif w.ever_large: allowed = min(allowed, max(0., allowance - prior))
-        excess = max(0., allowed - max(0., allowance - prior)) if limited and not marked else 0.
-        penalty = self.policy.penalty if limited and not marked and not w.ever_large and excess else 0.
-        start = self.prices.setdefault(bucket, self.price()); dropped = 1 - self.price() / start; floor = FLOOR * self.pool.token
-        cap_bucket = self.bucket(hour)
-        if limited: allowed = min(allowed, self.pool.tokens_for(max(self.pool.quote(floor), max(0., CAP * self.pool.real - self.cap.get(cap_bucket, 0.)))))
-        if limited and self.policy.brake is not None and dropped >= self.policy.brake: self.brakes += 1; allowed = min(allowed, floor)
-        payout, fee = self.pool.sell(allowed, penalty); w.tokens -= allowed; w.marked = max(0., w.marked - allowed); w.received += payout
-        self.sold[(name, bucket)] = prior + allowed
-        if marked: self.marked_sold[bucket] = self.marked_sold.get(bucket, 0.) + allowed
-        if limited: self.cap[cap_bucket] = self.cap.get(cap_bucket, 0.) + payout
-        self.penalties += fee
-        return allowed, payout
-    def split(self, source: str, count: int) -> list[str]:
-        w = self.wallet(source)
-        if w.ever_large: return []
-        names = [f"{source}-{i}" for i in range(count)]; each = w.tokens / count
-        for name in names: self.wallet(name).tokens += each
-        w.tokens = 0.; return names
+            k=self.bucket(hour,True); amounts,supply=self.snaps[k]; allowance=ALLOWANCE*amounts.get(name,0.)
+            amount=self.limited(min(marked,max(0.,allowance-self.sold[name,k])),hour,0.,True)
+            paid,fee=self.pool.sell(amount,self.policy.creator_fee_share); self.sold[name,k]+=amount; self.marked_out[self.cap_bucket(hour)]+=paid; self.penalties+=fee; total+=amount;payout+=paid
+        if unmarked:
+            k,ck=self.bucket(hour),self.cap_bucket(hour); room=max(0.,ALLOWANCE*self.pool.token+self.bought[name,k]-self.sold[name,k])
+            base=min(unmarked,room); extra=0. if w.ever_large else max(0.,unmarked-base)
+            base=self.limited(base,hour,0.,w.ever_large)
+            start=self.prices.setdefault(ck,self.price())
+            if extra and self.policy.brake is not None and 1-self.price()/start>=self.policy.brake: self.brakes+=1;extra=0.
+            extra=self.limited(extra,hour,self.policy.penalty,True)
+            for amount,penalty,counted in ((base,0.,w.ever_large),(extra,self.policy.penalty,True)):
+                if amount:
+                    paid,fee=self.pool.sell(amount,self.policy.creator_fee_share,penalty); self.sold[name,k]+=amount
+                    if counted:self.cap_out[ck]+=paid
+                    self.penalties+=fee;total+=amount;payout+=paid
+        w.tokens-=total;w.marked-=min(w.marked,total);w.received+=payout;return total,payout
+    def split(self, source,count):
+        w=self.wallet(source)
+        if w.ever_large:return []
+        names=[f'{source}-{i}' for i in range(count)];each=w.tokens/count
+        for n in names:self.wallet(n).tokens+=each
+        w.tokens=0.;return names
 
-def seed(policy: Policy) -> Engine:
-    e = Engine(policy); e.buy("creator", 4, 0, True, 0)
-    for i in range(5): e.buy(f"early-{i}", 3, 0, i * 10 <= policy.n, i * 10)
-    for i in range(3): e.buy(f"large-{i}", 35, 48 + i)
-    for i in range(8): e.buy(f"band-{i}", 4, 72 + i)
+def seed(policy, early_near=3.):
+    e=Engine(policy);e.buy('creator',4,0,True,0,True)
+    for i in range(5):e.buy(f'early-{i}',early_near,0,True,i*3)
+    e.buy('small-early',.05,0,True,3)
+    for i in range(3):e.buy(f'large-{i}',35,48+i)
+    for i in range(8):e.buy(f'band-{i}',4,72+i)
     return e
 
-def normal(policy: Policy, seed_value: int = 7) -> Engine:
-    rng, e, high = random.Random(seed_value), seed(policy), 0.
-    for h in range(60 * 24):
+def normal(policy):
+    rng,e,high=random.Random(7),seed(policy),0.
+    for h in range(1440):
         for i in range(12):
-            name = f"small-{i}"
-            if rng.random() < .58 or e.wallet(name).tokens == 0: e.buy(name, rng.uniform(.03, .35), h)
-            else: e.sell(name, e.wallet(name).tokens * rng.uniform(.05, .35), h)
-        if h % 6 == 0: e.sell(f"band-{(h // 6) % 8}", e.wallet(f"band-{(h // 6) % 8}").tokens * .15, h)
-        if h % 24 == 0: e.sell(f"large-{(h // 24) % 3}", e.wallet(f"large-{(h // 24) % 3}").tokens, h)
-        high = max(high, e.price()); e.max_drawdown = max(e.max_drawdown, 1 - e.price() / high)
+            n=f'small-{i}'
+            if rng.random()<.58 or not e.wallet(n).tokens:e.buy(n,rng.uniform(.03,.35),h)
+            else:e.sell(n,e.wallet(n).tokens*rng.uniform(.05,.35),h)
+        if h%6==0:e.sell(f'band-{(h//6)%8}',e.wallet(f'band-{(h//6)%8}').tokens*.4,h)
+        if h%24==0:e.sell(f'large-{(h//24)%3}',e.wallet(f'large-{(h//24)%3}').tokens,h)
+        high=max(high,e.price());e.max_drawdown=max(e.max_drawdown,1-e.price()/high)
     return e
 
-def race(policy: Policy) -> dict[str, float]:
-    e = seed(policy); a, ao = e.sell("large-0", e.wallet("large-0").tokens, 96); b, bo = e.sell("large-1", e.wallet("large-1").tokens, 96)
-    return {"first_tokens": a, "first_near": ao, "second_tokens": b, "second_near": bo, "cap_used": e.cap.get(e.bucket(96), 0.), "brakes": e.brakes}
-
-def split_test(policy: Policy) -> dict[str, float]:
-    a, b = seed(policy), seed(policy); a.wallet("band-0").ever_large = False
-    direct, direct_near = a.sell("band-0", a.wallet("band-0").tokens, 100); children = b.split("band-0", 5)
-    split_near = sum(b.sell(child, b.wallet(child).tokens, 100)[1] for child in children)
-    return {"direct_tokens": direct, "direct_near": direct_near, "split_near": split_near, "extra_near": split_near - direct_near, "split_cost_near": len(children) * .007}
-
-def round_trip(policy: Policy) -> dict[str, float]:
-    e = seed(policy); before = e.pool.real; bought = e.buy("attacker", 12, 100); _, received = e.sell("attacker", bought, 100)
-    return {"near_spent": 12., "near_received": received, "net": received - 12., "cap_after": e.cap.get(e.bucket(100), 0.), "real_before": before, "real_after": e.pool.real}
-
-def creator_exit(policy: Policy) -> dict[str, float]:
-    e = seed(policy); start = e.wallet("creator").tokens
-    for h in range(60 * 24): e.sell("creator", e.wallet("creator").tokens, h)
-    return {"start_tokens": start, "remaining_tokens": e.wallet("creator").tokens, "days_to_exit_or_60": 60 if e.wallet("creator").tokens > 1 else h / 24}
-
-def rows(policy: Policy) -> list[dict[str, object]]:
-    base = {"label": "simulation", "n": policy.n, "t": policy.threshold, "brake": "off" if policy.brake is None else policy.brake, "penalty": policy.penalty, "window_hours": policy.window}; e = normal(policy)
-    return [dict(base, test="1_normal_brake", brake_trips=e.brakes, max_drawdown=e.max_drawdown), dict(base, test="4_small_holder_drawdown", max_drawdown=e.max_drawdown, final_price=e.price(), penalty_near=e.penalties), dict(base, test="2_first_seller_race", **race(policy)), dict(base, test="3_cap_race", **race(policy)), dict(base, test="5_brake_penalty", brakes=e.brakes, penalty_near=e.penalties), dict(base, test="6_penalty_level", penalty_near=e.penalties), dict(base, test="7_band_split", **split_test(policy)), dict(base, test="8_cap_round_trip", **round_trip(policy)), dict(base, test="9_buy_raise_cap", **round_trip(policy)), dict(base, test="10_creator_exit", **creator_exit(policy))]
-
-def write(name: str, rows: list[dict[str, object]]) -> None:
-    path = ROOT / "results" / name; path.parent.mkdir(exist_ok=True); columns = list(dict.fromkeys(k for row in rows for k in row))
-    with path.open("w", newline="") as f:
-        out = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore", lineterminator="\n"); out.writeheader(); out.writerows(rows)
-
-def main() -> None:
-    parser = argparse.ArgumentParser(); parser.add_argument("--quick", action="store_true"); args = parser.parse_args()
-    grid = [(n, t, d, p) for n in (5, 17, 50) for t in (.01, .02, .05) for d in (None, .1, .2, .3) for p in (.1, .2, .3)]
-    if args.quick: grid = [(17, .02, None, .1)]
-    result = [row for n, t, d, p in grid for row in rows(Policy(n, t, d, p))]
-    for window in (1 / 6, 24): result.extend(rows(Policy(17, .02, None, .1, window)))
-    for test in range(1, 11): write(f"test-{test}.csv", [row for row in result if row["test"].startswith(f"{test}_")])
-
-if __name__ == "__main__": main()
+def race(policy,reverse=False):
+    e=seed(policy);names=['large-1','large-0'] if reverse else ['large-0','large-1'];a=e.sell(names[0],e.wallet(names[0]).tokens,96);b=e.sell(names[1],e.wallet(names[1]).tokens,96)
+    return {'first_tokens':a[0],'first_near':a[1],'second_tokens':b[0],'second_near':b[1],'cap_net_near':e.cap_out[e.cap_bucket(96)]-e.cap_buy[e.cap_bucket(96)]}
+def split_test(p):
+    a,b=seed(p),seed(p);x=a.sell('band-0',a.wallet('band-0').tokens,100);kids=b.split('band-0',5);y=sum(b.sell(k,b.wallet(k).tokens,100)[1] for k in kids)
+    return {'direct_tokens':x[0],'direct_near':x[1],'split_near':y,'extra_near':y-x[1],'split_cost_near':.035}
+def round_trip(p,replenish=False):
+    e=seed(p);x=e.buy('attacker',12,100)
+    if replenish:e.buy('replenisher',30,100)
+    sold,got=e.sell('attacker',x,100);return {'near_spent':12.,'near_received':got,'net':got-12,'sold_tokens':sold,'cap_net_near':e.cap_out[e.cap_bucket(100)]-e.cap_buy[e.cap_bucket(100)]}
+def creator_exit(p,snipers=False):
+    e=seed(p);start=e.wallet('creator').tokens
+    for h in range(1440):
+        if snipers and h%8==0:e.buy(f'sniper-{h}',1,h)
+        e.sell('creator',e.wallet('creator').tokens,h)
+        if e.wallet('creator').tokens<1:break
+    return {'start_tokens':start,'remaining_tokens':e.wallet('creator').tokens,'days':h/24}
+def early_exit(p,share):
+    e=seed(p);total=sum(w.marked for w in e.wallets.values());f=share*SUPPLY/total
+    for w in e.wallets.values():
+        if w.marked:w.marked*=f;w.tokens=w.marked
+    w=e.wallet('early-0')
+    for h in range(1440):
+        e.sell(w.name,w.tokens,h)
+        if w.marked<1:break
+    return {'early_supply_share':share,'holder_days':h/24,'remaining_marked_tokens':w.marked}
+def base(p):return {'label':'simulation','n':p.n,'t':p.threshold,'brake':'off' if p.brake is None else p.brake,'penalty':p.penalty,'creator_fee_share':p.creator_fee_share,'window_hours':p.window}
+def rows(p,only=None):
+    b=base(p);e=normal(p);r={1:dict(b,test='1_normal_brake',brake_trips=e.brakes,max_drawdown=e.max_drawdown,final_price=e.price()),2:dict(b,test='2_first_seller_race',**race(p)),3:dict(b,test='3_cap_race_reversed',**race(p,True)),4:dict(b,test='4_small_holder_drawdown',max_drawdown=e.max_drawdown,final_price=e.price(),penalty_near=e.penalties),5:dict(b,test='5_brake_penalty',brakes=e.brakes,penalty_near=e.penalties),6:dict(b,test='6_penalty_level',penalty_near=e.penalties),7:dict(b,test='7_band_split',**split_test(p)),8:dict(b,test='8_cap_round_trip',**round_trip(p)),9:dict(b,test='9_buy_raise_cap',**round_trip(p,True)),10:dict(b,test='10_creator_exit',**creator_exit(p,False))};r[10].update({f'sniper_{k}':v for k,v in creator_exit(p,True).items()});out=[r[i] for i in sorted(only or r)];return out+([dict(b,test='11_early_supply_exit',**early_exit(p,x)) for x in (.09,.23,.41)] if not only or 11 in only else [])
+def write(name,rows):
+    cols=list(dict.fromkeys(k for r in rows for k in r));path=ROOT/'results'/name;path.parent.mkdir(exist_ok=True)
+    with path.open('w',newline='') as f:o=csv.DictWriter(f,fieldnames=cols,lineterminator='\n');o.writeheader();o.writerows(rows)
+def main():
+    a=argparse.ArgumentParser();a.add_argument('--checkpoint',action='store_true');args=a.parse_args()
+    if args.checkpoint: result=[r for s in (0.,.3) for r in rows(Policy(17,.02,None,.1,s),{1,4})]
+    else:
+        result=[r for n in (5,17,50) for d in (None,.1,.2,.3) for pen in (.1,.2,.3) for s in (0.,.3) for r in rows(Policy(n,.02,d,pen,s))]
+        for t in (.01,.05):result+=rows(Policy(17,t,None,.1))
+        for w in (1/6,24):result+=rows(Policy(17,.02,None,.1,0.,w))
+    for i in range(1,12):write(f'test-{i}.csv',[r for r in result if r['test'].startswith(f'{i}_')])
+if __name__=='__main__':main()

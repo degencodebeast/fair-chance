@@ -2,17 +2,10 @@
 
 ## Recommendation
 
-Use the NEAR Public Lakehouse in BigQuery as the reproducible historical
-source, then verify the selected launches and the first pool/swap transaction
-against an archival RPC. This avoids treating an explorer UI or token-list API
-as a source of truth, while keeping the replay practical for 10–20 launches.
-
-The Lakehouse is produced from NEAR's S3 chain data and publishes the
-`crypto_near_mainnet_us` BigQuery dataset. Its source repository documents
-blocks, chunks, transactions, execution outcomes, receipt details, receipt
-origin, receipt actions, and a receipts view. A chunk contains the chain's
-transactions and receipts; `receipt_origin` ties a receipt to the transaction
-that created it. [NEAR Public Lakehouse README](https://github.com/near/near-public-lakehouse#data-available)
+Use public launchpad indexes for bounded discovery, FastNEAR's public
+transaction index to locate signed launch calls, and a public archival RPC
+to verify every receipt that an index exposes. The replay does not require a
+Google account, BigQuery, an API key, a wallet, or a paid endpoint.
 
 ## Replay rules
 
@@ -31,27 +24,11 @@ that created it. [NEAR Public Lakehouse README](https://github.com/near/near-pub
    `unverified`, rather than filling them in. [NEAR archival-node
    documentation](https://near-nodes.io/archival/run-archival-node)
 
-## Discovery-query shape
-
-```sql
--- Pseudocode: adapt fields to the current public-dataset schema.
-SELECT r.block_timestamp, r.block_height, r.receipt_id, r.transaction_hash,
-       ra.receipt_receiver_account_id AS dex_contract, ra.args_base64,
-       r.transaction_signer_account_id
-FROM `bigquery-public-data.crypto_near_mainnet_us.receipt_actions` AS ra
-JOIN `bigquery-public-data.crypto_near_mainnet_us.receipts` AS r
-  USING (receipt_id)
-WHERE r.block_date BETWEEN @from_date AND @to_date
-  AND ra.action_kind = 'FUNCTION_CALL'
-  AND ra.receipt_receiver_account_id IN UNNEST(@dex_contracts)
-  AND ra.method_name IN UNNEST(@pool_creation_methods);
-```
-
-Pin the date range, retain the query job ID and contract/method allow-list,
-and fail closed if required schema fields change. For each coin retain token,
-symbol, decimals, DEX/pool identity, launch anchor, raw receipt values,
-normalized values, source query ID, archival response hash, and its explicit
-inclusion/exclusion reason.
+Pin the launch-list response, pool-trade responses, FastNEAR launch-transaction
+responses, and archival-RPC receipt
+responses in the committed fixture set. For each coin retain token, symbol,
+decimals, DEX/pool identity, launch anchor, raw receipt values, normalized
+values, and an explicit inclusion/exclusion reason.
 
 Avoid deprecated `rpc.*.near.org` and `*.pagoda.co` endpoints; NEAR directs
 backend users to providers or dedicated nodes in its [RPC deprecation
