@@ -1,0 +1,55 @@
+# Fair Chance: overview
+
+Fair Chance is a memecoin launchpad on NEAR. Every coin it launches has sell limits written into the coin contract. The creator, early buyers and large holders can sell into the pool only as fast as the pool's depth allows, however many wallets they use.
+
+Read this page first. The decisions and their reasons are in `docs/adr/`. The words are defined in `GLOSSARY.md`. Exact parameter values are in the spec, not here.
+
+## The problem
+
+When a new memecoin launches, the creator and a few large wallets often sell into the pool in the first minutes. Later buyers take the loss. Detection tools can warn a buyer, but they cannot stop a sell. Launchpads that act at all usually charge snipers a high fee at the buy, which is paid once. After that, the sniper can sell at any speed.
+
+## What Fair Chance does
+
+1. **One contract per coin, holding both the token and its pool.** The coin sees every buy, sell and send. It trades only in its own pool. Outside pools and deposits are refused (ADR 0002).
+2. **A virtual NEAR reserve from block 1.** The whole supply goes into the pool at launch. Nobody seeds real NEAR. There is no graduation, and the liquidity stays locked. All swap fees stay in the pool (ADR 0003).
+3. **An allowance per window, sized by pool depth.** Every account may sell up to one allowance per window. A deeper pool means a larger allowance. If your bag fits inside one allowance, no limit ever applies to you (ADR 0001).
+4. **Early supply shares one allowance.** Tokens bought by the creator, by the creator's sub-accounts, or by anyone in the first N blocks are marked. All marked tokens share one allowance per window, split by balance. Splitting across wallets at launch gains nothing (ADR 0001, ADR 0008).
+5. **Large holders cannot send.** A holder above the large threshold cannot move tokens to fresh wallets to get fresh allowances (ADR 0001).
+6. **Selling above the allowance.** Large and marked accounts get a partial fill, and the rest stays in the wallet. Mid-size (band) accounts may sell more and pay a penalty, which stays in the pool (ADR 0004).
+7. **A pool-wide cap on real NEAR paid out.** Early on, most of the pool is virtual. A cap, read live before each sell, limits how much real NEAR large, band and marked sells can take in one window (ADR 0005).
+8. **A falling buy fee in the first N blocks.** It cuts how much cheap early supply snipers take. It goes to the pool, and no account is exempt (ADR 0008).
+9. **Every sell needs a wallet confirmation.** The sell method needs 1 yoctoNEAR attached, so a leaked app login key cannot sell (ADR 0009).
+10. **Nobody can change a coin after launch.** The coin account has no access keys. Its code is a global contract used by code hash. It has no owner, pause, setter or upgrade method (ADR 0006).
+
+## The enforce and explain split
+
+The contract enforces the rules. Everything else explains them: the coin page, events, alerts and any off-chain link checks. An explain part can never move funds or change a limit. Wallet-link checks by an OutLayer worker, if built, are labeled context only (ADR 0007).
+
+## What it does not stop (known limits)
+
+- Late splitters: people who buy after block N through many small wallets at market price.
+- Wallets the creator funds but did not create as sub-accounts. The contract cannot see who funded an account.
+- A mid-size (band) holder sending parts of its bag to fresh wallets.
+- Account handover: a holder gives away the whole account, keys included.
+- Two allowances back to back at a window boundary.
+- Selling by small holders. The rule slows big exits. It does not make the price go up.
+
+Public claims say "most wallets", never "most selling". They do not use "safe", "cannot be rugged", "audited", "first" or "only".
+
+## Parts of the build
+
+| Part | What it is | Who |
+| --- | --- | --- |
+| Factory contract | Launches coins with one batch transaction, the same fixed values for every coin | Builder |
+| Coin contract | Token, pool and every rule above | Builder |
+| Frontend | Launch form, coin list, coin page with limits and receipts | Builder |
+| Events and view methods | NEP-297 event for every sell, limit and refusal; a view method for the early window and allowances | Builder (names are draft until frozen) |
+| NEAR launch replay | Measures early and insider selling on real NEAR launches | Kalu, issue #1 |
+| Rule simulation | Tests the parameters and attacks over 60 days | Kalu, issue #2 |
+
+## Ground rules for this repo
+
+- Testnet only. No mainnet deploy, no mainnet swap.
+- No keys or secrets in code, output or commits. Keys go in environment variables.
+- Analysis output is labeled "simulation" or "replay". It shows how the rules behave, not that users want them.
+- Do not change a rule to make a test pass. Report which test shows the problem.
