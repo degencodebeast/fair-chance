@@ -12,13 +12,13 @@ With a virtual NEAR reserve (ADR 0003), one price-sized allowance can pay out a 
 - The contract reads real NEAR live, from contract state, before each sell. The price-sized allowance keeps the window snapshot.
 - For unmarked accounts, the cap counts each account's net NEAR out in the window (sell payouts minus its buys), clamped at zero. For marked tokens, it counts gross payouts.
 - Only sells by large, band and marked accounts count toward the cap. Sells by small accounts (a bag inside one allowance) always pass and never count.
-- When the cap is full, large, band and marked sells stop at the floor until the next window. A band sell cannot pay the penalty to pass a full cap.
+- A band account's first allowance in each window always fills and never counts toward the cap. Only the part above counts, and it fills zero when the cap is full; a band sell cannot pay the penalty to pass a full cap. Large and marked sells stop at the floor when the cap is full, until the next window.
 - A floor gives every limited sell a minimum room per window. Each unmarked account has its own floor. Marked accounts share one floor, split pro rata.
 - The cap applies at every pool depth. There is no depth above which it turns off.
 
 ## Consequences
 
-- Large, band and marked holders together take at most a share c of the real NEAR per window, at every depth. Large holders who sell in the same window cannot add up past it.
+- Large and marked sells, and band sells above one allowance, together take at most a share c of the real NEAR per window. Band first allowances are outside this limit. Large holders who sell in the same window cannot add up past it.
 - A busy hour of small trading never fills the cap.
 - An unmarked round trip adds nothing to the cap total, so it cannot block other sellers.
 - A buy raises the cap for the whole pool. The order of sells inside a window matters: the first large seller in a window uses the room first.

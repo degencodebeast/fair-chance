@@ -13,7 +13,8 @@ A sell above the allowance can be refused, partly filled, queued or allowed with
 - Unused allowance does not carry over.
 - Large accounts and marked accounts get a partial fill up to the allowance. The rest stays in the wallet.
 - Band accounts (unmarked, between one allowance and the large threshold) may sell above the allowance. The part above pays a flat penalty on its NEAR output. The penalty goes to locked liquidity.
-- Unmarked sells count net. Marked sells count gross.
+- A band account's first allowance in each window always fills and never counts toward the real NEAR cap (ADR 0005). Only the part above counts, and it fills zero when the cap is full. Large and marked sells stop at the floor when the cap is full.
+- Unmarked sells count net, in tokens: tokens sold minus tokens bought in the window, at least zero. A buy then a sell uses no allowance; a sell first must fit the allowance when it happens. Marked sells count gross.
 - A drop brake exists as a parameter, off by default.
 
 ## Consequences
