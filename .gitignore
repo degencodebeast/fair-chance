@@ -1,0 +1,4 @@
+.omc/
+.env
+.env.*
+!.env.example
