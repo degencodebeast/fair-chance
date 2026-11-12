@@ -1,6 +1,6 @@
 # Virtual NEAR reserve, no graduation, whole supply in the pool
 
-Status: accepted (draft, builder review pending)
+Status: Accepted; may change after the sandbox skeleton and testnet
 
 ## Context
 
@@ -9,7 +9,7 @@ A pool seeded with real NEAR needs someone to seed it, and a small seed makes th
 ## Decision
 
 - At `new`, the coin mints its whole supply into its own pool, against a virtual NEAR reserve P. P is one factory constant for every coin.
-- Nobody seeds real NEAR. A price floor keeps the stored NEAR reserve at P or above, so no sell pays out NEAR that buyers did not put in.
+- Nobody seeds real NEAR. A NEAR reserve minimum keeps the stored NEAR reserve at P or above, so no sell pays out NEAR that buyers did not put in.
 - There is no graduation and no migration. The liquidity stays locked in the coin forever.
 - Swap fees go to locked liquidity. Changed by ADR 0010: a creator share of each fee builds up in a separate balance.
 - The creator group (the creator account, its sub-accounts and its parent accounts) may hold at most a fixed share of supply at any time. The contract checks this at each buy and at each send into the creator group.

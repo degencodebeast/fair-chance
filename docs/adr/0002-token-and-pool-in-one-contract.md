@@ -1,6 +1,6 @@
 # Token and pool in one contract
 
-Status: accepted (draft, builder review pending)
+Status: Accepted; may change after the sandbox skeleton and testnet
 
 ## Context
 
@@ -13,5 +13,5 @@ Each coin is one contract that holds both the NEP-141 token ledger and its own c
 ## Consequences
 
 - The contract sees every buy, sell and send, and can apply the rules in ADR 0001.
-- The coin trades only in its own pool. Outside pools and NEAR Intents deposits are refused.
+- The coin trades only in its own pool. `ft_transfer_call` is refused for every receiver, so deposits into outside pools and NEAR Intents are refused.
 - We write and test the pool math ourselves.

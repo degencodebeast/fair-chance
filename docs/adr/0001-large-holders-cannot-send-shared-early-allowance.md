@@ -1,6 +1,6 @@
 # Large holders cannot send, and early supply shares one allowance
 
-Status: accepted (draft, builder review pending)
+Status: Accepted; may change after the sandbox skeleton and testnet
 
 ## Context
 
@@ -9,16 +9,16 @@ A per-account sell limit fails if a holder can split its bag across fresh accoun
 ## Decision
 
 - Every unmarked account has the same allowance per window, sized by locked pool depth.
-- Early supply is marked. Early supply is tokens bought by the creator account, by its sub-accounts (suffix test), or by any account in the first N blocks.
-- All early supply shares one allowance per window. Each account may use a pro-rata share: the shared allowance times its marked balance, divided by all marked supply.
-- A sell or a send moves marked tokens first. The mark follows the tokens.
-- The first touch (send, receive or sell) of an account in a window records its balance. Each marked token counts at most once per window.
-- A large account cannot send tokens. An account stays large until its balance is zero.
-- Accounts below the large threshold send freely.
-- `ft_transfer_call` is refused unless the receiver is our pool. Outside liquidity is refused.
+- Early supply is marked. Early supply is tokens bought or received by the creator group, or bought by any account in blocks 0 to N. The creator group is the creator account, every account whose name ends with `.` plus the creator's name, and every parent account of the creator up to but not including the top-level account. A plain string suffix test is wrong: `malice.near` is not in the group of `alice.near`.
+- All early supply shares one allowance per window. Each account may use a pro-rata share: the shared allowance times its marked balance just before its first touch in the window (buy, send, receive or sell; in window 0, its first touch after block N), divided by all marked supply at window start.
+- A send moves marked tokens first. A sell fills the marked part first, up to the account's pro-rata share, then the unmarked part, up to the account's own allowance. The mark follows the tokens.
+- The first touch (buy, send, receive or sell) of an account in a window records its balance. Each marked token counts at most once per window.
+- Class uses the live balance at each action. A large account cannot send tokens. An account stays large until its balance is zero.
+- Accounts below the large threshold send freely, except that a send that would take a receiver that is not large to the large threshold or more is refused. Only a buy can make an account large.
+- `ft_transfer_call` is refused for every receiver. A plain `ft_transfer` to the coin account is refused. Sells use only the sell method. A send to yourself is refused, as in NEP-141. Outside liquidity is refused.
 - Force-unregister is refused while an account holds tokens or has used allowance.
 
-Claim: no large holder or insider can sell into our pool faster than its depth allows, and no transfer by a large holder, and no transfer of early supply, gives a fresh allowance.
+Claim: no large holder, creator-group account or early-supply account can sell into our pool faster than its depth allows, and no transfer by a large holder, and no transfer of early supply, gives a fresh allowance.
 
 ## Consequences
 

@@ -1,0 +1,86 @@
+# Fair Chance coin interface (1.0.0-rc.3)
+
+Status: Frozen as 1.0.0-rc on 2026-11-12. The paper test set 1.0.0-rc.3. It becomes `1.0.0` when the walking skeleton passes on sandbox. There is no vault, so penalties and the pool part of fees stay in locked liquidity.
+`1.0.0-rc.2` (builder, 2026-11-12): `cap_used` counts only the part of a band sell above the account's first allowance in the window. Also in `1.0.0-rc.2`: `FC_EARLY_WINDOW`, and the creator fee share (ADR 0010): new fields, one new view, one claim method, one new event, two refusal codes. All are additions; no existing field changes meaning except that `real_near` and `real_near_now` now exclude the creator balance.
+`1.0.0-rc.3` (builder, 2026-11-12 and 2026-11-13): the c cap is checked against real NEAR after each sell, so `cap_total` and `cap_left` change meaning; the creator fee depth test uses the lowest real NEAR of each 1 h window; `FC_TRANSFER_CALL_NOT_POOL` is renamed `FC_TRANSFER_CALL`; new refusal codes `FC_SEND_TO_COIN` and `FC_RECEIVER_WOULD_BE_LARGE`; new field `fc_account.max_receive`; every large, band and marked sell is checked, also when its own net adds zero; marked sells count net of the same account's buys for the cap only (the marked allowance stays gross); an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and each account's signed value is clamped at zero when read, before it is added to the cap total; window 0 starts its lowest real NEAR at 0, and a claim needs at least 24 h since `depth_ok_since`.
+Builder-confirmed fields (2026-11-12): `fc_send.to_marked_amount`, `fc_sell.marked_sold` and `fc_account.in_creator_group`. They are outputs only; no rule reads them.
+Change rule: a later change adds fields only, or bumps the version. Each change goes in a message to Kalu.
+
+Consumers: the builder's frontend (coin page, receipts), any indexer, and any later replay of Fair Chance testnet coins. Kalu's issues #1 and #2 read public chain data and the rule text in each issue only; they do not call these methods.
+
+## Conventions
+
+- NEP-297 standard name: `fair_chance`. Version string: `1.0.0-rc.3`.
+- Every token or NEAR amount is a decimal string in the smallest unit (token base units, yoctoNEAR).
+- Every time is a block timestamp in nanoseconds, as a decimal string. Block heights are numbers.
+- Shares and rates are basis points (1 bp = 0.01%), as numbers.
+- `class` is one of `small`, `band`, `large`. Class uses the live balance at each action. An account stays `large` until its balance is zero. Marked tokens show through `marked_balance` and `marked_tokens` fields, not through `class`.
+- Marked tokens leave first on a send. A sell fills the marked part first, up to the account's pro-rata share, then the unmarked part, up to the account's own allowance.
+- The coin also emits the standard NEP-141 events (`ft_mint` at launch, `ft_transfer` for sends, and for the token side of buys and sells, with the coin account as the other party).
+
+## Windows
+
+- One fixed grid from the launch time: window k runs from launch + k x length to launch + (k + 1) x length. Lengths: 1 h for unmarked accounts and for the pool-wide c cap, 24 h for early supply.
+- Marked payouts count in the same 1 h cap window, net of the same account's buys, for the cap only.
+- The token reserve for the 2% price cap is recorded at the first action in each window, before that action takes effect.
+- In window 0, marked sells have no allowance in blocks 0 to N. Early-supply shares and the window-0 token reserve for early supply are recorded at the first action after block N.
+- Known limit: every allowance and the cap reset at the same moment, so bots race at the reset.
+- Depth for the creator fee claim: the contract keeps the lowest real NEAR of each 1 h window, updated at every action. A new window starts that value at the real NEAR carried from the last action. A window with no actions keeps that carried value. The lowest value is read after each action. A claim tests the last 24 full windows and the current window up to the claim. The claim does not change real NEAR. Window 0 starts its lowest value at 0 real NEAR. The contract keeps `depth_ok_since`: set by the first window whose lowest value is at or above the minimum, and cleared by any window below it. A claim needs at least 24 h since `depth_ok_since`.
+
+## Refusals
+
+- Hard refusals panic with a fixed error code. No `fair_chance` event is emitted, because a failed receipt rolls back and event indexers read successful receipts. Codes:
+  - `FC_LARGE_CANNOT_SEND`: a large account sends.
+  - `FC_RECEIVER_WOULD_BE_LARGE`: a send that would take a receiver that is not large to `large_threshold_bps` of supply or more. The message starts with the code and then gives the largest amount the sender can send. Added for `1.0.0-rc.3`.
+  - `FC_TRANSFER_CALL`: `ft_transfer_call` to any receiver. Renamed from `FC_TRANSFER_CALL_NOT_POOL` in `1.0.0-rc.3`.
+  - `FC_SEND_TO_COIN`: a plain `ft_transfer` to the coin account. Sells use only the sell method. Added for `1.0.0-rc.3`.
+  - A send to yourself is refused with the standard NEP-141 error.
+  - `FC_UNREGISTER_WITH_BALANCE`: force-unregister while the account holds tokens or has used allowance.
+  - `FC_CREATOR_CAP`: a buy by the creator group, or a send into the creator group, that takes the group above 4% of supply.
+  - `FC_ONE_YOCTO`: a sell without exactly 1 yoctoNEAR attached.
+  - `FC_SLIPPAGE`: the price per token of the filled part is below the seller's minimum. Slippage is checked on the price per token, not on total NEAR out, so a partial fill does not fail slippage. From `1.0.0-rc.2` it also covers buys: a buy whose `tokens_out` is below the buyer's `min_tokens_out`.
+  - `FC_EARLY_WINDOW`: a sell of marked tokens in blocks 0 to N. Added for `1.0.0-rc.2`.
+  - `FC_NOT_CREATOR`: `claim_creator_fees` called by any account but the creator. Added for `1.0.0-rc.2`.
+  - `FC_CLAIM_NOT_READY`: `claim_creator_fees` before the lowest real NEAR of every 1 h window in the last `claim_depth_hold_s` has been at least `claim_min_real_near`, or with a zero balance. Added for `1.0.0-rc.2`.
+- A sell above a limit never panics for the limit. It fills in part, or fills zero, and emits `fc_sell` with the reason.
+
+## View methods
+
+1. `fc_rules()`: the fixed values of this coin.
+   `creator`, `launch_block`, `launch_ns`, `p_bps` (200), `window_unmarked_s` (3600), `window_early_s` (86400), `early_blocks` (N), `large_threshold_bps` (T), `creator_cap_bps` (400), `real_cap_c_bps` (500), `floor_bps` (10), `penalty_bps` (1000), `virtual_near` (P), `swap_fee_bps`, `early_fee_start_bps`, `brake_drop_bps` (null = off), `creator_fee_share_bps` (s, share of the normal swap fee `swap_fee_bps` that goes to the creator balance; never applied to `penalty_bps` or to the early-fee extra above `swap_fee_bps`), `claim_min_real_near` (X), `claim_depth_hold_s` (86400), `unclaimed_to_pool_s` (D, null = off), `code_hash`.
+2. `fc_pool()`: `token_reserve`, `near_reserve`, `virtual_near`, `real_near`, `creator_fee_balance`, `block`. `real_near` is NEAR in the pool paid in by buyers, minus NEAR paid out. It never includes `creator_fee_balance`.
+3. `fc_early_window()`: `early_blocks`, `blocks_left`, `early_supply_total`, `shared_allowance`, `rate_per_token`, `buy_fee_bps_now`, `fee_end_block`.
+4. `fc_cap()`: the pool-wide real NEAR cap in the current 1 h window.
+   `window_start_ns`, `window_end_ns` (the reset time), `real_near_now` (same definition as `fc_pool.real_near`, without the creator balance), `cap_total` (c x real NEAR now, before any further sell), `cap_used` (net per account, marked and unmarked, from a signed running value per account that is clamped at zero when read, before it is added to the total (one account's buys never offset another account's sells), with each buy counted as the full NEAR paid, fee included; an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and only the rest offsets its counted sells; for a band account, only NEAR out from the part of its sells above its first allowance in the window counts; its first allowance never counts), `cap_left` (the largest NEAR out that one more limited sell can take now, checked against the real NEAR left after that sell: (cap_total minus cap_used minus c x the creator share of that sell) ÷ (1 + c), at least 0; the creator share grows with the sell size, so the spec solves it as one linear term), `is_full`, `fills_this_window`.
+5. `fc_account(account_id)`: one holder's state.
+   `class`, `balance`, `marked_balance`, `unmarked_balance`, `is_large`, `can_send`, `in_creator_group`, `max_receive` (largest amount a send to this account can carry now without taking it to `large_threshold_bps`; null for a large account; added for `1.0.0-rc.3`),
+   `unmarked`: `allowance`, `used`, `left`, `floor_left`, `window_end_ns`, (`used` is net tokens in the window: max(0, tokens sold minus tokens bought); a buy gives room back, a sell first must fit when it happens),
+   `marked`: `share_bps`, `allowance`, `used`, `left`, `floor_left`, `window_end_ns` (allowance 0 in blocks 0 to N),
+   `max_full_fill_now` (largest sell that fills fully now with no penalty), `penalty_applies_above` (band only, else null).
+6. `fc_quote_sell(account_id, amount)`: a preview of one sell now, with no state change.
+   `tokens_filled`, `near_out`, `penalty_near`, `fill` (`full`, `partial`, `none`), `limit_reason` (null, `allowance`, `cap_full`, `floor`), `cap_left_after`.
+7. `fc_creator_fees()`: `creator`, `balance` (unclaimed), `claimed_total`, `depth_ok_since_ns` (null when the lowest real NEAR of the current window is below X), `claimable_now`, `claimable_at_ns` (earliest claim time if real NEAR stays at least X; null when not counting).
+8. `fc_quote_buy(account_id, near_in)`: a preview of one buy now, with no state change. Added for `1.0.0-rc.2`.
+   `tokens_out`, `fee_near`, `creator_fee_near`, `marked_tokens` (all of `tokens_out` in blocks 0 to N or for a creator-group buyer, else 0), `class_after`, `becomes_large` (true when the account is not large now and the buy takes its balance to `large_threshold_bps` of supply or more), `allowance_after` (the account's unmarked allowance in the current window after the buy). The frontend sets the buy's `min_tokens_out` from `tokens_out`.
+
+## Change methods added or changed in 1.0.0-rc.2 and 1.0.0-rc.3
+
+- Buy: takes `min_tokens_out` (token base units). The contract refuses a buy with `FC_SLIPPAGE` when `tokens_out` would be below it. The frontend sets it from the buy preview minus a small margin. A buy is never filled in part.
+
+- `claim_creator_fees()`: creator only, 1 yoctoNEAR attached. Sets the balance to 0, sends the whole amount to the creator, and checks the result in a callback. If the transfer fails (for example, the creator account no longer exists), the callback adds the amount back to `creator_fee_balance`, so no NEAR is lost between counters. `fc_creator_claim` is emitted in the callback, only after the transfer succeeds. Refusals: `FC_NOT_CREATOR`, `FC_CLAIM_NOT_READY`.
+
+## Events (`fair_chance`, data is a list of one object)
+
+1. `fc_buy`: `account`, `near_in`, `fee_near` (the whole swap fee, as before), `creator_fee_near` (s x the normal swap fee on `near_in`; the early-fee extra and the rest of the fee stay in the pool), `tokens_out`, `marked_tokens` (tokens marked by this buy: all of them in blocks 0 to N or for a creator-group buyer at any time, else 0), `class_after`, `block`.
+2. `fc_sell`: `account`, `class`, `tokens_asked`, `tokens_sold`, `marked_sold`, `near_out`, `fee_near` (the whole swap fee on this sell), `creator_fee_near` (s x the normal swap fee on this sell), `penalty_near` (100% stays in the pool; no creator share), `fill`, `limit_reason`, `allowance_used`, `allowance_left`, `cap_used`, `cap_left`, `window_end_ns`.
+3. `fc_send`: `from`, `to`, `amount`, `marked_amount` (marked tokens that leave the sender; marked tokens leave first), `to_marked_amount` (tokens marked at the receiver: equal to `amount` when the receiver is in the creator group, else equal to `marked_amount`). It covers creator-group receives that become marked.
+4. `fc_cap_filled`: emitted each time the cap goes from "has room" to "full" (`cap_used` equal to or more than c x the real NEAR left after the sell). `window_start_ns`, `window_end_ns` (reset time), `real_near`, `cap_total`, `cap_used`, `by_account` (the sell that filled it), `fill_index` (1, 2, ... in the window).
+5. `fc_became_large`: `account`, `balance`, `large_threshold`. Emitted by the buy that crosses T. The account cannot send from now until its balance is zero.
+6. `fc_creator_claim`: `creator`, `amount`, `depth_ok_since_ns`, `block`. Emitted only after the payout transfer succeeds. Added for `1.0.0-rc.2`.
+7. `fc_creator_fees_to_pool`: `amount`, `block`. Only if `unclaimed_to_pool_s` is set; emitted at the first action of a new window. Added for `1.0.0-rc.2`.
+
+Factory event (`fair_chance_factory`): `fc_launch`: `coin`, `creator`, `code_hash`, `launch_block`.
+
+## Paper test, cases 3 and 4
+
+No field names an indexer or a TEE provider. OutLayer context, if built, has its own interface outside the coin (ADR 0007), so a new indexer or a new TEE provider changes nothing here.

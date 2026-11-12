@@ -1,6 +1,6 @@
 # Partial fill for large and marked sells, penalty for band sells, one window per class
 
-Status: accepted (draft, builder review pending)
+Status: Accepted; may change after the sandbox skeleton and testnet
 
 ## Context
 
@@ -8,7 +8,7 @@ A sell above the allowance can be refused, partly filled, queued or allowed with
 
 ## Decision
 
-- The contract records the token reserve at the first action in each window and counts what each account sold in that window. It uses no last price and no average.
+- The contract records the token reserve at the first action in each window, before that action takes effect, and counts what each account sold in that window. It uses no last price and no average.
 - Unmarked accounts use a short window. Early supply uses a long window. Both are code parameters.
 - Unused allowance does not carry over.
 - Large accounts and marked accounts get a partial fill up to the allowance. The rest stays in the wallet.

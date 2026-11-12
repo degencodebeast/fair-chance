@@ -1,6 +1,6 @@
 # OutLayer worker output is context only
 
-Status: accepted (draft, builder review pending)
+Status: Accepted; may change after the sandbox skeleton and testnet
 
 ## Context
 
