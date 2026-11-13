@@ -14,6 +14,7 @@ With a virtual NEAR reserve (ADR 0003), one price-sized allowance can pay out a 
 - Only sells by large, band and marked accounts count toward the cap. Sells by small accounts (a bag inside one allowance) always pass and never count.
 - A band account's first allowance in each window always fills and never counts toward the cap. Only the part above counts, and it fills zero when the cap is full; a band sell cannot pay the penalty to pass a full cap. Large and marked sells stop at the floor when the cap is full, until the next window.
 - A floor gives every limited sell a minimum room per window. Each unmarked account has its own floor. Marked accounts share one floor, split pro rata.
+- The floor is 10 bps (floor_bps) of the window's recorded token reserve, the same snapshot that sizes the allowance, rounded down, in tokens. The coin records the snapshot before the first action of each window runs, buy or sell. Each unmarked account gets one floor per window. The shared marked floor uses the same base, split pro rata. Each account gets its own floor, so many accounts can pass a full cap (known limit: floors above the cap).
 - The cap applies at every pool depth. There is no depth above which it turns off.
 
 ## Consequences

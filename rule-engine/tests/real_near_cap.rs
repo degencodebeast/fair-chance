@@ -553,3 +553,69 @@ fn band_penalty_applies_above_equals_max_full_fill_now_when_the_balance_is_below
     assert_eq!(sell.fill, "full");
     assert_eq!(sell.penalty_near, 0);
 }
+
+/// The allowance at the launch token reserve (1e27), from a separate integer model: the largest
+/// q with (y / (y + q))^2 >= 0.98.
+const ALLOWANCE_AT_LAUNCH: u128 = 10_152_544_552_210_749_144_063_374;
+/// The floor at the launch token reserve: 10 bps of 1e27.
+const FLOOR_AT_LAUNCH: u128 = 1_000_000_000_000_000_000_000_000;
+
+#[test]
+fn the_floor_and_the_allowance_read_the_same_window_snapshot_in_window_0_and_later_windows() {
+    let mut coin = Coin::launched();
+    // Window 0: the snapshot is the launch reserve, before and after the window's buys.
+    for (i, at) in [after(1), after(20)].into_iter().enumerate() {
+        let view = coin.account(OTHER, at);
+        assert_eq!(view.unmarked.allowance, ALLOWANCE_AT_LAUNCH, "step {i}");
+        assert_eq!(view.unmarked.floor_left, FLOOR_AT_LAUNCH, "step {i}");
+        coin.buy(LARGE, 10 * ONE_NEAR, at);
+    }
+    // Window 1: both come from the token reserve at the window's first action.
+    let reserve = view_pool(&coin.state, window_1(0)).token_reserve;
+    let before = coin.account(OTHER, window_1(0));
+    assert_eq!(before.unmarked.floor_left, reserve / 1_000);
+    coin.buy(SECOND_LARGE, 5 * ONE_NEAR, window_1(0));
+    coin.sell_all(LARGE, window_1(1));
+    let later = coin.account(OTHER, window_1(2));
+    assert_eq!(later.unmarked.floor_left, reserve / 1_000);
+    assert_eq!(later.unmarked.allowance, before.unmarked.allowance);
+    assert!(view_pool(&coin.state, window_1(2)).token_reserve != reserve);
+}
+
+#[test]
+fn a_sell_that_is_the_first_action_of_a_window_does_not_change_its_own_floor() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    let at = window_1(0);
+    let floor = coin.account(LARGE, at).unmarked.floor_left;
+    let other_floor = coin.account(OTHER, at).unmarked.floor_left;
+    assert_eq!(floor, other_floor);
+
+    let sell = coin.sell_all(LARGE, at);
+    assert!(sell.tokens_sold > 0);
+    let view = coin.account(LARGE, at);
+    // floor_left is the floor less the tokens used: the floor itself kept its value.
+    assert_eq!(
+        view.unmarked.floor_left + view.unmarked.used.min(floor),
+        floor
+    );
+    assert_eq!(coin.account(OTHER, at).unmarked.floor_left, floor);
+}
+
+#[test]
+fn a_buy_that_is_the_first_action_of_a_window_does_not_change_that_window_s_floor() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    let at = window_1(0);
+    let floor = coin.account(OTHER, at).unmarked.floor_left;
+    let buyer_floor = coin.account(SECOND_LARGE, at).unmarked.floor_left;
+
+    coin.buy(SECOND_LARGE, 20 * ONE_NEAR, at);
+
+    assert_eq!(coin.account(OTHER, at).unmarked.floor_left, floor);
+    assert_eq!(
+        coin.account(SECOND_LARGE, at).unmarked.floor_left,
+        buyer_floor
+    );
+    assert_eq!(buyer_floor, floor);
+}
