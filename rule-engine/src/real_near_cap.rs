@@ -112,7 +112,10 @@ pub fn cap_net_now(state: &CoinState, holder: Option<&Holder>, at: At) -> CapNet
 pub fn after_buy(state: &CoinState, holder: &Holder, near_in: u128, at: At) -> (CapNet, u128) {
     let before = cap_net_now(state, Some(holder), at);
     let after = before.after_buy(near_in);
-    (after, cap_used(state, at) - before.counted() + after.counted())
+    (
+        after,
+        cap_used(state, at) - before.counted() + after.counted(),
+    )
 }
 
 /// The holder's record and the pool's cap used after a sell that pays `uncounted_out` from its
@@ -126,7 +129,10 @@ pub fn after_sell(
 ) -> (CapNet, u128) {
     let before = cap_net_now(state, Some(holder), at);
     let after = before.after_sell(uncounted_out, counted_out);
-    (after, cap_used(state, at) - before.counted() + after.counted())
+    (
+        after,
+        cap_used(state, at) - before.counted() + after.counted(),
+    )
 }
 
 /// The check after a sell: cap used <= c x the real NEAR left.
