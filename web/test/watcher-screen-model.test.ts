@@ -24,9 +24,11 @@ describe("the alerts screen", () => {
     expect(m.checkCard).toBe(file.check_reply);
   });
 
-  it("labels the whole screen and the pre-buy card as sample data", () => {
+  it("labels the chat card, the plain text card and the pre-buy card as sample data, each on its own", () => {
     const m = watcherScreenModel(bare);
     expect(m.sampleLabel).toMatch(/^Sample data/);
+    expect(m.chatLabel).toMatch(/^Sample data/);
+    expect(m.plainLabel).toMatch(/^Sample data/);
     expect(m.preBuyLabel).toMatch(/^Sample data/);
   });
 
