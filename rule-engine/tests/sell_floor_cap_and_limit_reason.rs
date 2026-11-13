@@ -19,6 +19,7 @@ const LARGE: &str = "large.test";
 const SMALL: &str = "small.test";
 const EARLY: &str = "early.test";
 const SECOND_EARLY: &str = "second-early.test";
+const SECOND_LARGE: &str = "second-large.test";
 
 /// A block in the early window (blocks 0 to 17 after launch at block 100).
 fn early_block(b: u64) -> At {
@@ -138,6 +139,58 @@ impl Coin {
 
 fn within_cap(cap_used: u128, real_near_left: u128) -> bool {
     cap_used * BPS <= C_BPS * real_near_left
+}
+
+/// Window 0: LARGE 10 NEAR, SECOND_LARGE 3 NEAR, SMALL 0.5 NEAR. Window 1: LARGE sells all
+/// (the cap stops it), then SMALL sells all, so the cap used is above c x real NEAR.
+fn coin_with_a_cap_above_full_in_window_1() -> Coin {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    coin.buy(SECOND_LARGE, 3 * ONE_NEAR, after(11));
+    coin.buy(SMALL, ONE_NEAR / 2, after(13));
+    let at = window_1(1);
+    assert_eq!(
+        coin.sell(LARGE, coin.balance(LARGE), at).limit_reason,
+        Some("cap_full")
+    );
+    coin.sell(SMALL, coin.balance(SMALL), window_1(2));
+    let cap = coin.cap(window_1(2));
+    assert!(!within_cap(cap.cap_used, cap.real_near_now));
+    coin
+}
+
+/// At a cap above full, a large account sells to its floor,
+/// buys, and sells at its floor again in the same 1 h window.
+#[test]
+fn a_buy_gives_no_floor_room_back_in_the_same_window() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+    let floor = coin.account(SECOND_LARGE, at).unmarked.floor_left;
+    let first = coin.sell(SECOND_LARGE, coin.balance(SECOND_LARGE), at);
+    let held = coin.balance(SECOND_LARGE);
+    coin.buy(SECOND_LARGE, 3 * ONE_NEAR / 10, window_1(4));
+    let bought = coin.balance(SECOND_LARGE) - held;
+    let floor_after_buy = coin.account(SECOND_LARGE, window_1(4)).unmarked.floor_left;
+    let second = coin.sell(SECOND_LARGE, coin.balance(SECOND_LARGE), window_1(5));
+    let cap = coin.cap(window_1(5));
+    println!(
+        "floor {floor}; sell 1: sold {} reason {:?}; buy {bought} tokens; floor_left \
+         after buy {floor_after_buy}; sell 2: sold {} reason {:?}; total floor fills {}; cap \
+         used {} vs c x real {}",
+        first.tokens_sold,
+        first.limit_reason,
+        second.tokens_sold,
+        second.limit_reason,
+        first.tokens_sold + second.tokens_sold,
+        cap.cap_used,
+        cap.real_near_now * C_BPS / BPS,
+    );
+    assert!(
+        first.tokens_sold + second.tokens_sold <= floor,
+        "two floors in one window: {} + {} > one floor {floor}",
+        first.tokens_sold,
+        second.tokens_sold
+    );
 }
 
 /// EARLY buys 5 NEAR in the early window (marked, large), then 1 NEAR after it (unmarked).

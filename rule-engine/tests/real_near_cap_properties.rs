@@ -54,8 +54,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 use rule_engine::{
-    apply, launch, quote_sell, view_account, view_cap, view_early_window, view_pool, Action, At,
-    CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders, LaunchRequest,
+    apply, launch, quote_sell, view_account, view_cap, view_early_window, view_pool, AccountView,
+    Action, At, CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders,
+    LaunchRequest,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -137,6 +138,9 @@ struct Coin {
     bought_in_window: BTreeSet<String>,
     /// Check, after every step, that each marked token counts once per 24 h window.
     check_marked_shares: bool,
+    /// Each account's tokens sold in its current 1 h window, and the tokens of those sells that
+    /// could fill at any cap (its unmarked floor left before each sell), keyed by window end.
+    floor_use: BTreeMap<String, FloorUse>,
 }
 
 impl Coin {
@@ -171,6 +175,7 @@ impl Coin {
             cap_window_start_ns: LAUNCH_NS,
             bought_in_window: BTreeSet::new(),
             check_marked_shares: false,
+            floor_use: BTreeMap::new(),
         }
     }
 
@@ -352,6 +357,7 @@ impl Coin {
             return Ok(());
         };
         let quote = quote.expect("a quote for a sell that went through");
+        self.one_floor_per_window(account, &before, &sell)?;
         prop_assert_eq!(quote.tokens_filled, sell.tokens_sold);
         prop_assert_eq!(quote.near_out, sell.near_out);
         prop_assert_eq!(quote.penalty_near, sell.penalty_near);
@@ -409,6 +415,45 @@ impl Coin {
         if sell.class == "small" && sell.marked_sold == 0 && !bought_in_window {
             prop_assert_eq!(cap.cap_used, used_before, "a small sell counted");
         }
+        Ok(())
+    }
+
+    /// No account takes two floors in one window. The unmarked floor left is the window's floor
+    /// less every token the account sold in the window, marked and unmarked; a buy gives no room
+    /// back. So the tokens of the account's sells that could fill at any cap (each sell's
+    /// `min(tokens sold, floor left before it)`) add up to at most one floor.
+    fn one_floor_per_window(
+        &mut self,
+        account: &str,
+        before: &AccountView,
+        sell: &FcSell,
+    ) -> Result<(), TestCaseError> {
+        let floor = view_account(&self.state, "no-record.test", None, self.at)
+            .unmarked
+            .floor_left;
+        let window_end_ns = before.unmarked.window_end_ns;
+        let used = self.floor_use.entry(account.to_string()).or_default();
+        if used.window_end_ns != window_end_ns {
+            *used = FloorUse {
+                window_end_ns,
+                ..FloorUse::default()
+            };
+        }
+        prop_assert_eq!(
+            before.unmarked.floor_left,
+            floor.saturating_sub(used.sold),
+            "{}'s floor left is not the floor less its tokens sold in the window",
+            account
+        );
+        used.sold += sell.tokens_sold;
+        used.taken += sell.tokens_sold.min(before.unmarked.floor_left);
+        prop_assert!(
+            used.taken <= floor,
+            "{} took {} at its floor in one window, above one floor {}",
+            account,
+            used.taken,
+            floor
+        );
         Ok(())
     }
 
@@ -545,6 +590,16 @@ impl Coin {
         }
         Ok(())
     }
+}
+
+/// One account's sells in one 1 h window, for the one-floor-per-window check.
+#[derive(Debug, Default)]
+struct FloorUse {
+    window_end_ns: u64,
+    /// Tokens sold in the window, marked and unmarked.
+    sold: u128,
+    /// The tokens of those sells that could fill at any cap.
+    taken: u128,
 }
 
 /// A send moves the sender's marked tokens first, and every token the creator group receives is
