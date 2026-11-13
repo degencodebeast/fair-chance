@@ -3,6 +3,7 @@
 // become markup.
 import { loadCoinPage, type CoinPageData } from "./coin-page.ts";
 import { el, type Child } from "./dom-elements.ts";
+import { telegramButton } from "./telegram-button.ts";
 import { drawYourPlan } from "./render-your-plan.ts";
 import {
   coinPageModel,
@@ -95,13 +96,7 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
           el("a", { class: "chip chip-link chip-phone", href: "#rules" }, h.rulesChip.phone),
         ),
         h.description && el("p", { class: "coin-description", id: "coin-description" }, h.description),
-        // Turned off until the builder approves a public bot: no button may look like it works when it does not.
-        el(
-          "div",
-          { class: "telegram" },
-          el("button", { type: "button", class: "button button-off", id: "watch-telegram", disabled: "", "aria-describedby": "watch-telegram-reason" }, m.telegram.label),
-          el("span", { class: "muted", id: "watch-telegram-reason" }, m.telegram.reason),
-        ),
+        telegramButton(m.telegram),
       ),
     ),
   );

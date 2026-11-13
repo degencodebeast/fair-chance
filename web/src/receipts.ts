@@ -33,9 +33,8 @@ export function sellRow(e: CoinEvent): ReceiptRow {
     fill: String(d.fill),
     limit_reason: d.limit_reason ?? null,
   };
-  const text =
-    `${row.account} sold ${tokensShort(row.tokens_sold)} of ${tokensShort(row.tokens_asked)} tokens for ` +
-    `${nearShort(row.near_out)} NEAR.${FILL_WORDS[row.fill] ?? ""}`;
+  const [sold, asked] = tokensPair(row.tokens_sold, row.tokens_asked);
+  const text = `${row.account} sold ${sold} of ${asked} tokens for ${nearShort(row.near_out)} NEAR.${FILL_WORDS[row.fill] ?? ""}`;
   return { ...row, text };
 }
 
@@ -50,6 +49,20 @@ export function tokensShort(base: string): string {
   if (!/^\d+$/.test(base)) return base;
   const text = compactTokens(base, TOKEN_DECIMALS);
   return text === "0.0" ? "less than 0.1" : text;
+}
+
+/**
+ * Two token amounts as compact text. When the amounts differ but their compact forms are equal
+ * ("4.9M of 4.9M"), more digits are shown until the two texts differ, so a part fill never reads as full.
+ */
+export function tokensPair(sold: string, asked: string): [string, string] {
+  const compact: [string, string] = [tokensShort(sold), tokensShort(asked)];
+  if (compact[0] !== compact[1] || sold === asked || !/^\d+$/.test(sold) || !/^\d+$/.test(asked)) return compact;
+  for (const places of [2, 6, TOKEN_DECIMALS]) {
+    const longer: [string, string] = [amount(sold, TOKEN_DECIMALS, places), amount(asked, TOKEN_DECIMALS, places)];
+    if (longer[0] !== longer[1]) return longer;
+  }
+  return [sold, asked];
 }
 
 /** yoctoNEAR as NEAR with 2 decimals. A nonzero amount below 0.01 reads "less than 0.01". */

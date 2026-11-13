@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
 import { coinPageModel, loadingFrame, type CoinPageModel } from "../src/coin-page-model.ts";
-import { sellRow } from "../src/receipts.ts";
+import { nearShort, sellRow, tokensShort } from "../src/receipts.ts";
+import { telegramButton } from "../src/telegram-button.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
 import { readerFrom, recordedCoin, type RecordedCoin } from "./recorded-coin.ts";
 
@@ -128,5 +129,51 @@ describe("header", () => {
     const v = await ready(recordedCoin("normal"));
     expect(v.header.rulesChip).toEqual({ desktop: "Same rules for every coin", phone: "Rules" });
     expect(v.telegram).toEqual({ label: "Watch on Telegram", reason: "Not open yet. The public alert bot is not live." });
+  });
+});
+
+describe("compact amounts that hide a difference", () => {
+  const sell = (asked: string, sold: string) => ({
+    standard: "fair_chance", name: "fc_sell", coin, block: 1, receiptId: "r", timeNs: "1",
+    data: { account: "you.testnet", tokens_asked: asked, tokens_sold: sold, near_out: "20000000000000000000000", fill: "partial", limit_reason: null },
+  }) as never;
+  it("shows more digits when sold and asked share a compact form", () => {
+    expect(sellRow(sell(`4999999${E18}`, `4950000${E18}`)).text).toBe(
+      "you.testnet sold 4,950,000.00 of 4,999,999.00 tokens for 0.02 NEAR. It filled in part.",
+    );
+  });
+  it("keeps the compact form when the amounts are equal", () => {
+    expect(sellRow(sell(`4999999${E18}`, `4999999${E18}`)).text).toContain("sold 4.9M of 4.9M tokens");
+  });
+});
+
+describe("tiny amounts", () => {
+  it("says less than 0.1 tokens and less than 0.01 NEAR instead of a zero", () => {
+    expect(tokensShort("1")).toBe("less than 0.1");
+    expect(tokensShort("0")).toBe("0");
+    expect(nearShort("1")).toBe("less than 0.01");
+    expect(nearShort("0")).toBe("0.00");
+  });
+});
+
+describe("Telegram button element", () => {
+  it("is disabled and shows its reason", () => {
+    const made = (tag: string) => {
+      const attrs = new Map<string, string>();
+      const kids: unknown[] = [];
+      return { tag, attrs, kids, setAttribute: (k: string, v: string) => attrs.set(k, v), append: (c: unknown) => kids.push(c) };
+    };
+    vi.stubGlobal("document", { createElement: made });
+    try {
+      const wrap = telegramButton({ label: "Watch on Telegram", reason: "Not open yet." }) as never as ReturnType<typeof made>;
+      const [button, reason] = wrap.kids as ReturnType<typeof made>[];
+      expect(button!.attrs.get("id")).toBe("watch-telegram");
+      expect(button!.attrs.has("disabled")).toBe(true);
+      expect(button!.kids).toEqual(["Watch on Telegram"]);
+      expect(reason!.attrs.get("id")).toBe("watch-telegram-reason");
+      expect(reason!.kids).toEqual(["Not open yet."]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
