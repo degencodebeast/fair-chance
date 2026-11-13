@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { LAUNCH_LIMITS } from "../src/launch-form-model.ts";
 import { drawLaunchForm } from "../src/render-launch-form.ts";
 import { expectNoEnabledControlWithoutHandler, turnedOffReasons } from "./dom-controls.ts";
@@ -57,5 +57,76 @@ describe("launch form", () => {
     const event = new Event("submit", { cancelable: true });
     app.querySelector("#launch-form")!.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
+  });
+});
+
+describe("launch form name check", () => {
+  function checked(answer: () => Promise<"free" | "taken">, factory: string | null = "factory.sandbox") {
+    const app = document.createElement("main");
+    document.body.replaceChildren(app);
+    const calls: string[] = [];
+    const checkName = factory === null ? null : async (id: string) => { calls.push(id); return answer(); };
+    drawLaunchForm(app, "http://localhost/?view=launch", { factory, checkName });
+    return { app, calls };
+  }
+  const change = (app: HTMLElement, value: string) => {
+    const t = app.querySelector<HTMLInputElement>("#launch-ticker")!;
+    t.value = value;
+    t.dispatchEvent(new Event("input"));
+    t.dispatchEvent(new Event("change"));
+  };
+  const text = (app: HTMLElement) => app.querySelector("#launch-name-check")?.textContent ?? "";
+
+  it("shows free for a free account and checks the lowered ticker under the factory", async () => {
+    const { app, calls } = checked(async () => "free");
+    change(app, "Bag");
+    await vi.waitFor(() => expect(text(app)).toBe("bag.factory.sandbox is free."));
+    expect(calls).toEqual(["bag.factory.sandbox"]);
+  });
+
+  it("shows taken", async () => {
+    const { app } = checked(async () => "taken");
+    change(app, "bag");
+    await vi.waitFor(() => expect(text(app)).toBe("bag.factory.sandbox is taken. Pick another ticker."));
+  });
+
+  it("says it did not check when the read fails, and never shows free", async () => {
+    const { app } = checked(async () => { throw new Error("rpc down"); });
+    change(app, "bag");
+    await vi.waitFor(() => expect(text(app)).toMatch(/^Not checked/));
+    expect(text(app)).not.toMatch(/free/);
+  });
+
+  it("says it cannot check when the link names no factory", () => {
+    const { app } = checked(async () => "free", null);
+    change(app, "bag");
+    expect(text(app)).toBe("Not checked: this link names no factory.");
+  });
+
+  it("does not read for a ticker that breaks a rule", () => {
+    const { app, calls } = checked(async () => "free");
+    change(app, "$BAG");
+    expect(calls).toEqual([]);
+    expect(text(app)).toBe("");
+  });
+
+  it("drops an older answer that arrives after a newer one", async () => {
+    const waiting: ((v: "free" | "taken") => void)[] = [];
+    const { app } = checked(() => new Promise((r) => { waiting.push(r); }));
+    change(app, "one");
+    change(app, "two");
+    waiting[1]!("taken");
+    await vi.waitFor(() => expect(text(app)).toBe("two.factory.sandbox is taken. Pick another ticker."));
+    waiting[0]!("free");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(text(app)).toBe("two.factory.sandbox is taken. Pick another ticker.");
+  });
+
+  it("keeps the launch button turned off whatever the answer", async () => {
+    const { app } = checked(async () => "free");
+    change(app, "bag");
+    await vi.waitFor(() => expect(text(app)).toMatch(/free/));
+    expect(app.querySelector<HTMLButtonElement>("#launch-button")!.disabled).toBe(true);
+    expectNoEnabledControlWithoutHandler(app);
   });
 });
