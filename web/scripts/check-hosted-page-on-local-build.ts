@@ -13,13 +13,16 @@ const state = JSON.parse(readFileSync(fileURLToPath(new URL("../../testdata/coin
 const verifyScript = fileURLToPath(new URL("../../.claude/skills/verify/verify.sh", import.meta.url));
 const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*" };
 
-function listen(handler: (body: string, path: string, res: import("node:http").ServerResponse) => void): Promise<{ server: Server; origin: string }> {
+function listen(handler: (body: string, path: string, res: import("node:http").ServerResponse, search: string) => void): Promise<{ server: Server; origin: string }> {
   const server = createServer((req, res) => {
     for (const [k, v] of Object.entries(cors)) res.setHeader(k, v);
     if (req.method === "OPTIONS") return void res.writeHead(204).end();
     let body = "";
     req.on("data", (c) => (body += c));
-    req.on("end", () => handler(body, new URL(req.url ?? "/", "http://localhost").pathname, res));
+    req.on("end", () => {
+      const at = new URL(req.url ?? "/", "http://localhost");
+      handler(body, at.pathname, res, at.search);
+    });
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -49,7 +52,7 @@ const fastNearHandler = (_body: string, path: string, res: import("node:http").S
   res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(answer));
 };
 
-function runHosted(link: string): Promise<{ code: number; last: string }> {
+function runHosted(link: string): Promise<{ code: number; last: string; output: string }> {
   // Async: the fake chain servers live in this process and must keep answering.
   return new Promise((resolve) => {
     const child = spawn("bash", [verifyScript, "hosted", link]);
@@ -58,7 +61,7 @@ function runHosted(link: string): Promise<{ code: number; last: string }> {
     child.stderr.on("data", (c) => (output += c));
     child.on("close", (code) => {
       const lines = output.trim().split("\n");
-      resolve({ code: code ?? 1, last: lines[lines.length - 1] ?? "" });
+      resolve({ code: code ?? 1, last: lines[lines.length - 1] ?? "", output });
     });
   });
 }
@@ -76,6 +79,12 @@ const goodRpc = await listen(rpcHandler(true));
 const badRpc = await listen(rpcHandler(false));
 const fastNear = await listen(fastNearHandler);
 const pageWithoutStyleFile = await listenWithoutStyleFile(page.origin);
+// A host that redirects every request to another host.
+const redirecting = await listen((_body, path, res, search) => void res.writeHead(301, { location: `${pageWithoutStyleFile.origin}${path}${search}` }).end());
+// A port with nothing listening, so the browser cannot open the page.
+const closed = await listen((_body, _path, res) => void res.end());
+const closedOrigin = closed.origin;
+await new Promise((done) => closed.server.close(done));
 let exitCode = 0;
 try {
   const linkTo = (rpc: string, origin = page.origin) =>
@@ -90,11 +99,20 @@ try {
   const missing = await runHosted(linkTo(goodRpc.origin, pageWithoutStyleFile.origin));
   console.log(`hosted command, host that answers 404 for its style file: exit ${missing.code}: ${missing.last}`);
   if (missing.code === 0 || !missing.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a 404 from the host");
+  // A redirect to another host must fail: the checks would read the other host's errors, not the given host's.
+  const redirected = await runHosted(linkTo(goodRpc.origin, redirecting.origin));
+  console.log(`hosted command, host that redirects to another host: exit ${redirected.code}: ${redirected.last}`);
+  if (redirected.code === 0 || !redirected.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a redirect to another host");
+  // A page that cannot open must not print the query of the link, which may hold a key.
+  const unreachable = await runHosted(`${closedOrigin}/?coin=moth.factory.sandbox&rpc_key=SECRETVALUE`);
+  console.log(`hosted command, page that cannot open: exit ${unreachable.code}: ${unreachable.last}`);
+  if (unreachable.code === 0 || !unreachable.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a page that cannot open");
+  if (unreachable.output.includes("SECRETVALUE") || unreachable.output.includes("rpc_key")) throw new Error("the hosted command printed the query of the link");
 } catch (err) {
   console.error(`check-hosted-page-on-local-build: ${err instanceof Error ? err.message : String(err)}`);
   exitCode = 1;
 } finally {
-  for (const s of [goodRpc, badRpc, fastNear, pageWithoutStyleFile]) s.server.close();
+  for (const s of [goodRpc, badRpc, fastNear, pageWithoutStyleFile, redirecting]) s.server.close();
   await page.close();
 }
 process.exit(exitCode);
