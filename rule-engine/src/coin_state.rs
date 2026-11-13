@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::allowance::{WindowReserve, WindowTotals};
 use crate::events::{Event, FtMint};
 use crate::fixed_values::FixedValues;
 use crate::refusals::{Refusal, RefusalCode};
 
-const SECOND_NS: u64 = 1_000_000_000;
 const ICON_PREFIX: &str = "data:image/webp;base64,";
 /// The icon data URL must be under 8 KB.
 const ICON_MAX_BYTES: usize = 8 * 1024 - 1;
@@ -45,18 +45,13 @@ pub struct CoinState {
     pub token_reserve: u128,
     pub real_near: u128,
     pub creator_fee_balance: u128,
+    /// The token reserve recorded at the first action of the current or last 1 h window.
+    pub unmarked_window_reserve: WindowReserve,
 }
 
 impl CoinState {
     pub fn near_reserve(&self) -> u128 {
         self.fixed.virtual_near + self.real_near
-    }
-
-    /// End of the 1 h window that holds `at`, on the fixed grid from launch.
-    pub fn unmarked_window_end_ns(&self, at: At) -> u64 {
-        let len = self.fixed.window_unmarked_s * SECOND_NS;
-        let k = at.ns.saturating_sub(self.launch_ns) / len;
-        self.launch_ns + (k + 1) * len
     }
 }
 
@@ -64,6 +59,8 @@ impl CoinState {
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Holder {
     pub balance: u128,
+    /// Unmarked tokens sold and bought in the account's last 1 h window with an action.
+    pub unmarked_window: WindowTotals,
 }
 
 /// The records of the accounts an action touches, by account ID.
@@ -131,6 +128,10 @@ pub fn launch(fixed: FixedValues, request: LaunchRequest<'_>, at: At) -> Result<
         token_reserve: supply,
         real_near: 0,
         creator_fee_balance: 0,
+        unmarked_window_reserve: WindowReserve {
+            window: 0,
+            token_reserve: supply,
+        },
     };
     let events = vec![Event::FtMint(FtMint {
         owner_id: request.coin.to_string(),

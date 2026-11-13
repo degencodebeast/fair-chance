@@ -176,3 +176,44 @@ fn fc_quote_buy_equals_the_buy_that_follows() {
     let pool = serde_json::to_value(coin.fc_pool()).unwrap();
     assert_eq!(pool["real_near"], (2 * ONE_NEAR).to_string());
 }
+
+#[test]
+fn fc_account_unmarked_and_fc_quote_sell_match_a_large_sell_held_to_its_allowance() {
+    let mut coin = launched();
+    testing_env!(context("large.test", 5 * ONE_NEAR, 11).build());
+    coin.buy(U128(0));
+
+    // Block 3_620 is in the second 1 h window after the launch at block 10.
+    let window_1 = 3_620;
+    testing_env!(context("large.test", 1, window_1).build());
+    let before = serde_json::to_value(coin.fc_account(account("large.test"))).unwrap();
+    let unmarked = &before["unmarked"];
+    let allowance: u128 = unmarked["allowance"].as_str().unwrap().parse().unwrap();
+    assert!(allowance > 0);
+    assert_eq!(unmarked["used"], "0");
+    assert_eq!(unmarked["left"], allowance.to_string());
+    assert_eq!(
+        unmarked["window_end_ns"],
+        ((10 + 2 * 3_600) * 1_000_000_000u64).to_string()
+    );
+
+    let asked = 2 * allowance;
+    let quote =
+        serde_json::to_value(coin.fc_quote_sell(account("large.test"), U128(asked))).unwrap();
+    let _ = coin.sell(U128(asked), U128(0));
+    let sells = events("fair_chance", "fc_sell");
+    let sold = &sells[0]["data"][0];
+    assert_eq!(sold["tokens_sold"], allowance.to_string());
+    assert_eq!(sold["fill"], "partial");
+    assert_eq!(sold["limit_reason"], "allowance");
+    assert_eq!(sold["allowance_used"], allowance.to_string());
+    assert_eq!(sold["allowance_left"], "0");
+    assert_eq!(quote["tokens_filled"], sold["tokens_sold"]);
+    assert_eq!(quote["near_out"], sold["near_out"]);
+    assert_eq!(quote["fill"], sold["fill"]);
+    assert_eq!(quote["limit_reason"], sold["limit_reason"]);
+
+    let after = serde_json::to_value(coin.fc_account(account("large.test"))).unwrap();
+    assert_eq!(after["unmarked"]["used"], allowance.to_string());
+    assert_eq!(after["unmarked"]["left"], "0");
+}
