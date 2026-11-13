@@ -4,6 +4,10 @@
 //! port and makes a new temporary data folder, so runs in parallel do not share either.
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
+pub mod option_t;
+pub mod pass_list;
+pub mod refusal_texts;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
