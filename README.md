@@ -71,6 +71,45 @@ The hackathon FAQ names how projects are judged: Claude Code and Codex screen ea
 | A page with live state and a log | The coin page shows state and one receipt row per sell. <!-- waits on: the testnet deploy (a link to a coin page that shows live state) --> |
 | A 60-day simulation under a few scenarios | [analysis/FINDINGS.md](analysis/FINDINGS.md) |
 
+## How it works
+
+```mermaid
+flowchart LR
+  L[Creator calls launch on the factory] --> N["Coin account created, code used by hash, new runs: fc_launch"]
+  N --> B[Buy on the coin's own pool]
+  B --> Q[Sell request with 1 yoctoNEAR]
+  Q --> R{"Rule engine: early window, class, allowance, creator group, marked tokens, NEAR cap"}
+  R -- full --> E[fc_sell event]
+  R -- partial --> E
+  R -- refused --> X["FC_ refusal code, no state change"]
+  E --> W["Watcher: FastNEAR or block scan"]
+  W --> A[Plain alert and the public /check card]
+  E --> P["Coin page reads the same chain, no wallet"]
+```
+
+1. **Launch.** A creator calls `launch` on the factory with a name, a ticker and an optional opening buy. The factory sends one batch: create the coin account, use the coin code by its hash, call `new`. The batch holds no key. An opening buy that takes the creator group above 4% of supply is refused with `FC_CREATOR_CAP`, and the whole batch rolls back and returns the deposit. After a good launch the factory logs `fc_launch`. Code: `contracts/factory/`. Check: the `fc_launch` event, and `fc_rules` on the coin.
+2. **Buy.** `buy(min_tokens_out)` swaps NEAR for tokens on the coin's own constant-product pool, which has a virtual NEAR reserve. A buy in blocks 0 to N is early supply. It carries the falling early fee and is marked. A buy that takes an account to 2% of supply makes it large and logs `fc_became_large`. `FC_SLIPPAGE` refuses a buy below `min_tokens_out`. A buy is never filled in part. Code: `rule-engine/src/pool_math.rs`, `rule-engine/src/early_buy_fee.rs`. Check: `fc_quote_buy`, then the `fc_buy` event.
+3. **Send.** A large account cannot send (`FC_LARGE_CANNOT_SEND`). A send that would make a receiver large is refused (`FC_RECEIVER_WOULD_BE_LARGE`), and so is a send into the coin (`FC_SEND_TO_COIN`) and `ft_transfer_call` (`FC_TRANSFER_CALL`). Marked tokens leave first. Code: `rule-engine/src/holder_class.rs`. Check: `fc_account` shows `can_send` and `max_receive`.
+4. **Sell request.** `sell(amount, min_near_out)` needs exactly 1 yoctoNEAR (`FC_ONE_YOCTO`). Marked tokens cannot sell in blocks 0 to N (`FC_EARLY_WINDOW`). A sell is never refused for exceeding a limit. A limit gives a partial fill instead.
+5. **Rule engine.** The engine reads the account's class (small, band or large, with the class floor), then fills as far as these limits allow: the allowance of the window (net of buys), the shared early-supply allowance for marked tokens, the pool-wide NEAR cap, and the floor that always fills. A band account that sells above its first allowance pays a 10% penalty that stays in the pool. Code: `rule-engine/src/actions.rs`, `allowance.rs`, `early_supply.rs`, `real_near_cap.rs`, `creator_group.rs`. Check: `fc_quote_sell` returns the same answer as the real sell, with no state change.
+6. **The result.** The fill is `full`, `partial` or `none`. `FC_SLIPPAGE` refuses when the price per token of the filled part is below `min_near_out` (a partial fill does not fail slippage). The `limit_reason` says why a sell filled less: `allowance`, `cap_full` or `floor`. The coin logs `fc_sell`, and `fc_cap_filled` when the sell fills the cap. Check: the receipt on the coin page, or the event in the transaction on an explorer.
+7. **Watch.** The watcher reads the coin's events with the FastNEAR transactions API on testnet, or by scanning blocks over plain NEAR RPC on a sandbox. It turns each limited-sell event into one plain sentence and sends it. It holds no NEAR key and signs nothing. The `/check` command reads the coin's views and writes a "who can sell now" card for any coin of the factory. Code: `watcher/internal/eventsource/`, `watcher/internal/alerts/`, `watcher/internal/checkcard/`.
+8. **Read.** The coin page reads the same views and events from the chain. It needs no wallet, no login and no key. It cannot buy or sell. Code: `web/src/chain.ts`, `web/src/receipts.ts`.
+
+When a step fails, the contract refuses with its code, and the call changes no state. Refusal texts are in `refusal-texts/`. The code list is in [INTERFACE](docs/INTERFACE.md).
+
+## Architecture
+
+| Part | Where it runs | What it does |
+| --- | --- | --- |
+| Factory (`contracts/factory/`) | NEAR, one account <!-- waits on: the testnet deploy (the factory account, and the line that says its keys are deleted) --> | Launches each coin in one batch and records the one coin code hash. |
+| Coin (`contracts/coin/`) | NEAR, one account per coin, no access keys | Token, pool and every rule. Calls into `rule-engine/`. |
+| Rule engine (`rule-engine/`) | Compiled into the coin; also run by tests as plain Rust | The rules as pure functions. |
+| Coin page (`web/`) | Static files in a browser | Reads views and events from public RPC and shows limits, receipts and refusals. |
+| Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts, answers `/check`. |
+
+There is no backend server. The rules run on chain. Each coin holds no key, and the factory holds none after its key is deleted <!-- waits on: the testnet deploy (the factory key deletion) -->. The page is static and only reads. The watcher and the page can go offline, and the coin still enforces every rule.
+
 ## The rules
 
 Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin gets the same ones. Some values are not final ([ADR status lines](docs/adr/)).
