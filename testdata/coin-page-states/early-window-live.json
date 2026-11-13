@@ -1,5 +1,5 @@
 {
-  "description": "Hand-written in the shape of the coin views: 5 blocks after launch, 12 blocks left in the early window.",
+  "description": "Hand-written in the shape of the coin views: 5 blocks after launch, 13 blocks left in the early window (block 5 included).",
   "now_ns": "1794579840000000000",
   "views": {
     "fc_rules": {
