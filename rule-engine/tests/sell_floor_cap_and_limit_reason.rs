@@ -331,3 +331,60 @@ fn large_sell_that_fills_only_its_unmarked_floor_reports_floor() {
         "INTERFACE: a large sell that fills only its floor reports floor"
     );
 }
+
+/// ADR 0005, INTERFACE rc.7: when the same sell also has a marked part and the cap is tight, the
+/// bought part may fill less. The cap holds; here the bought part fills 0.
+#[test]
+fn a_bought_part_next_to_a_marked_part_may_fill_less_when_the_cap_is_tight() {
+    let mut coin = coin_with_a_small_marked_holder_that_bought_this_hour();
+    let large_balance = coin.balance(LARGE);
+    coin.sell(LARGE, large_balance * 46 / 1000, window_1(2));
+    let view = coin.account(EARLY, window_1(3));
+    let sell = coin.sell(EARLY, coin.balance(EARLY), window_1(3));
+    let cap = coin.cap(window_1(3));
+    println!(
+        "EARLY unmarked {} marked {}; sold {} (marked {}), reason {:?}",
+        view.unmarked_balance,
+        view.marked_balance,
+        sell.tokens_sold,
+        sell.marked_sold,
+        sell.limit_reason
+    );
+    assert!(sell.marked_sold > 0 && sell.marked_sold < view.marked.left);
+    assert_eq!(sell.tokens_sold, sell.marked_sold, "the bought part filled");
+    assert!(within_cap(cap.cap_used, cap.real_near_now));
+}
+
+/// A second sell of the bought part, under the same tight cap, does not avoid this: a sell takes
+/// its marked part first, so while marked tokens are left the second sell is the same mix.
+#[test]
+fn a_second_sell_of_the_bought_part_takes_marked_tokens_first_and_the_bought_part_still_waits() {
+    let mut coin = coin_with_a_small_marked_holder_that_bought_this_hour();
+    let large_balance = coin.balance(LARGE);
+    coin.sell(LARGE, large_balance * 46 / 1000, window_1(2));
+    let first = coin.sell(EARLY, coin.balance(EARLY), window_1(3));
+    let view = coin.account(EARLY, window_1(4));
+    let used_before = coin.cap(window_1(4)).cap_used;
+    let second = coin.sell(EARLY, view.unmarked_balance, window_1(4));
+    let used_after = coin.cap(window_1(4)).cap_used;
+    println!(
+        "first: sold {} (marked {}); before second: unmarked {} marked {} marked left {}; \
+         second: sold {} (marked {}), reason {:?}; cap used {used_before} -> {used_after}",
+        first.tokens_sold,
+        first.marked_sold,
+        view.unmarked_balance,
+        view.marked_balance,
+        view.marked.left,
+        second.tokens_sold,
+        second.marked_sold,
+        second.limit_reason
+    );
+    assert!(view.marked.left > 0);
+    assert_eq!(
+        second.tokens_sold, second.marked_sold,
+        "the bought part filled"
+    );
+    assert_eq!(second.limit_reason, Some("cap_full"));
+    let cap = coin.cap(window_1(4));
+    assert!(within_cap(cap.cap_used, cap.real_near_now));
+}

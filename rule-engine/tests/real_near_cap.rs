@@ -611,7 +611,10 @@ fn a_sell_that_is_the_first_action_of_a_window_does_not_change_its_own_floor() {
     assert!(sell.tokens_sold > 0);
     let view = coin.account(LARGE, at);
     // floor_left is the floor less the tokens sold: the floor itself kept its value.
-    assert_eq!(view.unmarked.floor_left, floor.saturating_sub(sell.tokens_sold));
+    assert_eq!(
+        view.unmarked.floor_left,
+        floor.saturating_sub(sell.tokens_sold)
+    );
     assert_eq!(coin.account(OTHER, at).unmarked.floor_left, floor);
 }
 
