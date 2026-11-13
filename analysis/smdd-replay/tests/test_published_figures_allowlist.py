@@ -77,6 +77,10 @@ class AllowlistTest(unittest.TestCase):
         self.assertEqual(len(findings(f"Code hash x{CODE_HASH}.", self.allowed)), 1)
         self.assertEqual(len(findings(f"Account x{COIN}.", self.allowed)), 1)
 
+    def test_an_allowed_value_joined_to_a_hidden_or_wide_character_fails(self):
+        for joined in (f"{CODE_HASH}\u200bQ", f"{CODE_HASH}\uff31", f"\uff11\uff12{CODE_HASH}"):
+            self.assertEqual(len(findings(f"Value {joined}.", self.allowed)), 1, repr(joined))
+
     def test_the_other_rules_still_apply_next_to_an_allowed_value(self):
         self.assertEqual(len(findings(f"The creator sold at 14:05 in {TX_HASH}.", self.allowed)), 1)
         self.assertEqual(len(findings(f"One buyer sold 40% in {TX_HASH}.", self.allowed)), 1)

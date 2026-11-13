@@ -169,11 +169,15 @@ def _without_allowed(text: str, allowed: frozenset) -> str:
     return text
 
 
-def normalized(text: str) -> str:
-    """NFKC, ASCII digits, plain dashes, no zero-width character, lower case."""
+def folded(text: str) -> str:
+    """NFKC, ASCII digits, plain dashes, no zero-width character. The case stays."""
     text = unicodedata.normalize("NFKC", text).translate(_DASHES).translate(_INVISIBLE)
-    text = "".join(str(unicodedata.decimal(c)) if c.isdecimal() and not c.isascii() else c for c in text)
-    return text.lower()
+    return "".join(str(unicodedata.decimal(c)) if c.isdecimal() and not c.isascii() else c for c in text)
+
+
+def normalized(text: str) -> str:
+    """The folded text in lower case."""
+    return folded(text).lower()
 
 
 def _raw_count(text: str) -> bool:
@@ -194,7 +198,7 @@ def _sentence_fails(sentence: str) -> bool:
 
 def text_fails(text: str, venues_allowed: bool = False, allowed: frozenset = frozenset()) -> bool:
     """True when this piece of text (a line or a table cell) breaks a rule."""
-    text = normalized(_without_allowed(CREATOR_CHECK_LINE.sub(" ", text), allowed))
+    text = _without_allowed(folded(CREATOR_CHECK_LINE.sub(" ", text)), allowed).lower()
     text = FUNDER_PHRASE.sub(" ", text)
     rules = (CLOCK_TIME, TRADE_SIZE, PER_WALLET) + (() if venues_allowed else (VENUE,))
     if any(rule.search(text) for rule in rules) or _long_code(text) or _raw_count(text):
