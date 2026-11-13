@@ -52,6 +52,9 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return fmt.Errorf("%s: HTTP 429: %w", method, ErrRateLimited)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s: HTTP %d", method, resp.StatusCode)
 	}
