@@ -27,8 +27,11 @@ func (c *clock) Now() time.Time { return c.now }
 func newPublicBot(checker *fixedChecker) (commands.Bot, *recordingWatcher, *telegram.Fake, *clock) {
 	clk := &clock{now: time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC)}
 	fake, w := &telegram.Fake{}, &recordingWatcher{}
-	bot := commands.Bot{ChatID: builderChat, Reply: fake, Watcher: w, Checker: checker,
-		Public: commands.NewPublicCheck(factory, pageLink, clk.Now)}
+	public, err := commands.NewPublicCheck(factory, pageLink, clk.Now)
+	if err != nil {
+		panic(err)
+	}
+	bot := commands.Bot{ChatID: builderChat, Reply: fake, Watcher: w, Checker: checker, Public: public}
 	return bot, w, fake, clk
 }
 
@@ -102,19 +105,74 @@ func TestACoinOfAnotherFactoryMakesNoReadAndGetsOneLine(t *testing.T) {
 	}
 }
 
-func TestOneChatGetsOneCheckEveryTenSeconds(t *testing.T) {
+func TestOneChatGetsOneCheckEveryTenSecondsAndSilenceBetween(t *testing.T) {
 	checker := &fixedChecker{text: "card text"}
 	bot, _, fake, clk := newPublicBot(checker)
 	say(bot, strangerChat, "/check "+demoCoin)
 	clk.now = clk.now.Add(9 * time.Second)
 	say(bot, strangerChat, "/check "+demoCoin)
-	if len(checker.checked) != 1 || len(fake.Sent) != 2 || fake.Sent[1].Text != "Busy. Try again in a minute." {
+	if len(checker.checked) != 1 || len(fake.Sent) != 1 {
 		t.Fatalf("checked %v sent %+v", checker.checked, fake.Sent)
 	}
 	clk.now = clk.now.Add(time.Second)
 	say(bot, strangerChat, "/check "+demoCoin)
-	if len(checker.checked) != 2 {
-		t.Fatalf("checked %v", checker.checked)
+	if len(checker.checked) != 2 || len(fake.Sent) != 2 {
+		t.Fatalf("checked %v sent %+v", checker.checked, fake.Sent)
+	}
+}
+
+func TestOneStrangerChatCausesAtMostOneSendEveryTenSeconds(t *testing.T) {
+	checker := &fixedChecker{text: "card text"}
+	bot, _, fake, clk := newPublicBot(checker)
+	for i := 0; i < 100; i++ {
+		say(bot, strangerChat, "/check "+demoCoin)
+		say(bot, strangerChat, "/check other.testnet")
+		say(bot, strangerChat, "/help")
+	}
+	if len(fake.Sent) != 1 || len(checker.checked) != 1 {
+		t.Fatalf("sends %d checks %d", len(fake.Sent), len(checker.checked))
+	}
+	clk.now = clk.now.Add(10 * time.Second)
+	say(bot, strangerChat, "/help")
+	if len(fake.Sent) != 2 {
+		t.Fatalf("sends %d", len(fake.Sent))
+	}
+}
+
+func TestStrangersTogetherCauseAtMostSixtySendsEveryMinute(t *testing.T) {
+	bot, _, fake, clk := newPublicBot(&fixedChecker{text: "card text"})
+	for i := 0; i < 200; i++ {
+		say(bot, int64(2000+i), "/help")
+	}
+	if len(fake.Sent) != 60 {
+		t.Fatalf("sends %d", len(fake.Sent))
+	}
+	clk.now = clk.now.Add(61 * time.Second)
+	say(bot, 9000, "/help")
+	if len(fake.Sent) != 61 {
+		t.Fatalf("sends %d", len(fake.Sent))
+	}
+}
+
+func TestTheBuilderChatIsNeverLimited(t *testing.T) {
+	checker := &fixedChecker{text: "card text"}
+	bot, _, fake, _ := newPublicBot(checker)
+	for i := 0; i < 100; i++ {
+		say(bot, builderChat, "/check "+demoCoin)
+	}
+	if len(fake.Sent) != 100 || len(checker.checked) != 100 {
+		t.Fatalf("sends %d checks %d", len(fake.Sent), len(checker.checked))
+	}
+}
+
+func TestTheFactoryNameMustBeAValidLowercaseAccountWithADot(t *testing.T) {
+	for _, bad := range []string{"testnet", ".factory.testnet", "Factory.testnet", "", "a..testnet", "factory.testnet."} {
+		if _, err := commands.NewPublicCheck(bad, "", nil); err == nil {
+			t.Errorf("%q was accepted", bad)
+		}
+	}
+	if _, err := commands.NewPublicCheck("factory.testnet", "", nil); err != nil {
+		t.Errorf("a valid name was refused: %v", err)
 	}
 }
 
@@ -182,13 +240,12 @@ func TestStartAndHelpFromAnyChatAnswerOneLineWithThePageLink(t *testing.T) {
 
 func TestCountsHoldNumbersAndNoChatIDOrText(t *testing.T) {
 	checker := &fixedChecker{text: "card text"}
-	bot, _, _, clk := newPublicBot(checker)
+	bot, _, _, _ := newPublicBot(checker)
 	say(bot, strangerChat, "/check "+demoCoin)
 	say(bot, strangerChat, "/check "+demoCoin)
-	clk.now = clk.now.Add(time.Minute)
-	say(bot, strangerChat, "/check other.testnet")
+	say(bot, 5, "/check other.testnet")
 	got := bot.Public.Counts()
-	if got.Served != 1 || got.Busy != 1 || got.Refused != 1 {
+	if got.Served != 1 || got.Silent != 1 || got.Refused != 1 {
 		t.Fatalf("counts %+v", got)
 	}
 }
