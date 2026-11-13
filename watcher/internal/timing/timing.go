@@ -73,3 +73,30 @@ func (b *BackOff) Next(retryAfter time.Duration) time.Duration {
 }
 
 func (b *BackOff) Reset() { b.next = 0 }
+
+// LimitedBackOff is the builder's 429 rule: at most MaxWaits waits, and at most Total waited in
+// all. Next gives false when the next wait would break either limit; the caller then stops and
+// reports. The counts never reset, so a 200 between two 429s does not buy a third wait.
+type LimitedBackOff struct {
+	BackOff  BackOff
+	MaxWaits int
+	Total    time.Duration
+	waits    int
+	waited   time.Duration
+}
+
+func (b *LimitedBackOff) Next(retryAfter time.Duration) (time.Duration, bool) {
+	if b.waits >= b.MaxWaits {
+		return 0, false
+	}
+	wait := b.BackOff.Next(retryAfter)
+	if b.waited+wait > b.Total {
+		return 0, false
+	}
+	b.waits++
+	b.waited += wait
+	return wait, true
+}
+
+// Reset starts the doubling again after a good answer; the limits keep their counts.
+func (b *LimitedBackOff) Reset() { b.BackOff.Reset() }

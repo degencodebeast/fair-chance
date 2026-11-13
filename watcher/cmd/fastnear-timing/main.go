@@ -108,7 +108,30 @@ func run(ctx context.Context, r *report, poll, idle time.Duration, want int) err
 }
 
 func runWithCoinWait(ctx context.Context, r *report, poll, idle time.Duration, want int, coinPoll time.Duration) error {
-	back := timing.BackOff{Start: 2 * time.Second, Max: time.Minute}
+	return runWithCoinWaitAndBackOff(ctx, r, poll, idle, want, coinPoll, 2*time.Second)
+}
+
+// The builder's 429 rule: obey Retry-After at most twice and wait at most 15 minutes in all, then
+// stop and report. No other retry loop.
+const (
+	maxRateLimitWaits  = 2
+	maxRateLimitWaited = 15 * time.Minute
+)
+
+func limitedBackOff(firstWait time.Duration) timing.LimitedBackOff {
+	return timing.LimitedBackOff{
+		BackOff:  timing.BackOff{Start: firstWait, Max: time.Minute},
+		MaxWaits: maxRateLimitWaits,
+		Total:    maxRateLimitWaited,
+	}
+}
+
+func rateLimitStop(who string) error {
+	return fmt.Errorf("429 from %s past the limit (%d waits, %s in all); stopped, no retry", who, maxRateLimitWaits, maxRateLimitWaited)
+}
+
+func runWithCoinWaitAndBackOff(ctx context.Context, r *report, poll, idle time.Duration, want int, coinPoll, firstWait time.Duration) error {
+	back := limitedBackOff(firstWait)
 	var facts eventsource.CoinFacts
 	for {
 		f, err := eventsource.ReadCoinFacts(ctx, r.RPCURL, r.Coin)
@@ -120,12 +143,19 @@ func runWithCoinWait(ctx context.Context, r *report, poll, idle time.Duration, w
 		switch {
 		case errors.As(err, &limited):
 			r.RateLimited++
-			wait := back.Next(limited.RetryAfter)
+			wait, ok := back.Next(limited.RetryAfter)
+			if !ok {
+				return rateLimitStop("the RPC")
+			}
 			log.Printf("429 from the RPC; waiting %s", wait)
 			sleep(ctx, wait)
 		case errors.Is(err, eventsource.ErrRateLimited):
 			r.RateLimited++
-			sleep(ctx, back.Next(0))
+			wait, ok := back.Next(0)
+			if !ok {
+				return rateLimitStop("the RPC")
+			}
+			sleep(ctx, wait)
 		case strings.Contains(err.Error(), "UNKNOWN_ACCOUNT"):
 			sleep(ctx, coinPoll) // not launched yet
 		default:
@@ -154,7 +184,10 @@ func runWithCoinWait(ctx context.Context, r *report, poll, idle time.Duration, w
 			back.Reset()
 		case errors.As(err, &limited):
 			r.RateLimited++
-			wait := back.Next(limited.RetryAfter)
+			wait, ok := back.Next(limited.RetryAfter)
+			if !ok {
+				return rateLimitStop("FastNEAR")
+			}
 			log.Printf("429 from FastNEAR; waiting %s", wait)
 			sleep(ctx, wait)
 			continue
@@ -213,7 +246,7 @@ func finish(parent context.Context, r *report) error {
 func finishWithBackOff(parent context.Context, r *report, firstWait time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 5*time.Minute)
 	defer cancel()
-	back := timing.BackOff{Start: firstWait, Max: time.Minute}
+	back := limitedBackOff(firstWait)
 	retry := func(read func() error) error {
 		for {
 			err := read()
@@ -226,7 +259,11 @@ func finishWithBackOff(parent context.Context, r *report, firstWait time.Duratio
 			if errors.As(err, &limited) {
 				after = limited.RetryAfter
 			}
-			sleep(ctx, back.Next(after))
+			wait, ok := back.Next(after)
+			if !ok {
+				return fmt.Errorf("%w; %w", err, rateLimitStop("the RPC"))
+			}
+			sleep(ctx, wait)
 		}
 	}
 	stop := func(what string, err error) error {
