@@ -199,8 +199,9 @@ fn sell(
     if amount == 0 || amount > holder.balance {
         return Err(Refusal::new(RefusalCode::NotEnoughBalance));
     }
-    // A large account is held to its allowance by a partial fill. Small and band sells fill in
-    // full (the band penalty is not built yet).
+    // A large account is held to its allowance by a partial fill. A band account's first
+    // allowance always fills, and the part above it fills with a penalty. Small sells fill in
+    // full.
     let class = class_of(state, Some(holder), at);
     let room = unmarked_allowance(state, Some(holder), at).sell_room;
     let (tokens_sold, fill, limit_reason) = if class == Class::Large && amount > room {
@@ -209,12 +210,18 @@ fn sell(
     } else {
         (amount, Fill::Full, None)
     };
+    let first_allowance_part = if class == Class::Band {
+        tokens_sold.min(room)
+    } else {
+        tokens_sold
+    };
     // NEAR reserve minimum: the payout never takes the NEAR reserve below virtual P.
     let near_before_fee =
         pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens_sold)
             .min(state.real_near);
     let fee_near = pool_math::fee(near_before_fee, state.fixed.swap_fee_bps);
-    let near_out = near_before_fee - fee_near;
+    let penalty_near = penalty_above_first_allowance(state, first_allowance_part, near_before_fee);
+    let near_out = near_before_fee - fee_near - penalty_near;
     if !product_at_least(near_out, amount, min_near_out, tokens_sold) {
         return Err(Refusal::new(RefusalCode::Slippage));
     }
@@ -246,7 +253,7 @@ fn sell(
         near_out,
         fee_near,
         creator_fee_near: 0,
-        penalty_near: 0,
+        penalty_near,
         fill: fill.as_str(),
         limit_reason,
         allowance_used: after_sell.used,
@@ -266,6 +273,28 @@ fn sell(
         events,
         payout,
     })
+}
+
+/// The band penalty (ADR 0004): `penalty_bps` of the NEAR output of the part of a sell above the
+/// first allowance. That part gets the NEAR the whole sell pays (`near_before_fee`) minus the
+/// NEAR the first-allowance part alone would pay, both before the swap fee; its NEAR output is
+/// that amount minus its own swap fee. Both roundings go in the pool's favour. The penalty stays
+/// in the pool. Zero when the whole sell is inside the first allowance.
+fn penalty_above_first_allowance(
+    state: &CoinState,
+    first_allowance_part: u128,
+    near_before_fee: u128,
+) -> u128 {
+    let first_allowance_near = pool_math::near_out_before_fee(
+        state.token_reserve,
+        state.near_reserve(),
+        first_allowance_part,
+    )
+    .min(near_before_fee);
+    let above_before_fee = near_before_fee - first_allowance_near;
+    let above_near_output =
+        above_before_fee - pool_math::fee(above_before_fee, state.fixed.swap_fee_bps);
+    pool_math::fee(above_near_output, state.fixed.penalty_bps)
 }
 
 /// A send (NEP-141 `ft_transfer`). Refused to yourself, for 0 tokens, to the coin, from a large
