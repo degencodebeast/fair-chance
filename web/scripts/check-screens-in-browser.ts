@@ -110,13 +110,14 @@ try {
     const landing = await page.evaluate(() => ({
       headline: document.querySelector("#landing-headline")?.textContent,
       openApp: document.querySelector<HTMLAnchorElement>("#open-app")?.getAttribute("href"),
-      launchHref: document.querySelector<HTMLAnchorElement>("a#launch-coin")?.getAttribute("href"),
+      launchOff: document.querySelector<HTMLButtonElement>("#launch-coin")?.disabled,
+      launchReason: document.querySelector("#launch-coin-reason")?.textContent?.trim(),
       proofSample: document.querySelector("#proof .sample-label")?.textContent,
       buttonsThatDoNothing: [...document.querySelectorAll("button:not([disabled])")].map((b) => b.textContent),
     }));
     if (landing.headline !== "You buy. The creator dumps on you. You hold the bag.") fail(label, `headline is "${landing.headline}"`);
     if (!/view=coins/.test(landing.openApp ?? "")) fail(label, `Open app goes to ${landing.openApp}`);
-    if (!/view=launch/.test(landing.launchHref ?? "")) fail(label, `Launch a coin goes to ${landing.launchHref}`);
+    if (landing.launchOff !== true || landing.launchReason !== "Launching signs a transaction. This page does not sign yet.") fail(label, `Launch a coin must be turned off with its reason: ${landing.launchReason}`);
     if (!/^Sample data/.test(landing.proofSample ?? "")) fail(label, "the example receipt has no sample label");
     if (landing.buttonsThatDoNothing.length > 0) fail(label, `buttons that do nothing: ${landing.buttonsThatDoNothing.join(", ")}`);
     await noOverflow(page, width, label);
@@ -132,10 +133,11 @@ try {
       const list = await page.evaluate(() => ({
         cards: [...document.querySelectorAll(".coin-card")].map((c) => ({ sample: c.querySelector(".sample-label")?.textContent ?? "", interactive: c.matches("a, button") || c.querySelector("a, button") !== null })),
         note: document.querySelector("#list-note")?.textContent ?? "",
-        launchHref: document.querySelector<HTMLAnchorElement>("a#launch-coin")?.getAttribute("href"),
+        launchOff: document.querySelector<HTMLButtonElement>("#launch-coin")?.disabled,
+        launchReason: document.querySelector("#launch-coin-reason")?.textContent?.trim(),
       }));
       if (list.cards.length < 5) fail(label, `${list.cards.length} cards`);
-      if (!/view=launch/.test(list.launchHref ?? "")) fail(label, `Launch a coin goes to ${list.launchHref}`);
+      if (list.launchOff !== true || list.launchReason !== "Launching signs a transaction. This page does not sign yet.") fail(label, `Launch a coin must be turned off with its reason: ${list.launchReason}`);
       if (!list.cards.every((c) => c.sample.startsWith("Sample data"))) fail(label, "a card has no sample label on itself");
       if (list.cards.some((c) => c.interactive)) fail(label, "a sample card looks openable");
       if (query.includes("network") && !/no factory/.test(list.note)) fail(label, `the note does not say there is no factory: "${list.note}"`);

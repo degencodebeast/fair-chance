@@ -30,6 +30,13 @@ describe("landing copy", () => {
   });
 
   it("has no buttons that do nothing: every action names the screen it opens", () => {
-    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["coins", "launch", "rules"]);
+    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["coins", "launch-off", "rules"]);
+  });
+});
+
+describe("launch button reason", () => {
+  it("says what is true now: launching signs a transaction and this page does not sign", () => {
+    expect(landingCopy.launchOffNote).toBe("Launching signs a transaction. This page does not sign yet.");
+    expect(copyViolations(landingCopy.launchOffNote)).toEqual([]);
   });
 });
