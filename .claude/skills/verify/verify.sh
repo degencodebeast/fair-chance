@@ -77,6 +77,9 @@ case "$mode" in
     # The loading and error states keep the page frame at 1440 and 390, every outside host stubbed.
     node web/scripts/check-page-frames-in-browser.ts \
       || finish FAIL "the loading or error frame is missing or too wide (see target/verify-evidence/$run_id/verify.log)"
+    # Landing, coin list, alerts, price chart and holders table at 1440 and 390; every outside host blocked.
+    node web/scripts/check-screens-in-browser.ts \
+      || finish FAIL "a screen is missing a sample label, shows a live-looking dead control or is too wide (see target/verify-evidence/$run_id/verify.log)"
     FC_EVIDENCE_DIR="$evidence" scripts/walking-path.sh --read-in-browser \
       || finish FAIL "the walking path failed (see target/verify-evidence/$run_id/verify.log)"
     [ -s "$evidence/receipts-page.png" ] || finish FAIL "no page screenshot in the evidence folder"
