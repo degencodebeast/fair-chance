@@ -197,6 +197,8 @@ flowchart LR
 
 ## Network
 
+The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. Its length in seconds is the measured testnet block time times 18. <!-- waits on: the measured testnet block time (the number of seconds goes here, as "about X seconds at the measured testnet block time") -->
+
 <!-- waits on: the testnet deploy (factory account, coin code hash, deployed commit, explorer links) -->
 
 The code hash of the deployed coin is a reproducible-build hash of one commit.
