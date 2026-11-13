@@ -906,6 +906,7 @@ version = "1.0.0-rc.7"
 dependencies = [
  "fair-chance-rule-engine",
  "near-sdk",
+ "proptest",
  "serde_json",
 ]
 

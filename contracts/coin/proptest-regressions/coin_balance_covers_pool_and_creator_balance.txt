@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 847de9bb91a6837b3010b6abad035e096f7d97ac6855f1927485c9eacd24a625 # shrinks to opening_buy = 1482577658996041007086901, launch_offset = Some(-1), steps = []
