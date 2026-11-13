@@ -138,6 +138,20 @@ const LARGE: &str = "large.test";
 const SMALL: &str = "small.test";
 
 /// A coin where LARGE holds about 4.7% of supply (large: 2% or more), bought in window 0.
+const START_OF_WINDOW_1: At = At {
+    block: 100 + HOUR_NS / 1_000_000_000,
+    ns: LAUNCH_NS + HOUR_NS,
+};
+
+/// Forty accounts buy 1 NEAR each (under 1% of supply each) as the first actions of window 1,
+/// so the real NEAR cap (ADR 0005) has room for the sells this test is about. The window's
+/// token reserve is recorded before them, so the window's allowances do not change.
+fn deepen_the_pool_at_the_start_of_window_1(coin: &mut Coin) {
+    for i in 0..40 {
+        coin.buy(&format!("depth-{i}.test"), ONE_NEAR, START_OF_WINDOW_1);
+    }
+}
+
 fn coin_with_a_large_holder() -> Coin {
     let mut coin = Coin::launched();
     coin.buy(LARGE, 5 * ONE_NEAR, after(10));
@@ -163,6 +177,7 @@ fn paper_case_d_a_buy_then_a_sell_of_the_bought_tokens_uses_no_allowance() {
 #[test]
 fn paper_case_d_a_sell_first_must_fit_the_allowance_when_it_happens() {
     let mut coin = coin_with_a_large_holder();
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let window_1 = HOUR_NS / 1_000_000_000 + 10;
     let allowance = coin.account(LARGE, after(window_1)).unmarked.allowance;
 
@@ -179,6 +194,7 @@ fn paper_case_d_a_sell_first_must_fit_the_allowance_when_it_happens() {
 #[test]
 fn paper_case_d_sell_then_buy_and_buy_then_sell_both_allow_the_allowance_plus_the_tokens_bought() {
     let mut coin = coin_with_a_large_holder();
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let hour_s = HOUR_NS / 1_000_000_000;
 
     // Window 1: sell first (up to the allowance), then buy, then sell again.
@@ -261,6 +277,7 @@ fn paper_case_b_every_allowance_resets_at_the_same_grid_time_with_no_carry_over(
     // LARGE bought in window 0, so it uses its allowance in window 1; SMALL buys in window 1
     // and sells nothing.
     let mut coin = coin_with_a_large_holder();
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     coin.buy(SMALL, ONE_NEAR / 10, at_ns(HOUR_NS + 20_000_000_000));
     let last_ns_of_window_1 = 2 * HOUR_NS - 1;
     let allowance_1 = coin

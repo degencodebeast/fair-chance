@@ -7,6 +7,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::allowance::{WindowReserve, WindowTotals};
 use crate::events::{Event, FtMint};
 use crate::fixed_values::FixedValues;
+use crate::real_near_cap::{CapNet, CapWindow};
 use crate::refusals::{Refusal, RefusalCode};
 
 const ICON_PREFIX: &str = "data:image/webp;base64,";
@@ -49,6 +50,8 @@ pub struct CoinState {
     pub unmarked_window_reserve: WindowReserve,
     /// Number of accounts whose class is `large` now.
     pub large_holders: u32,
+    /// The real NEAR cap used in the current or last 1 h window.
+    pub cap_window: CapWindow,
 }
 
 impl CoinState {
@@ -67,6 +70,8 @@ pub struct Holder {
     pub is_large: bool,
     /// yoctoNEAR the account paid for this record under NEP-145 storage; 0 when a buy made it.
     pub storage_deposit: u128,
+    /// The account's net NEAR out for the real NEAR cap in its last 1 h window with a trade.
+    pub cap_net: CapNet,
 }
 
 impl Holder {
@@ -149,6 +154,7 @@ pub fn launch(fixed: FixedValues, request: LaunchRequest<'_>, at: At) -> Result<
             token_reserve: supply,
         },
         large_holders: 0,
+        cap_window: CapWindow::default(),
     };
     let events = vec![Event::FtMint(FtMint {
         owner_id: request.coin.to_string(),

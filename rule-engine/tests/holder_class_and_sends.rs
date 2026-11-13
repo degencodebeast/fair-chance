@@ -446,6 +446,7 @@ fn becomes_large_is_true_exactly_for_the_buy_that_crosses_t() {
 fn a_large_account_that_sells_below_two_percent_stays_large_and_stays_held_to_its_allowance() {
     let mut coin = Coin::launched();
     coin.buy(LARGE, 2_500 * ONE_NEAR / 1_000, after(10));
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let window_1 = HOUR_S + 10;
     let allowance = coin.account(LARGE, after(window_1)).unmarked.allowance;
 
@@ -479,6 +480,7 @@ fn fc_pool_large_holders_follows_each_class_change_and_a_large_account_is_small_
     assert_eq!(coin.large_holders(after(10)), 1);
     coin.buy(BUYER, 3 * ONE_NEAR, after(11));
     assert_eq!(coin.large_holders(after(11)), 2);
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
 
     // LARGE sells its allowance in each window until its balance is zero.
     let mut window = 1;
@@ -502,6 +504,20 @@ fn fc_pool_large_holders_follows_each_class_change_and_a_large_account_is_small_
     coin.send(LARGE, OTHER, 1, at).expect("send after zero");
     assert_eq!(coin.account(LARGE, at).class, "small");
     assert_eq!(coin.large_holders(at), 1);
+}
+
+const START_OF_WINDOW_1: At = At {
+    block: 100 + HOUR_S,
+    ns: LAUNCH_NS + HOUR_S * 1_000_000_000,
+};
+
+/// Forty accounts buy 1 NEAR each (under 1% of supply each) as the first actions of window 1,
+/// so the real NEAR cap (ADR 0005) has room for the sells this test is about. The window's
+/// token reserve is recorded before them, so the window's allowances do not change.
+fn deepen_the_pool_at_the_start_of_window_1(coin: &mut Coin) {
+    for i in 0..40 {
+        coin.buy(&format!("depth-{i}.test"), ONE_NEAR, START_OF_WINDOW_1);
+    }
 }
 
 fn unregister(

@@ -166,6 +166,20 @@ fn sell_event(applied: &Applied) -> FcSell {
         .expect("fc_sell")
 }
 
+const START_OF_WINDOW_1: At = At {
+    block: 100 + HOUR_S,
+    ns: LAUNCH_NS + HOUR_S * 1_000_000_000,
+};
+
+/// Forty accounts buy 1 NEAR each (under 1% of supply each) as the first actions of window 1,
+/// so the real NEAR cap (ADR 0005) has room for the sells this test is about. The window's
+/// token reserve is recorded before them, so the window's allowances do not change.
+fn deepen_the_pool_at_the_start_of_window_1(coin: &mut Coin) {
+    for i in 0..40 {
+        coin.buy(&format!("depth-{i}.test"), ONE_NEAR, START_OF_WINDOW_1);
+    }
+}
+
 /// BAND buys 1.5 NEAR at launch (band: above one allowance, below 2%).
 fn coin_with_a_band_holder() -> Coin {
     let mut coin = Coin::launched();
@@ -194,6 +208,7 @@ fn a_band_sell_inside_its_first_allowance_fills_in_full_with_no_penalty() {
 fn a_band_sell_above_its_first_allowance_fills_in_full_and_pays_ten_percent_of_the_part_above_to_the_pool(
 ) {
     let mut coin = coin_with_a_band_holder();
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let real_near_before = coin.state.real_near;
 
     let applied = coin.sell_applied(BAND, BAND_TOKENS, window_1());
@@ -204,9 +219,9 @@ fn a_band_sell_above_its_first_allowance_fills_in_full_and_pays_ten_percent_of_t
     assert_eq!(sold.tokens_sold, BAND_TOKENS);
     assert_eq!(sold.fill, "full");
     assert_eq!(sold.limit_reason, None);
-    assert_eq!(sold.fee_near, 14_852_194_905_651_081_440_607);
-    assert_eq!(sold.penalty_near, 46_044_216_620_177_624_780_648);
-    assert_eq!(sold.near_out, 1_424_323_079_039_279_437_839_443);
+    assert_eq!(sold.fee_near, 28_606_610_122_305_435_272_571);
+    assert_eq!(sold.penalty_near, 88_339_332_811_911_659_378_723);
+    assert_eq!(sold.near_out, 2_743_715_069_296_326_432_605_722);
     // The seller gets near_out; the fee and the penalty stay in the pool's real NEAR.
     assert_eq!(
         applied.payout,
@@ -333,6 +348,7 @@ fn floor_left_is_ten_bps_of_the_window_token_reserve_less_the_tokens_used() {
 fn a_large_account_s_floor_left_fills_in_full_and_is_zero_once_the_allowance_is_used() {
     let mut coin = Coin::launched();
     coin.buy(LARGE, 5 * ONE_NEAR, after(10));
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let view = coin.account(LARGE, window_1());
     assert!(view.unmarked.floor_left > 0);
     let sold = coin.sell(LARGE, view.unmarked.floor_left, window_1());
@@ -353,6 +369,7 @@ fn a_large_account_s_floor_left_fills_in_full_and_is_zero_once_the_allowance_is_
 fn a_large_sell_above_its_allowance_fills_the_allowance_left_and_the_rest_stays_in_the_wallet() {
     let mut coin = Coin::launched();
     coin.buy(LARGE, 5 * ONE_NEAR, after(10));
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
     let allowance = coin.account(LARGE, window_1()).unmarked.allowance;
     coin.sell(LARGE, allowance / 3, window_1());
     let view = coin.account(LARGE, after(HOUR_S + 1));

@@ -20,3 +20,14 @@ pub fn tokens_out(token_reserve: u128, near_reserve: u128, near_after_fee: u128)
 pub fn near_out_before_fee(token_reserve: u128, near_reserve: u128, tokens_in: u128) -> u128 {
     mul_div(near_reserve, tokens_in, token_reserve + tokens_in)
 }
+
+/// The creator's share of a swap fee that the engine applies now: none. `fc_rules` reports
+/// `creator_fee_share_bps` from the fixed values; the creator fee work applies it here.
+pub fn applied_creator_fee_share_bps() -> u32 {
+    0
+}
+
+/// The creator's share of `fee_near` (the normal swap fee), rounded down.
+pub fn creator_fee(fee_near: u128) -> u128 {
+    mul_div(fee_near, applied_creator_fee_share_bps() as u128, BPS)
+}

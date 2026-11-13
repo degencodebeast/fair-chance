@@ -10,6 +10,7 @@ pub enum Event {
     FcSell(FcSell),
     FcSend(FcSend),
     FcBecameLarge(FcBecameLarge),
+    FcCapFilled(FcCapFilled),
     FtMint(FtMint),
     FtTransfer(FtTransfer),
 }
@@ -25,6 +26,12 @@ impl Event {
                 "fair_chance",
                 INTERFACE_VERSION,
                 "fc_became_large",
+                json!([e]),
+            ),
+            Self::FcCapFilled(e) => (
+                "fair_chance",
+                INTERFACE_VERSION,
+                "fc_cap_filled",
                 json!([e]),
             ),
             Self::FtMint(e) => ("nep141", "1.0.0", "ft_mint", json!([e])),
@@ -124,4 +131,23 @@ pub struct FcBecameLarge {
     pub balance: u128,
     #[serde(with = "crate::decimal_string")]
     pub large_threshold: u128,
+}
+
+/// The sell that took the real NEAR cap from "has room" to "full" in its window.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FcCapFilled {
+    #[serde(with = "crate::decimal_string")]
+    pub window_start_ns: u64,
+    #[serde(with = "crate::decimal_string")]
+    pub window_end_ns: u64,
+    /// Real NEAR left after the sell.
+    #[serde(with = "crate::decimal_string")]
+    pub real_near: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub cap_total: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub cap_used: u128,
+    pub by_account: String,
+    /// 1, 2, ... in the window.
+    pub fill_index: u32,
 }

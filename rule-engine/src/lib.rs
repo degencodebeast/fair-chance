@@ -12,6 +12,7 @@ mod events;
 mod fixed_values;
 mod holder_class;
 mod pool_math;
+mod real_near_cap;
 mod refusals;
 mod storage_registration;
 mod views;
@@ -22,8 +23,11 @@ pub use allowance::{WindowReserve, WindowTotals};
 pub use coin_state::{
     launch, At, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
 };
-pub use events::{Event, FcBecameLarge, FcBuy, FcSell, FcSend, FtMint, FtTransfer};
+pub use events::{
+    Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtMint, FtTransfer,
+};
 pub use fixed_values::FixedValues;
+pub use real_near_cap::{CapNet, CapWindow};
 pub use refusals::{Refusal, RefusalCode};
 pub use storage_registration::{unregister, Unregistered};
 pub use views::{

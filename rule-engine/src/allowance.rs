@@ -37,6 +37,10 @@ pub struct UnmarkedAllowance {
     /// The most tokens one more sell can take while `used` stays at or below `allowance`:
     /// allowance + bought - sold, at least 0. A buy gives room back.
     pub sell_room: u128,
+    /// The allowance less the tokens sold in the window, at least 0, with no room back for
+    /// buys: the part of a band account's sells that never counts toward the real NEAR cap. A
+    /// band account that buys and sells back in the window counts the bought part (ADR 0005).
+    pub first_allowance_left: u128,
     /// The floor (ADR 0005) less `used`, at least 0. The floor is `floor_bps` of the window's
     /// token reserve, rounded down: the room per window a limited sell keeps when the real NEAR
     /// cap is full.
@@ -102,6 +106,7 @@ pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) ->
         used,
         left: allowance.saturating_sub(used),
         sell_room: (allowance + totals.bought).saturating_sub(totals.sold),
+        first_allowance_left: allowance.saturating_sub(totals.sold),
         floor_left: floor.saturating_sub(used),
         window_end_ns: unmarked_window_end_ns(state, at),
     }

@@ -2,11 +2,13 @@
 
 use serde::Serialize;
 
-use crate::actions::{apply, Action};
+use crate::actions::{apply, Action, SellFillPlan};
 use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::events::Event;
 use crate::holder_class::{class_of, max_receive, Class};
+use crate::pool_math;
+use crate::real_near_cap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RulesView {
@@ -143,15 +145,22 @@ pub struct CapView {
 
 pub fn view_cap(state: &CoinState, at: At) -> CapView {
     let end = unmarked_window_end_ns(state, at);
+    let used = real_near_cap::cap_used(state, at);
+    let cap_left = real_near_cap::cap_left(
+        state,
+        used,
+        state.real_near,
+        pool_math::applied_creator_fee_share_bps(),
+    );
     CapView {
         window_start_ns: end - state.fixed.window_unmarked_s * 1_000_000_000,
         window_end_ns: end,
         real_near_now: state.real_near,
-        cap_total: 0,
-        cap_used: 0,
-        cap_left: 0,
-        is_full: false,
-        fills_this_window: 0,
+        cap_total: real_near_cap::cap_total(state, state.real_near),
+        cap_used: used,
+        cap_left,
+        is_full: cap_left == 0,
+        fills_this_window: real_near_cap::fills_this_window(state, at),
     }
 }
 
@@ -225,9 +234,15 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             window_end_ns,
         },
         marked: empty(Some(0)),
-        // A large sell above the room fills in part; a band sell above it pays the penalty.
+        // A large sell above the room, or above what the real NEAR cap lets through, fills in
+        // part; a band sell above the room pays the penalty.
         max_full_fill_now: match class {
-            Class::Large | Class::Band => balance.min(unmarked.sell_room),
+            Class::Large => {
+                let holder = holder.cloned().unwrap_or_default();
+                SellFillPlan::new(state, &holder, class, balance.min(unmarked.sell_room), at)
+                    .tokens_sold(state, &holder, at)
+            }
+            Class::Band => balance.min(unmarked.sell_room),
             Class::Small => balance,
         },
         penalty_applies_above: (class == Class::Band).then_some(unmarked.sell_room),
