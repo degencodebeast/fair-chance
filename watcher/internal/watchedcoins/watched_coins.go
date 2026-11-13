@@ -22,6 +22,7 @@ type Set struct {
 	Sender   telegram.Sender
 	ChatID   int64
 	Location *time.Location // for HH:MM times in alerts
+	Now      func() time.Time
 
 	mu      sync.Mutex
 	coins   map[string]*watched
@@ -56,6 +57,9 @@ func (s *Set) Watch(ctx context.Context, coin string) error {
 	}
 	return nil
 }
+
+// Stopped is nil until a read stops for good.
+func (s *Set) Stopped() error { return nil }
 
 // Coins lists the watched coin accounts.
 func (s *Set) Coins() []string {

@@ -94,3 +94,25 @@ func TestFastNearStopsOnForbiddenAndReportsRateLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestFastNearReportsRetryAfterOfARateLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "120")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+	_, _, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"c.testnet"}, 7)
+	var limited *eventsource.RateLimitedError
+	if !errors.As(err, &limited) || limited.RetryAfter != 120*time.Second {
+		t.Fatalf("err %v", err)
+	}
+}
+
+func TestFastNearTreatsAnyOtherAnswerAsUnknown(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadGateway) }))
+	defer srv.Close()
+	_, _, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"c.testnet"}, 7)
+	if !errors.Is(err, eventsource.ErrUnexpectedResponse) {
+		t.Fatalf("err %v", err)
+	}
+}

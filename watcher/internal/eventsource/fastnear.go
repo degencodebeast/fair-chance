@@ -25,7 +25,15 @@ type FastNear struct {
 var (
 	ErrForbidden   = errors.New("FastNEAR answered 403: stop and report")
 	ErrRateLimited = errors.New("FastNEAR answered 429: wait before the next read")
+	// ErrUnexpectedResponse is any other answer (status or body). The result is unknown: stop and report.
+	ErrUnexpectedResponse = errors.New("FastNEAR gave an answer the watcher does not know: stop and report")
 )
+
+// RateLimitedError is a 429. It is-a ErrRateLimited. RetryAfter is the wait FastNEAR asked for, or 0.
+type RateLimitedError struct{ RetryAfter time.Duration }
+
+func (e *RateLimitedError) Error() string        { return ErrRateLimited.Error() }
+func (e *RateLimitedError) Is(target error) bool { return target == ErrRateLimited }
 
 const (
 	accountPageSize = 100
