@@ -50,11 +50,13 @@ pub fn class_of(state: &CoinState, holder: Option<&Holder>, at: At) -> Class {
 }
 
 /// The most tokens a send to this account can carry now without taking it to T; `None` for a
-/// large account (a send to it is not limited).
+/// large account (a send to it is not limited), and 0 for an account with no storage record
+/// (a send to it is refused).
 pub fn max_receive(state: &CoinState, holder: Option<&Holder>) -> Option<u128> {
     match holder {
+        None => Some(0),
         Some(h) if h.is_large => None,
-        _ => Some((large_threshold(state) - 1).saturating_sub(holder.map_or(0, |h| h.balance))),
+        Some(h) => Some((large_threshold(state) - 1).saturating_sub(h.balance)),
     }
 }
 
