@@ -5,7 +5,7 @@ The coin page reads one coin from the chain: stats row, who can sell how fast, r
 ## Sub-features
 
 - `receipts-load` reads `fc_rules.launch_block`, then the events from there to the final head, and lists one row per `fc_sell` (also `fc_cap_filled` and `fc_became_large` rows, which are not sell receipts).
-- `receipts-row` is an `li` with `data-receipt-id` and `data-block`. Its sentence is `.receipt-sentence`: `<seller> sold <amount> of <amount> tokens for <near> NEAR. Fill: <fill>.` The verify run reports it as `Block <n>: <sentence>`.
+- `receipts-row` is an `li` with `data-receipt-id` and `data-block`. Its sentence is `.receipt-sentence`: `<seller> sold <amount> of <amount> tokens for <near> NEAR. It filled in full.` (compact amounts such as 7.1M; "It filled in part." or "Nothing filled." for the other fills) The verify run reports it as `Block <n>: <sentence>`.
 - `page-stats` shows price, market cap, real NEAR and age from `fc_pool`; a view the coin lacks shows "Not available from this coin".
 - `page-account-checks` shows three checks (`#chain-checks li[data-check]`): direct sub-account of the known factory, global contract hash equal to the known hash, no access keys. Any failure or missing known value shows `#chain-warning`.
 - `page-error` shows `Values cannot load: <reason>` in `#status` and no number when any read fails.

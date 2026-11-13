@@ -89,7 +89,12 @@ p { margin: 0; }
 .legend { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--limit); flex-shrink: 0; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--paper); }
+.chip-phone { display: none; }
+.telegram { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.button-off, .button[disabled] { background: var(--paper); color: var(--muted); border: 2px dashed var(--muted); cursor: not-allowed; }
 @media (max-width: 720px) {
+  .chip-desktop { display: none; }
+  .chip-phone { display: inline-block; }
   #app { padding: 12px; gap: 12px; }
   h1 { font-size: 28px; }
   .summary-lines { display: block; }

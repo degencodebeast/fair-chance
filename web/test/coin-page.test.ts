@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
-import { coinPageModel, NOT_AVAILABLE, type CoinPageModel } from "../src/coin-page-model.ts";
+import { coinPageModel, loadingFrame, NOT_AVAILABLE, type CoinPageModel } from "../src/coin-page-model.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
 import { readerFrom, recordedCoin, type RecordedCoin } from "./recorded-coin.ts";
 
@@ -42,7 +42,7 @@ describe("early window live", () => {
 describe("normal", () => {
   it("fills the stats row from the pool view", async () => {
     const view = await ready(recordedCoin("normal"));
-    expect(view.status).toBe("1 sell receipts from block 100, read from the chain.");
+    expect(view.status).toBe("1 sell receipt from block 100, read from the chain.");
     expect(view.header).toMatchObject({
       name: "Moth Lamp",
       symbol: "MOTH",
@@ -82,7 +82,7 @@ describe("normal", () => {
     expect(view.receipts[0]).toMatchObject({
       sellReceiptId: "SellReceipt111111111111111111111111111111111",
       block: 2200,
-      sentence: "alice.testnet sold 500,000.00 of 500,000.00 tokens for 0.3000 NEAR. Fill: full.",
+      sentence: "alice.testnet sold 500K of 500K tokens for 0.30 NEAR. It filled in full.",
       detail: null,
     });
     expect(view.receipts[1]!.sentence).toBe(
@@ -163,7 +163,7 @@ describe("cap full", () => {
     expect(view.receipts[1]!.sentence).toBe(
       "Pool cap full for this hour: 2.13 NEAR out. Large and early-supply sells fill just a small floor until 15:02.",
     );
-    expect(view.summaryLines.find((l) => l.label === "Pool cap")).toEqual({ label: "Pool cap", value: "Full", tone: "limit" });
+    expect(view.summaryLines.find((l) => l.label === "Pool cap")).toEqual({ label: "Pool cap", value: "full, resets 15:02", tone: "limit" });
   });
 });
 
@@ -181,7 +181,8 @@ describe("RPC error", () => {
     expect(view).toEqual({
       state: "error",
       status: "Values cannot load: fc_rules: HTTP 503",
-      title: "Values cannot load from the chain.",
+      title: "Values cannot load from the local sandbox.",
+      frame: loadingFrame("Not loaded"),
       detail: "Nothing on this page is shown as live until they load. fc_rules: HTTP 503",
       lastAttempt: "14:24",
     });
@@ -195,7 +196,7 @@ describe("RPC error", () => {
     const data = await loadCoinPage(baseHref, { reader: failing, nowNs });
     const view = coinPageModel(data, { nowNs, timeZone: "UTC" });
     expect(view.state).toBe("error");
-    expect(JSON.stringify(view)).not.toMatch(/NEAR/);
+    expect(JSON.stringify(view)).not.toMatch(/\d NEAR/);
   });
 });
 
