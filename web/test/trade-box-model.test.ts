@@ -76,3 +76,10 @@ describe("buy preview", () => {
     }
   });
 });
+
+describe("warning source", () => {
+  it("shows no warning for an account that is already large when the view says becomes_large is false", () => {
+    const m = tradeBoxModel(asked({ class_after: "large", becomes_large: false }));
+    expect(m.buy.largeWarning).toBeNull();
+  });
+});
