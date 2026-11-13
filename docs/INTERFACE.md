@@ -25,7 +25,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 ## Windows
 
 - One fixed grid from the launch time: window k runs from launch + k x length to launch + (k + 1) x length. Lengths: 1 h for unmarked accounts and for the pool-wide c cap, 24 h for early supply.
-- Marked payouts count in the same 1 h cap window, net of the same account's buys, for the cap only.
+- Marked payouts count in the same 1 h cap window, gross (no buy offsets them), for the cap only.
 - The token reserve for the 2% price cap is recorded at the first action in each window, before that action takes effect.
 - In window 0, marked sells have no allowance in blocks 0 to N. Early-supply shares and the window-0 token reserve for early supply are recorded at the first action after block N.
 - Known limit: every allowance and the cap reset at the same moment, so bots race at the reset.

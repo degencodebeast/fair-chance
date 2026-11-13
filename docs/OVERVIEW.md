@@ -46,7 +46,7 @@ The contract enforces the rules. Everything else explains them: the coin page, e
 - Wallets the creator funds but did not create as sub-accounts. The contract cannot see who funded an account.
 - A mid-size (band) holder sending parts of its bag to fresh wallets.
 - A bag split into many small wallets (each inside one allowance) sells without limit, and the tokens each wallet held from before the hour never count toward the cap, at any value of T.
-- Many mid-size wallets. Each wallet's first allowance in a window passes without counting toward the pool-wide cap, so a bag split across many mid-size wallets sells one allowance per wallet per window.
+- Many mid-size wallets. Each wallet's first allowance in a window passes without counting toward the pool-wide cap, except tokens it bought in the window, so a bag split across many mid-size wallets sells one allowance per wallet per window.
 - Account handover: a holder gives away the whole account, keys included.
 - Two allowances back to back at a window boundary.
 - Small early buyers. A buy in blocks 0 to N counts as early supply, whatever its size, so it sells at the one shared pace (about 10 to 69 days to exit at p = 2%, by paper estimate). The early-window banner and the buy preview say this before the buy, and count blocks left, with seconds only as an estimate: "Buys in the next 5 blocks (about 3 seconds) count as early supply".
