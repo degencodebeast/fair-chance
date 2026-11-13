@@ -202,7 +202,7 @@ impl Coin {
         } else {
             let min = self.storage_balance_bounds().min;
             if amount < min {
-                env::panic_str("The attached deposit is less than the minimum storage balance");
+                env::panic_str(&Refusal::new(RefusalCode::StorageDepositBelowMinimum).to_string());
             }
             self.holders.insert(
                 account_id.to_string(),
@@ -232,7 +232,7 @@ impl Coin {
                 ))
             });
         if amount.is_some_and(|a| !a.is_zero()) {
-            env::panic_str("The amount is greater than the available storage balance");
+            env::panic_str(&Refusal::new(RefusalCode::StorageWithdrawAboveAvailable).to_string());
         }
         balance
     }
