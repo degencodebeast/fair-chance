@@ -328,7 +328,7 @@ fn penalty_applies_above_is_null_for_small_and_large_accounts() {
 }
 
 #[test]
-fn floor_left_is_ten_bps_of_the_window_token_reserve_less_the_tokens_used() {
+fn floor_left_is_ten_bps_of_the_window_token_reserve_less_the_tokens_sold() {
     let mut coin = coin_with_a_band_holder();
     let view = coin.account(BAND, window_1());
     assert_eq!(view.unmarked.floor_left, FLOOR_WINDOW_1);
