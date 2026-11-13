@@ -26,7 +26,7 @@ This folder is the maintained source for verifying what a Fair Chance user can s
 | Feature | File | Proved by the default run |
 | --- | --- | --- |
 | Launch, buy and limited sell of a coin | [coin-launch-buy-sell.md](coin-launch-buy-sell.md) | yes |
-| Receipts page | [receipts-page.md](receipts-page.md) | yes (headless Chrome) |
+| Coin page (receipts, stats, rules, account checks) | [receipts-page.md](receipts-page.md) | yes (headless Chrome) |
 | Sell alert from the watcher | [sell-alert.md](sell-alert.md) | yes (fake sender) |
 
 ## Feature entry contract

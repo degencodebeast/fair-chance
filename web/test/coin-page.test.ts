@@ -42,6 +42,7 @@ describe("early window live", () => {
 describe("normal", () => {
   it("fills the stats row from the pool view", async () => {
     const view = await ready(recordedCoin("normal"));
+    expect(view.status).toBe("1 sell receipts from block 100, read from the chain.");
     expect(view.header).toMatchObject({
       name: "Moth Lamp",
       symbol: "MOTH",
@@ -140,6 +141,7 @@ describe("RPC error", () => {
     const view = await page(recordedCoin("rpc-error"));
     expect(view).toEqual({
       state: "error",
+      status: "Values cannot load: fc_rules: HTTP 503",
       title: "Values cannot load from the chain.",
       detail: "Nothing on this page is shown as live until they load. fc_rules: HTTP 503",
       lastAttempt: "14:24",

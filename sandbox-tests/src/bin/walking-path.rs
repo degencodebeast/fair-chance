@@ -7,7 +7,7 @@
 //! `walking-path --hold` stops after the sell, prints the RPC URL and coin, and keeps the sandbox up
 //! until it is killed.
 //!
-//! `walking-path --read-in-browser` also opens the built receipts page in headless Google Chrome
+//! `walking-path --read-in-browser` also opens the built coin page in headless Google Chrome
 //! (`web/scripts/read-receipt-in-browser.ts`) and checks that it shows the same receipt row. It needs
 //! `npm ci` in `web/`. `FC_EVIDENCE_DIR`, when set, receives the page screenshot.
 
@@ -158,6 +158,10 @@ async fn main() -> Result<()> {
             "walking-path:   browser ({}) row: {}",
             shown["browser"], shown["text"]
         );
+        println!(
+            "walking-path:   coin page stats {} code hash {} account checks {}",
+            shown["stats"], shown["code_hash"], shown["checks"]
+        );
     }
 
     step("the watcher reads the event through its adapter and sends one alert to the fake sender");
@@ -201,7 +205,15 @@ async fn run_watcher(world: &World) -> Result<Value> {
 }
 
 async fn run_browser_read(world: &World, receipt_id: &str) -> Result<Value> {
-    let query = format!("?coin={}&rpc={}", world.coin, urlencode(world.rpc_url()));
+    // The link also names the known factory and the known coin code hash, so the page can check
+    // the coin account against them.
+    let query = format!(
+        "?coin={}&rpc={}&factory={}&code_hash={}",
+        world.coin,
+        urlencode(world.rpc_url()),
+        world.factory.id,
+        world.coin_code_hash
+    );
     let mut command = Command::new("node");
     command
         .arg(repo_root().join("web/scripts/read-receipt-in-browser.ts"))

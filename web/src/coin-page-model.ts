@@ -55,6 +55,8 @@ export interface ReceiptItem {
 
 export interface CoinPageModel {
   state: "ready";
+  /** The one-line load state: how many sell receipts, from which block. */
+  status: string;
   header: { name: string; symbol: string; creator: string; launched: string; description: string | null; icon: string | null };
   banner: Banner | null;
   /** Set when any chain check failed or could not run. */
@@ -75,7 +77,7 @@ export interface CoinPageModel {
 
 export type CoinPageView =
   | CoinPageModel
-  | { state: "error"; title: string; detail: string; lastAttempt: string };
+  | { state: "error"; status: string; title: string; detail: string; lastAttempt: string };
 
 const ICON_PREFIX = "data:image/webp;base64,";
 
@@ -83,6 +85,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
   if (data.kind === "error") {
     return {
       state: "error",
+      status: `Values cannot load: ${data.message}`,
       title: "Values cannot load from the chain.",
       detail: `Nothing on this page is shown as live until they load. ${data.message}`,
       lastAttempt: clockTime(data.attemptedAtNs, ctx),
@@ -96,6 +99,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
   const checksOk = r.checks.every((c) => c.status === "pass");
   return {
     state: "ready",
+    status: `${receipts.filter((x) => x.sellReceiptId !== null).length} sell receipts from block ${r.rules.launchBlock}, read from the chain.`,
     header: header(r, ctx),
     banner: banner(r),
     warning: checksOk ? null : warning(r.checks),
