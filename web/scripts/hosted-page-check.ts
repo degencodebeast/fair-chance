@@ -21,10 +21,7 @@ export async function checkHostedPage(page: Page, url: string): Promise<HostedPa
   });
   const own = new URL(url).host;
   page.on("console", (msg) => {
-    if (msg.type() !== "error") return;
-    const at = new URL(msg.location().url || url);
-    // A host with no favicon answers 404 for it; that is not a page error.
-    if (at.host === own && at.pathname !== "/favicon.ico") errors.push(msg.text());
+    if (msg.type() === "error" && new URL(msg.location().url || url).host === own) errors.push(msg.text());
   });
 
   await page.goto(url);

@@ -63,25 +63,38 @@ function runHosted(link: string): Promise<{ code: number; last: string }> {
   });
 }
 
+// A host that answers 404 for the favicon, as a real host may. Everything else passes through to the local build.
+function listenWithoutFavicon(target: string): Promise<{ server: Server; origin: string }> {
+  return listen((_body, path, res) => {
+    if (path === "/favicon.ico") return void res.writeHead(404).end();
+    void fetch(`${target}${path}`).then(async (r) => res.writeHead(r.status, { "content-type": r.headers.get("content-type") ?? "text/plain" }).end(Buffer.from(await r.arrayBuffer())));
+  });
+}
+
 const page = await buildAndServePage();
 const goodRpc = await listen(rpcHandler(true));
 const badRpc = await listen(rpcHandler(false));
 const fastNear = await listen(fastNearHandler);
+const pageWithoutFavicon = await listenWithoutFavicon(page.origin);
 let exitCode = 0;
 try {
-  const linkTo = (rpc: string) =>
-    `${page.origin}/?coin=moth.factory.sandbox&rpc=${encodeURIComponent(rpc)}&fastnear=${encodeURIComponent(fastNear.origin)}&factory=factory.sandbox&code_hash=${state.account.global_contract_hash}`;
+  const linkTo = (rpc: string, origin = page.origin) =>
+    `${origin}/?coin=moth.factory.sandbox&rpc=${encodeURIComponent(rpc)}&fastnear=${encodeURIComponent(fastNear.origin)}&factory=factory.sandbox&code_hash=${state.account.global_contract_hash}`;
   const good = await runHosted(linkTo(goodRpc.origin));
   console.log(`hosted command, good chain: exit ${good.code}: ${good.last}`);
   if (good.code !== 0 || !good.last.startsWith("verify: PASS (hosted)")) throw new Error("the hosted command did not pass on a good chain");
   const bad = await runHosted(linkTo(badRpc.origin));
   console.log(`hosted command, failing chain: exit ${bad.code}: ${bad.last}`);
   if (bad.code === 0 || !bad.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a chain that fails every read");
+  // A real host: a 404 on one of its own files is a console error and must fail the command.
+  const missing = await runHosted(linkTo(goodRpc.origin, pageWithoutFavicon.origin));
+  console.log(`hosted command, host that answers 404 for its favicon: exit ${missing.code}: ${missing.last}`);
+  if (missing.code === 0 || !missing.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a 404 from the host");
 } catch (err) {
   console.error(`check-hosted-page-on-local-build: ${err instanceof Error ? err.message : String(err)}`);
   exitCode = 1;
 } finally {
-  for (const s of [goodRpc, badRpc, fastNear]) s.server.close();
+  for (const s of [goodRpc, badRpc, fastNear, pageWithoutFavicon]) s.server.close();
   await page.close();
 }
 process.exit(exitCode);

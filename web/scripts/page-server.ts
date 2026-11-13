@@ -33,6 +33,11 @@ export async function buildAndServePage(): Promise<{ origin: string; close: () =
       res.writeHead(400).end();
       return;
     }
+    // Browsers ask for a favicon on their own; the page has none, so answer "no content", not 404.
+    if (path === "/favicon.ico") {
+      res.writeHead(204).end();
+      return;
+    }
     try {
       const body = await readFile(join(folder, relative));
       res.writeHead(200, { "content-type": contentTypes[extname(relative)] ?? "application/octet-stream" });
