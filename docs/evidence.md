@@ -13,7 +13,7 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 | `pool_buy_and_sell.rs` | Constant-product buy and sell, the NEAR reserve minimum, slippage refusal. |
 | `unmarked_allowance.rs` | One allowance per account per 1 hour window, counted net in tokens, with no carry-over. |
 | `holder_class_and_sends.rs` | Large accounts cannot send. A send that would make a receiver large is refused. Sends to the coin and to yourself are refused. Unregister is refused while tokens are held. |
-| `window_class_floor.rs` | A band account that sells below one allowance stays band until the window ends. The floor resets in the next window. |
+| `window_class_floor.rs` | A band account that sells below one allowance stays band until the window ends. A large account that sells to zero is band until the window ends. An account that was large and holds a bag inside one allowance is still limited as large: at a full cap it fills only its floor. The floor resets in the next window. |
 | `partial_fill_and_band_penalty.rs` | A large sell above the allowance fills in part and the rest stays in the wallet. A band sell inside one allowance pays no penalty. A band sell above it pays 10% on the part above. |
 | `real_near_cap.rs` | <!-- waits on: the marked-token cap rule --> |
 | `real_near_cap_properties.rs` | <!-- waits on: the marked-token cap rule --> |

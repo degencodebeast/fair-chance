@@ -25,7 +25,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 ## Windows
 
 - One fixed grid from the launch time: window k runs from launch + k x length to launch + (k + 1) x length. Lengths: 1 h for unmarked accounts and for the pool-wide c cap, 24 h for early supply.
-- Marked payouts count in the same 1 h cap window, net of the same account's buys, for the cap only.
+- Marked payouts count in the same 1 h cap window, gross (no buy offsets them), for the cap only.
 - The token reserve for the 2% price cap is recorded at the first action in each window, before that action takes effect.
 - In window 0, marked sells have no allowance in blocks 0 to N. Early-supply shares and the window-0 token reserve for early supply are recorded at the first action after block N.
 - Known limit: every allowance and the cap reset at the same moment, so bots race at the reset.
@@ -64,6 +64,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
    `max_full_fill_now` (largest sell that fills fully now with no penalty), `penalty_applies_above` (band only, else null; equal to `max_full_fill_now` for an account with no marked tokens, and at least `max_full_fill_now` for one that holds marked tokens, because the cap can hold back the marked part, which fills first).
 6. `fc_quote_sell(account_id, amount)`: a preview of one sell now, with no state change.
    `tokens_filled`, `near_out`, `penalty_near`, `fill` (`full`, `partial`, `none`), `limit_reason` (null, `allowance`, `cap_full`, `floor`), `cap_left_after`.
+   `limit_reason`: null when the whole amount fills; `allowance` when the sell fills up to the allowance left; `floor` when a large sell, or the marked part of a sell, fills only its floor (the part that fills at any cap) and the cap stops the rest; `cap_full` when the cap stops the sell at any other point. `fc_sell` uses the same values.
 7. `fc_creator_fees()`: `creator`, `balance` (unclaimed), `claimed_total`, `depth_ok_since_ns` (null when the lowest real NEAR of the current window is below X), `claimable_now`, `claimable_at_ns` (earliest claim time if real NEAR stays at least X; null when not counting).
 8. `fc_quote_buy(account_id, near_in)`: a preview of one buy now, with no state change. Added for `1.0.0-rc.2`.
    `tokens_out`, `fee_near`, `creator_fee_near`, `marked_tokens` (all of `tokens_out` in blocks 0 to N or for a creator-group buyer, else 0), `class_after`, `becomes_large` (true when the account is not large now and the buy takes its balance to `large_threshold_bps` of supply or more), `allowance_after` (the account's unmarked allowance in the current window after the buy). The frontend sets the buy's `min_tokens_out` from `tokens_out`.

@@ -155,6 +155,47 @@ describe("cap full floor", () => {
   });
 });
 
+describe("a small account at a full cap", () => {
+  const HELD_BACK = "Profit from tokens you bought this hour is held back while the pool cap has too little room for it.";
+
+  it("adds the held-back line when the view says it cannot sell its whole balance now", async () => {
+    const { plan } = await show("sell-fills-fully", (s) => {
+      (s.views.fc_account as Record<string, unknown>).max_full_fill_now = "4000000000000000000000000";
+    });
+    expect(plan).toEqual({
+      kind: "small",
+      accountId: "you.testnet",
+      balance: "5.0M MOTH",
+      text: `No limit applies to your bag. ${HELD_BACK}`,
+    });
+  });
+
+  it("adds the line when the view holds the profit although the cap is not full and has room", async () => {
+    const { plan } = await show("sell-fills-fully", (s) => {
+      (s.views.fc_account as Record<string, unknown>).max_full_fill_now = "4000000000000000000000000";
+      s.views.fc_cap = { is_full: false, cap_left: "1000000000000000000000" };
+    });
+    expect(plan).toMatchObject({ kind: "small", text: `No limit applies to your bag. ${HELD_BACK}` });
+  });
+
+  it("follows the copy rules", async () => {
+    const { plan } = await show("sell-fills-fully", (s) => {
+      (s.views.fc_account as Record<string, unknown>).max_full_fill_now = "4000000000000000000000000";
+    });
+    expect(allText(plan).flatMap(copyViolations)).toEqual([]);
+  });
+
+  it("keeps the early-supply text for a small account with marked tokens", async () => {
+    const { plan } = await show("sell-fills-fully", (s) => {
+      const account = s.views.fc_account as Record<string, unknown>;
+      account.max_full_fill_now = "4000000000000000000000000";
+      account.marked_balance = "1000000000000000000000000";
+    });
+    expect(plan.kind).toBe("card");
+    expect(allText(plan).join(" ")).not.toContain(HELD_BACK);
+  });
+});
+
 describe("a band account below one allowance", () => {
   it("shows band and the penalty line from fc_account.class, not a small bag", async () => {
     const { plan } = await show("band-below-one-allowance");

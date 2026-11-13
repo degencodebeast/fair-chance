@@ -718,3 +718,112 @@ fn a_small_account_that_sells_bought_tokens_for_more_than_it_paid_at_a_full_cap_
     let next = coin.sell_all(OTHER, after(2 * HOUR_S + 1));
     assert_eq!(next.fill, "full");
 }
+
+/// A band account buys while its first allowance is unused, the price then rises, and it sells
+/// the bought tokens: the bought part counts toward the cap, net of the buy. The first allowance
+/// held from before the window never counts (ADR 0004), so without the bought part the cap used
+/// would stay 0.
+#[test]
+fn a_band_account_that_buys_then_sells_the_bought_tokens_counts_the_bought_part_toward_the_cap() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let held = coin.balance(BAND);
+    let buy_near = ONE_NEAR / 10;
+    coin.buy(BAND, buy_near, at);
+    let bought = coin.balance(BAND) - held;
+    // Another account's buy lifts the price, so the bought tokens sell for more than they cost.
+    coin.buy(OTHER, 50 * ONE_NEAR, at);
+    assert_eq!(coin.cap(at).cap_used, 0);
+
+    let sell = coin.sell(BAND, bought, at);
+
+    assert_eq!(sell.fill, "full");
+    assert_eq!(sell.penalty_near, 0);
+    assert!(sell.near_out > buy_near);
+    assert_eq!(coin.cap(at).cap_used, sell.near_out - buy_near);
+}
+
+/// At a full cap a band account's first allowance still fills, and only the part above it is
+/// checked: a sell inside the first allowance fills in full and adds nothing to the cap used,
+/// and a sell above it stops at the first allowance.
+#[test]
+fn at_a_full_cap_a_band_first_allowance_fills_and_only_the_part_above_is_checked() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+    let first_allowance = coin.account(BAND, at).penalty_applies_above.expect("band");
+    assert!(coin.balance(BAND) > first_allowance);
+    let used = coin.cap(at).cap_used;
+
+    let inside = coin.clone().sell(BAND, first_allowance / 2, at);
+    assert_eq!(inside.fill, "full");
+    assert_eq!(inside.limit_reason, None);
+    assert_eq!(inside.penalty_near, 0);
+
+    let above = coin.sell(BAND, first_allowance + 1, at);
+    assert_eq!(above.tokens_sold, first_allowance);
+    assert_eq!(above.fill, "partial");
+    assert_eq!(above.limit_reason, Some("cap_full"));
+    assert_eq!(above.penalty_near, 0);
+    assert_eq!(coin.cap(at).cap_used, used);
+}
+
+/// Window 1 ends with a full cap well past full: LARGE and eight small wallets sold everything.
+/// Then SMALL (bought in window 1) gains from a later buy by OTHER. SMALL is small with no
+/// marked tokens, and the cap holds its profit: `fc_account.max_full_fill_now` is below its
+/// balance and the quote for the whole balance stops at the cap.
+#[test]
+fn at_a_full_cap_a_small_account_that_bought_in_the_window_cannot_sell_its_whole_balance_now() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    for i in 0..8 {
+        coin.buy(&format!("wallet-{i}.test"), ONE_NEAR / 2, after(11 + i));
+    }
+    let at = window_1(1);
+    coin.sell_all(LARGE, at);
+    for i in 0..8 {
+        coin.sell_all(&format!("wallet-{i}.test"), at);
+    }
+    coin.buy(SMALL, ONE_NEAR / 2, at);
+    coin.buy(OTHER, 2 * ONE_NEAR, at);
+    assert!(coin.cap(at).is_full);
+
+    let view = coin.account(SMALL, at);
+    assert_eq!(view.class, "small");
+    assert_eq!(view.marked_balance, 0);
+    assert!(view.max_full_fill_now < view.balance);
+    let quote = coin.quote(SMALL, view.balance, at);
+    assert_eq!(quote.limit_reason, Some("cap_full"));
+}
+
+/// A small account with no floor buys twice in the window and sells once. Its bought tokens count
+/// above the total NEAR it paid for both buys, and fill only as far as the cap room allows.
+#[test]
+fn a_small_account_that_buys_twice_and_sells_once_counts_the_part_above_all_the_near_it_paid() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    for i in 0..8 {
+        coin.buy(&format!("wallet-{i}.test"), ONE_NEAR / 2, after(11 + i));
+    }
+    let at = window_1(1);
+    coin.sell_all(LARGE, at);
+    for i in 0..8 {
+        coin.sell_all(&format!("wallet-{i}.test"), at);
+    }
+    let (first_buy, second_buy) = (ONE_NEAR / 4, ONE_NEAR / 4);
+    coin.buy(SMALL, first_buy, at);
+    coin.buy(SMALL, second_buy, at);
+    coin.buy(OTHER, 2 * ONE_NEAR, at);
+    let used_before = coin.cap(at).cap_used;
+    assert!(coin.cap(at).is_full);
+    let view = coin.account(SMALL, at);
+    assert_eq!(view.class, "small");
+    assert!(view.max_full_fill_now < view.balance);
+
+    let sell = coin.sell_all(SMALL, at);
+
+    // The sell pays the NEAR of both buys and not more: the part above it counts and is held.
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    assert_eq!(sell.tokens_sold, view.max_full_fill_now);
+    assert_eq!(sell.near_out, first_buy + second_buy);
+    assert_eq!(coin.cap(at).cap_used, used_before);
+}

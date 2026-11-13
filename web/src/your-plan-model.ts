@@ -101,11 +101,15 @@ function primaryAllowance(a: Account): { kind: "unmarked" | "marked"; value: All
   return unmarked === null ? null : { kind: "unmarked", value: unmarked };
 }
 
+const PROFIT_HELD_BACK = "Profit from tokens you bought this hour is held back while the pool cap has too little room for it.";
+
 function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bigint) => string): PlanView {
   const symbol = input.symbol;
   // Early supply is limited whatever the class says: marked tokens show through marked_balance.
   if (a.class === "small" && a.markedBalance === 0n) {
-    return { kind: "small", accountId: input.accountId, balance: `${tokens(a.balance)} ${symbol}`, text: "No limit applies to your bag." };
+    const held = a.maxFullFillNow.kind === "value" && a.maxFullFillNow.value < a.balance;
+    const text = held ? `No limit applies to your bag. ${PROFIT_HELD_BACK}` : "No limit applies to your bag.";
+    return { kind: "small", accountId: input.accountId, balance: `${tokens(a.balance)} ${symbol}`, text };
   }
   const tags: Tag[] = [];
   if (a.class !== "small") tags.push({ label: a.class === "large" ? "Large" : "Mid-size", tone: a.class === "large" ? "dark" : "plain" });

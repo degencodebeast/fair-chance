@@ -17,7 +17,7 @@ When a new memecoin launches, the creator and a few large wallets often sell int
 
 1. **One contract per coin, holding both the token and its pool.** The coin sees every buy, sell and send. It trades only in its own pool. `ft_transfer_call` is refused for every receiver, so deposits into outside pools are refused (ADR 0002).
 2. **A virtual NEAR reserve from block 1.** The whole supply goes into the pool at launch. Nobody seeds real NEAR. There is no graduation, and the liquidity stays locked. Swap fees stay in the pool, except a creator share. The creator can claim that share only after the pool has held a minimum of real NEAR for 24 hours. The share and the minimum are not final (ADR 0003, ADR 0010).
-3. **An allowance per window, sized by pool depth.** Every account may sell up to one allowance per window. A deeper pool means a larger allowance in NEAR. If your bag fits inside one allowance and none of it is early supply, no limit ever applies to you (ADR 0001). A bag that was above one allowance at any point in a window keeps the mid-size rules until that window ends, so selling it in parts pays the same as one sell.
+3. **An allowance per window, sized by pool depth.** Every account may sell up to one allowance per window. A deeper pool means a larger allowance in NEAR. If your bag fits inside one allowance, you were never large, you were not above one allowance earlier in the window, and none of it is early supply, one limit applies to you (ADR 0001, ADR 0005). Selling tokens you bought this hour counts toward the cap. When the cap has too little room, profit from them is held back. A bag that was above one allowance at any point in a window keeps the mid-size rules until that window ends, so selling it in parts pays the same as one sell.
 4. **Early supply shares one allowance.** Tokens bought or received by the creator group (the creator, its sub-accounts and its parent accounts), or bought by anyone in blocks 0 to N, are marked. All marked tokens share one allowance per window, split by balance. Marked tokens cannot be sold in blocks 0 to N. Early-supply windows run on a 24 h grid from launch. Shares are first recorded at the first action after block N. Splitting across wallets at launch gains nothing (ADR 0001, ADR 0008).
 5. **Large holders cannot send.** A holder at or above the large threshold cannot move tokens to fresh wallets to get fresh allowances. A send that would take a receiver that is not large to the large threshold is refused, so only a buy can make an account large (ADR 0001).
 6. **Selling above the allowance.** Large and marked accounts get a partial fill, and the rest stays in the wallet. Mid-size (band) accounts may sell more and pay a penalty, which stays in the pool (ADR 0004).
@@ -45,8 +45,8 @@ The contract enforces the rules. Everything else explains them: the coin page, e
 - Late splitters: people who buy after block N through many small wallets at market price.
 - Wallets the creator funds but did not create as sub-accounts. The contract cannot see who funded an account.
 - A mid-size (band) holder sending parts of its bag to fresh wallets.
-- A bag split into many small wallets (each inside one allowance) sells without limit and never counts toward the cap, at any value of T.
-- Many mid-size wallets. Each wallet's first allowance in a window passes without counting toward the pool-wide cap, so a bag split across many mid-size wallets sells one allowance per wallet per window.
+- A bag split into many small wallets (each inside one allowance) sells without limit, and the tokens each wallet held from before the hour never count toward the cap, at any value of T.
+- Many mid-size wallets. Each wallet's first allowance in a window passes without counting toward the pool-wide cap, except tokens it bought in the window, so a bag split across many mid-size wallets sells one allowance per wallet per window.
 - Account handover: a holder gives away the whole account, keys included.
 - Two allowances back to back at a window boundary.
 - Small early buyers. A buy in blocks 0 to N counts as early supply, whatever its size, so it sells at the one shared pace (about 10 to 69 days to exit at p = 2%, by paper estimate). The early-window banner and the buy preview say this before the buy, and count blocks left, with seconds only as an estimate: "Buys in the next 5 blocks (about 3 seconds) count as early supply".
@@ -75,7 +75,7 @@ Public claims say "most wallets", never "most selling". They do not use "safe", 
 | Coin contract | Token, pool and every rule above | Builder |
 | Frontend | Launch form, coin list, coin page with limits and receipts | Builder |
 | Watcher and Telegram bot | Reads coin events, sends plain-language alerts, answers `/watch` and `/check` | Builder |
-| Events and view methods | An NEP-297 event for every sell, including limited sells; hard refusals return a fixed error code; a view method for the early window and allowances | Builder (names frozen as 1.0.0-rc.5, additions only since rc.3; 1.0.0 when every coin rule passes its sandbox tests) |
+| Events and view methods | An NEP-297 event for every sell, including limited sells; hard refusals return a fixed error code; a view method for the early window and allowances | Builder (names frozen as 1.0.0-rc.6, additions only since rc.3; 1.0.0 when every coin rule passes its sandbox tests) |
 | NEAR launch replay | Measures early and insider selling on real NEAR launches | Kalu, issue #1 |
 | Rule simulation | Tests the parameters and attacks over 60 days | Kalu, issue #2 |
 

@@ -306,3 +306,72 @@ fn the_class_floor_resets_in_the_next_window() {
     assert_eq!(view.penalty_applies_above, None);
     assert_eq!(coin.sell_all(BAND, next).class, "small");
 }
+
+const LARGE: &str = "large.test";
+const SECOND_LARGE: &str = "second-large.test";
+
+/// A large account that sells down to a bag inside one allowance stays large: it is large until
+/// its balance is zero (ADR 0001), so its sells keep the large rules.
+#[test]
+fn an_account_that_was_large_and_holds_a_bag_inside_one_allowance_is_still_limited_as_large() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(1));
+    coin.buy(SECOND_LARGE, 10 * ONE_NEAR, after(2));
+    assert_eq!(coin.account(LARGE, window_1(0)).class, "large");
+    let mut window = 1;
+    loop {
+        let at = after(window * HOUR_S);
+        let view = coin.account(LARGE, at);
+        if view.balance <= view.unmarked.allowance {
+            break;
+        }
+        assert_eq!(coin.sell(LARGE, view.unmarked.allowance, at).class, "large");
+        window += 1;
+        assert!(window < 200);
+    }
+
+    let at = after(window * HOUR_S);
+    let view = coin.account(LARGE, at);
+    assert!(view.balance > 0 && view.balance <= view.unmarked.allowance);
+    assert_eq!(view.class, "large");
+    assert_eq!(view.penalty_applies_above, None);
+    // Another large account fills the cap first; the large sells here hold at the floor.
+    let held = view.balance;
+    let first = coin.sell_all(SECOND_LARGE, at);
+    assert_eq!(first.limit_reason, Some("cap_full"));
+    let sell = coin.sell(LARGE, held, at);
+    assert_eq!(sell.class, "large");
+    assert_eq!(sell.fill, "partial");
+    assert!(sell.tokens_sold < held);
+    assert_eq!(sell.limit_reason, Some("floor"));
+}
+
+/// A large account that sells to zero is band for the rest of the window, so a buy in the same
+/// window follows the band rules; in the next window it is small.
+#[test]
+fn a_large_account_that_sells_to_zero_is_band_for_the_rest_of_the_window() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(1));
+    let mut window = 1;
+    while coin.balance(LARGE) > 0 {
+        let at = after(window * HOUR_S);
+        let sold = coin.sell_all(LARGE, at);
+        assert_eq!(sold.class, "large");
+        if coin.balance(LARGE) == 0 {
+            let view = coin.account(LARGE, at);
+            assert!(!view.is_large);
+            assert_eq!(view.class, "band");
+            coin.buy(LARGE, ONE_NEAR / 100, after(window * HOUR_S + 5));
+            assert_eq!(
+                coin.account(LARGE, after(window * HOUR_S + 6)).class,
+                "band"
+            );
+            let next = coin.account(LARGE, after((window + 1) * HOUR_S));
+            assert_eq!(next.class, "small");
+            return;
+        }
+        window += 1;
+        assert!(window < 200);
+    }
+    panic!("the account never sold to zero");
+}
