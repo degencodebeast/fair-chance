@@ -1,0 +1,175 @@
+{
+  "network": "testnet",
+  "coin": "bag.factory.fairchance.testnet",
+  "factory": "factory.fairchance.testnet",
+  "code_hash": "6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3",
+  "launch": {
+    "tx_hash": "8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ",
+    "account": "bag-creator.fairchance.testnet",
+    "deposit": "5000000000000000000000000",
+    "launch_block": 277565791
+  },
+  "buys": [
+    {
+      "tx_hash": "EU7f9gmEmNdWGLjxnAHU3UTCxnZofAehN3jHUhebcJvD",
+      "account": "bag-buyer-01.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7308624762134838070425063",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "8EE8hVPRFp2YNRVUd1gVGKk9CkAjkTZoagv7aQDoHXkM",
+      "account": "bag-buyer-02.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8735932608046996791698688",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "CzpZG6SmPMXs7teUeGcZymVdT4yxHyeTzDau6RDbCdRA",
+      "account": "bag-buyer-03.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "9802950787206654124170709",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "3G2j1v866pqxc5LyESXcPzJW48wKA3k9xw2erY9tLvTe",
+      "account": "bag-buyer-04.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7434954520756576344062005",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "AepEqLtwF1QiXA9nxTE9fG5cVgZjZRdptoVfwqq4ATHp",
+      "account": "bag-buyer-05.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8418793016192005018989788",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "HLJSPvL9D9ACyRej1GA6ASb3RBsZ3ePXGbrRMYV2KgtB",
+      "account": "bag-buyer-06.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "9611961119757080926167756",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "FKT36dswNU7PPszM3gFYn1UiTFGqWgpLgvRnxCXm5gie",
+      "account": "bag-buyer-07.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "6948389762244947184344944",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "5gjqxphoDamvsm7kPd9eX5Xi87JqVbB2BSWFpiYLNNas",
+      "account": "bag-buyer-08.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7834263032415318815236706",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "8p9vSChgjxoGzi7gJwR4fBh7ij33UAiWJaZYvRBogFT1",
+      "account": "bag-buyer-09.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8901273352840913852470278",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "3Z4HrRU42rnoFtz5KBgpRme2Mih417mUHo81gwCHxcum",
+      "account": "bag-buyer-10.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8266667831146366813659516",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "2Ki4Wy4qf5wFYXy5YXchp3K928bKpLceVwZeYyA4UBtH",
+      "account": "bag-buyer-11.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "9246371902723509409898189",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "7LmRkggtk4kZNZnGZHifRUCNLiA5oaJF3TgZUufc333o",
+      "account": "bag-buyer-12.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7697654484483231878870414",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "6n6rNRAQpiR5xmvfMPUybqntgJ1BtVV7fyfHT1dTVgMZ",
+      "account": "bag-buyer-13.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7564592234938497027082514",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "Bo6fagC2smJgp4ev2VaPnQtZjznT1ywjtFMxyKxXo1Pf",
+      "account": "bag-buyer-14.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8575161478443227352090048",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "9AMghthqoXPG47rNCm8oPZ4QScRAToCkPm81sausi17T",
+      "account": "bag-buyer-15.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "8118633683881696384146705",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "8YiyV3pBV9szXM7U7au7uNao7WkWQx52JZFKRhRMzxdK",
+      "account": "bag-buyer-16.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7065447148316375719906077",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "EWpZnZi7T2PYUFiHwe95bV9CYvYPZNt5YTucF4u56Bm6",
+      "account": "bag-buyer-17.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "9426505449507747827819514",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "125jXSz3VSXkeKpsq3KKHR2biiEtbcgSoMxkhzu9vQvD",
+      "account": "bag-buyer-18.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7185491299901294261795733",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "EhP1zkGrnfkLvAqK9V41AEeqgNB8Xa9QLqpAg6Wgajhj",
+      "account": "bag-buyer-19.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "7974545104070939301380112",
+      "marked_tokens": "0",
+      "block": 277565814
+    },
+    {
+      "tx_hash": "BbHAs4SXruk8h7uaLBwnAXKRhFiQdumAXdQT47PtRzfn",
+      "account": "bag-buyer-20.fairchance.testnet",
+      "near_in": "1000000000000000000000000",
+      "tokens_out": "9071358652607183958875425",
+      "marked_tokens": "0",
+      "block": 277565814
+    }
+  ],
+  "transactions": []
+}
