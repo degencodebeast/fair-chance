@@ -421,17 +421,19 @@ impl Coin {
         Ok(())
     }
 
-    /// No account takes two floors in one window. The unmarked floor left is the window's floor
-    /// less every token the account sold in the window, marked and unmarked; a buy gives no room
-    /// back. So the tokens of the account's sells that could fill at any cap (each sell's
-    /// `min(tokens sold, floor left before it)`) add up to at most one floor.
+    /// No account takes two floors in one window, in either order. The unmarked floor left is
+    /// the window's floor less every token the account sold in the window, marked and unmarked,
+    /// and the marked floor left is the marked floor left at the window's first sell less the
+    /// same tokens; a buy gives no room back. One floor is the larger of the two at the window's
+    /// first sell. The tokens of the account's sells that could fill at any cap (each sell's
+    /// `min(tokens sold, the larger floor left before it)`) add up to at most one floor.
     fn one_floor_per_window(
         &mut self,
         account: &str,
         before: &AccountView,
         sell: &FcSell,
     ) -> Result<(), TestCaseError> {
-        let floor = view_account(&self.state, "no-record.test", None, self.at)
+        let unmarked_floor = view_account(&self.state, "no-record.test", None, self.at)
             .unmarked
             .floor_left;
         let window_end_ns = before.unmarked.window_end_ns;
@@ -439,23 +441,33 @@ impl Coin {
         if used.window_end_ns != window_end_ns {
             *used = FloorUse {
                 window_end_ns,
+                marked_floor: before.marked.floor_left,
                 ..FloorUse::default()
             };
         }
         prop_assert_eq!(
             before.unmarked.floor_left,
-            floor.saturating_sub(used.sold),
+            unmarked_floor.saturating_sub(used.sold),
             "{}'s floor left is not the floor less its tokens sold in the window",
             account
         );
+        prop_assert_eq!(
+            before.marked.floor_left,
+            used.marked_floor.saturating_sub(used.sold),
+            "{}'s marked floor left is not its marked floor less its tokens sold in the window",
+            account
+        );
+        let one_floor = unmarked_floor.max(used.marked_floor);
         used.sold += sell.tokens_sold;
-        used.taken += sell.tokens_sold.min(before.unmarked.floor_left);
+        used.taken += sell
+            .tokens_sold
+            .min(before.unmarked.floor_left.max(before.marked.floor_left));
         prop_assert!(
-            used.taken <= floor,
-            "{} took {} at its floor in one window, above one floor {}",
+            used.taken <= one_floor,
+            "{} took {} at its floors in one window, above one floor {}",
             account,
             used.taken,
-            floor
+            one_floor
         );
         Ok(())
     }
@@ -599,6 +611,8 @@ impl Coin {
 #[derive(Debug, Default)]
 struct FloorUse {
     window_end_ns: u64,
+    /// The marked floor left at the account's first sell in the window.
+    marked_floor: u128,
     /// Tokens sold in the window, marked and unmarked.
     sold: u128,
     /// The tokens of those sells that could fill at any cap.

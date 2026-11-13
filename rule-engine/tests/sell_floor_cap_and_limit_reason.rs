@@ -135,6 +135,18 @@ impl Coin {
     fn balance(&self, account: &str) -> u128 {
         self.ledger.get(account).map_or(0, |h| h.balance)
     }
+
+    fn send(&mut self, from: &str, to: &str, amount: u128, at: At) {
+        self.act(
+            Action::Send {
+                from: from.into(),
+                to: to.into(),
+                amount,
+                memo: None,
+            },
+            at,
+        );
+    }
 }
 
 fn within_cap(cap_used: u128, real_near_left: u128) -> bool {
@@ -387,4 +399,57 @@ fn a_second_sell_of_the_bought_part_takes_marked_tokens_first_and_the_bought_par
     assert_eq!(second.limit_reason, Some("cap_full"));
     let cap = coin.cap(window_1(4));
     assert!(within_cap(cap.cap_used, cap.real_near_now));
+}
+
+/// One floor per window, the other order: the unmarked floor first, then the marked floor. An
+/// account with marked tokens sends them away, buys to become large, sells its unmarked floor at
+/// a full cap, gets the marked tokens back and sells them in the same 1 h window. One floor is
+/// the larger of its unmarked floor and its marked floor left at the window's first sell.
+#[test]
+fn an_unmarked_floor_then_a_marked_floor_is_one_floor_in_one_window() {
+    const PARKS: &str = "parks-marked.test";
+    const KEEPER: &str = "keeper.test";
+    let mut coin = Coin::launched();
+    coin.buy(PARKS, ONE_NEAR / 10, early_block(5));
+    coin.buy(KEEPER, ONE_NEAR / 100, after(5));
+    let marked = coin.ledger[PARKS].marked_balance;
+    assert!(marked > 0);
+    coin.send(PARKS, KEEPER, marked, after(10));
+    coin.buy(PARKS, 10 * ONE_NEAR, after(20));
+    coin.buy(LARGE, 10 * ONE_NEAR, after(21));
+    coin.buy(SMALL, ONE_NEAR / 2, after(22));
+    assert!(coin.ledger[PARKS].is_large);
+    assert_eq!(coin.ledger[PARKS].marked_balance, 0);
+    // Window 1: the cap above full.
+    coin.sell(LARGE, coin.balance(LARGE), window_1(1));
+    coin.sell(SMALL, coin.balance(SMALL), window_1(2));
+    let cap = coin.cap(window_1(2));
+    assert!(!within_cap(cap.cap_used, cap.real_near_now));
+
+    let view = coin.account(PARKS, window_1(3));
+    let one_floor = view.unmarked.floor_left.max(view.marked.floor_left);
+    let first = coin.sell(PARKS, coin.balance(PARKS), window_1(3));
+    coin.send(KEEPER, PARKS, marked, window_1(4));
+    let back = coin.account(PARKS, window_1(4));
+    let second = coin.sell(PARKS, coin.balance(PARKS), window_1(5));
+    println!(
+        "floors: unmarked {} marked {}; sell 1: sold {} reason {:?}; after the marked tokens \
+         come back: unmarked floor_left {} marked floor_left {}; sell 2: sold {} (marked {}) \
+         reason {:?}",
+        view.unmarked.floor_left,
+        view.marked.floor_left,
+        first.tokens_sold,
+        first.limit_reason,
+        back.unmarked.floor_left,
+        back.marked.floor_left,
+        second.tokens_sold,
+        second.marked_sold,
+        second.limit_reason
+    );
+    assert!(
+        first.tokens_sold + second.tokens_sold <= one_floor,
+        "two floors in one window: {} + {} > one floor {one_floor}",
+        first.tokens_sold,
+        second.tokens_sold
+    );
 }
