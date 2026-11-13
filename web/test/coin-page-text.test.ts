@@ -84,7 +84,7 @@ describe("summary lines", () => {
     expect(v.summaryLines).toEqual([
       { label: "Early supply", value: "18.4% of supply", tone: "plain" },
       { label: "Large holders", value: "2 now", tone: "plain" },
-      { label: "Pool cap", value: "1.23 of 2.13 NEAR left, resets 15:02", tone: "plain" },
+      { label: "Pool cap", value: "1.23 of 2.13 NEAR room left, resets 15:02", tone: "plain" },
     ]);
   });
   it("says full, resets HH:MM and the locked early supply", async () => {

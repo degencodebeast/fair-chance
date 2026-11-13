@@ -69,8 +69,19 @@ describe("normal", () => {
     ]);
     expect(large!.lines[0]!.text).toBe("2 large holders now");
     expect(cap!.chip).toEqual({ text: "Has room", tone: "plain" });
-    expect(cap!.meter).toEqual({ text: "1.23 NEAR left of 2.13", usedPct: 42, tone: "plain" });
+    expect(cap!.meter).toEqual({ text: "Room left in the pool cap this hour: 1.23 of 2.13 NEAR", usedPct: 42, tone: "plain" });
     expect(cap!.lines.map((l) => l.text)).toContain("Resets 15:02, in 38 min");
+  });
+
+  it("labels the cap room as room for the whole pool and points to the quote for one account's limit", async () => {
+    const view = await ready(recordedCoin("normal"));
+    const cap = view.who[2]!;
+    const text = [cap.meter!.text, ...cap.lines.map((l) => l.text)];
+    expect(text.flatMap((t) => copyViolations(t))).toEqual([]);
+    expect(cap.meter!.text).toBe("Room left in the pool cap this hour: 1.23 of 2.13 NEAR");
+    expect(cap.lines.map((l) => l.text)).toContain("This room is for the whole pool, not for one account. Your quote shows what your sell fills.");
+    expect(text.filter((t) => /you can sell/i.test(t))).toEqual([]);
+    expect(view.summaryLines[2]).toEqual({ label: "Pool cap", value: "1.23 of 2.13 NEAR room left, resets 15:02", tone: "plain" });
   });
 
   it("tells a trader that selling tokens bought this hour counts toward the cap", async () => {
@@ -172,7 +183,7 @@ describe("cap full", () => {
     const view = await ready(recordedCoin("cap-full"));
     const cap = view.who.find((c) => c.id === "cap")!;
     expect(cap.chip).toEqual({ text: "Full", tone: "limit" });
-    expect(cap.meter).toEqual({ text: "0.00 NEAR left of 2.13", usedPct: 100, tone: "limit" });
+    expect(cap.meter).toEqual({ text: "Room left in the pool cap this hour: 0.00 of 2.13 NEAR", usedPct: 100, tone: "limit" });
     expect(cap.lines.map((l) => l.text)).toContain("Large and early-supply sells fill just a small floor until 15:02.");
     expect(view.receipts.map((r) => r.kind)).toEqual(["Partial fill", "Cap full"]);
     expect(view.receipts[0]).toMatchObject({
