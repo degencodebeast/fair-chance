@@ -619,3 +619,40 @@ fn a_buy_that_is_the_first_action_of_a_window_does_not_change_that_window_s_floo
     );
     assert_eq!(buyer_floor, floor);
 }
+
+/// QUESTIONS.md answer to Q13 item 1: at an exactly full cap, a large account buys X and sells
+/// back X plus Y of the tokens it held before. Its buy opens no room for the earlier tokens:
+/// the Y part fills only up to its floor plus the room the fees the pool kept add (c x those
+/// fees), never the full Y.
+#[test]
+fn at_an_exactly_full_cap_a_buy_opens_no_room_for_tokens_the_account_held_before() {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    let at = window_1(2);
+    let cap = coin.cap(at);
+    assert!(cap.is_full);
+    assert!(within_cap(cap.cap_used, cap.real_near_now));
+
+    let held = coin.balance(SECOND_LARGE);
+    let x = ONE_NEAR;
+    coin.buy(SECOND_LARGE, x, at);
+    let bought = coin.balance(SECOND_LARGE) - held;
+    let floor_left = coin.account(SECOND_LARGE, at).unmarked.floor_left;
+    let y = 5 * floor_left;
+    let before = coin.clone();
+
+    let sell = coin.sell(SECOND_LARGE, bought + y, at);
+
+    assert!(sell.tokens_sold >= bought, "the bought part comes back");
+    let y_filled = sell.tokens_sold - bought;
+    assert!(y_filled < y, "the full Y filled");
+    let y_near = sell.near_out - payout_for(&before, bought, at);
+    let floor_near =
+        payout_for(&before, bought + floor_left, at) - payout_for(&before, bought, at);
+    // Fees the pool kept: the 1% buy fee on X, rounded up, and the sell's fee.
+    let kept_fees = x.div_ceil(100) + sell.fee_near;
+    let fee_room = (kept_fees * C_BPS).div_ceil(BPS);
+    assert!(
+        y_near <= floor_near + fee_room + 1,
+        "Y part {y_near} > floor {floor_near} + fee room {fee_room}"
+    );
+}
