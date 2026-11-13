@@ -11,9 +11,11 @@ const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 const SUPPLY: u128 = 1_000_000_000_000_000_000_000_000_000;
 const ALICE: &str = "alice.test";
 
+/// Block `block` of the test, at `block` seconds. Actions after the launch at block 100 run 18
+/// blocks later, after the early window (blocks 0 to 17), so their buys are unmarked.
 fn at(block: u64) -> At {
     At {
-        block,
+        block: if block > 100 { block + 18 } else { block },
         ns: block * 1_000_000_000,
     }
 }

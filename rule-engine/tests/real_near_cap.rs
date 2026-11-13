@@ -27,10 +27,11 @@ const BAND: &str = "band.test";
 const SMALL: &str = "small.test";
 const OTHER: &str = "other.test";
 
-/// Seconds after launch, as a block time.
+/// Seconds after launch, as a block time. The block is 18 blocks later than the second, after
+/// the early window (blocks 0 to 17 after the launch at block 100), so buys here are unmarked.
 fn after(seconds: u64) -> At {
     At {
-        block: 100 + seconds,
+        block: 100 + 18 + seconds,
         ns: LAUNCH_NS + seconds * 1_000_000_000,
     }
 }
@@ -145,7 +146,7 @@ impl Coin {
     }
 
     fn account(&self, account: &str, at: At) -> AccountView {
-        view_account(&self.state, self.ledger.get(account), at)
+        view_account(&self.state, account, self.ledger.get(account), at)
     }
 
     fn cap(&self, at: At) -> CapView {
