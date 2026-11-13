@@ -81,15 +81,25 @@ fn dry_run_needs_no_yes_flag() {
 
 #[test]
 fn testnet_runs_only_with_the_yes_flag_exactly_yes() {
-    assert_eq!(
-        parse_deploy_arguments(&args(&["--network", "testnet"]), Some("yes")).unwrap(),
-        DeployMode::Testnet
-    );
-    let error = parse_deploy_arguments(&args(&["--network", "testnet"]), None).unwrap_err();
+    let testnet = [
+        "--network",
+        "testnet",
+        "--start-balance",
+        "70",
+        "--spend-cap",
+        "65",
+        "--keep",
+        "2",
+    ];
+    assert!(matches!(
+        parse_deploy_arguments(&args(&testnet), Some("yes")).unwrap(),
+        DeployMode::Testnet(_)
+    ));
+    let error = parse_deploy_arguments(&args(&testnet), None).unwrap_err();
     assert!(error.to_string().contains(TESTNET_YES_FLAG), "{error}");
     for value in ["", "YES", "yes ", "true"] {
         assert!(
-            parse_deploy_arguments(&args(&["--network", "testnet"]), Some(value)).is_err(),
+            parse_deploy_arguments(&args(&testnet), Some(value)).is_err(),
             "{value:?}"
         );
     }
