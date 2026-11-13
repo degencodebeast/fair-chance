@@ -426,3 +426,24 @@ fn a_sent_bag_tops_up_a_band_account_without_using_its_first_allowance() {
     coin.send(OTHER, BAND, ONE_TOKEN * 1_000_000, window_1());
     assert_eq!(coin.account(BAND, window_1()).penalty_applies_above, before);
 }
+
+/// The penalty rounds in the pool's favour: tokens above the first allowance that add any NEAR
+/// to the payout pay a penalty of at least 1 yocto. Each step here is a few token units, worth
+/// about one yocto NEAR.
+#[test]
+fn band_tokens_above_the_first_allowance_that_add_any_near_pay_a_penalty() {
+    let coin = coin_with_a_deep_band_holder();
+    let allowance = coin.account(BAND, window_1()).unmarked.allowance;
+    let at_the_limit = coin.clone().sell(BAND, allowance, window_1());
+    assert_eq!(at_the_limit.penalty_near, 0);
+
+    for extra in 1..=200 {
+        let above = coin.clone().sell(BAND, allowance + extra, window_1());
+        assert_eq!(above.fill, "full");
+        assert!(
+            above.penalty_near > 0 || above.near_out == at_the_limit.near_out,
+            "{extra} token units above the first allowance added {} yocto with no penalty",
+            above.near_out - at_the_limit.near_out
+        );
+    }
+}

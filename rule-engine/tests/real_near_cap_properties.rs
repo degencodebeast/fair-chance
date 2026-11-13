@@ -285,7 +285,8 @@ impl Coin {
             }
         }
         // `max_full_fill_now` is the largest sell that fills in full with no penalty now: a
-        // sell of it does, and a sell of one more token unit does not.
+        // sell of it does, and a sell of one more token unit does not. The one exception is a
+        // token unit worth 0 yocto NEAR: a penalty on it rounds to 0.
         let fills_full = |tokens: u128| {
             apply(
                 &self.state,
@@ -301,14 +302,14 @@ impl Coin {
             .ok()
             .and_then(|applied| {
                 applied.events.into_iter().find_map(|e| match e {
-                    Event::FcSell(s) => Some(s.fill == "full" && s.penalty_near == 0),
+                    Event::FcSell(s) => Some((s.fill == "full" && s.penalty_near == 0, s.near_out)),
                     _ => None,
                 })
             })
         };
         let max = before.max_full_fill_now;
         if max > 0 {
-            if let Some(full) = fills_full(max) {
+            if let Some((full, _)) = fills_full(max) {
                 prop_assert!(
                     full,
                     "a sell of max_full_fill_now {} did not fill in full",
@@ -317,9 +318,11 @@ impl Coin {
             }
         }
         if max < before.balance {
-            if let Some(full) = fills_full(max + 1) {
+            if let Some((full, near_out)) = fills_full(max + 1) {
+                let extra_unit_worth_nothing =
+                    fills_full(max).map_or(max == 0, |(_, near_at_max)| near_at_max == near_out);
                 prop_assert!(
-                    !full,
+                    !full || extra_unit_worth_nothing,
                     "a sell above max_full_fill_now {} filled in full",
                     max
                 );
