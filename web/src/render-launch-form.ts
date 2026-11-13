@@ -4,6 +4,7 @@
 import { el, type Child } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { LAUNCH_LIMITS, launchFormModel } from "./launch-form-model.ts";
+import { launchNameCheckFromLink, type LaunchNameCheck } from "./account-name-check.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 
 const PICTURE_REASON = "Choosing a picture is turned off in this version. A picture must be a WebP image under 8 KB.";
@@ -14,12 +15,13 @@ function field(label: string, id: string, max: number, attrs: Record<string, str
   return { box: el("label", { class: "launch-field", for: id }, el("b", {}, label), input, count), input, count };
 }
 
-export function drawLaunchForm(app: HTMLElement, href: string): void {
+export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: LaunchNameCheck = launchNameCheckFromLink(href)): void {
   const name = field("Name", "launch-name", LAUNCH_LIMITS.name);
   const ticker = field("Ticker", "launch-ticker", LAUNCH_LIMITS.ticker, { spellcheck: "false" });
   const description = field("One line about the coin", "launch-description", LAUNCH_LIMITS.description);
   const buy = el("input", { id: "launch-buy", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "4.40", "aria-describedby": "launch-buy-help" });
   const buyHelp = el("p", { id: "launch-buy-help", class: "muted" });
+  const nameStatus = el("p", { id: "launch-name-check", class: "muted", role: "status" });
   const errors = el("ul", { id: "launch-errors", class: "launch-errors", role: "status" });
   const feeNote = el("p", { class: "muted" });
   const buttonSlot = el("div", { id: "launch-action" });
@@ -41,6 +43,34 @@ export function drawLaunchForm(app: HTMLElement, href: string): void {
       el("p", { class: "muted" }, m.preview.openingBuy === null ? "No opening buy." : `Opening buy ${m.preview.openingBuy}`),
     );
   };
+  let latestCheck = 0;
+  const checkName = (): void => {
+    const mine = ++latestCheck;
+    const label = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value }).accountLabel;
+    if (label === null) {
+      nameStatus.textContent = "";
+      return;
+    }
+    if (nameCheck.factory === null || nameCheck.checkName === null) {
+      nameStatus.textContent = "Not checked: this link names no factory.";
+      return;
+    }
+    const accountId = `${label}.${nameCheck.factory}`;
+    nameStatus.textContent = `Checking ${accountId}.`;
+    nameCheck.checkName(accountId).then(
+      (state) => {
+        if (mine === latestCheck) nameStatus.textContent = state === "free" ? `${accountId} is free.` : `${accountId} is taken. Pick another ticker.`;
+      },
+      (e: unknown) => {
+        if (mine === latestCheck) nameStatus.textContent = `Not checked: the name could not be read. ${e instanceof Error ? e.message : String(e)}`;
+      },
+    );
+  };
+  listen(ticker.input, "change", checkName);
+  listen(ticker.input, "input", () => {
+    latestCheck++;
+    nameStatus.textContent = "";
+  });
   for (const input of [name.input, ticker.input, description.input, buy]) listen(input, "input", refresh);
 
   const form = el(
@@ -49,6 +79,7 @@ export function drawLaunchForm(app: HTMLElement, href: string): void {
     el("div", { class: "launch-picture" }, el("span", { class: "muted num" }, "coin picture"), turnedOffButton("launch-picture-button", "Choose", PICTURE_REASON)),
     name.box,
     ticker.box,
+    nameStatus,
     description.box,
     el("div", { class: "launch-field" }, el("label", { for: "launch-buy" }, el("b", {}, "Your opening buy "), el("span", { class: "muted" }, "(optional)")), el("div", { class: "launch-buy-row" }, buy, el("span", { class: "num" }, "NEAR")), buyHelp),
     errors,
