@@ -2,7 +2,6 @@
 // testdata/watcher-sample-messages/messages.json, which Go tests keep equal to what the watcher
 // templates write. The page writes no alert sentence of its own.
 import sample from "../../testdata/watcher-sample-messages/messages.json";
-import { screenLink } from "./screen-route.ts";
 
 export interface ChatMessage {
   from: "you" | "bot";
@@ -11,12 +10,14 @@ export interface ChatMessage {
   time: string;
   /** Sample receipt ID an alert links to; null for a reply that has no receipt. */
   receipt: string | null;
-  /** Link to the coin page with the receipt marked; null unless the page link names a real coin. */
+  /** Always null today: a sample alert has no receipt on chain, so no link can mark one. */
   openHref: string | null;
 }
 
 export interface WatcherScreenModel {
   sampleLabel: string;
+  chatLabel: string;
+  plainLabel: string;
   preBuyLabel: string;
   chat: ChatMessage[];
   plain: { label: string; text: string }[];
@@ -25,18 +26,18 @@ export interface WatcherScreenModel {
   openNote: string | null;
 }
 
-export function watcherScreenModel(href: string): WatcherScreenModel {
-  const coin = new URL(href).searchParams.get("coin");
-  const link = (receipt: string) => (coin ? screenLink(href, "coin", { coin, receipt }) : null);
+export function watcherScreenModel(_href: string): WatcherScreenModel {
   const chat: ChatMessage[] = [
     { from: "you", head: null, text: sample.watch_command, time: sample.watch_time, receipt: null, openHref: null },
     { from: "bot", head: null, text: sample.watch_reply, time: sample.watch_time, receipt: null, openHref: null },
-    ...sample.alerts.map((a) => ({ from: "bot" as const, head: a.label, text: a.text, time: a.time, receipt: a.receipt, openHref: link(a.receipt) })),
+    ...sample.alerts.map((a) => ({ from: "bot" as const, head: null, text: a.text, time: a.time, receipt: a.receipt, openHref: null })),
     { from: "you", head: null, text: sample.check_command, time: sample.check_time, receipt: null, openHref: null },
     { from: "bot", head: null, text: sample.check_reply, time: sample.check_time, receipt: null, openHref: null },
   ];
   return {
     sampleLabel: "Sample data. These messages use made-up coins, accounts and times.",
+    chatLabel: "Sample data. A made-up chat with made-up coins, accounts and times.",
+    plainLabel: "Sample data. The same made-up messages as plain text.",
     preBuyLabel: "Sample data. The same facts as /check, for a made-up coin.",
     chat,
     plain: [
@@ -45,6 +46,6 @@ export function watcherScreenModel(href: string): WatcherScreenModel {
       { label: "Reply to /check", text: sample.check_reply },
     ],
     checkCard: sample.check_reply,
-    openNote: coin ? null : "Open on Fair Chance needs a real coin. Add &coin=<coin account> to this page link.",
+    openNote: "Open on Fair Chance is turned off here: a sample alert has no real receipt on the chain, so there is nothing to open.",
   };
 }

@@ -8,7 +8,7 @@ import { watcherScreenModel, type ChatMessage } from "./watcher-screen-model.ts"
 function openControl(m: ChatMessage): Node | null {
   if (m.receipt === null) return null;
   if (m.openHref !== null) return el("a", { class: "open-on-fair-chance", href: m.openHref }, "Open on Fair Chance");
-  return el("button", { type: "button", class: "open-on-fair-chance", disabled: "", title: "Needs a real coin" }, "Open on Fair Chance");
+  return el("button", { type: "button", class: "open-on-fair-chance", disabled: "", title: "Sample alert: no real receipt" }, "Open on Fair Chance");
 }
 
 export function drawAlertsScreen(app: HTMLElement, href: string): void {
@@ -17,7 +17,6 @@ export function drawAlertsScreen(app: HTMLElement, href: string): void {
     el(
       "div",
       { class: `chat-bubble chat-${c.from}` },
-      c.head && el("div", { class: "chat-head" }, c.head),
       el("div", { class: "chat-text" }, c.text),
       openControl(c),
       el("div", { class: "chat-time" }, c.time),
@@ -30,12 +29,13 @@ export function drawAlertsScreen(app: HTMLElement, href: string): void {
     el(
       "div",
       { class: "alerts-grid" },
-      el("section", { "aria-label": "Telegram chat", class: "chat" }, el("div", { class: "chat-title" }, "Fair Chance alerts"), el("div", { class: "chat-body" }, ...bubbles)),
+      el("section", { "aria-label": "Telegram chat", class: "chat" }, el("div", { class: "chat-title" }, "Fair Chance alerts"), el("div", { class: "chat-label" }, sampleLabel(m.chatLabel)), el("div", { class: "chat-body" }, ...bubbles)),
       el(
         "section",
         { "aria-label": "Plain text", class: "card" },
         el("h2", {}, "Plain text, as sent"),
         el("p", { class: "muted" }, "Fixed templates, one message per event."),
+        sampleLabel(m.plainLabel),
         ...m.plain.map((p) => el("div", { class: "plain-item" }, el("div", { class: "plain-label" }, p.label), el("pre", {}, p.text))),
       ),
     ),

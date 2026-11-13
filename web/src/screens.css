@@ -71,11 +71,11 @@ a.coin-card-open:hover { box-shadow: 4px 4px 0 var(--ink); }
 .alerts-grid > .card { flex: 1 1 360px; min-width: 0; }
 .chat { width: 390px; max-width: 100%; border: 2px solid var(--ink); border-radius: 22px; overflow: hidden; background: #d9e1e6; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; flex-shrink: 0; }
 .chat-title { background: #fff; padding: 12px 16px; font-weight: 700; color: #111; border-bottom: 1px solid #c4cdd3; }
+.chat-label { background: #fff; padding: 8px 12px; border-bottom: 1px solid #c4cdd3; }
 .chat-body { padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; max-height: 760px; overflow: auto; }
 .chat-bubble { max-width: 86%; background: #fff; border-radius: 14px; padding: 8px 12px 6px; color: #111; box-shadow: 0 1px 0 #b9c3c9; font-size: 14px; line-height: 1.45; min-width: 0; }
 .chat-you { align-self: flex-end; background: #e1f5cf; }
 .chat-bot { align-self: flex-start; }
-.chat-head { font-weight: 700; margin-bottom: 2px; }
 .chat-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .chat-time { font-size: 11px; color: #4a545c; text-align: right; margin-top: 2px; }
 .open-on-fair-chance { display: inline-block; background: none; border: 0; padding: 4px 0; min-height: 28px; color: #1f5fa6; font: 600 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer; }

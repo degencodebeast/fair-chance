@@ -34,7 +34,7 @@ const NEW_UNDER_SECONDS = 3600;
 
 const EMPTY_TEXT: Record<ListTab, string> = {
   "Market cap": "No coins yet. Each new coin shows here with its cap state and latest receipt.",
-  "Early window now": "No coin is in its early window right now. A new coin shows here during its early window of 17 blocks, about 10 seconds.",
+  "Early window now": "No coin is in its early window right now. A new coin shows here during its early window, blocks 0 to 17, about 10 seconds.",
   New: "No coin is under 1 h old. Each new coin shows here with its age, market cap, early-supply share, cap state and latest receipt.",
   Active: "No sells yet on any coin. Coins with recent sells show here, each with its latest receipt.",
   "Big sells held": "No big sell was limited in the last hour.",
