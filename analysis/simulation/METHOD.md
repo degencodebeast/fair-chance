@@ -65,14 +65,18 @@ only to settle these specific implementation details: class is large while its
 large flag remains set, otherwise band only when its balance is strictly above
 the recorded allowance; class floors are recorded before an action and raised
 after it; a buy offsets an account's uncounted sell proceeds before counted
-proceeds; and the cap check uses real NEAR after the actual net payout, including
+proceeds; an uncounted sell uses unused buy credit before leaving an uncounted
+balance; and the cap check uses real NEAR after the actual net payout, including
 the penalty retained in the pool. The model implements those details separately
 in Python. It does not copy contract code or integer rounding: pool math uses
 binary floats and 100 bisection iterations. One rule-text/code disagreement
 remains: the band vector follows the code by counting tokens sold from a
-same-window buy toward the cap, while ADR 0005 currently says the first
-allowance never counts. The docs owner has identified this as a wording issue;
-the vector preserves the implemented behavior for contract comparison.
+same-window buy toward the cap, while `docs/INTERFACE.md`, ADR 0004, and ADR 0005
+currently say the first allowance never counts. The docs owner has identified
+this as a wording issue; the vector preserves the implemented behavior for
+contract comparison. The added cap vectors include
+`order-independence-buy-first`, `order-independence-sell-first`, and
+`band-round-trip-credit`.
 
 The model uses binary floating point with 100 bisection iterations; values are
 rounded to the nearest base unit only when serialized. Run

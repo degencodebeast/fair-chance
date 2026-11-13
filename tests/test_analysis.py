@@ -284,9 +284,11 @@ class SimulationTests(unittest.TestCase):
             self.assertEqual(int(state['token_reserve_base'])+sum(int(h['tokens_base']) for h in state['holders']),int(state['total_supply_base']))
             for action in case['actions']:
                 if action['kind']=='sell':
+                    self.assertNotIn('amount_token_base',action)
                     self.assertIn(action['result']['fill'],{'full','partial','none'})
                     self.assertIn(action['result']['limit_reason'],{None,'allowance','cap_full','floor'})
                     self.assertNotIn('refusal_code',action['result'])
+                    self.assertEqual(action['time_s'],int(action['time_s']))
 
     def test_runs_are_deterministic(self):
         a, b = sim.normal(self.policy()), sim.normal(self.policy())

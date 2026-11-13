@@ -286,7 +286,8 @@ def cap_cases(output=None):
     cases=[]
     def start(e,hour=0):
         holders=[{'account':w.name,'tokens_base':unit(w.tokens,1e18),'marked_base':unit(w.marked,1e18),'large':w.ever_large,'class':e.live_class(w.name,hour)} for w in e.wallets.values()]
-        reserve_base=int(unit(SUPPLY,1e18))-sum(int(w['tokens_base']) for w in holders)
+        reserve_base=unit(e.pool.token,1e18)
+        assert int(reserve_base)+sum(int(w['tokens_base']) for w in holders)==int(unit(SUPPLY,1e18))
         return {'real_near_yocto':unit(e.pool.real,1e24),'virtual_near_yocto':unit(e.pool.near-e.pool.real,1e24),
                 'token_reserve_base':str(reserve_base),'holders':holders,'total_supply_base':unit(SUPPLY,1e18),
                 'cap_used_by_account_yocto':{n:unit(e.account_cap(n,hour),1e24) for n,k in e.cap_net if k==e.cap_bucket(hour)},
@@ -299,13 +300,13 @@ def cap_cases(output=None):
     def buy(e,actions,name,near,block,second=0,creator=False):
         h=second/3600;class_before=e.account_class(name,h);large_before=e.wallet(name).ever_large;out=e.buy(name,near,h,block=block,creator=creator)
         actions.append({'account':name,'kind':'buy','amount_near_yocto':unit(near,1e24),'time_s':second,'block':block,'result':{'tokens_filled_base':unit(out,1e18),'large_before':large_before,'large_after':e.wallet(name).ever_large,'class_before':class_before,'class_after':e.account_class(name,h),'cap_used_yocto':unit(e.cap_used(h),1e24)}})
+        return out
     def sell(e,actions,name,amount,second=0,block=100):
         h=second/3600;e.reserve_snapshot(h);e.snapshot(h,block);w=e.wallet(name);class_before=e.account_class(name,h);all_balance=amount=='all'
         requested=w.tokens if all_balance else amount
         prior_penalty=e.band_penalties;filled,paid=e.sell(name,requested,h,block);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
         action={'account':name,'kind':'sell','amount':'all' if all_balance else unit(requested,1e18),'time_s':second,'block':block,
                 'result':{'tokens_filled_base':unit(filled,1e18),'near_out_yocto':unit(paid,1e24),'fill':'full' if filled>=requested-1e-6 else ('none' if filled<=1e-9 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24),'class_before':class_before,'class_after':class_after}}
-        if not all_balance:action['amount_token_base']=unit(requested,1e18)
         actions.append(action)
     p=Policy(17,.02,None,.1)
     # The band holder starts at 2%; a buy crosses the 5% threshold.
@@ -328,17 +329,17 @@ def cap_cases(output=None):
     # The two action orders leave the same account cap contribution: buys first
     # offset uncounted small sells, and sells first leave credit for a later buy.
     for buy_first in (True,False):
-        e=Engine(p,Pool(near=110.,real=10.));e.wallet('small').tokens=5_000_000.;state=start(e);actions=[]
-        sequence=[('buy',.05),('sell','all')] if buy_first else [('sell','all'),('buy',.05)]
-        for offset,(kind,amount) in enumerate(sequence):
-            if kind=='buy':buy(e,actions,'small',amount,100,offset)
-            else:sell(e,actions,'small',amount,offset)
+        e=Engine(p,Pool(token=SUPPLY-10_000_000.,near=200.,real=100.));w=e.wallet('mixed');w.tokens=10_000_000.;w.marked=5_000_000.
+        state=start(e);actions=[]
+        if buy_first:buy(e,actions,'mixed',.5,100,0)
+        sell(e,actions,'mixed',5_000_000.,1 if buy_first else 0)
+        sell(e,actions,'mixed',5_000_000.,2 if buy_first else 1)
+        if not buy_first:buy(e,actions,'mixed',.5,100,2)
         case(f'order-independence-{"buy-first" if buy_first else "sell-first"}',state,actions)
-    e=Engine(p,Pool(near=110.,real=10.));e.wallet('band').tokens=11_000_000.;state=start(e);actions=[]
+    e=Engine(p,Pool(token=SUPPLY-11_000_000.,near=110.,real=10.));e.wallet('band').tokens=11_000_000.;state=start(e);actions=[]
     for i in range(10):
-        out=e.buy('band',.01,i/3600,block=100);actions.append({'account':'band','kind':'buy','amount_near_yocto':unit(.01,1e24),'time_s':i,'block':100,'result':{'tokens_filled_base':unit(out,1e18),'cap_used_yocto':unit(e.cap_used(i/3600),1e24)}})
-        sell(e,actions,'band',out,i+0.5)
-    buy(e,actions,'band',1.2,100,10);sell(e,actions,'band','all',10.5);case('band-round-trip-credit',state,actions)
+        second=2*i;out=buy(e,actions,'band',.01,100,second);sell(e,actions,'band',out,second+1)
+    buy(e,actions,'band',1.2,100,20);sell(e,actions,'band','all',21);case('band-round-trip-credit',state,actions)
     target=Path(output) if output else ROOT/'results'/'cap-cases.json'
     target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps({'version':'1.0.0-rc.5','math':'binary floating point; 100 bisection iterations; serialized values rounded to nearest base unit','cases':cases},indent=2)+'\n')
