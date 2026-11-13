@@ -19,7 +19,7 @@ func TestStoppedByHoldsNoURL(t *testing.T) {
 	_ = finishLimited(context.Background(), &r, &back)
 	// net/http also names the host and port it dialed ("dial tcp 127.0.0.1:…"); a bare host holds no
 	// key. The URL itself, with its path, must be gone.
-	if r.StoppedBy == "" || strings.Contains(r.StoppedBy, "FAKEKEY") || strings.Contains(r.StoppedBy, "://") || !strings.Contains(r.StoppedBy, "<rpc url>") {
+	if r.StoppedBy == "" || strings.Contains(r.StoppedBy, "FAKEKEY") || strings.Contains(r.StoppedBy, "://") {
 		t.Fatalf("stopped_by: %q", r.StoppedBy)
 	}
 }

@@ -71,7 +71,8 @@ pub async fn check_funder(
         .amount;
     limits.check(balance, cost, step)?;
     println!(
-        "spend check before {step}: balance {}, spent {} of the cap {}, this step up to {}",
+        "{} spend check before {step}: balance {}, spent {} of the cap {}, this step up to {}",
+        crate::stamp(),
         balance.exact_amount_display(),
         limits.start.saturating_sub(balance).exact_amount_display(),
         limits.cap.exact_amount_display(),

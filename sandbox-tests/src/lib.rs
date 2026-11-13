@@ -12,6 +12,7 @@ pub mod pass_list;
 pub mod rate_limit;
 pub mod refusal_texts;
 pub mod rpcs;
+pub mod sells_only;
 pub mod spend_guard;
 
 use std::path::{Path, PathBuf};
@@ -652,6 +653,38 @@ impl World {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
     }
+}
+
+/// `YYYY-MM-DDTHH:MM:SS.mmmZ` (UTC) for a time in milliseconds since the Unix epoch.
+pub fn stamp_at(unix_ms: u128) -> String {
+    let ms = unix_ms % 1000;
+    let secs = unix_ms / 1000;
+    let (days, day_secs) = ((secs / 86_400) as i64, secs % 86_400);
+    // Days since 1970-01-01 to a civil date (H. Hinnant, "chrono-compatible low-level date
+    // algorithms").
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{ms:03}Z",
+        day_secs / 3600,
+        day_secs / 60 % 60,
+        day_secs % 60
+    )
+}
+
+/// The current UTC time for a step line, as [`stamp_at`] writes it.
+pub fn stamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    stamp_at(now.as_millis())
 }
 
 /// One view call on any network.

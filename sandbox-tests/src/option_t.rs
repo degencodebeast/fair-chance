@@ -53,6 +53,9 @@ pub struct OptionTArguments {
     pub buyer_tgas: Option<u64>,
     pub launch_deposit_millinear: Option<u64>,
     pub delete_buyers: bool,
+    /// The BAG sells-only step ([`crate::sells_only`]); needs `--sell-plan` and `--ticker`.
+    pub sells_only: bool,
+    pub sell_plan: Option<String>,
 }
 
 /// Parses the arguments after the program name. It refuses any argument it does not know, a flag
@@ -69,6 +72,13 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             parsed.delete_buyers = true;
             continue;
         }
+        if flag == "--sells-only" {
+            if parsed.sells_only {
+                bail!("{flag} is given twice");
+            }
+            parsed.sells_only = true;
+            continue;
+        }
         let taken = match flag.as_str() {
             "--network" => parsed.network.is_some(),
             "--ticker" => parsed.ticker.is_some(),
@@ -81,6 +91,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear.is_some(),
             "--buyer-tgas" => parsed.buyer_tgas.is_some(),
             "--launch-deposit-millinear" => parsed.launch_deposit_millinear.is_some(),
+            "--sell-plan" => parsed.sell_plan.is_some(),
             _ => bail!("unknown argument {flag}; nothing was run"),
         };
         if taken {
@@ -104,6 +115,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--start-balance" => parsed.start_balance = Some(value.clone()),
             "--spend-cap" => parsed.spend_cap = Some(value.clone()),
             "--keep" => parsed.keep = Some(value.clone()),
+            "--sell-plan" => parsed.sell_plan = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,

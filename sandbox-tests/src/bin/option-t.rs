@@ -9,6 +9,9 @@
 //!   option-t --delete-buyers          the separate delete step: deletes the 20 buyer accounts
 //!                                     (never the creator, coin or factory); on testnet it also
 //!                                     needs FC_BUILDER_SAID_YES_TO_DELETING_OPTION_T_BUYERS=yes
+//!   option-t --network testnet --ticker BAG --sells-only --sell-plan <new file>
+//!                                     the BAG sells-only step: buyers 01 to 18 sell their full
+//!                                     balance in order; 19 and 20 never sell (sells_only.rs)
 //!   --buy-millinear <n>               NEAR per buy, in milliNEAR (default 1000)
 //!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
 //!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
@@ -55,6 +58,12 @@ async fn start(list: &mut PassList) -> Result<()> {
         args.network.as_deref(),
         std::env::var(TESTNET_YES_FLAG).ok().as_deref(),
     )?;
+    let sell_plan = fair_chance_sandbox_tests::sells_only::sells_only_request(&args)?;
+    if sell_plan.is_some() && network != DemoNetwork::Testnet {
+        anyhow::bail!(
+            "--sells-only runs on testnet only (the sandbox check is the bag_sells_on_sandbox test); nothing was run"
+        );
+    }
     let delete = args.delete_buyers;
     if delete {
         choose_buyer_deletion(
@@ -89,6 +98,10 @@ async fn start(list: &mut PassList) -> Result<()> {
     };
     tune(&mut setup);
     setup.limits = limits;
+    if let Some(plan) = sell_plan {
+        fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
+        return Ok(());
+    }
     if delete {
         if network == DemoNetwork::Sandbox {
             // A fresh sandbox has no buyers yet; make them so the step has something to delete.
