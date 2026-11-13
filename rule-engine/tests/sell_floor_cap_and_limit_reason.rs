@@ -344,6 +344,32 @@ fn large_sell_that_fills_only_its_unmarked_floor_reports_floor() {
     );
 }
 
+/// A large sell whose marked part the cap stops and whose unmarked part, below its floor, fills
+/// in full has not filled its floor: the cap stopped it, so the reason is `cap_full`.
+#[test]
+fn large_sell_whose_small_unmarked_part_fills_below_its_floor_reports_cap_full() {
+    let mut coin = coin_with_a_large_marked_holder();
+    let marked_floor = coin.account(EARLY, after(20)).marked.floor_left;
+    coin.sell(EARLY, marked_floor + marked_floor / 2, after(20));
+    coin.sell(LARGE, coin.balance(LARGE), window_1(1));
+    coin.sell(SMALL, coin.balance(SMALL), window_1(2));
+    let at = window_1(3);
+    let view = coin.account(EARLY, at);
+    assert_eq!(view.marked.floor_left, 0);
+    let marked_part = view.marked_balance.min(view.marked.left);
+    assert!(marked_part > 0);
+    let unmarked_part = view.unmarked.floor_left / 2;
+    let sell = coin.sell(EARLY, marked_part + unmarked_part, at);
+    println!(
+        "sold {} (marked {}), fill {}, limit_reason {:?}; unmarked floor_left {}",
+        sell.tokens_sold, sell.marked_sold, sell.fill, sell.limit_reason, view.unmarked.floor_left
+    );
+    assert_eq!(sell.class, "large");
+    assert_eq!(sell.marked_sold, 0);
+    assert_eq!(sell.tokens_sold, unmarked_part);
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+}
+
 /// ADR 0005, INTERFACE rc.7: when the same sell also has a marked part and the cap is tight, the
 /// bought part may fill less. The cap holds; here the bought part fills 0.
 #[test]
