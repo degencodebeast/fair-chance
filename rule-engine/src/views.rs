@@ -3,7 +3,7 @@
 use serde::Serialize;
 
 use crate::actions::{apply, Action};
-use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
+use crate::allowance::{is_large_by_live_balance, unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::events::Event;
 
@@ -222,7 +222,11 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             window_end_ns,
         },
         marked: empty(Some(0)),
-        max_full_fill_now: balance,
+        max_full_fill_now: if is_large_by_live_balance(state, balance) {
+            balance.min(unmarked.sell_room)
+        } else {
+            balance
+        },
         penalty_applies_above: None,
     }
 }
@@ -299,6 +303,8 @@ pub fn quote_buy(
         min_tokens_out: 0,
     };
     let applied = apply(state, holders, &action, at).ok()?;
+    let allowance_after =
+        unmarked_allowance(&applied.state, applied.holders.get(account), at).allowance;
     applied.events.iter().find_map(|e| match e {
         Event::FcBuy(b) => Some(BuyQuote {
             tokens_out: b.tokens_out,
@@ -307,7 +313,7 @@ pub fn quote_buy(
             marked_tokens: b.marked_tokens,
             class_after: b.class_after,
             becomes_large: false,
-            allowance_after: 0,
+            allowance_after,
         }),
         _ => None,
     })

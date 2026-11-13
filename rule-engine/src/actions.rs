@@ -1,7 +1,8 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
 use crate::allowance::{
-    self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns,
+    self, count_bought, count_sold, is_large_by_live_balance, unmarked_allowance,
+    unmarked_window_end_ns,
 };
 use crate::coin_state::{At, CoinState, Holders};
 use crate::events::{Event, FcBuy, FcSell, FtTransfer};
@@ -231,15 +232,4 @@ fn sell(
         events,
         payout,
     })
-}
-
-/// Live balance at the large threshold or above. A stand-in until the class rules (live class,
-/// large until the balance is zero) land.
-fn is_large_by_live_balance(state: &CoinState, balance: u128) -> bool {
-    product_at_least(
-        balance,
-        10_000,
-        state.fixed.total_supply,
-        state.fixed.large_threshold_bps as u128,
-    )
 }
