@@ -19,7 +19,7 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 | `real_near_cap_properties.rs` | <!-- waits on: the marked-token cap rule --> |
 | `launch_and_rules.rs` | `new` mints the whole supply once, into the pool. The parent account alone can call `new`. `fc_rules` returns every fixed value. |
 | `walking_path.rs` | Launch, buy, sell and receipt in the rule engine alone. |
-| `sell_floor_cap_and_limit_reason.rs` | One floor per account per 1 hour window: a buy gives no floor room back, and marked and unmarked floors do not stack. The marked part of a small sell stays within the cap. A large sell that fills only its unmarked floor reports `floor`. A small sell with a marked part and tokens bought in the window may fill less of the bought part when the cap is tight, and a second sell does not avoid it, because a sell takes its marked part first. |
+| `sell_floor_cap_and_limit_reason.rs` | One floor per account per 1 hour window: a buy gives no floor room back, and marked and unmarked floors do not stack, in either order. The marked part of a small sell stays within the cap. A large sell that fills only its unmarked floor reports `floor`. A small sell with a marked part and tokens bought in the window may fill less of the bought part when the cap is tight, and a second sell does not avoid it, because a sell takes its marked part first. |
 
 <!-- waits on: the marked-token cap rule (tests for early supply and the cap, and the property file's final case count) -->
 

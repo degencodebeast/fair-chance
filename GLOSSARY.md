@@ -34,7 +34,7 @@ _Avoid_: small account (a small account's bag fits inside one allowance).
 
 **NEAR reserve minimum**: the rule that the stored NEAR reserve never falls below P, so no sell pays out NEAR that buyers did not put in.
 
-**Floor**: the minimum sell room per window that every limited sell gets (`floor_bps`, `floor_left`). Each unmarked account has its own floor. Marked accounts share one floor, split pro rata. Every token an account sells in the window, marked or unmarked, uses its own floor once; a buy gives no floor room back.
+**Floor**: the minimum sell room per window that every limited sell gets (`floor_bps`, `floor_left`). Each unmarked account has its own floor. Marked accounts share one floor, split pro rata. Every token an account sells in the window, marked or unmarked, uses its own floor once; a buy gives no floor room back. Its unmarked and marked floors together give one floor per 1 h window, in either order.
 
 **Late splitter**: a person who buys after block N through many small accounts, so no account is large. A known limit.
 
