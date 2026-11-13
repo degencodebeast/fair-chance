@@ -2,13 +2,7 @@
 // the coin is a direct sub-account of the known factory, its global contract hash equals the known
 // coin hash, and it has no access keys. A failed or missing check shows a clear warning.
 import type { AccountFacts, ChainReader } from "./chain.ts";
-
-export interface KnownDeployment {
-  /** The factory account the coin must be a direct sub-account of; null when the page link gives none. */
-  factory: string | null;
-  /** The one coin code hash the factory records; null when the page link gives none. */
-  codeHash: string | null;
-}
+import type { KnownDeployment } from "./known-deployments.ts";
 
 export type CheckStatus = "pass" | "fail" | "unchecked";
 
@@ -19,16 +13,10 @@ export interface CheckResult {
   detail: string;
 }
 
-/** `?factory=<account>&code_hash=<hash>` in the page link. */
-export function knownDeploymentFromUrl(href: string): KnownDeployment {
-  const params = new URL(href).searchParams;
-  return { factory: params.get("factory"), codeHash: params.get("code_hash") };
-}
-
 export function parentAccountCheck(coin: string, known: KnownDeployment): CheckResult {
   const label = "Coin is a direct sub-account of the factory";
   if (!known.factory) {
-    return { id: "parent-account", label, status: "unchecked", detail: "This page has no known factory to compare with." };
+    return { id: "parent-account", label, status: "unchecked", detail: "Not checked: no known deployment for this network." };
   }
   const suffix = `.${known.factory}`;
   const direct = coin.endsWith(suffix) && coin.length > suffix.length && !coin.slice(0, -suffix.length).includes(".");
@@ -49,7 +37,7 @@ export function codeHashCheck(account: AccountFacts, known: KnownDeployment): Ch
     return { id: "code-hash", label, status: "fail", detail: "The account has no global contract." };
   }
   if (!known.codeHash) {
-    return { id: "code-hash", label, status: "unchecked", detail: `The account runs hash ${account.globalContractHash}. This page has no known hash to compare with.` };
+    return { id: "code-hash", label, status: "unchecked", detail: `The account runs hash ${account.globalContractHash}. Not checked: no known deployment for this network.` };
   }
   return account.globalContractHash === known.codeHash
     ? { id: "code-hash", label, status: "pass", detail: `The account runs the known hash ${known.codeHash}.` }

@@ -1,6 +1,6 @@
 # Coin page
 
-The coin page reads one coin from the chain: stats row, who can sell how fast, receipts, the rules with the code hash, the early banner, the coin account checks, and loading and error states. It needs the page URL: `?coin=<coin>&rpc=<url-encoded RPC URL>`. Optional: `&factory=<factory account>&code_hash=<known coin code hash>` (the known deployment for the account checks), `&receipt=<receipt id>` (marks that receipt "From your alert"), `&fastnear=<base URL>` (event source; a testnet RPC URL uses `https://tx.test.fastnear.com` by default, any other URL uses the block scan).
+The coin page reads one coin from the chain: stats row, who can sell how fast, receipts, the rules with the code hash, the early banner, the coin account checks, and loading and error states. It needs the page URL: `?coin=<coin>&rpc=<url-encoded RPC URL>`. Optional: `&factory=<factory account>&code_hash=<known coin code hash>` (the known deployment for the account checks; read only when the RPC host is `localhost` or `127.0.0.1`, otherwise the built-in values in `web/src/known-deployments.ts` are used), `&receipt=<receipt id>` (marks that receipt "From your alert"), `&fastnear=<base URL>` (event source; a testnet RPC URL uses `https://tx.test.fastnear.com` by default, any other URL uses the block scan).
 
 ## Sub-features
 
