@@ -3,8 +3,8 @@
 //! minimum. Expected values are worked examples computed outside this code.
 
 use rule_engine::{
-    apply, launch, quote_buy, view_pool, Action, At, CoinState, Event, FcBuy, FcSell, FixedValues,
-    Holders, LaunchRequest,
+    apply, launch, quote_buy, view_pool, view_rules, Action, At, CoinState, Event, FcBuy, FcSell,
+    FixedValues, Holders, LaunchRequest,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -350,4 +350,34 @@ fn a_sell_never_pays_out_near_that_buyers_did_not_put_in() {
         pool.real_near > 0,
         "the fees less the creator share stay in the pool"
     );
+}
+
+#[test]
+fn fc_rules_creator_fee_share_bps_equals_the_applied_share() {
+    let state = launched();
+    let rules = view_rules(&state);
+    let share_bps = rules.creator_fee_share_bps;
+    // The rule engine keeps `pool_math` private, so this compares against the value that
+    // `pool_math::applied_creator_fee_share_bps` returns: `fixed.creator_fee_share_bps`.
+    assert_eq!(share_bps, state.fixed.creator_fee_share_bps);
+    assert_eq!(share_bps, 3000);
+
+    // A buy with an odd yocto amount, so both roundings act: the fee rounds up, the share down.
+    let near_in = ONE_NEAR + 7;
+    let before = view_pool(&state, at(101)).creator_fee_balance;
+    let applied = apply(
+        &state,
+        Holders::new(),
+        &buy_action(ALICE, near_in, 0),
+        at(101),
+    )
+    .unwrap();
+    let gain = view_pool(&applied.state, at(101)).creator_fee_balance - before;
+
+    let swap_fee = (near_in * rules.swap_fee_bps as u128).div_ceil(10_000);
+    assert_eq!(swap_fee, 10_000_000_000_000_000_000_001);
+    let expected = swap_fee * share_bps as u128 / 10_000;
+    assert_eq!(expected, 3_000_000_000_000_000_000_000);
+    assert_eq!(gain, expected);
+    assert_eq!(fc_buy(&applied.events).creator_fee_near, expected);
 }
