@@ -30,6 +30,12 @@ pub enum RefusalCode {
     NotParentAccount,
     /// Not an `FC_` code: the NEP-148 icon is not a WebP data URL under 8 KB.
     IconNotSmallWebp,
+    /// Not an `FC_` code: the NEP-145 error for a `storage_deposit` below `storage_balance_bounds.min`
+    /// from an account with no record.
+    StorageDepositBelowMinimum,
+    /// Not an `FC_` code: the NEP-145 error for a `storage_withdraw` of more than the available
+    /// storage balance (always 0 here).
+    StorageWithdrawAboveAvailable,
 }
 
 impl RefusalCode {
@@ -50,6 +56,12 @@ impl RefusalCode {
             Self::NotParentAccount => "new must be called by the parent account of the coin",
             Self::IconNotSmallWebp => {
                 "icon must be a WebP data URL (data:image/webp;base64,...) under 8192 bytes"
+            }
+            Self::StorageDepositBelowMinimum => {
+                "The attached deposit is less than the minimum storage balance"
+            }
+            Self::StorageWithdrawAboveAvailable => {
+                "The amount is greater than the available storage balance"
             }
         }
     }
@@ -119,7 +131,9 @@ mod every_refusal_message_fixture {
             | RefusalCode::AmountNotPositive
             | RefusalCode::NotEnoughBalance
             | RefusalCode::NotParentAccount
-            | RefusalCode::IconNotSmallWebp => None,
+            | RefusalCode::IconNotSmallWebp
+            | RefusalCode::StorageDepositBelowMinimum
+            | RefusalCode::StorageWithdrawAboveAvailable => None,
         }
     }
 

@@ -56,6 +56,14 @@
     "message": "icon must be a WebP data URL (data:image/webp;base64,...) under 8192 bytes"
   },
   {
+    "refusal": "StorageDepositBelowMinimum",
+    "message": "The attached deposit is less than the minimum storage balance"
+  },
+  {
+    "refusal": "StorageWithdrawAboveAvailable",
+    "message": "The amount is greater than the available storage balance"
+  },
+  {
     "refusal": "NotRegistered (storage_withdraw form)",
     "message": "The account sample-buyer.test.near is not registered"
   }
