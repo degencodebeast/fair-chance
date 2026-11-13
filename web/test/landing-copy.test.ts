@@ -5,7 +5,7 @@ import { allText, copyViolations } from "./copy-rules.ts";
 
 describe("landing copy", () => {
   it("uses the builder's headline", () => {
-    expect(landingCopy.headline).toBe("You buy. The creator dumps on you. You hold the bag.");
+    expect(landingCopy.headline).toBe("You buy. The creator dumps on you. You're left holding the bag.");
     expect(allText(landingCopy).join("\n")).not.toContain("The creator sells.");
   });
 

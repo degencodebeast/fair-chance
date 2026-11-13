@@ -1,6 +1,6 @@
 # Fair Chance
 
-**You buy. The creator dumps on you. You hold the bag.**
+**You buy. The creator dumps on you. You're left holding the bag.**
 
 Fair Chance slows the dump at launch, inside the coin contract.
 
