@@ -44,8 +44,8 @@ describe("buy preview", () => {
   it("shows what the view gives, and the amount in the button label", () => {
     const m = tradeBoxModel(asked());
     expect(m.buy.lines).toContainEqual({ label: "You get about", value: "5.6M MOTH" });
-    expect(m.buy.lines).toContainEqual({ label: "Swap fee, kept in the pool and creator fees", value: "0.02 NEAR" });
-    expect(m.buy.lines).toContainEqual({ label: "Of that, to the creator fee balance", value: "0.00 NEAR" });
+    expect(m.buy.lines).toContainEqual({ label: "Swap fee, kept in the pool and creator fees", value: "0.020 NEAR" });
+    expect(m.buy.lines).toContainEqual({ label: "Of that, to the creator fee balance", value: "0.006 NEAR" });
     expect(m.buy.lines).toContainEqual({ label: "Allowance after this buy", value: "7.1M MOTH per hour" });
     expect(m.buy.button.label).toBe("Buy 5.6M MOTH");
   });
