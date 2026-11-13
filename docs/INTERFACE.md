@@ -4,7 +4,7 @@ Status: Frozen as 1.0.0-rc on 2026-11-12. The paper test set 1.0.0-rc.3. It beco
 `1.0.0-rc.2` (builder, 2026-11-12): `cap_used` counts only the part of a band sell above the account's first allowance in the window. Also in `1.0.0-rc.2`: `FC_EARLY_WINDOW`, and the creator fee share (ADR 0010): new fields, one new view, one claim method, one new event, two refusal codes. All are additions; no existing field changes meaning except that `real_near` and `real_near_now` now exclude the creator balance.
 `1.0.0-rc.3` (builder, 2026-11-12 and 2026-11-13): the c cap is checked against real NEAR after each sell, so `cap_total` and `cap_left` change meaning; the creator fee depth test uses the lowest real NEAR of each 1 h window; `FC_TRANSFER_CALL_NOT_POOL` is renamed `FC_TRANSFER_CALL`; new refusal codes `FC_SEND_TO_COIN` and `FC_RECEIVER_WOULD_BE_LARGE`; new field `fc_account.max_receive`; every large, band and marked sell is checked, also when its own net adds zero; marked sells count net of the same account's buys for the cap only (the marked allowance stays gross); an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and each account's signed value is clamped at zero when read, before it is added to the cap total; window 0 starts its lowest real NEAR at 0, and a claim needs at least 24 h since `depth_ok_since`.
 `1.0.0-rc.4` (builder, 2026-11-13): additions only. New `fc_pool` fields `large_holders` and `creator_group_share_bps`. `FC_ONE_YOCTO` now also lists `claim_creator_fees`, which already needed 1 yoctoNEAR. Standard methods are named under Conventions.
-`1.0.0-rc.5` (builder, 2026-11-13): additions only. The buy and sell methods are named: `buy(min_tokens_out)` and `sell(amount, min_near_out)`. `sell` takes `min_near_out` for all of `amount` and checks it per token. New `fc_rules` field `description`. `new` refuses any caller that is not the coin's parent account, and any icon that is not a WebP data URL under 8 KB.
+`1.0.0-rc.5` (builder, 2026-11-13): additions only. The buy and sell methods are named: `buy(min_tokens_out)` and `sell(amount, min_near_out)`. `sell` takes `min_near_out` for all of `amount` and checks it per token. New `fc_rules` field `description`. `new` refuses any caller that is not the coin's parent account, and any icon that is not a WebP data URL under 8 KB. New `fc_launch` field `description`; `fc_launch.launch_block` is the block of the coin's `new` (the factory reads it from the coin). `new` is payable: the attached NEAR is the creator's opening buy.
 Builder-confirmed fields (2026-11-12): `fc_send.to_marked_amount`, `fc_sell.marked_sold` and `fc_account.in_creator_group`. They are outputs only; no rule reads them.
 Change rule: a later change adds fields only, or bumps the version. Each change goes in a message to Kalu.
 
@@ -68,7 +68,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 
 ## Change methods added or changed in 1.0.0-rc.2, 1.0.0-rc.3 and 1.0.0-rc.5
 
-- `new(creator, name, symbol, icon, description, code_hash)`: the one-time start of the coin. Only the coin's parent account (the factory) can call it; any other caller is refused. The factory passes its one recorded `code_hash`. `icon` is null or a WebP data URL (`data:image/webp;base64,...`) under 8192 bytes; any other icon is refused. Caller and icon checks added for `1.0.0-rc.5`.
+- `new(creator, name, symbol, icon, description, code_hash)`: the one-time start of the coin. Only the coin's parent account (the factory) can call it; any other caller is refused. The factory passes its one recorded `code_hash`. `icon` is null or a WebP data URL (`data:image/webp;base64,...`) under 8192 bytes; any other icon is refused. Caller and icon checks added for `1.0.0-rc.5`. `new` is payable: any attached NEAR is the creator's opening buy, run as one `buy` for the creator at the launch block under the same rules (it logs `fc_buy`). The factory attaches it from the `launch` argument `opening_buy`. Added for `1.0.0-rc.5`.
 
 - `buy(min_tokens_out)`: payable; the attached NEAR is `near_in`. Takes `min_tokens_out` (token base units). The contract refuses a buy with `FC_SLIPPAGE` when `tokens_out` would be below it. The frontend sets it from the buy preview minus a small margin. A buy is never filled in part. Method name added for `1.0.0-rc.5`.
 
@@ -86,7 +86,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 6. `fc_creator_claim`: `creator`, `amount`, `depth_ok_since_ns`, `block`. Emitted only after the payout transfer succeeds. Added for `1.0.0-rc.2`.
 7. `fc_creator_fees_to_pool`: `amount`, `block`. Only if `unclaimed_to_pool_s` is set; emitted at the first action of a new window. Added for `1.0.0-rc.2`.
 
-Factory event (`fair_chance_factory`): `fc_launch`: `coin`, `creator`, `code_hash`, `launch_block`.
+Factory event (`fair_chance_factory`): `fc_launch`: `coin`, `creator`, `code_hash`, `launch_block` (the block of the coin's `new`, equal to `fc_rules.launch_block`), `description` (as in `fc_rules`; added for `1.0.0-rc.5`). The factory emits it only after the launch batch succeeds.
 
 ## Paper test, cases 3 and 4
 
