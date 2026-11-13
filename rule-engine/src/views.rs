@@ -63,7 +63,7 @@ pub fn view_rules(state: &CoinState) -> RulesView {
         swap_fee_bps: r.swap_fee_bps,
         early_fee_start_bps: r.early_fee_start_bps,
         brake_drop_bps: r.brake_drop_bps,
-        creator_fee_share_bps: r.creator_fee_share_bps,
+        creator_fee_share_bps: pool_math::applied_creator_fee_share_bps(r),
         claim_min_real_near: r.claim_min_real_near,
         claim_depth_hold_s: r.claim_depth_hold_s,
         unclaimed_to_pool_s: r.unclaimed_to_pool_s,
@@ -180,7 +180,7 @@ pub fn view_cap(state: &CoinState, at: At) -> CapView {
         state,
         used,
         state.real_near,
-        pool_math::applied_creator_fee_share_bps(),
+        pool_math::applied_creator_fee_share_bps(&state.fixed),
     );
     CapView {
         window_start_ns: end - state.fixed.window_unmarked_s * 1_000_000_000,

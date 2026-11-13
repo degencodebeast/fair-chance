@@ -110,6 +110,16 @@ describe("normal", () => {
     expect(view.warning).toBeNull();
   });
 
+  it("shows the creator share of the swap fee that fc_rules reports, which is the share the coin applies", async () => {
+    const creatorShare = (view: CoinPageModel & { state: "ready" }) =>
+      view.rules.find((r) => r.label === "Creator share of the swap fee")?.value;
+    expect(creatorShare(await ready(recordedCoin("normal")))).toBe("30.0%");
+    const rec = recordedCoin("normal");
+    const rules = rec.views.fc_rules as Record<string, unknown>;
+    rec.views.fc_rules = { ...rules, creator_fee_share_bps: 0 };
+    expect(creatorShare(await ready(rec))).toBe("0.0%");
+  });
+
   it("marks the receipt named in the page link as from the alert", async () => {
     const href = `${baseHref}&receipt=SellReceipt111111111111111111111111111111111`;
     const view = await ready(recordedCoin("normal"), href);

@@ -159,8 +159,10 @@ fn buy(
 ) -> Result<Applied, Refusal> {
     let fee_near = early_buy_fee::buy_fee(state, near_in, at);
     // The creator share is of the normal swap fee only, never of the early-fee extra.
-    let creator_fee_near =
-        pool_math::creator_fee(pool_math::fee(near_in, state.fixed.swap_fee_bps));
+    let creator_fee_near = pool_math::creator_fee(
+        &state.fixed,
+        pool_math::fee(near_in, state.fixed.swap_fee_bps),
+    );
     let tokens_out = pool_math::tokens_out(
         state.token_reserve,
         state.near_reserve(),
@@ -171,7 +173,9 @@ fn buy(
     }
     let mut next = state.clone();
     next.token_reserve -= tokens_out;
-    next.real_near += near_in;
+    // The creator share of the normal fee leaves the pool for the creator balance (ADR 0010).
+    next.real_near += near_in - creator_fee_near;
+    next.creator_fee_balance += creator_fee_near;
     let in_group = in_creator_group(state, account);
     let marked_tokens = early_supply::marked_by_buy(state, in_group, tokens_out, at);
     let holder = holders.entry(account.to_string()).or_default();
@@ -294,7 +298,7 @@ fn sell(
         &next,
         outcome.cap_used,
         next.real_near,
-        pool_math::applied_creator_fee_share_bps(),
+        pool_math::applied_creator_fee_share_bps(&state.fixed),
     );
     let window_end_ns = unmarked_window_end_ns(state, at);
 
@@ -356,7 +360,7 @@ pub(crate) fn cap_is_full(state: &CoinState, used: u128, real_near: u128) -> boo
         state,
         used,
         real_near,
-        pool_math::applied_creator_fee_share_bps(),
+        pool_math::applied_creator_fee_share_bps(&state.fixed),
     ) == 0
 }
 
@@ -576,7 +580,7 @@ fn sell_outcome(
     )
     .min(near_before_fee - fee_near);
     let near_out = near_before_fee - fee_near - penalty_near;
-    let creator_fee_near = pool_math::creator_fee(fee_near);
+    let creator_fee_near = pool_math::creator_fee(&state.fixed, fee_near);
     // Cap count order: the marked part, then the tokens bought in the window (both count), then
     // the tokens held from before the window, whose first `never_counted` do not count.
     let bought_sold = parts.unmarked.min(plan.bought_not_sold);

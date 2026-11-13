@@ -1,5 +1,5 @@
 //! Property tests on the rule engine (proptest): random sequences of buys, sells, sends and
-//! window moves across many accounts, at a creator fee share of 0. Big buys make accounts band
+//! window moves across many accounts, at the creator fee share s = 30%. Big buys make accounts band
 //! or large, and sells take them back down, so classes change inside a sequence. Every sequence
 //! starts at the launch block, so it holds early-window buys (blocks 0 to 17), and three of the
 //! accounts are in the creator group (the creator, a sub-account and a parent), so marked

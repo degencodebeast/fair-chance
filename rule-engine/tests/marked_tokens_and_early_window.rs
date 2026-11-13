@@ -1,5 +1,5 @@
 //! Marked tokens (early supply), the creator group and the early window (ADR 0001, ADR 0008),
-//! through the engine interface: `apply` and the views, at a creator fee share of 0.
+//! through the engine interface: `apply` and the views, at the creator fee share s = 30%.
 //!
 //! Tokens bought in blocks 0 to N (N = 17), bought by the creator group at any time, or received
 //! by the creator group are marked. The creator group may hold at most 4% of supply. Marked
@@ -437,7 +437,8 @@ fn the_creator_pays_the_early_fee_too_and_its_share_is_of_the_normal_fee_only() 
     let mut late_coin = Coin::launched();
     let late = late_coin.buy(CREATOR, ONE_NEAR, block(18));
     assert_eq!(early.creator_fee_near, late.creator_fee_near);
-    assert!(early.creator_fee_near <= ONE_NEAR / 100);
+    // 30% of the normal 1% fee on 1 NEAR, not of the 50% early fee.
+    assert_eq!(early.creator_fee_near, 3_000_000_000_000_000_000_000);
 }
 
 /// 30 plain accounts buy 1 NEAR each, one per second from `from_second` (after the early

@@ -1,5 +1,5 @@
 //! The pool-wide cap on real NEAR (ADR 0005), through the engine interface: `apply` and the
-//! views, at a creator fee share of 0.
+//! views, at the creator fee share s = 30% of the swap fee.
 //!
 //! Large sells, band sells above the first allowance and marked sells together take at most
 //! c = 5% of the real NEAR left after each sell, per 1 h window. The check runs after the sell:
@@ -186,6 +186,23 @@ fn cap_filled_events(applied: &Applied) -> Vec<serde_json::Value> {
         .collect()
 }
 
+/// True when `x` is the largest payout one more counted sell can take from `real_near` with
+/// nothing used, the creator share s x f / (1 - f) of the payout leaving the pool with it
+/// (INTERFACE.md `fc_cap.cap_left`): x <= c x (real_near - x - x x s x f / (1 - f)), and x + 1
+/// is above. With s = 3_000 bps and f = 100 bps.
+fn cap_left_is_the_largest_payout_within_cap(x: u128, real_near: u128) -> bool {
+    use ethnum::U256;
+    let fits = |x: u128| {
+        let x = U256::from(x);
+        // Both sides times BPS x (BPS - f) x BPS.
+        x * U256::from(BPS * 9_900 * BPS)
+            + U256::from(C_BPS) * x * U256::from(9_900 * BPS)
+            + U256::from(C_BPS) * x * U256::from(3_000u128 * 100)
+            <= U256::from(C_BPS) * U256::from(real_near) * U256::from(9_900 * BPS)
+    };
+    fits(x) && !fits(x + 1)
+}
+
 /// c x real NEAR, the way ADR 0005 states the check: cap used <= c x real NEAR left.
 fn within_cap(cap_used: u128, real_near_left: u128) -> bool {
     cap_used * BPS <= C_BPS * real_near_left
@@ -194,21 +211,33 @@ fn within_cap(cap_used: u128, real_near_left: u128) -> bool {
 /// NEAR out (after the 1% swap fee) for `tokens` sold into the pool as it stands, by the
 /// constant-product formula: NEAR out rounded down, fee rounded up.
 fn payout_for(coin: &Coin, tokens: u128, at: At) -> u128 {
+    payout_and_creator_share_for(coin, tokens, at).0
+}
+
+/// [`payout_for`] and the creator share (30% of the fee, rounded down) that leaves the pool with
+/// it.
+fn payout_and_creator_share_for(coin: &Coin, tokens: u128, at: At) -> (u128, u128) {
     let pool = view_pool(&coin.state, at);
     let before_fee = (ethnum::U256::from(pool.near_reserve) * ethnum::U256::from(tokens)
         / ethnum::U256::from(pool.token_reserve + tokens))
     .as_u128()
     .min(pool.real_near);
-    before_fee - before_fee.div_ceil(100)
+    let fee = before_fee.div_ceil(100);
+    (before_fee - fee, fee * 3 / 10)
 }
 
-/// Test 1: R = 10 real NEAR, no buy in the window, one large sell. The fill stops where the cap
-/// used is at most c x the real NEAR left, and one more token unit would go above it. Expected
-/// fill: about 10 x 0.05 / 1.05 = 0.476 NEAR.
+/// The buy that leaves exactly 10 real NEAR in a new pool: 30% of its 1% fee goes to the creator
+/// balance.
+const BUY_FOR_TEN_REAL_NEAR: u128 = 10_030_090_270_812_437_311_935_807;
+
+/// Test 1 (at the creator share s = 30%): R = 10 real NEAR, no buy in the window, one large sell.
+/// The fill stops where the cap used is at most c x the real NEAR left, and one more token unit
+/// would go above it. The real NEAR left subtracts the payout and the creator share. Expected
+/// fill: 10 x 0.05 / (1.05 + 0.05 x 0.3 x 0.01 / 0.99) = 0.476122 NEAR (0.476 at zero fees).
 #[test]
 fn test_1_a_large_sell_with_no_buy_in_the_window_fills_to_c_of_the_real_near_left() {
     let mut coin = Coin::launched();
-    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    coin.buy(LARGE, BUY_FOR_TEN_REAL_NEAR, after(10));
     let at = window_1(10);
     assert_eq!(coin.real_near(at), 10 * ONE_NEAR);
     let before = coin.clone();
@@ -218,15 +247,15 @@ fn test_1_a_large_sell_with_no_buy_in_the_window_fills_to_c_of_the_real_near_lef
 
     assert_eq!(sell.fill, "partial");
     assert_eq!(sell.limit_reason, Some("cap_full"));
-    // 10 NEAR x 500 / 10_500, rounded down.
-    assert!(sell.near_out <= 476_190_476_190_476_190_476_190);
+    // The bound above, rounded down.
+    assert!(sell.near_out <= 476_121_771_750_108_209_493_579);
     assert!(sell.near_out > 476_100_000_000_000_000_000_000);
     let left = coin.real_near(at);
-    assert_eq!(left, 10 * ONE_NEAR - sell.near_out);
+    assert_eq!(left, 10 * ONE_NEAR - sell.near_out - sell.creator_fee_near);
     assert_eq!(coin.cap(at).cap_used, sell.near_out);
     assert!(within_cap(sell.near_out, left));
-    let one_more = payout_for(&before, sell.tokens_sold + 1, at);
-    assert!(!within_cap(one_more, 10 * ONE_NEAR - one_more));
+    let (one_more, its_share) = payout_and_creator_share_for(&before, sell.tokens_sold + 1, at);
+    assert!(!within_cap(one_more, 10 * ONE_NEAR - one_more - its_share));
 
     assert_eq!(sell.cap_used, sell.near_out);
     assert_eq!(sell.cap_left, 0);
@@ -243,13 +272,13 @@ fn test_1_a_large_sell_with_no_buy_in_the_window_fills_to_c_of_the_real_near_lef
     assert_eq!(filled[0]["real_near"], left.to_string());
 }
 
-/// Test 2 (also paper case a): a seller that already holds tokens buys 100 NEAR of tokens in
+/// Test 2 (also paper case a; at s = 30%): a seller that already holds tokens buys 100 NEAR of tokens in
 /// the window, then sells all of them. Its own buy gains it no cap room: its net NEAR out is at
 /// most the Test 1 fill plus the NEAR value of one token unit.
 #[test]
 fn test_2_a_seller_s_own_buy_in_the_window_gains_it_no_cap_room() {
     let mut coin = Coin::launched();
-    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    coin.buy(LARGE, BUY_FOR_TEN_REAL_NEAR, after(10));
     let mut test_1 = coin.clone();
     let test_1_fill = test_1.sell_all(LARGE, window_1(10)).near_out;
 
@@ -542,7 +571,10 @@ fn fc_quote_sell_cap_left_after_equals_the_real_sell_and_the_cap_resets_in_the_n
     assert_eq!(cap.cap_used, 0);
     assert_eq!(cap.fills_this_window, 0);
     assert!(!cap.is_full);
-    assert_eq!(cap.cap_left, cap.real_near_now * C_BPS / (BPS + C_BPS));
+    assert!(cap_left_is_the_largest_payout_within_cap(
+        cap.cap_left,
+        cap.real_near_now
+    ));
     assert_eq!(cap.window_start_ns, LAUNCH_NS + 2 * HOUR_S * 1_000_000_000);
 }
 

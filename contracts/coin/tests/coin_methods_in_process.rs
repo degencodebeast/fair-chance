@@ -188,8 +188,12 @@ fn fc_quote_buy_equals_the_buy_that_follows() {
     assert_eq!(quote["tokens_out"], buy["tokens_out"]);
     assert_eq!(quote["fee_near"], buy["fee_near"]);
     assert_eq!(buy["fee_near"], (2 * ONE_NEAR / 100).to_string());
+    assert_eq!(quote["creator_fee_near"], buy["creator_fee_near"]);
+    // 30% of the 0.02 NEAR fee goes to the creator balance, outside the pool.
+    assert_eq!(buy["creator_fee_near"], "6000000000000000000000");
     let pool = serde_json::to_value(coin.fc_pool()).unwrap();
-    assert_eq!(pool["real_near"], (2 * ONE_NEAR).to_string());
+    assert_eq!(pool["real_near"], "1994000000000000000000000");
+    assert_eq!(pool["creator_fee_balance"], "6000000000000000000000");
 }
 
 /// Forty accounts buy 1 NEAR each at block 3_610, the first block of the second 1 h window
@@ -208,7 +212,8 @@ fn deepen_the_pool_at_the_start_of_window_1(coin: &mut Coin) {
 fn a_large_sell_held_by_the_real_near_cap_logs_fc_cap_filled_and_fc_cap_reports_it_full() {
     let mut coin = launched();
     register(&mut coin, "large.test", 11);
-    testing_env!(context("large.test", 10 * ONE_NEAR, 11).build());
+    // This buy leaves exactly 10 real NEAR: 30% of its 1% fee goes to the creator balance.
+    testing_env!(context("large.test", 10_030_090_270_812_437_311_935_807, 11).build());
     coin.buy(U128(0));
 
     testing_env!(context("large.test", 1, 3_620).build());
@@ -220,8 +225,8 @@ fn a_large_sell_held_by_the_real_near_cap_logs_fc_cap_filled_and_fc_cap_reports_
     assert_eq!(quote["tokens_filled"], sold["tokens_sold"]);
     assert_eq!(quote["cap_left_after"], sold["cap_left"]);
     let near_out: u128 = sold["near_out"].as_str().unwrap().parse().unwrap();
-    // c x 10 NEAR / (1 + c), rounded down: about 0.476 NEAR.
-    assert!(near_out <= 476_190_476_190_476_190_476_190);
+    // c x 10 NEAR / (1 + c + c x s x f / (1 - f)), rounded down: about 0.476 NEAR.
+    assert!(near_out <= 476_121_771_750_108_209_493_579);
     assert!(near_out > 476_100_000_000_000_000_000_000);
 
     let filled = events("fair_chance", "fc_cap_filled");
@@ -235,7 +240,11 @@ fn a_large_sell_held_by_the_real_near_cap_logs_fc_cap_filled_and_fc_cap_reports_
     assert_eq!(cap["cap_left"], "0");
     assert_eq!(cap["cap_used"], near_out.to_string());
     assert_eq!(cap["fills_this_window"], 1);
-    assert_eq!(cap["real_near_now"], (10 * ONE_NEAR - near_out).to_string());
+    let creator_fee_near: u128 = sold["creator_fee_near"].as_str().unwrap().parse().unwrap();
+    assert_eq!(
+        cap["real_near_now"],
+        (10 * ONE_NEAR - near_out - creator_fee_near).to_string()
+    );
 }
 
 #[test]
@@ -322,5 +331,10 @@ fn a_band_sell_above_the_first_allowance_pays_the_penalty_into_the_pool_and_matc
         .unwrap()
         .parse()
         .unwrap();
-    assert_eq!(real_near_after, real_near_before - near_out);
+    let creator_fee_near: u128 = sold["creator_fee_near"].as_str().unwrap().parse().unwrap();
+    assert_ne!(creator_fee_near, 0);
+    assert_eq!(
+        real_near_after,
+        real_near_before - near_out - creator_fee_near
+    );
 }

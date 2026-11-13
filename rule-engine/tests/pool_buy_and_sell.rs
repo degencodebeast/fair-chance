@@ -1,5 +1,5 @@
 //! Pool rules through the engine interface: constant product on virtual NEAR P = 100 plus real
-//! NEAR, a 1% swap fee that stays in the pool, slippage, 1 yoctoNEAR and the NEAR reserve
+//! NEAR, a 1% swap fee that stays in the pool less the creator share, slippage, 1 yoctoNEAR and the NEAR reserve
 //! minimum. Expected values are worked examples computed outside this code.
 
 use rule_engine::{
@@ -77,7 +77,7 @@ fn fc_sell(events: &[Event]) -> &FcSell {
 }
 
 #[test]
-fn a_buy_of_one_near_pays_a_one_percent_fee_that_stays_in_the_pool() {
+fn a_buy_of_one_near_pays_a_one_percent_fee_whose_creator_share_leaves_the_pool() {
     let state = launched();
     let applied = apply(
         &state,
@@ -90,17 +90,23 @@ fn a_buy_of_one_near_pays_a_one_percent_fee_that_stays_in_the_pool() {
     assert_eq!(event.near_in, ONE_NEAR);
     assert_eq!(event.fee_near, 10_000_000_000_000_000_000_000);
     assert_eq!(event.tokens_out, 9_802_950_787_206_654_124_170_709);
-    assert_eq!(event.creator_fee_near, 0);
+    // s = 30% of the 0.01 NEAR fee goes to the creator balance, outside the pool.
+    assert_eq!(event.creator_fee_near, 3_000_000_000_000_000_000_000);
     assert_eq!(applied.holders[ALICE].balance, event.tokens_out);
 
     let pool = view_pool(&applied.state, at(101));
-    assert_eq!(pool.real_near, ONE_NEAR);
-    assert_eq!(pool.near_reserve, 101 * ONE_NEAR);
+    assert_eq!(pool.real_near, 997_000_000_000_000_000_000_000);
+    assert_eq!(pool.creator_fee_balance, 3_000_000_000_000_000_000_000);
+    assert_eq!(
+        pool.near_reserve,
+        100 * ONE_NEAR + 997_000_000_000_000_000_000_000
+    );
     assert_eq!(pool.token_reserve, SUPPLY - event.tokens_out);
 }
 
 #[test]
-fn selling_the_bought_tokens_back_pays_the_fee_again_and_leaves_both_fees_in_the_pool() {
+fn selling_the_bought_tokens_back_pays_the_fee_again_and_leaves_both_fees_less_the_creator_share_in_the_pool(
+) {
     let state = launched();
     let bought = apply(
         &state,
@@ -119,13 +125,18 @@ fn selling_the_bought_tokens_back_pays_the_fee_again_and_leaves_both_fees_in_the
     .unwrap();
     let event = fc_sell(&sold.events);
     assert_eq!(event.tokens_sold, tokens);
-    assert_eq!(event.fee_near, 9_900_980_295_078_720_665_413);
-    assert_eq!(event.near_out, 980_197_049_212_793_345_875_828);
+    assert_eq!(event.fee_near, 9_900_686_206_555_104_465_789);
+    assert_eq!(event.creator_fee_near, 2_970_205_861_966_531_339_736);
+    assert_eq!(event.near_out, 980_167_934_448_955_342_113_080);
     assert_eq!(sold.payout.as_ref().unwrap().amount, event.near_out);
 
     let pool = view_pool(&sold.state, at(102));
     assert_eq!(pool.token_reserve, SUPPLY);
-    assert_eq!(pool.real_near, 19_802_950_787_206_654_124_172);
+    assert_eq!(pool.real_near, 13_861_859_689_078_126_547_184);
+    assert_eq!(
+        pool.creator_fee_balance,
+        3_000_000_000_000_000_000_000 + 2_970_205_861_966_531_339_736
+    );
 }
 
 #[test]
@@ -192,7 +203,7 @@ fn a_sell_below_min_near_out_is_refused_with_fc_slippage() {
     )
     .unwrap();
     let tokens = fc_buy(&bought.events).tokens_out;
-    let near_out = 980_197_049_212_793_345_875_828;
+    let near_out = 980_167_934_448_955_342_113_080;
     let refusal = apply(
         &bought.state,
         bought.holders.clone(),
@@ -334,6 +345,9 @@ fn a_sell_never_pays_out_near_that_buyers_did_not_put_in() {
         pool.token_reserve, SUPPLY,
         "every token is back in the pool"
     );
-    assert_eq!(pool.real_near, put_in - paid_out);
-    assert!(pool.real_near > 0, "the fees stay in the pool");
+    assert_eq!(pool.real_near + pool.creator_fee_balance, put_in - paid_out);
+    assert!(
+        pool.real_near > 0,
+        "the fees less the creator share stay in the pool"
+    );
 }

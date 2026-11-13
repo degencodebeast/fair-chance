@@ -201,8 +201,8 @@ fn a_band_sell_inside_its_first_allowance_fills_in_full_with_no_penalty() {
     assert_eq!(sold.fill, "full");
     assert_eq!(sold.limit_reason, None);
     assert_eq!(sold.penalty_near, 0);
-    assert_eq!(sold.fee_near, 10_201_263_933_915_967_826_401);
-    assert_eq!(sold.near_out, 1_009_925_129_457_680_814_813_615);
+    assert_eq!(sold.fee_near, 10_200_811_661_130_720_320_438);
+    assert_eq!(sold.near_out, 1_009_880_354_451_941_311_723_303);
 }
 
 #[test]
@@ -220,10 +220,12 @@ fn a_band_sell_above_its_first_allowance_fills_in_full_and_pays_ten_percent_of_t
     assert_eq!(sold.tokens_sold, BAND_TOKENS);
     assert_eq!(sold.fill, "full");
     assert_eq!(sold.limit_reason, None);
-    assert_eq!(sold.fee_near, 28_606_610_122_305_435_272_571);
-    assert_eq!(sold.penalty_near, 88_339_332_811_911_659_378_723);
-    assert_eq!(sold.near_out, 2_743_715_069_296_326_432_605_722);
-    // The seller gets near_out; the fee and the penalty stay in the pool's real NEAR.
+    assert_eq!(sold.fee_near, 28_585_797_142_958_137_272_832);
+    assert_eq!(sold.penalty_near, 88_274_869_743_561_222_211_630);
+    assert_eq!(sold.near_out, 2_741_719_047_409_294_367_798_691);
+    assert_eq!(sold.creator_fee_near, 8_575_739_142_887_441_181_849);
+    // The seller gets near_out; the fee less the creator share and the penalty stay in the
+    // pool's real NEAR.
     assert_eq!(
         applied.payout,
         Some(Payout {
@@ -231,7 +233,10 @@ fn a_band_sell_above_its_first_allowance_fills_in_full_and_pays_ten_percent_of_t
             amount: sold.near_out
         })
     );
-    assert_eq!(coin.state.real_near, real_near_before - sold.near_out);
+    assert_eq!(
+        coin.state.real_near,
+        real_near_before - sold.near_out - sold.creator_fee_near
+    );
     assert_eq!(coin.balance(BAND), 0);
 }
 
