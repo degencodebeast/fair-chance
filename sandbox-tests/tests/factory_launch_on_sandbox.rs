@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 use fair_chance_sandbox_tests::{
-    events, launch_args, ContractState, World, COIN_DESCRIPTION, COIN_ICON, COIN_TICKER,
-    LAUNCH_DEPOSIT,
+    events, launch_args, transaction_block_hash, ContractState, World, COIN_DESCRIPTION, COIN_ICON,
+    COIN_TICKER, LAUNCH_DEPOSIT, LAUNCH_SCAN_MARGIN_BLOCKS,
 };
 use near_api::types::NearToken;
 use serde_json::json;
@@ -513,5 +513,39 @@ async fn an_opening_buy_above_the_creator_group_cap_is_refused_and_makes_no_coin
         "the launch did not fail with FC_CREATOR_CAP: {result:?}"
     );
     assert_eq!(world.contract_state(&coin).await?, None);
+    Ok(())
+}
+
+/// The watcher and the page scan blocks from `LAUNCH_SCAN_MARGIN_BLOCKS` before `launch_block`,
+/// because the launch transaction sits in an earlier block than the coin's `new`. Fails when the
+/// launch transaction lands further back than that margin, so the scans would miss the opening buy.
+#[tokio::test]
+async fn the_launch_transaction_is_inside_the_scan_margin_before_the_launch_block() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("margin")?;
+    let opening_buy = NearToken::from_near(1);
+    let result = world
+        .try_launch(
+            &world.bob,
+            launch_args("Margin", "margin", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
+    let launch_block = world.view(&coin, "fc_rules", json!({})).await?["launch_block"]
+        .as_u64()
+        .unwrap();
+    let transaction_block = world
+        .block_height_of(transaction_block_hash(&result)?)
+        .await?;
+    assert!(
+        transaction_block < launch_block,
+        "the launch transaction is in block {transaction_block}, launch block {launch_block}"
+    );
+    assert!(
+        launch_block - transaction_block <= LAUNCH_SCAN_MARGIN_BLOCKS,
+        "the launch transaction is {} blocks before the launch block, more than the scan margin {LAUNCH_SCAN_MARGIN_BLOCKS}",
+        launch_block - transaction_block
+    );
     Ok(())
 }

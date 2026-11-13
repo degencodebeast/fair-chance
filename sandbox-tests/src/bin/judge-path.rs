@@ -15,11 +15,14 @@ use anyhow::{bail, ensure, Context, Result};
 use fair_chance_sandbox_tests::amount_text::{
     amount, near, supply_share, tokens, SUPPLY_WHOLE_TOKENS, TOKEN_UNITS,
 };
-use fair_chance_sandbox_tests::page_and_watcher_reads::{run_browser_read, run_watcher};
+use fair_chance_sandbox_tests::page_and_watcher_reads::{
+    run_browser_read, run_page_read, run_watcher,
+};
 use fair_chance_sandbox_tests::pass_list::{print_and_exit, PassList};
 use fair_chance_sandbox_tests::refusal_texts::refused_with;
 use fair_chance_sandbox_tests::{
-    events, launch_args, transact, Account, LoggedEvent, World, COIN_ICON, LAUNCH_DEPOSIT,
+    events, launch_args, transact, transaction_block_hash, Account, LoggedEvent, World, COIN_ICON,
+    LAUNCH_DEPOSIT, LAUNCH_SCAN_MARGIN_BLOCKS,
 };
 use near_api::types::transaction::result::TransactionResult;
 use near_api::types::{AccountId, NearToken};
@@ -117,8 +120,19 @@ async fn walk(list: &mut PassList) -> Result<()> {
                 "coin code hash {}",
                 rules["code_hash"]
             );
+            let launch_block = rules["launch_block"]
+                .as_u64()
+                .context("fc_rules.launch_block")?;
+            let transaction_block = world
+                .block_height_of(transaction_block_hash(&launched)?)
+                .await?;
+            let before = launch_block.saturating_sub(transaction_block);
+            ensure!(
+                before <= LAUNCH_SCAN_MARGIN_BLOCKS,
+                "the launch transaction is {before} blocks before the launch block, more than the scan margin {LAUNCH_SCAN_MARGIN_BLOCKS}"
+            );
             Ok(format!(
-                "{coin} by the factory in one batch, zero access keys, code hash {}",
+                "{coin} by the factory in one batch, zero access keys, code hash {}, launch transaction {before} blocks before the launch block (scan margin {LAUNCH_SCAN_MARGIN_BLOCKS})",
                 world.coin_code_hash
             ))
         }
@@ -309,10 +323,25 @@ async fn walk(list: &mut PassList) -> Result<()> {
         screenshot.as_deref(),
     )
     .await;
+    let page = run_page_read(world.rpc_url(), coin.as_str()).await;
     list.check(
         "receipt on the coin page",
         async {
             let shown = shown?;
+            let page = page?;
+            let opening = only_event(&launched, "fc_buy")?;
+            let shown_once = page["events"]
+                .as_array()
+                .context("page events")?
+                .iter()
+                .filter(|e| e["name"] == "fc_buy" && e["receiptId"] == opening.receipt_id.as_str())
+                .count();
+            ensure!(
+                shown_once == 1,
+                "the opening buy {} is in the page events {shown_once} times, want once (scan from block {})",
+                opening.receipt_id,
+                page["scanFrom"]
+            );
             ensure!(
                 shown["receipt_id"] == limited.receipt_id.as_str(),
                 "the page shows {shown}"
@@ -323,7 +352,7 @@ async fn walk(list: &mut PassList) -> Result<()> {
                 "the row does not name the creator: {text}"
             );
             Ok(format!(
-                "Chrome {} shows \"{text}\"",
+                "Chrome {} shows \"{text}\"; the page events hold the opening buy once",
                 shown["browser"].as_str().unwrap_or("?")
             ))
         }
@@ -331,10 +360,7 @@ async fn walk(list: &mut PassList) -> Result<()> {
     )?;
 
     step("the watcher reads the coin's events and sends alerts to its fake sender");
-    // The watcher scans blocks from the launch block. The launch transaction sits in an earlier
-    // chunk, so the scan does not read the opening buy's events (open question); count the
-    // alerts of the transactions after the launch.
-    let all = [&bought, &creator_sell, &large_sell];
+    let all = [&launched, &bought, &creator_sell, &large_sell];
     let want = ["fc_sell", "fc_cap_filled", "fc_became_large"]
         .iter()
         .map(|name| {
@@ -367,8 +393,17 @@ async fn walk(list: &mut PassList) -> Result<()> {
                 texts.iter().any(|t| t.starts_with("Pool cap full")),
                 "no cap-full alert: {texts:?}"
             );
+            let opening_large = format!("{} now holds", creator.id);
+            let sent = texts
+                .iter()
+                .filter(|t| t.starts_with(&opening_large))
+                .count();
+            ensure!(
+                sent == 1,
+                "the creator's fc_became_large alert from the opening buy was sent {sent} times, want once: {texts:?}"
+            );
             Ok(format!(
-                "{want} alerts to the fake sender, one reads \"{partial}\""
+                "{want} alerts to the fake sender, the opening buy's large alert once, and one reads \"{partial}\""
             ))
         }
         .await,
