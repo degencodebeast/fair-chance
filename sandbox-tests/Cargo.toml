@@ -16,3 +16,9 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "ti
 
 [dev-dependencies]
 ethnum = "1"
+
+[features]
+# The Option T testnet path reads the funder key from the system keychain (near-api keystore, the
+# keyring crate). Off by default, so the sandbox scripts and tests never build keyring. Only this
+# test crate uses near-api; the coin and factory contracts do not depend on it.
+testnet-keychain = ["near-api/keystore"]
