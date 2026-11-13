@@ -311,11 +311,12 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
     cap.chip = { text: c.isFull ? "Full" : "Has room", tone };
     cap.lines.push(line(`Pool cap: ${percentOfBps(r.rules.realCapCBps)} of real NEAR per hour, shared by all limited sellers. Now ${nearAmount(c.capTotal.toString())} NEAR.`));
     cap.meter = {
-      text: `${nearAmount(c.capLeft.toString())} NEAR left of ${nearAmount(c.capTotal.toString())}`,
+      text: `Room left in the pool cap this hour: ${nearAmount(c.capLeft.toString())} of ${nearAmount(c.capTotal.toString())} NEAR`,
       usedPct: c.capTotal === 0n ? 0 : Number((c.capUsed * 100n) / c.capTotal),
       tone,
     };
     cap.lines.push(line(`Resets ${timeWithHint(c.windowEndNs, ctx)}`, tone));
+    cap.lines.push(line("This room is for the whole pool, not for one account. Your quote shows what your sell fills."));
     cap.lines.push(line("Selling tokens you bought this hour counts toward the cap. When the cap has too little room, profit from them is held back."));
     if (c.isFull) {
       cap.lines.push(line(`Large and early-supply sells fill just a small floor until ${clockTime(c.windowEndNs, ctx)}.`, "limit"));
@@ -341,7 +342,7 @@ function summaryLines(r: CoinReads, who: Card[], supply: bigint | null, ctx: Tim
   else if (r.cap.kind === "value") {
     const c = r.cap.value;
     const resets = `resets ${clockTime(c.windowEndNs, ctx)}`;
-    capText = c.isFull ? `full, ${resets}` : `${nearAmount(c.capLeft.toString())} of ${nearAmount(c.capTotal.toString())} NEAR left, ${resets}`;
+    capText = c.isFull ? `full, ${resets}` : `${nearAmount(c.capLeft.toString())} of ${nearAmount(c.capTotal.toString())} NEAR room left, ${resets}`;
   }
   return [
     { label: "Early supply", value: early, tone: "plain" },
