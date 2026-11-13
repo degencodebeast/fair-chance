@@ -719,29 +719,28 @@ fn a_small_account_that_sells_bought_tokens_for_more_than_it_paid_at_a_full_cap_
     assert_eq!(next.fill, "full");
 }
 
-/// A band account buys, then sells the bought tokens: the bought part counts toward the cap (net
-/// of the buy), though a first allowance held from before the window never counts (ADR 0004).
+/// A band account buys while its first allowance is unused, the price then rises, and it sells
+/// the bought tokens: the bought part counts toward the cap, net of the buy. The first allowance
+/// held from before the window never counts (ADR 0004), so without the bought part the cap used
+/// would stay 0.
 #[test]
 fn a_band_account_that_buys_then_sells_the_bought_tokens_counts_the_bought_part_toward_the_cap() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
-    let allowance = coin.account(BAND, at).unmarked.allowance;
-    coin.sell(BAND, allowance + allowance / 4, at);
-    let used = coin.cap(at).cap_used;
-    assert!(used > 0);
-
     let held = coin.balance(BAND);
-    let buy_near = used / 4;
+    let buy_near = ONE_NEAR / 10;
     coin.buy(BAND, buy_near, at);
-    let used_after_buy = coin.cap(at).cap_used;
-    assert_eq!(used_after_buy, used - buy_near);
-
     let bought = coin.balance(BAND) - held;
+    // Another account's buy lifts the price, so the bought tokens sell for more than they cost.
+    coin.buy(OTHER, 50 * ONE_NEAR, at);
+    assert_eq!(coin.cap(at).cap_used, 0);
+
     let sell = coin.sell(BAND, bought, at);
 
     assert_eq!(sell.fill, "full");
-    assert!(sell.near_out > 0);
-    assert_eq!(coin.cap(at).cap_used, used_after_buy + sell.near_out);
+    assert_eq!(sell.penalty_near, 0);
+    assert!(sell.near_out > buy_near);
+    assert_eq!(coin.cap(at).cap_used, sell.near_out - buy_near);
 }
 
 /// At a full cap a band account's first allowance still fills, and only the part above it is
