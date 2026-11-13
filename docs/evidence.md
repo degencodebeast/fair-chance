@@ -53,6 +53,8 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 | Two allowances at a window boundary. | Windows sit on a fixed grid. | [ADR 0004](adr/0004-partial-fill-band-penalty-per-class-windows.md) |
 | Account handover. | No token moves, so no rule sees it. | [ADR 0001](adr/0001-large-holders-cannot-send-shared-early-allowance.md) |
 | A band holder sends parts to fresh accounts. | Band accounts can send. | [ADR 0001](adr/0001-large-holders-cannot-send-shared-early-allowance.md) |
+| A band account buys, sends the bought tokens to a fresh small account that sells them uncounted, and keeps the buy as an offset for its own counted sells. | Wallet splitting. Each fresh small wallet carries at most one allowance per window. Measured at a full cap: up to 0.31 of one allowance's NEAR per fresh wallet. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
+| A buy raises the cap by c x X, and a band account with marked tokens fills its marked sell into that room, then sells the bought tokens inside its first allowance. | At most c x X and at most one unmarked floor per window. Measured: up to 0.29 of one floor (2,340 swept shapes). | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
 | Aggregators and routers cannot buy for users. | The caller holds the tokens. | [OVERVIEW](OVERVIEW.md) |
 | Plain unregister differs from NEP-145. | It refuses with `FC_UNREGISTER_WINDOW_OPEN` while the window is open and with `FC_UNREGISTER_WITH_BALANCE` while tokens are held. | [INTERFACE](INTERFACE.md) |
 | Borrowed NEAR can fake pool depth for the creator fee. | The fake costs a 24 hour hold with price risk plus about 1.4% to 1.7% of the minimum in fees. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |

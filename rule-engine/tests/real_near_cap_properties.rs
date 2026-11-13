@@ -36,7 +36,11 @@
 //! and buy-backs removed (the twin run already includes its floor), plus c x F, plus the price
 //! effect of F (twin NEAR out x F / the lowest NEAR reserve in the window, virtual plus real),
 //! plus 3 yoctoNEAR per trade for rounding (up to three roundings per trade). F is the fees the
-//! pool kept from the account's buys. The account's class in the window never drops below its
+//! pool kept from the account's buys. For an account that holds marked tokens at the window
+//! start, the bound also allows the ADR 0005 known limit: its buy raises the cap by c x X, its
+//! marked sell can fill into that room, and a band account's bought tokens then leave inside its
+//! first allowance. That term is c x the NEAR the account paid for its buys, at most the NEAR of
+//! one unmarked floor (10 bps of the token reserve at the window start). The account's class in the window never drops below its
 //! class at the window start (the class floor), so the twin run sells in the same class.
 //!
 //! Each gate run tries 10,000 sequences for each of these two properties, and 1,000 for the
@@ -754,11 +758,31 @@ fn twin_bound_holds(
     let price_effect = ((ethnum::U256::from(twin.payouts) * ethnum::U256::from(fees) + lowest - 1)
         / lowest)
         .as_u128();
-    let bound = twin.payouts + cap_room + price_effect + real.trades * ROUNDING_YOCTO_PER_TRADE;
+    let holds_marked = coin
+        .ledger
+        .get(&account)
+        .is_some_and(|h| h.marked_balance > 0);
+    let marked_buy_room = if holds_marked {
+        let floor = coin.state.token_reserve * coin.state.fixed.floor_bps as u128 / BPS;
+        let floor_near = (ethnum::U256::from(coin.state.near_reserve())
+            * ethnum::U256::from(floor)
+            / ethnum::U256::from(coin.state.token_reserve + floor))
+        .as_u128();
+        (real.buys * coin.state.fixed.real_cap_c_bps as u128)
+            .div_ceil(BPS)
+            .min(floor_near)
+    } else {
+        0
+    };
+    let bound = twin.payouts
+        + cap_room
+        + price_effect
+        + marked_buy_room
+        + real.trades * ROUNDING_YOCTO_PER_TRADE;
     let got = real.payouts as i128 - real.buys as i128;
     prop_assert!(
         got <= bound as i128,
-        "{account} got {got} for its held tokens; twin {} + c x F {cap_room} + price {price_effect} + trades {}; real actions {:?}",
+        "{account} got {got} for its held tokens; twin {} + c x F {cap_room} + price {price_effect} + marked buy room {marked_buy_room} + trades {}; real actions {:?}",
         twin.payouts, real.trades, real.actions
     );
     Ok(())
