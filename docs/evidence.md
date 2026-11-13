@@ -15,13 +15,13 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 | `holder_class_and_sends.rs` | Large accounts cannot send. A send that would make a receiver large is refused. Sends to the coin and to yourself are refused. Unregister is refused while tokens are held. |
 | `window_class_floor.rs` | A band account that sells below one allowance stays band until the window ends. A large account that sells to zero is band until the window ends. An account that was large and holds a bag inside one allowance is still limited as large: at a full cap it fills only its floor. The floor resets in the next window. |
 | `partial_fill_and_band_penalty.rs` | A large sell above the allowance fills in part and the rest stays in the wallet. A band sell inside one allowance pays no penalty. A band sell above it pays 10% on the part above. |
-| `real_near_cap.rs` | <!-- waits on: the marked-token cap rule --> |
-| `real_near_cap_properties.rs` | <!-- waits on: the marked-token cap rule --> |
+| `real_near_cap.rs` | The cap rule, case by case: a large sell fills up to 5% of the real NEAR left, checked after the sell. A seller's own buy gains it no cap room. Marked sells count gross. A small sell of tokens bought in the window counts toward the cap. Floors fill at a full cap. Wallet-splitting and buy-first routes are measured, with their bounds. |
+| `real_near_cap_properties.rs` | Random sequences of buys, sells, sends, creator claims and window moves across many accounts. After every step: the cap holds for the parts it limits, no sell pays out NEAR that buyers did not put in, the supply never changes, no account takes two floors in one window, and the quote equals the real sell. The case counts are 10,000, 1,000 and 1,000, set in the file. Failing cases are kept in `rule-engine/proptest-regressions/`. |
+| `marked_tokens_and_early_window.rs` | A buy in blocks 0 to 17 is early supply. The creator group and its sub-accounts share one limit and a 4% holding cap. Early supply shares one allowance per 24 hours and cannot sell in the early blocks. |
+| `creator_fee_claim.rs` | The creator share of the swap fee is paid only after the pool holds its minimum real NEAR for 24 hours. A failed payout restores the balance. |
 | `launch_and_rules.rs` | `new` mints the whole supply once, into the pool. The parent account alone can call `new`. `fc_rules` returns every fixed value. |
 | `walking_path.rs` | Launch, buy, sell and receipt in the rule engine alone. |
 | `sell_floor_cap_and_limit_reason.rs` | One floor per account per 1 hour window: a buy gives no floor room back, and marked and unmarked floors do not stack, in either order. The marked part of a small sell stays within the cap. A large sell that fills only its unmarked floor reports `floor`. A small sell with a marked part and tokens bought in the window may fill less of the bought part when the cap is tight, and a second sell does not avoid it, because a sell takes its marked part first. |
-
-<!-- waits on: the marked-token cap rule (tests for early supply and the cap, and the property file's final case count) -->
 
 ## Sandbox tests (`sandbox-tests/tests/`)
 
@@ -40,14 +40,32 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 - `web/` has Vitest tests for the page model and receipts. `web/scripts/` loads the page in headless Chrome with every outside host stubbed, so no request leaves the machine.
 - The gate runs a walking path: launch, buy, sell, page receipt in Chrome, watcher alert at a fake sender.
 
+## How we checked it
+
+Each row names one way we checked the rules, what it shows, what it leaves open, and the command that runs it.
+
+| Method | What it shows | What it does not show | Command |
+| --- | --- | --- | --- |
+| Rule tests | Each rule in `rule-engine/` does what its ADR says, one case at a time. | Cases nobody wrote. Behavior on a real chain. | `cargo test --locked -p fair-chance-rule-engine` |
+| Property tests | Random sequences of buys, sells and sends by several accounts hold the cap, floor and allowance rules. The case counts are fixed in the test file (10,000 for the main property, 1,000 for each of two more). A failing case is saved in `proptest-regressions/` and runs again every time. | Every sequence. A rule nobody wrote as a property. | `cargo test --locked -p fair-chance-rule-engine --test real_near_cap_properties` |
+| Sandbox tests | The compiled coin and factory run on a local NEAR sandbox chain: launch, buy, sell, receipts, refusals, no access keys, no owner, pause, setter or upgrade method. | Testnet or mainnet behavior. Wallet behavior. | `scripts/build-contracts.sh` then `cargo test --locked -p fair-chance-sandbox-tests` |
+| The merge gate | One command runs the tools check, the tests, the sandbox walking path, the page in headless Chrome and the private-string scan. A change merges only when it passes. | A hosted page or a real wallet. | `.claude/skills/verify/verify.sh` |
+| TLA+ model | A small model of one sell, with its rules written as invariants, was checked by TLC over every reachable state within its bounds. The model run found a gap between the model and the docs. We fixed the model and ran it again. | Sizes beyond the bounds. The real code. Prices, fees and sends. The bounds and the full list of limits are in [docs/model/README.md](model/README.md). | See [docs/model/README.md](model/README.md) |
+| Reproducible build | The coin wasm built in a fixed container from the committed source has one SHA-256 hash. That hash is the code hash the chain stores for the global contract. A reader can build it again and compare. | That the source has no bug. | `scripts/build-coin-reproducible.sh` (needs Docker). Compare with the hash the chain returns, as in the README "Check it yourself". |
+| Independent model of the cap rules | A second model of the cap rules, written apart from the Rust code, can be compared with it case by case. | Not in this release. See "Not in this release" in the README. | None |
+| Testnet run | One recorded run of the coin on NEAR testnet, kept as `evidence/testnet-run.json`. | A forecast. Real demand. <!-- waits on: the testnet run file --> | <!-- waits on: the testnet run file --> |
+| Adversarial review | Two models from different families tried to break each change to the cap rules. A finding counted only with a failing test or a step sequence that reproduces it. The test was committed before the fix. | That no finding is left. Review by people outside the project. | The tests committed with each fix are in `rule-engine/tests/`. |
+
+Every command above runs from the repository root.
+
 ## Known limits
 
 Each limit has an owner decision in an ADR. The tests above show the rule works. They do not show these routes closed.
 
 | Limit | Why it stays | Source |
 | --- | --- | --- |
-| A fresh account gets a fresh allowance. | <!-- waits on: the marked-token cap rule --> | |
-| Floors above the cap. | <!-- waits on: the marked-token cap rule --> | |
+| A fresh account gets a fresh allowance. | Small sells of tokens held from before the window never count toward the cap. Each fresh small wallet carries at most one allowance per window, and the gain per wallet is measured: up to 0.31 of one allowance's NEAR at a full cap. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
+| Floors above the cap. | Each account has its own floor, so many accounts can each fill their floor at a full cap. One floor is 10 bps of the window's token reserve, once per account per hour. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
 | Creator-funded wallets. | The contract cannot see who funded an account. | ADR 0007 in `docs/adr/` |
 | Late splitters after block N. | Accounts that buy at market price stay unmarked. | [ADR 0008](adr/0008-snipers-are-early-supply-with-early-fee.md) |
 | Bots at the reset. | Every allowance and the cap reset together. | [INTERFACE](INTERFACE.md) |
@@ -62,10 +80,14 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 | Borrowed NEAR can fake pool depth for the creator fee. | The fake costs a 24 hour hold with price risk plus about 1.4% to 1.7% of the minimum in fees. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |
 | A deleted creator account can be created again, and the new owner claims the creator balance. | The optional value D is off. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |
 
-<!-- waits on: the marked-token cap rule (limits that depend on the real NEAR cap, the floor and small bags) -->
-
 ## Replay and simulation
 
 [analysis/FINDINGS.md](../analysis/FINDINGS.md) holds the NEAR launch replay and the 60-day synthetic simulation, with method and rerun commands. These are simulation, not demand. A Solana-proxy number is a proxy for how sellers behave. It does not show that NEAR users want these rules.
 
-<!-- waits on: the SMDD replay section -->
+## SMDD replay
+
+[analysis/smdd-replay/METHOD.md](../analysis/smdd-replay/METHOD.md) holds the method. The replay plays the first hour of SMDD trades, a Solana coin, in order on one Fair Chance pool, once with the sell limits off and once with them on, in the same coin code. Results are in [analysis/smdd-replay/results/](../analysis/smdd-replay/results/) and in the README "Measured results".
+
+- What it shows: how much of the tokens sold and of the NEAR paid out each group (creator, wallets funded by one funder, large buyers, others) takes, with and without the rules.
+- What it does not show: demand, or how NEAR traders would act. The trade file is not in this repository, so a reader checks the replay code and the results and cannot rerun the trade file. The two checks that need the file skip when it is absent.
+- Test command: `python3 -m unittest discover -s analysis/smdd-replay/tests` (124 tests, 2 skipped without the trade file, in the last run).
