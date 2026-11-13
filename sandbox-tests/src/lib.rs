@@ -4,6 +4,7 @@
 //! port and makes a new temporary data folder, so runs in parallel do not share either.
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
+pub mod amount_text;
 pub mod option_t;
 pub mod page_and_watcher_reads;
 pub mod pass_list;
@@ -71,6 +72,7 @@ pub fn check_sandbox_binary() -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone)]
 pub struct Account {
     pub id: AccountId,
     pub signer: Arc<Signer>,
@@ -373,20 +375,7 @@ impl World {
 
     /// Waits until the final head is at `height` or above.
     pub async fn wait_for_height(&self, height: u64) -> Result<()> {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-        loop {
-            let head = near_api::Chain::block_number()
-                .at(near_api::Reference::Final)
-                .fetch_from(&self.network)
-                .await?;
-            if head >= height {
-                return Ok(());
-            }
-            if std::time::Instant::now() > deadline {
-                bail!("final head {head} did not reach block {height} in 60 s");
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        }
+        wait_for_final_height(&self.network, height).await
     }
 
     /// Sign and send one function call; fails if any receipt failed.
@@ -571,29 +560,7 @@ impl World {
         contract: &AccountId,
         calls: Vec<FunctionCall>,
     ) -> Result<TransactionResult> {
-        let gas = near_api::types::NearGas::from_gas(
-            TRANSACTION_GAS.as_gas() / calls.len().max(1) as u64,
-        );
-        let actions = calls
-            .into_iter()
-            .map(|call| {
-                Ok(near_api::types::Action::FunctionCall(Box::new(
-                    near_api::types::transaction::actions::FunctionCallAction {
-                        method_name: call.method,
-                        args: serde_json::to_vec(&call.args)?,
-                        gas,
-                        deposit: call.deposit,
-                    },
-                )))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        Ok(
-            near_api::Transaction::construct(who.id.clone(), contract.clone())
-                .add_actions(actions)
-                .with_signer(who.signer.clone())
-                .send_to(&self.network)
-                .await?,
-        )
+        batch_on(&self.network, who, contract, calls).await
     }
 
     /// The NEAR the transaction burnt for gas, over its own outcome and every receipt outcome.
@@ -652,4 +619,54 @@ pub async fn view_on(
         .fetch_from(network)
         .await?;
     Ok(data.data)
+}
+
+/// Sign and send one transaction on any network that holds every call as a function-call action
+/// to `contract`, as a wallet does (see [`World::batch`]).
+pub async fn batch_on(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    calls: Vec<FunctionCall>,
+) -> Result<TransactionResult> {
+    let gas =
+        near_api::types::NearGas::from_gas(TRANSACTION_GAS.as_gas() / calls.len().max(1) as u64);
+    let actions = calls
+        .into_iter()
+        .map(|call| {
+            Ok(near_api::types::Action::FunctionCall(Box::new(
+                near_api::types::transaction::actions::FunctionCallAction {
+                    method_name: call.method,
+                    args: serde_json::to_vec(&call.args)?,
+                    gas,
+                    deposit: call.deposit,
+                },
+            )))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(
+        near_api::Transaction::construct(who.id.clone(), contract.clone())
+            .add_actions(actions)
+            .with_signer(who.signer.clone())
+            .send_to(network)
+            .await?,
+    )
+}
+
+/// Waits until the final head of any network is at `height` or above (60 s at most).
+pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let head = near_api::Chain::block_number()
+            .at(near_api::Reference::Final)
+            .fetch_from(network)
+            .await?;
+        if head >= height {
+            return Ok(());
+        }
+        if std::time::Instant::now() > deadline {
+            bail!("final head {head} did not reach block {height} in 60 s");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
 }

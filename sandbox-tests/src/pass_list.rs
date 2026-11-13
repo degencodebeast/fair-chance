@@ -25,3 +25,23 @@ impl PassList {
         &self.lines
     }
 }
+
+/// Prints the PASS lines, then the FAIL line when `outcome` failed, and ends the process: exit 0
+/// when every check passed, else exit 1. An error that is not from a check is a setup failure.
+pub fn print_and_exit(list: &PassList, outcome: Result<()>) -> ! {
+    for line in list.lines() {
+        println!("{line}");
+    }
+    match outcome {
+        Ok(()) => std::process::exit(0),
+        Err(failure) => {
+            let text = format!("{failure:#}");
+            if text.starts_with("FAIL ") {
+                println!("{text}");
+            } else {
+                println!("FAIL setup: {text}");
+            }
+            std::process::exit(1)
+        }
+    }
+}

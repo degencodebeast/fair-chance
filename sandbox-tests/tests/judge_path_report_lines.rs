@@ -13,7 +13,10 @@ fn a_passed_check_adds_one_pass_line_with_its_detail() {
     list.check("buy", Ok("1 NEAR".to_string())).unwrap();
     assert_eq!(
         list.lines(),
-        ["PASS coin launched: bag.factory.sandbox", "PASS buy: 1 NEAR"]
+        [
+            "PASS coin launched: bag.factory.sandbox",
+            "PASS buy: 1 NEAR"
+        ]
     );
 }
 

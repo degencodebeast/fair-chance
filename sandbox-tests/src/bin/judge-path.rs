@@ -12,8 +12,11 @@
 use std::path::Path;
 
 use anyhow::{bail, ensure, Context, Result};
+use fair_chance_sandbox_tests::amount_text::{
+    amount, near, supply_share, tokens, SUPPLY_WHOLE_TOKENS, TOKEN_UNITS,
+};
 use fair_chance_sandbox_tests::page_and_watcher_reads::{run_browser_read, run_watcher};
-use fair_chance_sandbox_tests::pass_list::PassList;
+use fair_chance_sandbox_tests::pass_list::{print_and_exit, PassList};
 use fair_chance_sandbox_tests::refusal_texts::refused_with;
 use fair_chance_sandbox_tests::{
     events, launch_args, transact, Account, LoggedEvent, World, COIN_ICON, LAUNCH_DEPOSIT,
@@ -32,8 +35,6 @@ const OPENING_BUY: NearToken = NearToken::from_near(8);
 /// Enough to pass 2% of supply, and enough real NEAR in the pool that the creator's sell is held
 /// by its allowance before the cap.
 const LARGE_BUY: NearToken = NearToken::from_near(30);
-const TOKEN_UNITS_PER_WHOLE_TOKEN: u128 = 1_000_000_000_000_000_000;
-const SUPPLY_WHOLE_TOKENS: u128 = 1_000_000_000;
 
 fn step(text: &str) {
     println!("judge-path: {text}");
@@ -42,25 +43,8 @@ fn step(text: &str) {
 #[tokio::main]
 async fn main() {
     let mut list = PassList::default();
-    match walk(&mut list).await {
-        Ok(()) => {
-            for line in list.lines() {
-                println!("{line}");
-            }
-        }
-        Err(failure) => {
-            for line in list.lines() {
-                println!("{line}");
-            }
-            let text = format!("{failure:#}");
-            if text.starts_with("FAIL ") {
-                println!("{text}");
-            } else {
-                println!("FAIL setup: {text}");
-            }
-            std::process::exit(1);
-        }
-    }
+    let outcome = walk(&mut list).await;
+    print_and_exit(&list, outcome)
 }
 
 async fn walk(list: &mut PassList) -> Result<()> {
@@ -90,8 +74,8 @@ async fn walk(list: &mut PassList) -> Result<()> {
             );
             let text = refused_with(&format!("{refused:?}"), "FC_CREATOR_CAP")?;
             Ok(format!(
-                "{} NEAR at block 0, no coin made: {text}",
-                whole_near(OPENING_BUY_ABOVE_CAP)
+                "{} at block 0, no coin made: {text}",
+                near(OPENING_BUY_ABOVE_CAP.as_yoctonear())
             ))
         }
         .await,
@@ -176,16 +160,16 @@ async fn walk(list: &mut PassList) -> Result<()> {
                 account["in_creator_group"] == true,
                 "the creator is not in the creator group"
             );
-            let tokens = amount(&data["tokens_out"])?;
+            let bought = amount(&data["tokens_out"])?;
             ensure!(
-                tokens * 10_000 <= 400 * SUPPLY_WHOLE_TOKENS * TOKEN_UNITS_PER_WHOLE_TOKEN,
+                bought * 10_000 <= 400 * SUPPLY_WHOLE_TOKENS * TOKEN_UNITS,
                 "above 4% of supply"
             );
             Ok(format!(
-                "{} NEAR at block 0 bought {} tokens ({} of supply), all marked as early supply",
-                whole_near(OPENING_BUY),
-                whole_tokens(tokens),
-                share(tokens)
+                "{} at block 0 bought {} tokens ({} of supply), all marked as early supply",
+                near(OPENING_BUY.as_yoctonear()),
+                tokens(bought),
+                supply_share(bought)
             ))
         }
         .await,
@@ -239,11 +223,11 @@ async fn walk(list: &mut PassList) -> Result<()> {
             ensure!(large.event["data"][0]["account"] == buyer.id.as_str());
             let balance = amount(&large.event["data"][0]["balance"])?;
             Ok(format!(
-                "{} bought {} tokens ({} of supply) for {} NEAR and is large (fc_became_large)",
+                "{} bought {} tokens ({} of supply) for {} and is large (fc_became_large)",
                 buyer.id,
-                whole_tokens(balance),
-                share(balance),
-                whole_near(LARGE_BUY)
+                tokens(balance),
+                supply_share(balance),
+                near(LARGE_BUY.as_yoctonear())
             ))
         }
         .await,
@@ -255,7 +239,7 @@ async fn walk(list: &mut PassList) -> Result<()> {
         buyer,
         &coin,
         "ft_transfer",
-        json!({ "receiver_id": world.bob.id, "amount": TOKEN_UNITS_PER_WHOLE_TOKEN.to_string() }),
+        json!({ "receiver_id": world.bob.id, "amount": TOKEN_UNITS.to_string() }),
         NearToken::from_yoctonear(1),
     )
     .await?;
@@ -289,8 +273,8 @@ async fn walk(list: &mut PassList) -> Result<()> {
         let kept = balance(&world, &coin, creator).await?;
         ensure!(sold > 0 && sold < asked && kept == asked - sold, "asked {asked}, sold {sold}, wallet holds {kept}");
         Ok(format!(
-            "the creator asked {} tokens, the early-supply allowance filled {} for {} NEAR, {} stay in the wallet (limit_reason allowance)",
-            whole_tokens(asked), whole_tokens(sold), near(&data["near_out"])?, whole_tokens(kept)
+            "the creator asked {} tokens, its share of the early-supply allowance filled {} for {}, {} stay in the wallet (limit_reason allowance)",
+            tokens(asked), tokens(sold), near(amount(&data["near_out"])?), tokens(kept)
         ))
     }.await)?;
     let limited = limited?;
@@ -306,8 +290,8 @@ async fn walk(list: &mut PassList) -> Result<()> {
         ensure!(data["limit_reason"] == "cap_full", "limit_reason is {}", data["limit_reason"]);
         ensure!(data["fill"] != "full", "the sell filled in full");
         Ok(format!(
-            "{} asked {} tokens and got {} NEAR; fc_cap_filled at {} of {} NEAR real NEAR cap (limit_reason cap_full)",
-            buyer.id, whole_tokens(amount(&data["tokens_asked"])?), near(&data["near_out"])?, near(&cap["cap_used"])?, near(&cap["cap_total"])?
+            "{} asked {} tokens and got {}; fc_cap_filled with cap_used {} of cap_total {} (limit_reason cap_full)",
+            buyer.id, tokens(amount(&data["tokens_asked"])?), near(amount(&data["near_out"])?), near(amount(&cap["cap_used"])?), near(amount(&cap["cap_total"])?)
         ))
     }.await)?;
 
@@ -447,35 +431,4 @@ async fn failed_receipt_block(world: &World, result: &TransactionResult) -> Resu
         .find(|o| !o.is_success())
         .context("no failed receipt")?;
     world.block_height_of(failed.block_hash).await
-}
-
-fn amount(value: &Value) -> Result<u128> {
-    Ok(value
-        .as_str()
-        .with_context(|| format!("{value} is not a decimal string"))?
-        .parse()?)
-}
-
-/// yoctoNEAR as NEAR with 4 decimals, cut and not rounded.
-fn near(value: &Value) -> Result<String> {
-    let yocto = amount(value)?;
-    let whole = yocto / 10u128.pow(24);
-    let part = yocto % 10u128.pow(24) / 10u128.pow(20);
-    Ok(format!("{whole}.{part:04}"))
-}
-
-fn whole_near(n: NearToken) -> u128 {
-    n.as_yoctonear() / 10u128.pow(24)
-}
-
-/// Tokens in millions with one decimal, cut: 38.4M.
-fn whole_tokens(units: u128) -> String {
-    let tenths = units / (TOKEN_UNITS_PER_WHOLE_TOKEN * 100_000);
-    format!("{}.{}M", tenths / 10, tenths % 10)
-}
-
-/// Share of the fixed supply in percent with two decimals, cut: 3.84%.
-fn share(units: u128) -> String {
-    let bps = units * 10_000 / (SUPPLY_WHOLE_TOKENS * TOKEN_UNITS_PER_WHOLE_TOKEN);
-    format!("{}.{:02}%", bps / 100, bps % 100)
 }
