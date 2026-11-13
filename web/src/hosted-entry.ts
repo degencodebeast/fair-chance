@@ -1,7 +1,7 @@
 // What a hosted page shows before any screen: the fixed network banner, and the link a bare hosted
 // address opens. Both come from the fixed config, never from the link.
 import { el } from "./dom-elements.ts";
-import { isLocalHostName } from "./local-host.ts";
+import { isOwnMachineHost } from "./local-host.ts";
 import { KNOWN_NETWORKS, type KnownNetwork } from "./known-deployments.ts";
 
 export const TESTNET_BANNER = "Testnet. Read only. No wallet needed.";
@@ -17,7 +17,7 @@ export function networkBanner(href: string): string | null {
  */
 export function hostedEntryHref(href: string, networks: Record<string, KnownNetwork> = KNOWN_NETWORKS): string | null {
   const url = new URL(href);
-  if (isLocalHostName(url.hostname) || url.search !== "") return null;
+  if (isOwnMachineHost(url.hostname) || url.search !== "") return null;
   const demo = networks.testnet?.demoCoin ?? null;
   return demo ? `?${new URLSearchParams({ network: "testnet", coin: demo }).toString()}` : null;
 }
