@@ -15,6 +15,12 @@ export interface KnownNetwork extends KnownDeployment {
   fastNearUrl: string;
   /** The block to read the factory's `fc_launch` events from; the builder sets it after the deploy. */
   factoryFromBlock: number;
+  /** The coin a hosted page opens on when its link has no parameters; null until the demo coin exists. */
+  demoCoin: string | null;
+  /** The explorer address a transaction hash is appended to, for the receipt links. */
+  explorerTxUrl: string;
+  /** The same-site file the "Recorded testnet run" receipts load from; null until the evidence file exists. */
+  recordedRunFile: string | null;
 }
 
 /**
@@ -26,6 +32,9 @@ export const KNOWN_NETWORKS = {
     rpcUrl: "https://test.rpc.fastnear.com",
     fastNearUrl: "https://tx.test.fastnear.com",
     factoryFromBlock: 0,
+    demoCoin: null,
+    explorerTxUrl: "https://testnet.nearblocks.io/txns/",
+    recordedRunFile: null,
     factory: null,
     codeHash: null,
   },
