@@ -30,8 +30,8 @@ attributes (coordinates, sizes, colours) do not count.
 A finding names the file, the line and, in a table, the column number. It never shows the text.
 
 One exception, by exact value. If `evidence/testnet-run.json` exists and says "network":
-"testnet", the guard lets through its coin code hash, its factory and coin accounts and each
-transaction hash in it, and no other field. A value counts only
+"testnet", the guard lets through its coin code hash, its factory and coin accounts and the
+transaction hashes of its launch, buys and transactions, and no other field. A value counts only
 when the whole word matches; a changed character, a longer word or a mainnet account fails. The
 guard reads that file and nothing else. It makes no network call. Without the file, nothing is
 let through.
@@ -135,8 +135,8 @@ _ACCOUNT_SHAPE = re.compile(r"[a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet")
 
 def load_allowlist(path: Path = EVIDENCE_FILE) -> frozenset:
     """The exact values the guard lets through, from the testnet run record: the coin code hash
-    ("code_hash"), the factory and coin accounts ("factory", "coin") and each "tx_hash" in
-    "transactions". Only when the file says "network": "testnet", and only these fields, each
+    ("code_hash"), the factory and coin accounts ("factory", "coin") and the "tx_hash" of
+    "launch" and of each entry in "buys" and "transactions". Only when the file says "network": "testnet", and only these fields, each
     with the shape of its kind. A missing, unreadable or other file gives an empty set, which is
     the guard without an exception."""
     try:
@@ -151,8 +151,12 @@ def load_allowlist(path: Path = EVIDENCE_FILE) -> frozenset:
     for field in ("factory", "coin"):
         if _is(data.get(field), _ACCOUNT_SHAPE):
             found.append(data[field])
-    transactions = data.get("transactions")
-    for tx in transactions if isinstance(transactions, list) else []:
+    launch = data.get("launch")
+    transactions = [launch] if isinstance(launch, dict) else []
+    for field in ("buys", "transactions"):
+        listed = data.get(field)
+        transactions += listed if isinstance(listed, list) else []
+    for tx in transactions:
         if isinstance(tx, dict) and _is(tx.get("tx_hash"), _HASH_SHAPE):
             found.append(tx["tx_hash"])
     return frozenset(found)

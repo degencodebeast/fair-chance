@@ -19,6 +19,8 @@ TX_HASH = "7mPqRs2tUvWxYz3AbCdEfGhJkLnNpQrStUvWxYz4Ab5C"
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 FACTORY = "fc-demo.testnet"
 COIN = "bag.fc-demo.testnet"
+LAUNCH_HASH = "5nKpQrStUvWxYz2AbCdEfGhJkLmNpQrStUvWxYz3Ab4C"
+BUY_HASH = "3kLmNpQrStUvWxYz2AbCdEfGhJkLmNpQrStUvWxYz4Ab"
 OTHER_HASH = "Zx9cV8bN7mK6jH5gF4dS3aQ2wE1rT0yUiOpLkJhGfDsA"
 RECORD = {
     "network": "testnet",
@@ -27,6 +29,8 @@ RECORD = {
     "coin": COIN,
     "code_hash": CODE_HASH,
     "note": OTHER_HASH,
+    "launch": {"tx_hash": LAUNCH_HASH, "account": "creator.testnet", "memo": OTHER_HASH},
+    "buys": [{"tx_hash": BUY_HASH, "account": "buyer2.testnet"}, {"account": "buyer3.testnet", "memo": OTHER_HASH}],
     "transactions": [{"tx_hash": TX_HASH, "outcome": "partial_fill", "account": "buyer1.testnet", "memo": OTHER_HASH}],
 }
 
@@ -63,6 +67,14 @@ class AllowlistTest(unittest.TestCase):
 
     def test_a_mainnet_style_account_fails(self):
         self.assertEqual(len(findings("The coin is bag.near.", self.allowed)), 1)
+
+    def test_the_launch_and_buy_transaction_hashes_pass(self):
+        self.assertEqual(findings(f"The launch is {LAUNCH_HASH}.", self.allowed), [])
+        self.assertEqual(findings(f"A buy is {BUY_HASH}.", self.allowed), [])
+
+    def test_the_launch_and_buy_accounts_and_other_fields_do_not_pass(self):
+        self.assertEqual(len(findings("The creator is creator.testnet.", self.allowed)), 1)
+        self.assertEqual(len(findings("A buyer is buyer2.testnet.", self.allowed)), 1)
 
     def test_a_hash_shaped_string_in_another_field_does_not_pass(self):
         self.assertEqual(len(findings(f"Hash {OTHER_HASH}.", self.allowed)), 1)
