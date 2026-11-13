@@ -1,0 +1,124 @@
+{
+  "coin": {
+    "account": "moth.factory.testnet",
+    "name": "Moth Lamp",
+    "symbol": "MOTH",
+    "creator": "wick.lamp.testnet",
+    "launch_block": 100,
+    "early_blocks": 17
+  },
+  "watch_command": "/watch moth.factory.testnet",
+  "watch_time": "13:02",
+  "watch_reply": "Watching moth.factory.testnet. You get one message each time a limit acts on that coin.",
+  "alerts": [
+    {
+      "label": "Early buy",
+      "time": "13:02",
+      "receipt": "SampleReceiptEarlyBuy",
+      "event": {
+        "name": "fc_buy",
+        "block": 104,
+        "fields": {
+          "account": "dart.testnet",
+          "near_in": "1",
+          "tokens_out": "9200000000000000000000000",
+          "marked_tokens": "9200000000000000000000000",
+          "class_after": "band"
+        }
+      },
+      "text": "dart.testnet bought 9.2M MOTH in block 4. These tokens count as early supply."
+    },
+    {
+      "label": "Creator-group buy",
+      "time": "13:40",
+      "receipt": "SampleReceiptCreatorBuy",
+      "event": {
+        "name": "fc_buy",
+        "block": 503,
+        "fields": {
+          "account": "wick.lamp.testnet",
+          "near_in": "1",
+          "tokens_out": "4000000000000000000000000",
+          "marked_tokens": "4000000000000000000000000",
+          "class_after": "band"
+        }
+      },
+      "text": "wick.lamp.testnet (creator group) bought 4.0M MOTH. These tokens count as early supply."
+    },
+    {
+      "label": "Send into the creator group",
+      "time": "13:52",
+      "receipt": "SampleReceiptCreatorReceive",
+      "event": {
+        "name": "fc_send",
+        "block": 504,
+        "fields": {
+          "from": "dart.testnet",
+          "to": "lamp.testnet",
+          "amount": "1500000000000000000000000",
+          "marked_amount": "0",
+          "to_marked_amount": "1500000000000000000000000"
+        }
+      },
+      "text": "lamp.testnet (creator group) received 1.5M MOTH. These tokens count as early supply."
+    },
+    {
+      "label": "Became large",
+      "time": "14:09",
+      "receipt": "SampleReceiptBecameLarge",
+      "event": {
+        "name": "fc_became_large",
+        "block": 502,
+        "fields": {
+          "account": "bigfish.testnet",
+          "balance": "34000000000000000000000000",
+          "large_threshold": "20000000000000000000000000"
+        }
+      },
+      "text": "bigfish.testnet now holds 3.4% of supply. It is large and cannot send tokens."
+    },
+    {
+      "label": "Limited sell",
+      "time": "14:21",
+      "receipt": "SampleReceiptLimitedSell",
+      "event": {
+        "name": "fc_sell",
+        "block": 500,
+        "fields": {
+          "account": "bigfish.testnet",
+          "class": "large",
+          "tokens_asked": "30000000000000000000000000",
+          "tokens_sold": "7100000000000000000000000",
+          "near_out": "1000000000000000000000000",
+          "fill": "partial",
+          "limit_reason": "allowance",
+          "allowance_left": "7100000000000000000000000",
+          "window_end_ns": "1794582120000000000"
+        }
+      },
+      "text": "bigfish.testnet tried to sell 30.0M MOTH (3.0% of supply). The rule filled 7.1M (0.7%). It can sell up to 7.1M more after 15:02."
+    },
+    {
+      "label": "Cap full",
+      "time": "14:21",
+      "receipt": "SampleReceiptCapFull",
+      "event": {
+        "name": "fc_cap_filled",
+        "block": 501,
+        "fields": {
+          "window_start_ns": "1794578520000000000",
+          "window_end_ns": "1794582120000000000",
+          "real_near": "40000000000000000000000000",
+          "cap_total": "2130000000000000000000000",
+          "cap_used": "2130000000000000000000000",
+          "by_account": "bigfish.testnet",
+          "fill_index": 1
+        }
+      },
+      "text": "Pool cap full for this hour: 2.13 NEAR out. Limited sells resume at 15:02."
+    }
+  ],
+  "check_command": "/check moth.factory.testnet",
+  "check_time": "14:24",
+  "check_reply": "Moth Lamp (MOTH)\nAs of 14:24.\n\nCreator group: 3.9% of supply\nEarly supply: 14.5% of supply\nShared allowance for this 24 h window: 3.4M MOTH\nRefills 13:02 tomorrow, in 22 h 38 min\n\nLarge holders: 3\nLarge accounts cannot send.\n\nPool cap this hour: full, 2.13 of 2.13 NEAR out\nLarge and early-supply sells fill a small floor until 15:02, in 38 min.\n\nNobody can change these rules."
+}
