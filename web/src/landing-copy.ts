@@ -4,7 +4,7 @@ export type LandingAction = { label: string; opens: "coins" | "launch-off" | "ru
 
 export const landingCopy = {
   headline: "You buy. The creator dumps on you. You hold the bag.",
-  subheadline: "On Fair Chance, they have to sell slowly.",
+  subheadline: "Fair Chance slows the dump at launch, inside the coin contract.",
   intro:
     "Every coin launched here has sell limits built into its contract. The creator, the snipers and the big wallets can still sell. They just can't sell it all at once.",
   actions: [
