@@ -50,7 +50,22 @@ func parseLog(line string) (Event, bool) {
 	return Event{Standard: raw.Standard, Version: raw.Version, Name: raw.Event, Data: raw.Data[0]}, true
 }
 
-// LaunchCursor is the first cursor for a coin: its launch block, from the coin's fc_rules view.
+// LaunchScanMarginBlocks is how many blocks before launch_block a coin's scan starts. The launch
+// transaction is included before the coin's new runs (the factory receipt, then the coin batch),
+// so a scan from launch_block would miss the opening buy's events. The coin filter drops anything
+// older. The web page (LAUNCH_SCAN_MARGIN_BLOCKS) and the sandbox margin test use the same value.
+const LaunchScanMarginBlocks = 10
+
+// ScanStart is the first block to scan for a coin launched at launchBlock: LaunchScanMarginBlocks
+// before it, and never below block 0.
+func ScanStart(launchBlock uint64) Cursor {
+	if launchBlock < LaunchScanMarginBlocks {
+		return 0
+	}
+	return Cursor(launchBlock - LaunchScanMarginBlocks)
+}
+
+// LaunchCursor is the first cursor for a coin: ScanStart of its launch block, from fc_rules.
 func LaunchCursor(ctx context.Context, rpcURL, coin string) (Cursor, error) {
 	var rules struct {
 		LaunchBlock uint64 `json:"launch_block"`
@@ -58,7 +73,7 @@ func LaunchCursor(ctx context.Context, rpcURL, coin string) (Cursor, error) {
 	if err := newRPC(rpcURL).view(ctx, coin, "fc_rules", &rules); err != nil {
 		return 0, fmt.Errorf("fc_rules of %s: %w", coin, err)
 	}
-	return Cursor(rules.LaunchBlock), nil
+	return ScanStart(rules.LaunchBlock), nil
 }
 
 // CoinFacts are the fixed facts about one coin that alert sentences need.

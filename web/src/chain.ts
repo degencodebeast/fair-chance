@@ -11,6 +11,19 @@ export interface ReaderConfig {
   fastNearUrl?: string;
 }
 
+/**
+ * How many blocks before launch_block a coin's block scan starts. The launch transaction is
+ * included before the coin's new runs (the factory receipt, then the coin batch), so a scan from
+ * launch_block would miss the opening buy. The coin filter drops anything older. The watcher
+ * (LaunchScanMarginBlocks) and the sandbox margin test use the same value.
+ */
+export const LAUNCH_SCAN_MARGIN_BLOCKS = 10;
+
+/** The first block to scan for a coin launched at `launchBlock`, never below block 0. */
+export function scanStartBlock(launchBlock: number): number {
+  return Math.max(0, launchBlock - LAUNCH_SCAN_MARGIN_BLOCKS);
+}
+
 export interface CoinEvent {
   standard: "fair_chance" | "fair_chance_factory";
   version: string;
@@ -39,7 +52,7 @@ export interface ChainReader {
   view<T>(method: string, args?: object): Promise<T>;
   account(accountId: string): Promise<AccountFacts>;
   accessKeyCount(accountId: string): Promise<number>;
-  /** Events since a block height (default: the coin's launch block) up to the final head. */
+  /** Events since a block height (default: scanStartBlock of the coin's launch block) up to the final head. */
   events(since?: number): Promise<{ events: CoinEvent[]; cursor: number }>;
 }
 
@@ -133,7 +146,7 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
   }
 
   async function events(since?: number) {
-    const from = since ?? (await view<{ launch_block: number }>("fc_rules")).launch_block;
+    const from = since ?? scanStartBlock((await view<{ launch_block: number }>("fc_rules")).launch_block);
     if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn });
     // A height with no block answers UNKNOWN_BLOCK and the scan skips it. A node that dropped
     // old blocks answers the same way, so check first that the node still has the blocks.

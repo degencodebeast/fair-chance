@@ -670,3 +670,20 @@ pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Resu
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
 }
+
+/// How many blocks before `launch_block` the watcher and the page start a coin's block scan
+/// (`LaunchScanMarginBlocks` in watcher/internal/eventsource/source.go, `LAUNCH_SCAN_MARGIN_BLOCKS`
+/// in web/src/chain.ts). The launch transaction must sit inside this margin.
+pub const LAUNCH_SCAN_MARGIN_BLOCKS: u64 = 10;
+
+/// The hash of the block that included the transaction itself (its first outcome).
+pub fn transaction_block_hash(result: &TransactionResult) -> Result<CryptoHash> {
+    let TransactionResult::Full(full) = result else {
+        bail!("the transaction has no execution result yet")
+    };
+    Ok(full
+        .outcomes()
+        .first()
+        .context("the transaction has no outcome")?
+        .block_hash)
+}
