@@ -1,0 +1,46 @@
+token,n_blocks,fast_early_seller_count,fast_early_buyer_share_early_supply,status
+cosmicfrog.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+cosmicfrog.nearlytrade.near,17,1,0.6663436520323496938767775769,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+cosmicfrog.nearlytrade.near,50,1,0.6663436520323496938767775769,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+blocknear.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+blocknear.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+blocknear.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearhunt.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearhunt.nearlytrade.near,17,1,0.8758433944716030425331388047,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearhunt.nearlytrade.near,50,1,0.8758433944716030425331388047,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+rot.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+rot.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+rot.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+goblin.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+goblin.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+goblin.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nullss.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nullss.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nullss.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+speed.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+speed.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+speed.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+openjep.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+openjep.nearlytrade.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+openjep.nearlytrade.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearusd.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearusd.nearlytrade.near,17,6,1,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearusd.nearlytrade.near,50,6,1,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearstar.nearlytrade.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearstar.nearlytrade.near,17,1,1,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+nearstar.nearlytrade.near,50,1,1,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+bagflip.v2-launchpad.justhoot.near,5,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+bagflip.v2-launchpad.justhoot.near,17,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+bagflip.v2-launchpad.justhoot.near,50,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+nulls-2.v2-launchpad.justhoot.near,5,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+nulls-2.v2-launchpad.justhoot.near,17,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+nulls-2.v2-launchpad.justhoot.near,50,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+imam.v2-launchpad.justhoot.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+imam.v2-launchpad.justhoot.near,17,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+imam.v2-launchpad.justhoot.near,50,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+bemi.v2-launchpad.justhoot.near,5,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+bemi.v2-launchpad.justhoot.near,17,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+bemi.v2-launchpad.justhoot.near,50,0,0,POOL_TRADES_ONLY; direct FT transfers can make this a lower bound
+lunc.v2-launchpad.justhoot.near,5,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+lunc.v2-launchpad.justhoot.near,17,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
+lunc.v2-launchpad.justhoot.near,50,UNKNOWN,UNKNOWN,UNKNOWN_OWNER
