@@ -81,6 +81,9 @@ function entropy(text: string): number {
 
 /** A long bare string with lower case, upper case and digits and a spread of characters: it reads as a secret. */
 function looksLikeSecret(token: string): boolean {
+  // A built file name or import path is words joined by "-" or "/" with a hash at the end. Not a secret.
+  const parts = token.split(/[-/]/);
+  if (parts.length > 2 && parts.slice(0, -1).every((p) => /^[A-Za-z]*$/.test(p))) return false;
   return /[a-z]/.test(token) && /[A-Z]/.test(token) && /[0-9]/.test(token) && entropy(token) >= 4.2;
 }
 

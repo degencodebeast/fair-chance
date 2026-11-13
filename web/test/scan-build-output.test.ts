@@ -136,6 +136,12 @@ describe("the pre-deploy scan of the build", () => {
     expect(await rules()).toEqual([]);
   });
 
+  it("does not call a build file name with a hash tail a key, in the name or in an import path", async () => {
+    plant("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js", 'import("./render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");import("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");');
+    plant("assets/index-B--492ndAbCdEfGhIjKlMnOpQrStUvWxYz.js", "x");
+    expect(await rules()).toEqual([]);
+  });
+
   it("fails on a short wallet name inside a string, and on 0x accounts", async () => {
     plant("assets/a.js", `const a="x ab.near",b="owner me.testnet",c="0x${"ab".repeat(20)}";`);
     expect(await rules()).toEqual(["wallet", "wallet", "wallet"]);
