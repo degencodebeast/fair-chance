@@ -1,8 +1,9 @@
-# Fair Chance coin interface (1.0.0-rc.3)
+# Fair Chance coin interface (1.0.0-rc.4)
 
-Status: Frozen as 1.0.0-rc on 2026-11-12. The paper test set 1.0.0-rc.3. It becomes `1.0.0` when the walking skeleton passes on sandbox. There is no vault, so penalties and the pool part of fees stay in locked liquidity.
+Status: Frozen as 1.0.0-rc on 2026-11-12. The paper test set 1.0.0-rc.3. It becomes `1.0.0` when every coin rule in this file passes its sandbox tests. There is no vault, so penalties and the pool part of fees stay in locked liquidity.
 `1.0.0-rc.2` (builder, 2026-11-12): `cap_used` counts only the part of a band sell above the account's first allowance in the window. Also in `1.0.0-rc.2`: `FC_EARLY_WINDOW`, and the creator fee share (ADR 0010): new fields, one new view, one claim method, one new event, two refusal codes. All are additions; no existing field changes meaning except that `real_near` and `real_near_now` now exclude the creator balance.
 `1.0.0-rc.3` (builder, 2026-11-12 and 2026-11-13): the c cap is checked against real NEAR after each sell, so `cap_total` and `cap_left` change meaning; the creator fee depth test uses the lowest real NEAR of each 1 h window; `FC_TRANSFER_CALL_NOT_POOL` is renamed `FC_TRANSFER_CALL`; new refusal codes `FC_SEND_TO_COIN` and `FC_RECEIVER_WOULD_BE_LARGE`; new field `fc_account.max_receive`; every large, band and marked sell is checked, also when its own net adds zero; marked sells count net of the same account's buys for the cap only (the marked allowance stays gross); an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and each account's signed value is clamped at zero when read, before it is added to the cap total; window 0 starts its lowest real NEAR at 0, and a claim needs at least 24 h since `depth_ok_since`.
+`1.0.0-rc.4` (builder, 2026-11-13): additions only. New `fc_pool` fields `large_holders` and `creator_group_share_bps`. `FC_ONE_YOCTO` now also lists `claim_creator_fees`, which already needed 1 yoctoNEAR. Standard methods are named under Conventions.
 Builder-confirmed fields (2026-11-12): `fc_send.to_marked_amount`, `fc_sell.marked_sold` and `fc_account.in_creator_group`. They are outputs only; no rule reads them.
 Change rule: a later change adds fields only, or bumps the version. Each change goes in a message to Kalu.
 
@@ -10,7 +11,8 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 
 ## Conventions
 
-- NEP-297 standard name: `fair_chance`. Version string: `1.0.0-rc.3`.
+- NEP-297 standard name: `fair_chance`. Version string: `1.0.0-rc.4`.
+- Standard methods follow their NEPs and are not repeated here: NEP-141 (`ft_transfer`, `ft_transfer_call`, `ft_balance_of`, `ft_total_supply`, with NEP-297 `nep141` events `ft_mint` and `ft_transfer`), NEP-145 storage, NEP-148 `ft_metadata`, and NEP-330 `contract_source_metadata`.
 - Every token or NEAR amount is a decimal string in the smallest unit (token base units, yoctoNEAR).
 - Every time is a block timestamp in nanoseconds, as a decimal string. Block heights are numbers.
 - Shares and rates are basis points (1 bp = 0.01%), as numbers.
@@ -37,7 +39,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
   - A send to yourself is refused with the standard NEP-141 error.
   - `FC_UNREGISTER_WITH_BALANCE`: force-unregister while the account holds tokens or has used allowance.
   - `FC_CREATOR_CAP`: a buy by the creator group, or a send into the creator group, that takes the group above 4% of supply.
-  - `FC_ONE_YOCTO`: a sell without exactly 1 yoctoNEAR attached.
+  - `FC_ONE_YOCTO`: a sell or a `claim_creator_fees` call without exactly 1 yoctoNEAR attached.
   - `FC_SLIPPAGE`: the price per token of the filled part is below the seller's minimum. Slippage is checked on the price per token, not on total NEAR out, so a partial fill does not fail slippage. From `1.0.0-rc.2` it also covers buys: a buy whose `tokens_out` is below the buyer's `min_tokens_out`.
   - `FC_EARLY_WINDOW`: a sell of marked tokens in blocks 0 to N. Added for `1.0.0-rc.2`.
   - `FC_NOT_CREATOR`: `claim_creator_fees` called by any account but the creator. Added for `1.0.0-rc.2`.
@@ -48,7 +50,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 
 1. `fc_rules()`: the fixed values of this coin.
    `creator`, `launch_block`, `launch_ns`, `p_bps` (200), `window_unmarked_s` (3600), `window_early_s` (86400), `early_blocks` (N), `large_threshold_bps` (T), `creator_cap_bps` (400), `real_cap_c_bps` (500), `floor_bps` (10), `penalty_bps` (1000), `virtual_near` (P), `swap_fee_bps`, `early_fee_start_bps`, `brake_drop_bps` (null = off), `creator_fee_share_bps` (s, share of the normal swap fee `swap_fee_bps` that goes to the creator balance; never applied to `penalty_bps` or to the early-fee extra above `swap_fee_bps`), `claim_min_real_near` (X), `claim_depth_hold_s` (86400), `unclaimed_to_pool_s` (D, null = off), `code_hash`.
-2. `fc_pool()`: `token_reserve`, `near_reserve`, `virtual_near`, `real_near`, `creator_fee_balance`, `block`. `real_near` is NEAR in the pool paid in by buyers, minus NEAR paid out. It never includes `creator_fee_balance`.
+2. `fc_pool()`: `token_reserve`, `near_reserve`, `virtual_near`, `real_near`, `creator_fee_balance`, `large_holders` (number of accounts whose class is `large` now), `creator_group_share_bps` (creator group balance ÷ total supply, in basis points), `block`. Both new fields are added for `1.0.0-rc.4`. `real_near` is NEAR in the pool paid in by buyers, minus NEAR paid out. It never includes `creator_fee_balance`.
 3. `fc_early_window()`: `early_blocks`, `blocks_left`, `early_supply_total`, `shared_allowance`, `rate_per_token`, `buy_fee_bps_now`, `fee_end_block`.
 4. `fc_cap()`: the pool-wide real NEAR cap in the current 1 h window.
    `window_start_ns`, `window_end_ns` (the reset time), `real_near_now` (same definition as `fc_pool.real_near`, without the creator balance), `cap_total` (c x real NEAR now, before any further sell), `cap_used` (net per account, marked and unmarked, from a signed running value per account that is clamped at zero when read, before it is added to the total (one account's buys never offset another account's sells), with each buy counted as the full NEAR paid, fee included; an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and only the rest offsets its counted sells; for a band account, only NEAR out from the part of its sells above its first allowance in the window counts; its first allowance never counts), `cap_left` (the largest NEAR out that one more limited sell can take now, checked against the real NEAR left after that sell: (cap_total minus cap_used minus c x the creator share of that sell) ÷ (1 + c), at least 0; the creator share grows with the sell size, so the spec solves it as one linear term), `is_full`, `fills_this_window`.
