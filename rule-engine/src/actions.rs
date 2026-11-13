@@ -1,11 +1,13 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
 use crate::allowance::{
-    self, count_bought, count_sold, is_large_by_live_balance, unmarked_allowance,
-    unmarked_window_end_ns,
+    self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns,
 };
 use crate::coin_state::{At, CoinState, Holders};
-use crate::events::{Event, FcBuy, FcSell, FtTransfer};
+use crate::events::{Event, FcBecameLarge, FcBuy, FcSell, FcSend, FtTransfer};
+use crate::holder_class::{
+    class_of, clear_large_at_zero, large_threshold, mark_large_after_buy, max_receive, Class,
+};
 use crate::pool_math;
 use crate::refusals::{Refusal, RefusalCode};
 use crate::wide_integer_math::product_at_least;
@@ -26,6 +28,13 @@ pub enum Action {
         min_near_out: u128,
         attached: u128,
     },
+    /// A NEP-141 `ft_transfer` from `from` to `to`. The receiver must hold a storage record.
+    Send {
+        from: String,
+        to: String,
+        amount: u128,
+        memo: Option<String>,
+    },
 }
 
 impl Action {
@@ -33,6 +42,7 @@ impl Action {
     pub fn accounts(&self) -> Vec<String> {
         match self {
             Self::Buy { account, .. } | Self::Sell { account, .. } => vec![account.clone()],
+            Self::Send { from, to, .. } => vec![from.clone(), to.clone()],
         }
     }
 }
@@ -100,6 +110,12 @@ pub fn apply(
             *attached,
             at,
         ),
+        Action::Send {
+            from,
+            to,
+            amount,
+            memo,
+        } => send(state, holders, from, to, *amount, memo.clone(), at),
     }
 }
 
@@ -126,12 +142,19 @@ fn buy(
     let holder = holders.entry(account.to_string()).or_default();
     holder.balance += tokens_out;
     count_bought(state, holder, tokens_out, at);
+    let crossed = mark_large_after_buy(state, holder);
+    if crossed {
+        next.large_holders += 1;
+    }
+    let balance = holder.balance;
+    let class_after = class_of(&next, Some(holder), at);
 
-    let events = vec![
+    let mut events = vec![
         Event::FtTransfer(FtTransfer {
             old_owner_id: state.coin.clone(),
             new_owner_id: account.to_string(),
             amount: tokens_out,
+            memo: None,
         }),
         Event::FcBuy(FcBuy {
             account: account.to_string(),
@@ -140,10 +163,17 @@ fn buy(
             creator_fee_near: 0,
             tokens_out,
             marked_tokens: 0,
-            class_after: "small",
+            class_after: class_after.as_str(),
             block: at.block,
         }),
     ];
+    if crossed {
+        events.push(Event::FcBecameLarge(FcBecameLarge {
+            account: account.to_string(),
+            balance,
+            large_threshold: large_threshold(state),
+        }));
+    }
     Ok(Applied {
         state: next,
         holders,
@@ -169,11 +199,11 @@ fn sell(
     if amount == 0 || amount > holder.balance {
         return Err(Refusal::new(RefusalCode::NotEnoughBalance));
     }
-    // Until the class rules land, only a large account (live balance at T or above) is held to
-    // its allowance, by a partial fill. Small and band sells fill in full.
-    let large = is_large_by_live_balance(state, holder.balance);
+    // A large account is held to its allowance by a partial fill. Small and band sells fill in
+    // full (the band penalty is not built yet).
+    let class = class_of(state, Some(holder), at);
     let room = unmarked_allowance(state, Some(holder), at).sell_room;
-    let (tokens_sold, fill, limit_reason) = if large && amount > room {
+    let (tokens_sold, fill, limit_reason) = if class == Class::Large && amount > room {
         let fill = if room == 0 { Fill::None } else { Fill::Partial };
         (room, fill, Some("allowance"))
     } else {
@@ -192,6 +222,9 @@ fn sell(
     count_sold(state, holder, tokens_sold, at);
     let after_sell = unmarked_allowance(state, Some(holder), at);
     let mut next = state.clone();
+    if clear_large_at_zero(holder) {
+        next.large_holders -= 1;
+    }
     next.token_reserve += tokens_sold;
     next.real_near -= near_out;
 
@@ -201,11 +234,12 @@ fn sell(
             old_owner_id: account.to_string(),
             new_owner_id: state.coin.clone(),
             amount: tokens_sold,
+            memo: None,
         }));
     }
     events.push(Event::FcSell(FcSell {
         account: account.to_string(),
-        class: if large { "large" } else { "small" },
+        class: class.as_str(),
         tokens_asked: amount,
         tokens_sold,
         marked_sold: 0,
@@ -231,5 +265,74 @@ fn sell(
         fill,
         events,
         payout,
+    })
+}
+
+/// A send (NEP-141 `ft_transfer`). Refused to yourself, for 0 tokens, to the coin, from a large
+/// account, above the sender's balance, to an account with no storage record, and when it would
+/// take a receiver that is not large to T. A send counts toward no allowance.
+fn send(
+    state: &CoinState,
+    mut holders: Holders,
+    from: &str,
+    to: &str,
+    amount: u128,
+    memo: Option<String>,
+    _at: At,
+) -> Result<Applied, Refusal> {
+    if from == to {
+        return Err(Refusal::new(RefusalCode::SendToSelf));
+    }
+    if amount == 0 {
+        return Err(Refusal::new(RefusalCode::AmountNotPositive));
+    }
+    if to == state.coin {
+        return Err(Refusal::new(RefusalCode::SendToCoin));
+    }
+    let sender = holders.get(from).cloned().unwrap_or_default();
+    if sender.is_large {
+        return Err(Refusal::new(RefusalCode::LargeCannotSend));
+    }
+    if amount > sender.balance {
+        return Err(Refusal::new(RefusalCode::NotEnoughBalance));
+    }
+    let Some(receiver) = holders.get(to) else {
+        return Err(Refusal::with_detail(RefusalCode::NotRegistered, to));
+    };
+    if let Some(room) = max_receive(state, Some(receiver)) {
+        if amount > room {
+            return Err(Refusal::with_detail(
+                RefusalCode::ReceiverWouldBeLarge,
+                room.to_string(),
+            ));
+        }
+    }
+    if let Some(sender) = holders.get_mut(from) {
+        sender.balance -= amount;
+    }
+    if let Some(receiver) = holders.get_mut(to) {
+        receiver.balance += amount;
+    }
+    let events = vec![
+        Event::FtTransfer(FtTransfer {
+            old_owner_id: from.to_string(),
+            new_owner_id: to.to_string(),
+            amount,
+            memo,
+        }),
+        Event::FcSend(FcSend {
+            from: from.to_string(),
+            to: to.to_string(),
+            amount,
+            marked_amount: 0,
+            to_marked_amount: 0,
+        }),
+    ];
+    Ok(Applied {
+        state: state.clone(),
+        holders,
+        fill: Fill::Full,
+        events,
+        payout: None,
     })
 }

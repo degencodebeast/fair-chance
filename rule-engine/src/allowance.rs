@@ -7,7 +7,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::coin_state::{At, CoinState, Holder};
-use crate::wide_integer_math::{product_at_least, tokens_for_price_drop};
+use crate::wide_integer_math::tokens_for_price_drop;
 
 const SECOND_NS: u64 = 1_000_000_000;
 
@@ -112,15 +112,4 @@ pub fn count_bought(state: &CoinState, holder: &mut Holder, tokens: u128, at: At
     let mut totals = totals_now(state, Some(holder), at);
     totals.bought += tokens;
     holder.unmarked_window = totals;
-}
-
-/// Live balance at the large threshold or above: the accounts held to their allowance. A
-/// stand-in until the class rules (live class, large until the balance is zero) land.
-pub fn is_large_by_live_balance(state: &CoinState, balance: u128) -> bool {
-    product_at_least(
-        balance,
-        10_000,
-        state.fixed.total_supply,
-        state.fixed.large_threshold_bps as u128,
-    )
 }

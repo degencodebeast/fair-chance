@@ -8,6 +8,8 @@ use crate::INTERFACE_VERSION;
 pub enum Event {
     FcBuy(FcBuy),
     FcSell(FcSell),
+    FcSend(FcSend),
+    FcBecameLarge(FcBecameLarge),
     FtMint(FtMint),
     FtTransfer(FtTransfer),
 }
@@ -18,6 +20,10 @@ impl Event {
         let (standard, version, event, data) = match self {
             Self::FcBuy(e) => ("fair_chance", INTERFACE_VERSION, "fc_buy", json!([e])),
             Self::FcSell(e) => ("fair_chance", INTERFACE_VERSION, "fc_sell", json!([e])),
+            Self::FcSend(e) => ("fair_chance", INTERFACE_VERSION, "fc_send", json!([e])),
+            Self::FcBecameLarge(e) => {
+                ("fair_chance", INTERFACE_VERSION, "fc_became_large", json!([e]))
+            }
             Self::FtMint(e) => ("nep141", "1.0.0", "ft_mint", json!([e])),
             Self::FtTransfer(e) => ("nep141", "1.0.0", "ft_transfer", json!([e])),
         };
@@ -89,4 +95,30 @@ pub struct FtTransfer {
     pub new_owner_id: String,
     #[serde(with = "crate::decimal_string")]
     pub amount: u128,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memo: Option<String>,
+}
+
+/// A send (`ft_transfer`). Marked tokens leave first; until marked tokens exist both marked
+/// amounts are 0.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FcSend {
+    pub from: String,
+    pub to: String,
+    #[serde(with = "crate::decimal_string")]
+    pub amount: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub marked_amount: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub to_marked_amount: u128,
+}
+
+/// The buy that takes an account to T. `large_threshold` is T in token base units.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FcBecameLarge {
+    pub account: String,
+    #[serde(with = "crate::decimal_string")]
+    pub balance: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub large_threshold: u128,
 }

@@ -10,6 +10,7 @@ mod coin_state;
 pub mod decimal_string;
 mod events;
 mod fixed_values;
+mod holder_class;
 mod pool_math;
 mod refusals;
 mod views;
@@ -20,7 +21,7 @@ pub use allowance::{WindowReserve, WindowTotals};
 pub use coin_state::{
     launch, At, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
 };
-pub use events::{Event, FcBuy, FcSell, FtMint, FtTransfer};
+pub use events::{Event, FcBecameLarge, FcBuy, FcSell, FcSend, FtMint, FtTransfer};
 pub use fixed_values::FixedValues;
 pub use refusals::{Refusal, RefusalCode};
 pub use views::{

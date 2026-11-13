@@ -3,9 +3,10 @@
 use serde::Serialize;
 
 use crate::actions::{apply, Action};
-use crate::allowance::{is_large_by_live_balance, unmarked_allowance, unmarked_window_end_ns};
+use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::events::Event;
+use crate::holder_class::{class_of, max_receive, Class};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RulesView {
@@ -89,7 +90,7 @@ pub fn view_pool(state: &CoinState, at: At) -> PoolView {
         virtual_near: state.fixed.virtual_near,
         real_near: state.real_near,
         creator_fee_balance: state.creator_fee_balance,
-        large_holders: 0,
+        large_holders: state.large_holders,
         creator_group_share_bps: 0,
         block: at.block,
     }
@@ -194,6 +195,8 @@ pub struct AccountView {
 
 pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> AccountView {
     let balance = holder.map_or(0, |h| h.balance);
+    let class = class_of(state, holder, at);
+    let is_large = class == Class::Large;
     let unmarked = unmarked_allowance(state, holder, at);
     let window_end_ns = unmarked.window_end_ns;
     let empty = |share_bps| AllowanceView {
@@ -205,14 +208,14 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
         window_end_ns,
     };
     AccountView {
-        class: "small",
+        class: class.as_str(),
         balance,
         marked_balance: 0,
         unmarked_balance: balance,
-        is_large: false,
-        can_send: true,
+        is_large,
+        can_send: !is_large,
         in_creator_group: false,
-        max_receive: Some(0),
+        max_receive: max_receive(state, holder),
         unmarked: AllowanceView {
             share_bps: None,
             allowance: unmarked.allowance,
@@ -222,7 +225,7 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             window_end_ns,
         },
         marked: empty(Some(0)),
-        max_full_fill_now: if is_large_by_live_balance(state, balance) {
+        max_full_fill_now: if is_large {
             balance.min(unmarked.sell_room)
         } else {
             balance
@@ -312,7 +315,10 @@ pub fn quote_buy(
             creator_fee_near: b.creator_fee_near,
             marked_tokens: b.marked_tokens,
             class_after: b.class_after,
-            becomes_large: false,
+            becomes_large: applied
+                .events
+                .iter()
+                .any(|e| matches!(e, Event::FcBecameLarge(_))),
             allowance_after,
         }),
         _ => None,
