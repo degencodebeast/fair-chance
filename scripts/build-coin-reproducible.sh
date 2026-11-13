@@ -32,10 +32,14 @@ git clone --quiet --no-local . "$clone/fair-chance"
 git -C "$clone/fair-chance" checkout --quiet --detach "$commit"
 (cd "$clone/fair-chance" && cargo near build reproducible-wasm --manifest-path contracts/coin/Cargo.toml --out-dir "$OLDPWD/$out") 2>&1 | tee "$log"
 
-# cargo-near prints "Binary checksum (base58): <hash>"; the hash is the code hash on chain.
-hash="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | awk '/sha256/ && /[Bb]ase58/ {print $NF}' | tail -1)"
-if [ -z "$hash" ]; then
-  echo "build-coin-reproducible: no base58 sha256 checksum in the cargo-near output" >&2
+# cargo-near prints "SHA-256 checksum bs58: <hash>"; that hash is the code hash on chain.
+# Its hex line must equal the sha256 of the copied wasm.
+plain_log="$(sed 's/\x1b\[[0-9;]*m//g' "$log")"
+hash="$(echo "$plain_log" | awk '/SHA-256 checksum bs58:/ {print $NF}' | tail -1)"
+hex="$(echo "$plain_log" | awk '/SHA-256 checksum hex :/ {print $NF}' | tail -1)"
+file_hex="$(shasum -a 256 "$out/fair_chance_coin.wasm" | awk '{print $1}')"
+if [ -z "$hash" ] || [ "$hex" != "$file_hex" ]; then
+  echo "build-coin-reproducible: checksum missing or not the wasm's sha256 (printed '$hex', file '$file_hex')" >&2
   exit 1
 fi
 echo "$commit" > "$out/built-commit.txt"
