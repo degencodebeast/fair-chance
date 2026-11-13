@@ -35,10 +35,11 @@ const ALLOWANCE_WINDOW_1: u128 = 10_003_985_369_474_059_362_529_806;
 /// The floor in window 1: 0.1% (10 bps) of that token reserve, rounded down.
 const FLOOR_WINDOW_1: u128 = 985_367_295_659_457_062_620_091;
 
-/// Seconds after launch, as a block time.
+/// Seconds after launch, as a block time. The block is 18 blocks later than the second, after
+/// the early window (blocks 0 to 17 after the launch at block 100), so buys here are unmarked.
 fn after(seconds: u64) -> At {
     At {
-        block: 100 + seconds,
+        block: 100 + 18 + seconds,
         ns: LAUNCH_NS + seconds * 1_000_000_000,
     }
 }
@@ -147,7 +148,7 @@ impl Coin {
     }
 
     fn account(&self, account: &str, at: At) -> AccountView {
-        view_account(&self.state, self.ledger.get(account), at)
+        view_account(&self.state, account, self.ledger.get(account), at)
     }
 
     fn balance(&self, account: &str) -> u128 {
@@ -424,4 +425,25 @@ fn a_sent_bag_tops_up_a_band_account_without_using_its_first_allowance() {
     let before = coin.account(BAND, window_1()).penalty_applies_above;
     coin.send(OTHER, BAND, ONE_TOKEN * 1_000_000, window_1());
     assert_eq!(coin.account(BAND, window_1()).penalty_applies_above, before);
+}
+
+/// The penalty rounds in the pool's favour: tokens above the first allowance that add any NEAR
+/// to the payout pay a penalty of at least 1 yocto. Each step here is a few token units, worth
+/// about one yocto NEAR.
+#[test]
+fn band_tokens_above_the_first_allowance_that_add_any_near_pay_a_penalty() {
+    let coin = coin_with_a_deep_band_holder();
+    let allowance = coin.account(BAND, window_1()).unmarked.allowance;
+    let at_the_limit = coin.clone().sell(BAND, allowance, window_1());
+    assert_eq!(at_the_limit.penalty_near, 0);
+
+    for extra in 1..=200 {
+        let above = coin.clone().sell(BAND, allowance + extra, window_1());
+        assert_eq!(above.fill, "full");
+        assert!(
+            above.penalty_near > 0 || above.near_out == at_the_limit.near_out,
+            "{extra} token units above the first allowance added {} yocto with no penalty",
+            above.near_out - at_the_limit.near_out
+        );
+    }
 }

@@ -1,9 +1,12 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
 use crate::allowance::{
-    self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns,
+    self, count_bought, count_marked_sold, count_sold, unmarked_allowance, unmarked_window_end_ns,
 };
 use crate::coin_state::{At, CoinState, Holder, Holders};
+use crate::creator_group::{creator_cap, in_creator_group};
+use crate::early_buy_fee;
+use crate::early_supply::{self, marked_allowance, record_first_touch};
 use crate::events::{Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtTransfer};
 use crate::holder_class::{
     class_of, clear_large_at_zero, large_threshold, mark_large_after_buy, max_receive,
@@ -92,12 +95,14 @@ pub fn apply(
     let mut state = state.clone();
     allowance::record_window_reserve(&mut state, at);
     real_near_cap::record_cap_window(&mut state, at);
+    early_supply::record_early_supply_window(&mut state, at);
     let state = &state;
     let touched = touched_accounts(action);
     let mut holders = holders;
     for account in &touched {
         if let Some(holder) = holders.get_mut(*account) {
             raise_class_floor(state, holder, at);
+            record_first_touch(state, holder, at);
         }
     }
     let mut applied = match action {
@@ -152,7 +157,10 @@ fn buy(
     min_tokens_out: u128,
     at: At,
 ) -> Result<Applied, Refusal> {
-    let fee_near = pool_math::fee(near_in, state.fixed.swap_fee_bps);
+    let fee_near = early_buy_fee::buy_fee(state, near_in, at);
+    // The creator share is of the normal swap fee only, never of the early-fee extra.
+    let creator_fee_near =
+        pool_math::creator_fee(pool_math::fee(near_in, state.fixed.swap_fee_bps));
     let tokens_out = pool_math::tokens_out(
         state.token_reserve,
         state.near_reserve(),
@@ -164,11 +172,24 @@ fn buy(
     let mut next = state.clone();
     next.token_reserve -= tokens_out;
     next.real_near += near_in;
+    let in_group = in_creator_group(state, account);
+    let marked_tokens = early_supply::marked_by_buy(state, in_group, tokens_out, at);
     let holder = holders.entry(account.to_string()).or_default();
+    record_first_touch(state, holder, at);
     holder.balance += tokens_out;
-    count_bought(state, holder, tokens_out, at);
+    holder.marked_balance += marked_tokens;
+    next.marked_supply += marked_tokens;
+    if in_group {
+        next.creator_group_balance += tokens_out;
+        if next.creator_group_balance > creator_cap(state) {
+            return Err(Refusal::new(RefusalCode::CreatorCap));
+        }
+    }
+    // Only the unmarked part gives unmarked allowance room back; the marked allowance is gross.
+    count_bought(state, holder, tokens_out - marked_tokens, at);
     // The cap counts each buy as the full NEAR paid, fee included.
-    let (cap_net, cap_used) = real_near_cap::after_buy(state, holder, near_in, at);
+    let (cap_net, cap_used) =
+        real_near_cap::after_buy(state, holder, near_in, tokens_out - marked_tokens, at);
     holder.cap_net = cap_net;
     next.cap_window.used = cap_used;
     let crossed = mark_large_after_buy(state, holder);
@@ -189,9 +210,9 @@ fn buy(
             account: account.to_string(),
             near_in,
             fee_near,
-            creator_fee_near: 0,
+            creator_fee_near,
             tokens_out,
-            marked_tokens: 0,
+            marked_tokens,
             class_after: class_after.as_str(),
             block: at.block,
         }),
@@ -228,10 +249,15 @@ fn sell(
     if amount == 0 || amount > holder.balance {
         return Err(Refusal::new(RefusalCode::NotEnoughBalance));
     }
+    // A sell fills marked tokens first, and marked tokens cannot be sold in blocks 0 to N.
+    if holder.marked_balance > 0 && early_supply::in_early_window(state, at) {
+        return Err(Refusal::new(RefusalCode::EarlyWindow));
+    }
     let class = class_of(state, Some(holder), at);
     let fill_plan = SellFillPlan::new(state, holder, class, amount, at);
-    let tokens_sold = fill_plan.tokens_sold(state, holder, at);
-    let outcome = sell_outcome(state, holder, &fill_plan, tokens_sold, at);
+    let parts = fill_plan.tokens_sold(state, holder, at);
+    let tokens_sold = parts.tokens();
+    let outcome = sell_outcome(state, holder, &fill_plan, parts, at);
     let fill = if tokens_sold == amount {
         Fill::Full
     } else if tokens_sold == 0 {
@@ -239,18 +265,26 @@ fn sell(
     } else {
         Fill::Partial
     };
-    let limit_reason = fill_plan.limit_reason(class, tokens_sold);
+    let limit_reason = fill_plan.limit_reason(class, parts);
     if !product_at_least(outcome.near_out, amount, min_near_out, tokens_sold) {
         return Err(Refusal::new(RefusalCode::Slippage));
     }
     let cap_was_full = cap_is_full(state, real_near_cap::cap_used(state, at), state.real_near);
     holder.balance -= tokens_sold;
-    count_sold(state, holder, tokens_sold, at);
+    holder.marked_balance -= parts.marked;
+    holder.marked_share.sold += parts.marked;
+    count_sold(state, holder, parts.unmarked, at);
+    count_marked_sold(state, holder, parts.marked, at);
     holder.cap_net = outcome.cap_net;
     let after_sell = unmarked_allowance(state, Some(holder), at);
     let mut next = state.clone();
     if clear_large_at_zero(holder) {
         next.large_holders -= 1;
+    }
+    next.marked_supply -= parts.marked;
+    next.early_supply_window.sold += parts.marked;
+    if in_creator_group(state, account) {
+        next.creator_group_balance -= tokens_sold;
     }
     next.token_reserve += tokens_sold;
     next.real_near = outcome.real_near_left;
@@ -278,7 +312,7 @@ fn sell(
         class: class.as_str(),
         tokens_asked: amount,
         tokens_sold,
-        marked_sold: 0,
+        marked_sold: parts.marked,
         near_out: outcome.near_out,
         fee_near: outcome.fee_near,
         creator_fee_near: outcome.creator_fee_near,
@@ -326,24 +360,59 @@ pub(crate) fn cap_is_full(state: &CoinState, used: u128, real_near: u128) -> boo
     ) == 0
 }
 
-/// How one sell's tokens split by the class rules, in tokens.
+/// The tokens of one sell by kind. The marked part goes into the pool first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SoldParts {
+    pub(crate) marked: u128,
+    pub(crate) unmarked: u128,
+}
+
+impl SoldParts {
+    pub(crate) fn tokens(self) -> u128 {
+        self.marked + self.unmarked
+    }
+}
+
+/// How one sell's tokens split by the rules, in tokens. The sell fills the marked part first,
+/// up to the account's pro-rata share left, then the unmarked part, up to the account's own
+/// allowance. Class rules apply to the unmarked part only.
 ///
-/// - Large: the allowance room is the most that can fill. The cap holds the fill back, but never
-///   below the account's floor left (floors stay outside the cap). Every token counts.
-/// - Band: the first allowance (the allowance room, with room back for buys) always fills with
-///   no penalty. The part above pays the penalty and fills only as far as the cap allows. The
-///   part that never counts toward the cap is the allowance less the tokens sold in the window,
-///   with no room back for buys (ADR 0005: the bought part counts).
-/// - Small: everything fills, and nothing counts.
+/// - Marked part: the share left is the most that can fill. The cap holds the fill back, but
+///   never below the account's part of the shared floor. Every marked token counts toward the
+///   cap and none pays the band penalty (early supply never gets the penalty path).
+/// - Unmarked part, large: the allowance room is the most that can fill. The cap holds the fill
+///   back, but never below the account's floor left (floors stay outside the cap). Every token
+///   counts.
+/// - Unmarked part, band: the first allowance (the allowance room, with room back for buys)
+///   always fills with no penalty. The part above pays the penalty and fills only as far as the
+///   cap allows. The part that never counts toward the cap is the allowance less the tokens
+///   sold in the window, with no room back for buys (ADR 0005: the bought part counts).
+/// - Unmarked part, small: the tokens held from before the window fill and never count. The
+///   tokens bought in the window count, so a small sell fills as far as it passes the cap check
+///   or adds nothing to the cap used.
+///
+/// For the cap count only, the unmarked part sells the tokens bought in the current window first
+/// (up to `bought_not_sold`); they always count. `never_counted` applies to the tokens after them.
 pub(crate) struct SellFillPlan {
     amount: u128,
-    /// Tokens that fill whatever the cap says.
+    class: Class,
+    /// Unmarked tokens the account bought in the current cap window and has not sold yet.
+    bought_not_sold: u128,
+    /// Marked tokens that fill whatever the cap says.
+    marked_always_fills: u128,
+    /// The most marked tokens that can fill.
+    marked_most: u128,
+    /// Unmarked tokens that fill whatever the cap says, before this sell's own marked part.
     always_fills: u128,
-    /// The most tokens that can fill.
+    /// A large account's unmarked floor left before this sell. The sell's own marked part
+    /// uses it first, so one sell never gets the floor twice.
+    floor_left_before: Option<u128>,
+    /// The most unmarked tokens that can fill.
     most: u128,
-    /// The first tokens of the sell that pay no penalty.
+    /// The first unmarked tokens of the sell that pay no penalty.
     penalty_free: u128,
-    /// The first tokens of the sell that never count toward the cap.
+    /// The unmarked tokens held from before the window that never count toward the cap, first
+    /// after the bought tokens.
     never_counted: u128,
 }
 
@@ -355,66 +424,98 @@ impl SellFillPlan {
         amount: u128,
         at: At,
     ) -> Self {
+        let marked = marked_allowance(state, Some(holder), at);
+        let marked_most = amount.min(holder.marked_balance).min(marked.left);
+        let unmarked_asked = (amount - marked_most).min(holder.balance - holder.marked_balance);
         let allowance = unmarked_allowance(state, Some(holder), at);
-        match class {
+        let bought_not_sold = real_near_cap::cap_net_now(state, Some(holder), at).bought_not_sold;
+        let floor_left_before = (class == Class::Large).then_some(allowance.floor_left);
+        let (always_fills, most, penalty_free, never_counted) = match class {
             Class::Large => {
-                let most = amount.min(allowance.sell_room);
-                Self {
-                    amount,
-                    always_fills: most.min(allowance.floor_left),
-                    most,
-                    penalty_free: u128::MAX,
-                    never_counted: 0,
-                }
+                let most = unmarked_asked.min(allowance.sell_room);
+                (most.min(allowance.floor_left), most, u128::MAX, 0)
             }
-            Class::Band => Self {
-                amount,
-                always_fills: amount.min(allowance.sell_room),
-                most: amount,
-                penalty_free: allowance.sell_room,
-                never_counted: allowance.first_allowance_left,
-            },
-            Class::Small => Self {
-                amount,
-                always_fills: amount,
-                most: amount,
-                penalty_free: u128::MAX,
-                never_counted: u128::MAX,
-            },
+            Class::Band => (
+                unmarked_asked.min(allowance.sell_room),
+                unmarked_asked,
+                allowance.sell_room,
+                allowance.first_allowance_left,
+            ),
+            // With no bought tokens left, nothing of a small sell counts, so all of it fills.
+            Class::Small if bought_not_sold == 0 => {
+                (unmarked_asked, unmarked_asked, u128::MAX, u128::MAX)
+            }
+            Class::Small => (0, unmarked_asked, u128::MAX, u128::MAX),
+        };
+        Self {
+            amount,
+            class,
+            bought_not_sold,
+            marked_always_fills: marked_most.min(marked.floor_left),
+            marked_most,
+            always_fills,
+            floor_left_before,
+            most,
+            penalty_free,
+            never_counted,
         }
     }
 
-    /// The largest fill from `always_fills` to `most` whose cap check passes after the sell:
-    /// the cap used, with this sell, at most c x the real NEAR left. The check runs for every
-    /// limited sell, also when the seller's own net adds zero.
-    pub(crate) fn tokens_sold(&self, state: &CoinState, holder: &Holder, at: At) -> u128 {
-        let fits = |tokens| {
-            let outcome = sell_outcome(state, holder, self, tokens, at);
+    /// The unmarked tokens that fill whatever the cap says, next to a marked part of `marked`.
+    /// A large account's marked tokens sold use its unmarked floor, also within one sell.
+    fn always_fills_next_to(&self, marked: u128) -> u128 {
+        match self.floor_left_before {
+            Some(floor_left) => self.most.min(floor_left.saturating_sub(marked)),
+            None => self.always_fills,
+        }
+    }
+
+    /// The fill whose cap check passes after the sell: the cap used, with this sell, at most
+    /// c x the real NEAR left. The check runs for every limited sell, also when the seller's own
+    /// net adds zero. First the largest marked part from `marked_always_fills` to `marked_most`,
+    /// with the unmarked part that always fills; then the largest unmarked part from
+    /// `always_fills` to `most` on top of that marked part. A small account's unmarked part also
+    /// fits when it adds nothing to the cap used (small sells were never held by the check).
+    pub(crate) fn tokens_sold(&self, state: &CoinState, holder: &Holder, at: At) -> SoldParts {
+        let fits = |parts| {
+            let outcome = sell_outcome(state, holder, self, parts, at);
             real_near_cap::within_cap(state, outcome.cap_used, outcome.real_near_left)
         };
-        if self.most == self.always_fills || fits(self.most) {
-            return self.most;
-        }
-        // The check gets no easier as the sell grows, so search between a fill that is allowed
-        // and one that fails.
-        let (mut allowed, mut fails) = (self.always_fills, self.most);
-        while fails - allowed > 1 {
-            let middle = allowed + (fails - allowed) / 2;
-            if fits(middle) {
-                allowed = middle;
-            } else {
-                fails = middle;
-            }
-        }
-        allowed
+        let cap_used_with = |parts| sell_outcome(state, holder, self, parts, at).cap_used;
+        let marked = largest_that_fits(self.marked_always_fills, self.marked_most, |marked| {
+            fits(SoldParts {
+                marked,
+                unmarked: self.always_fills_next_to(marked),
+            })
+        });
+        let used_by_marked_part = cap_used_with(SoldParts {
+            marked,
+            unmarked: 0,
+        });
+        let unmarked =
+            largest_that_fits(self.always_fills_next_to(marked), self.most, |unmarked| {
+                let parts = SoldParts { marked, unmarked };
+                fits(parts)
+                    || (self.class == Class::Small && cap_used_with(parts) <= used_by_marked_part)
+            });
+        SoldParts { marked, unmarked }
     }
 
-    fn limit_reason(&self, class: Class, tokens_sold: u128) -> Option<&'static str> {
-        if tokens_sold == self.amount {
+    fn limit_reason(&self, class: Class, parts: SoldParts) -> Option<&'static str> {
+        if parts.tokens() == self.amount {
             None
-        } else if tokens_sold == self.most {
+        } else if parts.marked < self.marked_most {
+            if parts.marked == self.marked_always_fills && parts.marked > 0 {
+                Some("floor")
+            } else {
+                Some("cap_full")
+            }
+        } else if parts.unmarked == self.most {
             Some("allowance")
-        } else if class == Class::Large && tokens_sold == self.always_fills && tokens_sold > 0 {
+        } else if class == Class::Large
+            && parts.unmarked == self.always_fills_next_to(parts.marked)
+            && parts.unmarked > 0
+        {
             Some("floor")
         } else {
             Some("cap_full")
@@ -422,7 +523,26 @@ impl SellFillPlan {
     }
 }
 
-/// What a sell of `tokens` does now.
+/// The largest value from `allowed` to `most` that `fits`, where `allowed` always counts as
+/// fitting. The check gets no easier as the value grows, so the search runs between a value
+/// that is allowed and one that fails.
+fn largest_that_fits(allowed: u128, most: u128, fits: impl Fn(u128) -> bool) -> u128 {
+    if most == allowed || fits(most) {
+        return most;
+    }
+    let (mut allowed, mut fails) = (allowed, most);
+    while fails - allowed > 1 {
+        let middle = allowed + (fails - allowed) / 2;
+        if fits(middle) {
+            allowed = middle;
+        } else {
+            fails = middle;
+        }
+    }
+    allowed
+}
+
+/// What a sell of these parts does now.
 struct SellOutcome {
     near_out: u128,
     fee_near: u128,
@@ -438,23 +558,46 @@ fn sell_outcome(
     state: &CoinState,
     holder: &Holder,
     plan: &SellFillPlan,
-    tokens: u128,
+    parts: SoldParts,
     at: At,
 ) -> SellOutcome {
+    let tokens = parts.tokens();
     // NEAR reserve minimum: the payout never takes the NEAR reserve below virtual P.
     let near_before_fee =
         pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens)
             .min(state.real_near);
     let fee_near = pool_math::fee(near_before_fee, state.fixed.swap_fee_bps);
-    let penalty_near =
-        penalty_above_first_allowance(state, tokens.min(plan.penalty_free), near_before_fee);
+    // The marked part pays no penalty; it goes into the pool first. On a sell worth a few yocto
+    // the rounded-up penalty can pass what the fee leaves; the seller then gets 0.
+    let penalty_near = penalty_above_first_allowance(
+        state,
+        parts.marked + parts.unmarked.min(plan.penalty_free),
+        near_before_fee,
+    )
+    .min(near_before_fee - fee_near);
     let near_out = near_before_fee - fee_near - penalty_near;
     let creator_fee_near = pool_math::creator_fee(fee_near);
-    let uncounted_out =
-        payout_of_first_tokens(state, tokens.min(plan.never_counted), near_before_fee)
-            .min(near_out);
-    let (cap_net, cap_used) =
-        real_near_cap::after_sell(state, holder, uncounted_out, near_out - uncounted_out, at);
+    // Cap count order: the marked part, then the tokens bought in the window (both count), then
+    // the tokens held from before the window, whose first `never_counted` do not count.
+    let bought_sold = parts.unmarked.min(plan.bought_not_sold);
+    let held_sold = parts.unmarked - bought_sold;
+    let uncounted_out = payout_of_tokens_after(
+        state,
+        parts.marked + bought_sold,
+        held_sold.min(plan.never_counted),
+        near_before_fee,
+    )
+    .min(near_out);
+    let marked_out = payout_of_first_tokens_rounded_up(state, parts.marked, near_before_fee)
+        .min(near_out - uncounted_out);
+    let (cap_net, cap_used) = real_near_cap::after_sell(
+        state,
+        holder,
+        marked_out,
+        near_out - uncounted_out - marked_out,
+        bought_sold,
+        at,
+    );
     SellOutcome {
         near_out,
         fee_near,
@@ -466,40 +609,78 @@ fn sell_outcome(
     }
 }
 
-/// The NEAR out after the swap fee of the first `tokens` of a sell that pays `near_before_fee`
-/// in all, before the fee.
-fn payout_of_first_tokens(state: &CoinState, tokens: u128, near_before_fee: u128) -> u128 {
-    let before_fee =
-        pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens)
-            .min(near_before_fee);
+/// The NEAR out after the swap fee of the first `tokens` of a sell that pays `near_before_fee` in
+/// all, before the fee: the NEAR rounds up and the fee rounds down, so the part never comes out
+/// smaller than it is. Used for the marked part, which counts gross, so a larger marked part
+/// favors the pool.
+fn payout_of_first_tokens_rounded_up(
+    state: &CoinState,
+    tokens: u128,
+    near_before_fee: u128,
+) -> u128 {
+    if tokens == 0 {
+        return 0;
+    }
+    let before_fee = pool_math::near_out_before_fee_rounded_up(
+        state.token_reserve,
+        state.near_reserve(),
+        tokens,
+    )
+    .min(near_before_fee);
+    before_fee - before_fee * state.fixed.swap_fee_bps as u128 / 10_000
+}
+
+/// The NEAR out after the swap fee of the `tokens` that go into the pool right after the first
+/// `first` tokens of a sell that pays `near_before_fee` in all, before the fee. The NEAR of the
+/// first tokens rounds up and the NEAR up to the end of this part rounds down, so this part's
+/// NEAR rounds down: the uncounted part is never larger than it is.
+fn payout_of_tokens_after(
+    state: &CoinState,
+    first: u128,
+    tokens: u128,
+    near_before_fee: u128,
+) -> u128 {
+    let (reserve, near) = (state.token_reserve, state.near_reserve());
+    let up_to_end =
+        pool_math::near_out_before_fee(reserve, near, first + tokens).min(near_before_fee);
+    let up_to_start = if first == 0 {
+        0
+    } else {
+        pool_math::near_out_before_fee_rounded_up(reserve, near, first).min(near_before_fee)
+    };
+    let before_fee = up_to_end.saturating_sub(up_to_start);
     before_fee - pool_math::fee(before_fee, state.fixed.swap_fee_bps)
 }
 
 /// The band penalty (ADR 0004): `penalty_bps` of the NEAR output of the part of a sell above the
 /// first allowance. That part gets the NEAR the whole sell pays (`near_before_fee`) minus the
-/// NEAR the first-allowance part alone would pay, both before the swap fee; its NEAR output is
-/// that amount minus its own swap fee. Both roundings go in the pool's favour. The penalty stays
-/// in the pool. Zero when the whole sell is inside the first allowance.
+/// NEAR the tokens before it alone would pay (the marked part and the first allowance), both
+/// before the swap fee; its NEAR output is that amount minus its own swap fee. Every rounding
+/// goes in the pool's favour: that swap fee rounds down here, so the NEAR output the penalty is
+/// taken from rounds up, and the penalty rounds up. The penalty stays in the pool. Zero when the
+/// whole sell is inside the marked part and the first allowance.
 fn penalty_above_first_allowance(
     state: &CoinState,
-    first_allowance_part: u128,
+    penalty_free_part: u128,
     near_before_fee: u128,
 ) -> u128 {
-    let first_allowance_near = pool_math::near_out_before_fee(
+    let penalty_free_near = pool_math::near_out_before_fee(
         state.token_reserve,
         state.near_reserve(),
-        first_allowance_part,
+        penalty_free_part,
     )
     .min(near_before_fee);
-    let above_before_fee = near_before_fee - first_allowance_near;
+    let above_before_fee = near_before_fee - penalty_free_near;
     let above_near_output =
-        above_before_fee - pool_math::fee(above_before_fee, state.fixed.swap_fee_bps);
+        above_before_fee - pool_math::fee_rounded_down(above_before_fee, state.fixed.swap_fee_bps);
     pool_math::fee(above_near_output, state.fixed.penalty_bps)
 }
 
 /// A send (NEP-141 `ft_transfer`). Refused to yourself, for 0 tokens, to the coin, from a large
 /// account, above the sender's balance, to an account with no storage record, and when it would
-/// take a receiver that is not large to T. A send counts toward no allowance.
+/// take a receiver that is not large to T, and with `FC_CREATOR_CAP` when it would take the creator
+/// group above its cap. A send counts toward no allowance. Marked tokens leave first, and every
+/// token the creator group receives is marked.
 fn send(
     state: &CoinState,
     mut holders: Holders,
@@ -536,11 +717,29 @@ fn send(
             ));
         }
     }
+    let from_in_group = in_creator_group(state, from);
+    let to_in_group = in_creator_group(state, to);
+    let mut next = state.clone();
+    if from_in_group {
+        next.creator_group_balance -= amount;
+    }
+    if to_in_group {
+        next.creator_group_balance += amount;
+        if next.creator_group_balance > creator_cap(state) {
+            return Err(Refusal::new(RefusalCode::CreatorCap));
+        }
+    }
+    // Marked tokens leave first. Every token the creator group receives is marked.
+    let marked_amount = amount.min(sender.marked_balance);
+    let to_marked_amount = if to_in_group { amount } else { marked_amount };
+    next.marked_supply = next.marked_supply - marked_amount + to_marked_amount;
     if let Some(sender) = holders.get_mut(from) {
         sender.balance -= amount;
+        sender.marked_balance -= marked_amount;
     }
     if let Some(receiver) = holders.get_mut(to) {
         receiver.balance += amount;
+        receiver.marked_balance += to_marked_amount;
     }
     let events = vec![
         Event::FtTransfer(FtTransfer {
@@ -553,15 +752,47 @@ fn send(
             from: from.to_string(),
             to: to.to_string(),
             amount,
-            marked_amount: 0,
-            to_marked_amount: 0,
+            marked_amount,
+            to_marked_amount,
         }),
     ];
     Ok(Applied {
-        state: state.clone(),
+        state: next,
         holders,
         fill: Fill::Full,
         events,
         payout: None,
     })
+}
+
+/// The largest sell up to `target` tokens that fills in full now (`fc_account.max_full_fill_now`).
+///
+/// The filled part of a sell of `target` is a first guess: the marked fill alone when the cap
+/// holds back the marked part, else the whole fill. That guess can be too small, because the
+/// marked part of a sell of `target` was checked with the unmarked tokens that always fill next
+/// to it, and the floor the marked part uses. So the answer is then found by halving the range
+/// between a sell that fills in full and one that does not; a larger sell never uses less cap.
+pub(crate) fn largest_full_fill(
+    state: &CoinState,
+    holder: &Holder,
+    class: Class,
+    target: u128,
+    at: At,
+) -> u128 {
+    let filled = |tokens: u128| {
+        let plan = SellFillPlan::new(state, holder, class, tokens, at);
+        (plan.tokens_sold(state, holder, at), plan.marked_most)
+    };
+    let (parts, marked_most) = filled(target);
+    if parts.tokens() == target {
+        return target;
+    }
+    let guess = if parts.marked < marked_most {
+        parts.marked
+    } else {
+        parts.tokens()
+    };
+    let fills_in_full = |tokens: u128| filled(tokens).0.tokens() == tokens;
+    let fills = if fills_in_full(guess) { guess } else { 0 };
+    largest_that_fits(fills, target - 1, fills_in_full)
 }

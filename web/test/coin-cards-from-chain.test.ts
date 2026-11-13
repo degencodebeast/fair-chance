@@ -33,7 +33,7 @@ describe("a coin card read from the coin's views and events", () => {
 
   it("shows the early window with its blocks left and the latest early buy", async () => {
     const c = await card("early-window-live");
-    expect(c.cap).toEqual({ label: "Early window, 12 blocks left", tone: "early" });
+    expect(c.cap).toEqual({ label: "Early window, 13 blocks left", tone: "early" });
     expect(c.early).toBe("18.4% so far");
     expect(c.inEarlyWindow).toBe(true);
     expect(c.latest).toEqual({ account: "lamp.testnet", text: "bought 10.0M MOTH in block 1. These tokens count as early supply." });

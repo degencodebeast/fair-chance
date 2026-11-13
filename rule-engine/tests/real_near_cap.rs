@@ -27,10 +27,11 @@ const BAND: &str = "band.test";
 const SMALL: &str = "small.test";
 const OTHER: &str = "other.test";
 
-/// Seconds after launch, as a block time.
+/// Seconds after launch, as a block time. The block is 18 blocks later than the second, after
+/// the early window (blocks 0 to 17 after the launch at block 100), so buys here are unmarked.
 fn after(seconds: u64) -> At {
     At {
-        block: 100 + seconds,
+        block: 100 + 18 + seconds,
         ns: LAUNCH_NS + seconds * 1_000_000_000,
     }
 }
@@ -145,7 +146,7 @@ impl Coin {
     }
 
     fn account(&self, account: &str, at: At) -> AccountView {
-        view_account(&self.state, self.ledger.get(account), at)
+        view_account(&self.state, account, self.ledger.get(account), at)
     }
 
     fn cap(&self, at: At) -> CapView {
@@ -411,8 +412,10 @@ fn coin_with_a_deep_band_holder() -> Coin {
     coin
 }
 
+/// One net per account per window: counted sells minus buys. An uncounted sell takes no buy NEAR,
+/// and the tokens bought in the window count first when they are sold.
 #[test]
-fn an_account_s_buys_offset_its_uncounted_sells_first_and_only_the_rest_offsets_counted_sells() {
+fn a_buy_after_an_uncounted_sell_offsets_the_resale_of_the_bought_tokens() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
@@ -421,17 +424,17 @@ fn an_account_s_buys_offset_its_uncounted_sells_first_and_only_the_rest_offsets_
     let first = coin.sell(BAND, allowance, at);
     assert_eq!(first.penalty_near, 0);
     assert_eq!(coin.cap(at).cap_used, 0);
-    // A buy of half that NEAR offsets the uncounted sell, so it leaves nothing to offset later.
     let held = coin.balance(BAND);
-    coin.buy(BAND, first.near_out / 2, at);
+    let near_in = first.near_out / 2;
+    coin.buy(BAND, near_in, at);
     let bought = coin.balance(BAND) - held;
     assert_eq!(coin.cap(at).cap_used, 0);
-    // The next sell is all above the first allowance (the bought tokens and more): it counts in
-    // full, with no offset by the buy.
+    // The next sell is the bought tokens and more, all above the first allowance: it counts in
+    // full, and the buy NEAR offsets it once.
     let counted = coin.sell(BAND, bought + allowance / 4, at);
     assert_eq!(counted.fill, "full");
     assert!(counted.penalty_near > 0);
-    assert_eq!(coin.cap(at).cap_used, counted.near_out);
+    assert_eq!(coin.cap(at).cap_used, counted.near_out - near_in);
 }
 
 #[test]
@@ -451,7 +454,7 @@ fn a_buy_after_a_counted_sell_offsets_it() {
 }
 
 #[test]
-fn a_buy_after_a_band_sell_offsets_the_sell_s_uncounted_first_allowance_part_first() {
+fn a_buy_after_a_band_sell_offsets_only_its_counted_part() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
@@ -460,25 +463,32 @@ fn a_buy_after_a_band_sell_offsets_the_sell_s_uncounted_first_allowance_part_fir
     let uncounted = sell.near_out - used;
     assert!(used > 0 && uncounted > used);
 
-    // NEAR up to the uncounted part offsets it and leaves the counted part as it is.
-    coin.buy(BAND, uncounted, at);
-    assert_eq!(coin.cap(at).cap_used, used);
+    // The buy offsets the counted part; the uncounted part takes none of it.
+    coin.buy(BAND, used / 2, at);
+    assert_eq!(coin.cap(at).cap_used, used - used / 2);
     coin.buy(BAND, used, at);
     assert_eq!(coin.cap(at).cap_used, 0);
 }
 
 /// Paper case 5 (wash trading): ten first-allowance round trips by a band account, then a sell
-/// above the first allowance from the same account. The round trips add nothing to the cap, and
-/// the later sell counts in full: the part of it outside the first allowance left.
+/// above the first allowance from the same account. The round trips add nothing to the cap.
+/// Each buy offsets once: the tokens it bought count when they are sold, so the later sell keeps
+/// as offset only the last buy (its tokens are in that sell) and the fees the round trips left
+/// in the pool.
 #[test]
-fn paper_case_5_first_allowance_round_trips_give_no_offset_to_a_later_counted_sell() {
+fn paper_case_5_first_allowance_round_trips_leave_only_their_fees_as_offset_for_a_later_sell() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
     let round_trip = allowance / 50;
+    let mut last_buy = 0;
+    let mut fees = 0;
     for _ in 0..10 {
         let sold = coin.sell(BAND, round_trip, at);
-        coin.buy(BAND, sold.near_out, at);
+        last_buy = sold.near_out;
+        coin.buy(BAND, last_buy, at);
+        // The sell fee and the buy fee (1%, rounded up).
+        fees += sold.fee_near + last_buy.div_ceil(100);
         assert_eq!(coin.cap(at).cap_used, 0);
     }
 
@@ -487,8 +497,14 @@ fn paper_case_5_first_allowance_round_trips_give_no_offset_to_a_later_counted_se
     let before = coin.clone();
     let sell = coin.sell(BAND, allowance + allowance / 4, at);
     let uncounted = payout_for(&before, first_allowance_left, at);
+    let counted_with_no_offset = sell.near_out - uncounted;
     assert!(sell.penalty_near > 0);
-    assert_eq!(coin.cap(at).cap_used, sell.near_out - uncounted);
+    let used = coin.cap(at).cap_used;
+    assert!(used <= counted_with_no_offset, "{used}");
+    assert!(
+        used + last_buy + fees >= counted_with_no_offset,
+        "{used} {last_buy} {fees} {counted_with_no_offset}"
+    );
 }
 
 #[test]
@@ -654,4 +670,51 @@ fn at_an_exactly_full_cap_a_buy_opens_no_room_for_tokens_the_account_held_before
         y_near <= floor_near + fee_room + 1,
         "Y part {y_near} > floor {floor_near} + fee room {fee_room}"
     );
+}
+
+/// Tokens bought in the current cap window count toward the cap when they are sold, for every
+/// account, small accounts too. The account's net (counted sells minus buys) offsets them.
+#[test]
+fn a_small_account_with_no_earlier_counted_sell_buys_and_sells_back_at_an_over_full_cap() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    // SMALL sold its whole bag uncounted at window_1(2); now it buys X and sells X back.
+    let at = window_1(3);
+    let used = coin.cap(at).cap_used;
+    coin.buy(SMALL, ONE_NEAR / 10, at);
+    let bought = coin.balance(SMALL);
+    let sell = coin.sell(SMALL, bought, window_1(4));
+    assert_eq!(sell.class, "small");
+    assert_eq!(sell.fill, "full");
+    assert_eq!(sell.limit_reason, None);
+    // The resale pays less than X, so the net stays below zero and adds nothing.
+    assert!(sell.near_out < ONE_NEAR / 10);
+    assert_eq!(coin.cap(window_1(4)).cap_used, used);
+}
+
+#[test]
+fn a_small_account_that_sells_bought_tokens_for_more_than_it_paid_at_a_full_cap_waits_for_the_next_window(
+) {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    let near_in = ONE_NEAR / 10;
+    coin.buy(OTHER, near_in, window_1(2));
+    let bought = coin.balance(OTHER);
+    // A large buy raises the price; SECOND_LARGE then fills the cap the buy opened.
+    coin.buy("pump.test", 4 * ONE_NEAR, window_1(3));
+    coin.sell_all(SECOND_LARGE, window_1(4));
+    assert!(coin.cap(window_1(4)).is_full);
+    let worth = payout_for(&coin, bought, window_1(5));
+    assert!(worth > near_in, "{worth}");
+    assert_eq!(coin.account(OTHER, window_1(5)).class, "small");
+
+    let sell = coin.sell(OTHER, bought, window_1(5));
+    assert_eq!(sell.fill, "partial");
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    // The part above its buy NEAR is held back, up to the room the pool's kept fees add.
+    assert!(sell.near_out >= near_in * 99 / 100, "{}", sell.near_out);
+    assert!(sell.near_out < worth);
+    let excess = sell.near_out.saturating_sub(near_in);
+    assert!(excess <= near_in / 100, "{excess}");
+    // The rest fills in the next window.
+    let next = coin.sell_all(OTHER, after(2 * HOUR_S + 1));
+    assert_eq!(next.fill, "full");
 }

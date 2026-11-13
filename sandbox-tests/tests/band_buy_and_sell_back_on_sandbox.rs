@@ -1,6 +1,7 @@
-//! ADR 0005 known limit, on a real chain: a band account that buys and sells back in the same
-//! window counts the bought part toward the real NEAR cap. Its first allowance (with room back
-//! for the tokens it bought) fills with no penalty, but only the allowance itself never counts.
+//! ADR 0005, on a real chain: a band account that buys and sells back in the same window counts
+//! the bought part toward the real NEAR cap, net of its buy. Its first allowance (with room back
+//! for the tokens it bought) fills with no penalty. For the cap count the bought tokens go first
+//! and count; only the allowance of tokens held before the window never counts.
 
 use anyhow::{Context, Result};
 use ethnum::U256;
@@ -13,7 +14,7 @@ fn amount(value: &Value) -> Result<u128> {
 }
 
 #[tokio::test]
-async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_bought_part_toward_the_cap(
+async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_bought_part_net_of_its_buy(
 ) -> Result<()> {
     let world = World::launch().await?;
     let coin = &world.coin;
@@ -82,20 +83,22 @@ async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_b
     assert_eq!(sold["penalty_near"], "0");
     let near_out = amount(&sold["near_out"])?;
 
-    // The allowance part never counts: its NEAR out at the pool before the sell, by the
-    // constant-product formula (NEAR out rounded down, the 1% fee rounded up).
+    // The bought part counts and goes first: its NEAR out at the pool before the sell, by the
+    // constant-product formula (NEAR out rounded down, the 1% fee rounded up). The account's
+    // net is that minus the 0.3 NEAR it paid, below zero, so the cap used stays 0.
     let (near_reserve, token_reserve) = (
         amount(&pool["near_reserve"])?,
         amount(&pool["token_reserve"])?,
     );
-    let before_fee = (U256::from(near_reserve) * U256::from(allowance)
-        / U256::from(token_reserve + allowance))
+    let before_fee = (U256::from(near_reserve) * U256::from(bought)
+        / U256::from(token_reserve + bought))
     .as_u128();
-    let allowance_part_out = before_fee - before_fee.div_ceil(100);
-    let bought_part_out = near_out - allowance_part_out;
-    assert!(bought_part_out > 0);
-    assert_eq!(amount(&sold["cap_used"])?, bought_part_out);
+    let bought_part_out = before_fee - before_fee.div_ceil(100);
+    let paid = NearToken::from_millinear(300).as_yoctonear();
+    assert!(bought_part_out > 0 && bought_part_out < paid);
+    assert!(near_out > bought_part_out);
+    assert_eq!(amount(&sold["cap_used"])?, 0);
     let cap = world.view(coin, "fc_cap", json!({})).await?;
-    assert_eq!(amount(&cap["cap_used"])?, bought_part_out);
+    assert_eq!(amount(&cap["cap_used"])?, 0);
     Ok(())
 }

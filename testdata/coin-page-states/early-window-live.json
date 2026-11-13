@@ -1,5 +1,5 @@
 {
-  "description": "Hand-written in the shape of the coin views: 5 blocks after launch, 12 blocks left in the early window.",
+  "description": "Hand-written in the shape of the coin views: 5 blocks after launch, 13 blocks left in the early window (block 5 included).",
   "now_ns": "1794579840000000000",
   "views": {
     "fc_rules": {
@@ -38,7 +38,7 @@
     },
     "fc_early_window": {
       "early_blocks": 17,
-      "blocks_left": 12,
+      "blocks_left": 13,
       "early_supply_total": "184000000000000000000000000",
       "shared_allowance": "4200000000000000000000000",
       "rate_per_token": "0",
@@ -72,7 +72,7 @@
       "receipt_id": "BuyReceipt1111111111111111111111111111111111",
       "block": 101,
       "time_ns": "1794579835000000000",
-      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.5\",\"event\":\"fc_buy\",\"data\":[{\"account\":\"lamp.testnet\",\"near_in\":\"10000000000000000000000000\",\"fee_near\":\"100000000000000000000000\",\"creator_fee_near\":\"0\",\"tokens_out\":\"10000000000000000000000000\",\"marked_tokens\":\"10000000000000000000000000\",\"class_after\":\"small\",\"block\":101}]}"
+      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.6\",\"event\":\"fc_buy\",\"data\":[{\"account\":\"lamp.testnet\",\"near_in\":\"10000000000000000000000000\",\"fee_near\":\"100000000000000000000000\",\"creator_fee_near\":\"0\",\"tokens_out\":\"10000000000000000000000000\",\"marked_tokens\":\"10000000000000000000000000\",\"class_after\":\"small\",\"block\":101}]}"
     }
   ],
   "account": {

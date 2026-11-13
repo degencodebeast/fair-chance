@@ -265,7 +265,7 @@ impl World {
             LAUNCH_DEPOSIT,
         )
         .await?;
-        Ok(Self {
+        let world = Self {
             sandbox,
             network,
             factory,
@@ -275,7 +275,24 @@ impl World {
             coin,
             coin_code_hash,
             launch,
-        })
+        };
+        // Buys in blocks 0 to N are marked and cannot be sold before block N + 1. The tests on
+        // the walk coin trade unmarked tokens, so they start after the early window.
+        world.wait_until_after_the_early_window(&world.coin).await?;
+        Ok(world)
+    }
+
+    /// Waits until the final head is past the coin's early window (blocks 0 to N after its
+    /// launch block), so the next transaction lands after it.
+    pub async fn wait_until_after_the_early_window(&self, coin: &AccountId) -> Result<()> {
+        let rules = self.view(coin, "fc_rules", json!({})).await?;
+        let launch_block = rules["launch_block"]
+            .as_u64()
+            .context("fc_rules.launch_block")?;
+        let early_blocks = rules["early_blocks"]
+            .as_u64()
+            .context("fc_rules.early_blocks")?;
+        self.wait_for_height(launch_block + early_blocks + 1).await
     }
 
     pub fn rpc_url(&self) -> &str {

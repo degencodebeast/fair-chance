@@ -209,7 +209,7 @@ function banner(r: CoinReads, ctx: TimeContext): Banner | null {
     return { kind: "old", text: `The early window count was read at ${clockTime(r.loadedAtNs, ctx)} and may be over. Reload to read it.` };
   }
   const blocksIn = (n: number) => `about ${Math.max(1, Math.round(n * SECONDS_PER_BLOCK))} s`;
-  const block = r.pool.kind === "value" ? Math.max(0, r.pool.value.block - r.rules.launchBlock) : end - e.blocksLeft;
+  const block = r.pool.kind === "value" ? Math.max(0, r.pool.value.block - r.rules.launchBlock) : end + 1 - e.blocksLeft;
   const feeEnd = e.feeEndBlock - r.rules.launchBlock;
   return {
     kind: "early",

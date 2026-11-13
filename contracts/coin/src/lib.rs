@@ -49,7 +49,7 @@ pub struct StorageBalanceBounds {
     contract_metadata(
         standard(standard = "nep141", version = "1.0.0"),
         standard(standard = "nep148", version = "1.0.0"),
-        standard(standard = "fair_chance", version = "1.0.0-rc.5")
+        standard(standard = "fair_chance", version = "1.0.0-rc.6")
     )
 )]
 #[derive(PanicOnDefault)]
@@ -333,7 +333,12 @@ impl Coin {
     }
 
     pub fn fc_account(&self, account_id: AccountId) -> AccountView {
-        rule_engine::view_account(&self.state, self.holders.get(account_id.as_str()), now())
+        rule_engine::view_account(
+            &self.state,
+            account_id.as_str(),
+            self.holders.get(account_id.as_str()),
+            now(),
+        )
     }
 
     pub fn fc_quote_sell(&self, account_id: AccountId, amount: U128) -> Option<SellQuote> {

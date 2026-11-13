@@ -32,6 +32,14 @@
     "message": "FC_UNREGISTER_WINDOW_OPEN"
   },
   {
+    "refusal": "CreatorCap",
+    "message": "FC_CREATOR_CAP"
+  },
+  {
+    "refusal": "EarlyWindow",
+    "message": "FC_EARLY_WINDOW"
+  },
+  {
     "refusal": "SendToSelf",
     "message": "Sender and receiver should be different"
   },

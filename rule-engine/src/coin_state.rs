@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::allowance::{WindowReserve, WindowTotals};
+use crate::early_supply::{EarlySupplyWindow, MarkedShare};
 use crate::events::{Event, FtMint};
 use crate::fixed_values::FixedValues;
 use crate::real_near_cap::{CapNet, CapWindow};
@@ -52,6 +53,12 @@ pub struct CoinState {
     pub large_holders: u32,
     /// The real NEAR cap used in the current or last 1 h window.
     pub cap_window: CapWindow,
+    /// All marked tokens that accounts hold now.
+    pub marked_supply: u128,
+    /// Tokens the creator group holds now.
+    pub creator_group_balance: u128,
+    /// The shared early-supply window recorded at its first action after the early window.
+    pub early_supply_window: EarlySupplyWindow,
 }
 
 impl CoinState {
@@ -74,6 +81,10 @@ pub struct Holder {
     pub cap_net: CapNet,
     /// The lowest class the account can have in its last 1 h window with an action.
     pub class_floor: ClassFloor,
+    /// The marked part of `balance`: early supply.
+    pub marked_balance: u128,
+    /// The account's pro-rata share record in its last 24 h window with a touch.
+    pub marked_share: MarkedShare,
 }
 
 /// The class floor (ADR 0001): in a window, the account's class is never below its class just
@@ -168,6 +179,9 @@ pub fn launch(fixed: FixedValues, request: LaunchRequest<'_>, at: At) -> Result<
         },
         large_holders: 0,
         cap_window: CapWindow::default(),
+        marked_supply: 0,
+        creator_group_balance: 0,
+        early_supply_window: EarlySupplyWindow::default(),
     };
     let events = vec![Event::FtMint(FtMint {
         owner_id: request.coin.to_string(),

@@ -19,10 +19,11 @@ const BAND: &str = "band.test";
 const SMALL: &str = "small.test";
 const OTHER: &str = "other.test";
 
-/// Seconds after launch, as a block time.
+/// Seconds after launch, as a block time. The block is 18 blocks later than the second, after
+/// the early window (blocks 0 to 17 after the launch at block 100), so buys here are unmarked.
 fn after(seconds: u64) -> At {
     At {
-        block: 100 + seconds,
+        block: 100 + 18 + seconds,
         ns: LAUNCH_NS + seconds * 1_000_000_000,
     }
 }
@@ -137,7 +138,7 @@ impl Coin {
     }
 
     fn account(&self, account: &str, at: At) -> AccountView {
-        view_account(&self.state, self.ledger.get(account), at)
+        view_account(&self.state, account, self.ledger.get(account), at)
     }
 
     fn balance(&self, account: &str) -> u128 {
@@ -191,8 +192,15 @@ fn a_band_account_that_drops_below_one_allowance_by_a_sell_stays_band_for_the_re
     let rest = coin.sell_all(BAND, window_1(2));
 
     assert_eq!(rest.class, "band");
-    assert_eq!(rest.tokens_sold, 0);
+    assert_eq!(rest.fill, "partial");
     assert_eq!(rest.limit_reason, Some("cap_full"));
+    // The buy NEAR offsets once: only the part of it the first sell did not use (less than the
+    // buy's two fees) is left for the rest.
+    assert!(
+        rest.near_out <= ONE_NEAR / 100 * 2 / 100,
+        "{}",
+        rest.near_out
+    );
 }
 
 /// The same escape with cap room: the rest pays the band penalty.

@@ -21,10 +21,11 @@ const HOUR_NS: u64 = 3_600_000_000_000;
 /// down (Python `Decimal`, 60 digits).
 const ALLOWANCE_AT_LAUNCH: u128 = 10_152_544_552_210_749_144_063_374;
 
-/// Seconds after launch, as a block time.
+/// Seconds after launch, as a block time. The block is 18 blocks later than the second, after
+/// the early window (blocks 0 to 17 after the launch at block 100), so buys here are unmarked.
 fn after(seconds: u64) -> At {
     At {
-        block: 100 + seconds,
+        block: 100 + 18 + seconds,
         ns: LAUNCH_NS + seconds * 1_000_000_000,
     }
 }
@@ -109,7 +110,7 @@ impl Coin {
     }
 
     fn account(&self, account: &str, at: At) -> AccountView {
-        view_account(&self.state, self.ledger.get(account), at)
+        view_account(&self.state, account, self.ledger.get(account), at)
     }
 }
 
@@ -230,10 +231,10 @@ fn paper_case_d_sell_then_buy_and_buy_then_sell_both_allow_the_allowance_plus_th
 
 const OTHER: &str = "other.test";
 
-/// The exact block time `ns` nanoseconds after launch.
+/// The exact block time `ns` nanoseconds after launch, after the early window.
 fn at_ns(ns: u64) -> At {
     At {
-        block: 100 + ns / 1_000_000_000,
+        block: 100 + 18 + ns / 1_000_000_000,
         ns: LAUNCH_NS + ns,
     }
 }

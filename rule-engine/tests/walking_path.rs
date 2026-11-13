@@ -71,7 +71,7 @@ fn a_sell_after_a_buy_emits_fc_sell_with_the_interface_field_names() {
         Holders::new(),
         ONE_NEAR,
         At {
-            block: 101,
+            block: 119,
             ns: 2_000,
         },
     );
@@ -87,7 +87,7 @@ fn a_sell_after_a_buy_emits_fc_sell_with_the_interface_field_names() {
             attached: 1,
         },
         At {
-            block: 102,
+            block: 120,
             ns: 3_000,
         },
     )
@@ -124,7 +124,7 @@ fn a_sell_never_pays_out_more_near_than_the_buy_put_in() {
         Holders::new(),
         ONE_NEAR,
         At {
-            block: 101,
+            block: 119,
             ns: 2_000,
         },
     );
@@ -138,7 +138,7 @@ fn a_sell_never_pays_out_more_near_than_the_buy_put_in() {
             attached: 1,
         },
         At {
-            block: 102,
+            block: 120,
             ns: 3_000,
         },
     )
@@ -156,7 +156,7 @@ fn a_sell_without_one_yocto_is_refused_with_fc_one_yocto() {
         Holders::new(),
         ONE_NEAR,
         At {
-            block: 101,
+            block: 119,
             ns: 2_000,
         },
     );
@@ -170,7 +170,7 @@ fn a_sell_without_one_yocto_is_refused_with_fc_one_yocto() {
             attached: 0,
         },
         At {
-            block: 102,
+            block: 120,
             ns: 3_000,
         },
     )
@@ -187,7 +187,7 @@ fn the_input_state_does_not_change_when_an_action_applies() {
         Holders::new(),
         ONE_NEAR,
         At {
-            block: 101,
+            block: 119,
             ns: 2_000,
         },
     );

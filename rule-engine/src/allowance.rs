@@ -18,12 +18,14 @@ pub struct WindowReserve {
     pub token_reserve: u128,
 }
 
-/// One account's unmarked tokens sold and bought in one 1 h window.
+/// One account's unmarked tokens sold and bought in one 1 h window, and its marked tokens sold
+/// in that window (they use up the unmarked floor: one floor per account per window).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct WindowTotals {
     pub window: u64,
     pub sold: u128,
     pub bought: u128,
+    pub marked_sold: u128,
 }
 
 /// One account's unmarked allowance at one moment.
@@ -41,9 +43,10 @@ pub struct UnmarkedAllowance {
     /// buys: the part of a band account's sells that never counts toward the real NEAR cap. A
     /// band account that buys and sells back in the window counts the bought part (ADR 0005).
     pub first_allowance_left: u128,
-    /// The floor (ADR 0005) less `used`, at least 0. The floor is `floor_bps` of the window's
-    /// token reserve, rounded down: the room per window a limited sell keeps when the real NEAR
-    /// cap is full.
+    /// The floor (ADR 0005) less `used` and less the marked tokens the account sold in the
+    /// window, at least 0. The floor is `floor_bps` of the window's token reserve, rounded down:
+    /// the room per window a limited sell keeps when the real NEAR cap is full. One floor per
+    /// account per window, marked and unmarked together.
     pub floor_left: u128,
     pub window_end_ns: u64,
 }
@@ -107,7 +110,9 @@ pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) ->
         left: allowance.saturating_sub(used),
         sell_room: (allowance + totals.bought).saturating_sub(totals.sold),
         first_allowance_left: allowance.saturating_sub(totals.sold),
-        floor_left: floor.saturating_sub(used),
+        floor_left: floor
+            .saturating_sub(used)
+            .saturating_sub(totals.marked_sold),
         window_end_ns: unmarked_window_end_ns(state, at),
     }
 }
@@ -123,5 +128,12 @@ pub fn count_sold(state: &CoinState, holder: &mut Holder, tokens: u128, at: At) 
 pub fn count_bought(state: &CoinState, holder: &mut Holder, tokens: u128, at: At) {
     let mut totals = totals_now(state, Some(holder), at);
     totals.bought += tokens;
+    holder.unmarked_window = totals;
+}
+
+/// Adds marked tokens sold to the holder's totals for the window that holds `at`.
+pub fn count_marked_sold(state: &CoinState, holder: &mut Holder, tokens: u128, at: At) {
+    let mut totals = totals_now(state, Some(holder), at);
+    totals.marked_sold += tokens;
     holder.unmarked_window = totals;
 }

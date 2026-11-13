@@ -11,7 +11,7 @@ const href = `http://localhost/?coin=${coin}&rpc=${encodeURIComponent("http://12
 const E18 = "000000000000000000";
 
 function line(event: string, data: Record<string, unknown>): string {
-  return `EVENT_JSON:${JSON.stringify({ standard: "fair_chance", version: "1.0.0-rc.5", event, data: [data] })}`;
+  return `EVENT_JSON:${JSON.stringify({ standard: "fair_chance", version: "1.0.0-rc.6", event, data: [data] })}`;
 }
 
 async function view(rec: RecordedCoin, link = href) {
