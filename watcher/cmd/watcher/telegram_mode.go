@@ -88,7 +88,11 @@ func runTelegram(poll time.Duration) error {
 	bot := commands.Bot{ChatID: chatID, Reply: api, Watcher: set,
 		Checker: checkcard.Checker{RPCURL: rpcURL, Location: time.Local}}
 	if factory := strings.TrimSpace(os.Getenv("FC_PUBLIC_FACTORY")); factory != "" {
-		bot.Public = commands.NewPublicCheck(factory, strings.TrimSpace(os.Getenv("FC_PAGE_URL")), nil)
+		public, err := commands.NewPublicCheck(factory, strings.TrimSpace(os.Getenv("FC_PAGE_URL")), nil)
+		if err != nil {
+			return fmt.Errorf("FC_PUBLIC_FACTORY: %w", err)
+		}
+		bot.Public = public
 		go logPublicCounts(ctx, bot.Public)
 	}
 	if err := bot.Serve(ctx, api); err != nil && ctx.Err() == nil {
