@@ -25,7 +25,7 @@ In `Rc7.cfg`: allowance 2 tokens, shared early allowance 2, floor 1, large thres
 
 ## How to run
 
-You need Java 17 or later and `tla2tools.jar`. The last run used TLC `2026.11.06.222357` (rev `d8fb231`), from a `tla2tools.jar` with sha256 `e1f11b75c4b5bc4478ba0ac5cb6ae28e40a01b0016bc33e0aa97da22dfdbcd7f` (check yours with `shasum -a 256 tla2tools.jar`).
+You need a recent Java (the last run used OpenJDK 27) and `tla2tools.jar`. The last run used TLC `2026.11.06.222357` (rev `d8fb231`), from a `tla2tools.jar` with sha256 `e1f11b75c4b5bc4478ba0ac5cb6ae28e40a01b0016bc33e0aa97da22dfdbcd7f` (check yours with `shasum -a 256 tla2tools.jar`).
 
 ```sh
 cd docs/model
