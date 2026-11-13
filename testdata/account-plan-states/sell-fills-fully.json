@@ -1,0 +1,47 @@
+{
+  "description": "A small account sells 2M. Everything fills and no rule applies.",
+  "now_ns": "1794579840000000000",
+  "symbol": "MOTH",
+  "decimals": 18,
+  "total_supply": "1000000000000000000000000000",
+  "account_id": "you.testnet",
+  "asked": "2000000000000000000000000",
+  "views": {
+    "fc_account": {
+      "marked_balance": "0",
+      "in_creator_group": false,
+      "marked": {
+        "share_bps": 0,
+        "allowance": "0",
+        "used": "0",
+        "left": "0",
+        "floor_left": "0",
+        "window_end_ns": "1794582120000000000"
+      },
+      "class": "small",
+      "balance": "5000000000000000000000000",
+      "unmarked_balance": "5000000000000000000000000",
+      "is_large": false,
+      "can_send": true,
+      "max_receive": "15000000000000000000000000",
+      "unmarked": {
+        "allowance": "7100000000000000000000000",
+        "used": "0",
+        "left": "7100000000000000000000000",
+        "floor_left": "100000000000000000000000",
+        "window_end_ns": "1794582120000000000"
+      },
+      "max_full_fill_now": "5000000000000000000000000",
+      "penalty_applies_above": null
+    },
+    "fc_quote_sell": {
+      "tokens_filled": "2000000000000000000000000",
+      "near_out": "360000000000000000000000",
+      "penalty_near": "0",
+      "fill": "full",
+      "limit_reason": null,
+      "cap_left_after": "1500000000000000000000000"
+    }
+  },
+  "missing_views": []
+}
