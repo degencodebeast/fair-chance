@@ -715,7 +715,7 @@ fn a_band_account_with_only_marked_tokens_gets_a_partial_fill_and_no_penalty() {
 }
 
 #[test]
-fn a_marked_round_trip_by_one_account_adds_zero_to_the_cap() {
+fn a_marked_round_trip_by_one_account_adds_the_marked_sell_to_the_cap() {
     let mut coin = Coin::launched();
     coin.buy(CREATOR, 2 * ONE_NEAR, block(1));
     deepen_the_pool(&mut coin, 20);
@@ -725,7 +725,8 @@ fn a_marked_round_trip_by_one_account_adds_zero_to_the_cap() {
     let sold = coin.sell(CREATOR, bought.tokens_out, after(HOUR_S + 11));
     assert_eq!(sold.tokens_sold, bought.tokens_out);
     assert_eq!(sold.marked_sold, sold.tokens_sold);
-    assert_eq!(cap_used(&coin, after(HOUR_S + 11)), 0);
+    // Marked sells count gross: the buy does not offset them.
+    assert_eq!(cap_used(&coin, after(HOUR_S + 11)), sold.near_out);
 }
 
 #[test]
@@ -851,7 +852,11 @@ fn a_marked_account_that_sells_buys_x_and_resells_x_counts_the_resale() {
     assert_eq!(resale.tokens_sold, bought.tokens_out);
     assert_eq!(resale.marked_sold, 0);
     let used = cap_used(&coin, after(HOUR_S + 12));
-    assert_eq!(used, first.near_out + resale.near_out - near_in);
+    // The marked sell counts gross; the resale counts net of the buy, at least 0.
+    assert_eq!(
+        used,
+        first.near_out + resale.near_out.saturating_sub(near_in)
+    );
     assert!(used * 10_000 <= 500 * real_near(&coin, after(HOUR_S + 12)));
 }
 
@@ -877,6 +882,6 @@ fn a_marked_account_with_unmarked_tokens_from_before_the_window_counts_a_resale_
     assert_eq!(resale.marked_sold, 0);
     assert_eq!(
         cap_used(&coin, after(HOUR_S + 12)),
-        first.near_out + resale.near_out - near_in
+        first.near_out + resale.near_out.saturating_sub(near_in)
     );
 }

@@ -874,10 +874,10 @@ fn a_buy_gives_a_marked_holder_no_second_floor_for_tokens_it_held_before() {
 }
 
 /// Two marked accounts in the window after their early buys. A sells its marked tokens to zero,
-/// buys X and sells the bought tokens back; then B sells all. A's resale counts, net of its
-/// buy, so A's round trip frees no room for B: the cap used is exactly A's net (clamped at 0)
-/// after A's trades, and B's sell above its part of the shared floor leaves the cap used at
-/// most c x the real NEAR left.
+/// buys X and sells the bought tokens back; then B sells all. A's marked sell counts gross and
+/// its resale counts net of its buy, so A's round trip frees no room for B: the cap used is A's
+/// marked sell plus its resale less the buy (that part clamped at 0) after A's trades, and B's
+/// sell above its part of the shared floor leaves the cap used at most c x the real NEAR left.
 fn freed_room_holds(
     early_buys: (u128, u128),
     depth: [u128; 3],
@@ -924,11 +924,11 @@ fn freed_room_holds(
         share_bps: 10_000,
     })?;
     let resale_out = coin.near_out - near_out_before;
-    let a_net = first_out as i128 - buy_back as i128 + resale_out as i128;
+    let resale_net = (resale_out as i128 - buy_back as i128).max(0) as u128;
     prop_assert_eq!(
         coin.cap_used(),
-        a_net.max(0) as u128,
-        "A's resale did not count"
+        first_out + resale_net,
+        "A's round trip freed room"
     );
 
     let before = view_account(&coin.state, &b, coin.ledger.get(&b), coin.at);
@@ -1107,4 +1107,115 @@ fn an_account_with_no_marked_tokens_keeps_its_full_unmarked_floor() {
     assert_eq!(view.marked_balance, 0);
     let floor = coin.state.unmarked_window_reserve.token_reserve * 10 / 10_000;
     assert_eq!(view.unmarked.floor_left, floor);
+}
+
+/// A saved case from the random runs (Q22): a holder of marked tokens buys, sells part of its
+/// marked tokens while the buy NEAR would offset them, then sells the bought tokens inside the
+/// band first allowance. Marked sells count gross, so the buy gains it no room for them.
+#[test]
+fn a_buy_gains_a_band_holder_of_marked_tokens_no_room_for_its_marked_sell() {
+    let history = [Step::Buy {
+        account: 5,
+        near_in: 630_766_901_522_322_874_495_486,
+    }];
+    let trades = [
+        WindowTrade::Buy {
+            near_in: 698_715_967_263_783_152_414_061,
+        },
+        WindowTrade::Sell { share_bps: 2_198 },
+        WindowTrade::Sell { share_bps: 10_000 },
+    ];
+    twin_bound_holds(&history, 5, &trades).expect("twin bound");
+}
+
+/// The same shape at yoctoNEAR scale: an 18 yoctoNEAR buy and dust sells.
+#[test]
+fn a_tiny_buy_gains_a_band_holder_of_marked_tokens_no_room_for_its_marked_sell() {
+    let history = [
+        Step::Sell {
+            account: 0,
+            share_bps: 10_000,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Sell {
+            account: 0,
+            share_bps: 10_000,
+        },
+        Step::Buy {
+            account: 5,
+            near_in: 1_510_586_930_015_114_178_240_506,
+        },
+        Step::Wait { seconds: 12 },
+        Step::Buy {
+            account: 1,
+            near_in: 10_643_424_721_159_947_839_093_244,
+        },
+    ];
+    let trades = [
+        WindowTrade::Sell { share_bps: 10_000 },
+        WindowTrade::Buy { near_in: 18 },
+        WindowTrade::Sell { share_bps: 1 },
+        WindowTrade::Sell { share_bps: 10_000 },
+    ];
+    twin_bound_holds(&history, 5, &trades).expect("twin bound");
+}
+
+/// A marked account sells its marked tokens, buys X and sends the bought tokens to a fresh
+/// account, which is small and sells them uncounted. The marked sell counts gross, so the buy
+/// and the send take nothing off the cap used.
+#[test]
+fn a_marked_seller_that_sends_its_bought_tokens_to_a_fresh_account_keeps_its_marked_sell_counted() {
+    for x in [ONE_NEAR / 100, ONE_NEAR / 10, ONE_NEAR / 2] {
+        let mut coin = Coin::launched();
+        for step in [
+            Step::Buy {
+                account: 4,
+                near_in: ONE_NEAR / 10,
+            },
+            Step::Wait { seconds: 20 },
+            Step::Buy {
+                account: 1,
+                near_in: 30 * ONE_NEAR,
+            },
+            Step::Wait { seconds: 3_600 },
+            Step::Sell {
+                account: 4,
+                share_bps: 10_000,
+            },
+        ] {
+            coin.run(&step).expect("step");
+        }
+        let marked_out = coin.cap_used();
+        assert!(marked_out > 0);
+        let (a, fresh) = (account_name(4), account_name(5));
+        let held = coin.balance(&a);
+        coin.run(&Step::Buy {
+            account: 4,
+            near_in: x,
+        })
+        .expect("buy");
+        let bought = coin.balance(&a) - held;
+        let share_bps = bought * BPS / coin.balance(&a);
+        coin.run(&Step::Send {
+            from: 4,
+            to: 5,
+            share_bps,
+        })
+        .expect("send");
+        assert_eq!(
+            coin.cap_used(),
+            marked_out,
+            "x {x}: the buy offset the marked sell"
+        );
+        coin.run(&Step::Sell {
+            account: 5,
+            share_bps: 10_000,
+        })
+        .expect("fresh sell");
+        assert!(coin.balance(&fresh) < bought);
+        assert_eq!(coin.cap_used(), marked_out, "x {x}");
+    }
 }
