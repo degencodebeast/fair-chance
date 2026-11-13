@@ -9,8 +9,14 @@ describe("landing copy", () => {
   });
 
   it("keeps the rest of the hero text as designed", () => {
-    expect(landingCopy.subheadline).toBe("On Fair Chance, they have to sell slowly.");
     expect(landingCopy.intro).toMatch(/^Every coin launched here has sell limits built into its contract\./);
+  });
+
+  it("puts the pitch line under the headline, with 'slows' and without 'stops' or 'protects'", () => {
+    expect(landingCopy.subheadline).toBe("Fair Chance slows the dump at launch, inside the coin contract.");
+    expect(landingCopy.subheadline).toMatch(/\bslows\b/);
+    expect(landingCopy.subheadline).not.toMatch(/\b(stops?|protects?)\b/i);
+    expect(copyViolations(landingCopy.subheadline)).toEqual([]);
   });
 
   it("says small bags are not limited, with the one exception at a full cap", () => {
