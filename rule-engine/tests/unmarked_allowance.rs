@@ -133,3 +133,81 @@ fn a_fresh_coin_gives_every_account_one_allowance_of_two_percent_price_drop() {
     assert_eq!(view.unmarked.left, ALLOWANCE_AT_LAUNCH);
     assert_eq!(view.unmarked.window_end_ns, LAUNCH_NS + HOUR_NS);
 }
+
+const LARGE: &str = "large.test";
+const SMALL: &str = "small.test";
+
+/// A coin where LARGE holds about 4.7% of supply (large: 2% or more), bought in window 0.
+fn coin_with_a_large_holder() -> Coin {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 5 * ONE_NEAR, after(10));
+    coin
+}
+
+#[test]
+fn paper_case_d_a_buy_then_a_sell_of_the_bought_tokens_uses_no_allowance() {
+    let mut coin = Coin::launched();
+    let bought = coin.buy(SMALL, ONE_NEAR / 10, after(10));
+    let allowance = coin.account(SMALL, after(20)).unmarked.allowance;
+
+    let sold = coin.sell(SMALL, bought, after(20));
+
+    assert_eq!(sold.tokens_sold, bought);
+    assert_eq!(sold.allowance_used, 0);
+    assert_eq!(sold.allowance_left, allowance);
+    let view = coin.account(SMALL, after(30));
+    assert_eq!(view.unmarked.used, 0);
+    assert_eq!(view.unmarked.left, allowance);
+}
+
+#[test]
+fn paper_case_d_a_sell_first_must_fit_the_allowance_when_it_happens() {
+    let mut coin = coin_with_a_large_holder();
+    let window_1 = HOUR_NS / 1_000_000_000 + 10;
+    let allowance = coin.account(LARGE, after(window_1)).unmarked.allowance;
+
+    let sold = coin.sell(LARGE, 2 * allowance, after(window_1));
+
+    assert_eq!(sold.tokens_asked, 2 * allowance);
+    assert_eq!(sold.tokens_sold, allowance);
+    assert_eq!(sold.fill, "partial");
+    assert_eq!(sold.limit_reason, Some("allowance"));
+    assert_eq!(sold.allowance_used, allowance);
+    assert_eq!(sold.allowance_left, 0);
+}
+
+#[test]
+fn paper_case_d_sell_then_buy_and_buy_then_sell_both_allow_the_allowance_plus_the_tokens_bought() {
+    let mut coin = coin_with_a_large_holder();
+    let hour_s = HOUR_NS / 1_000_000_000;
+
+    // Window 1: sell first (up to the allowance), then buy, then sell again.
+    let start = hour_s + 10;
+    let allowance_1 = coin.account(LARGE, after(start)).unmarked.allowance;
+    let first = coin.sell(LARGE, allowance_1, after(start));
+    let bought_1 = coin.buy(LARGE, ONE_NEAR / 2, after(start + 10));
+    let second = coin.sell(LARGE, 2 * allowance_1, after(start + 20));
+    assert_eq!(first.tokens_sold, allowance_1);
+    assert_eq!(first.fill, "full");
+    assert_eq!(second.tokens_sold, bought_1);
+    assert_eq!(second.fill, "partial");
+    assert_eq!(
+        first.tokens_sold + second.tokens_sold,
+        allowance_1 + bought_1
+    );
+    assert_eq!(second.allowance_used, allowance_1);
+
+    // Window 2: buy first, then one sell of the allowance plus the tokens bought fills in full.
+    let start = 2 * hour_s + 10;
+    let bought_2 = coin.buy(LARGE, ONE_NEAR / 2, after(start));
+    let allowance_2 = coin.account(LARGE, after(start + 10)).unmarked.allowance;
+    let sold = coin.sell(LARGE, allowance_2 + bought_2, after(start + 10));
+    assert_eq!(sold.tokens_sold, allowance_2 + bought_2);
+    assert_eq!(sold.fill, "full");
+    assert_eq!(sold.limit_reason, None);
+    assert_eq!(sold.allowance_used, allowance_2);
+    assert_eq!(sold.allowance_left, 0);
+    let more = coin.sell(LARGE, 1, after(start + 20));
+    assert_eq!(more.tokens_sold, 0);
+    assert_eq!(more.fill, "none");
+}

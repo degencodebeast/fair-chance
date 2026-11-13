@@ -1,6 +1,8 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
-use crate::allowance::{self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns};
+use crate::allowance::{
+    self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns,
+};
 use crate::coin_state::{At, CoinState, Holders};
 use crate::events::{Event, FcBuy, FcSell, FtTransfer};
 use crate::pool_math;
@@ -166,7 +168,16 @@ fn sell(
     if amount == 0 || amount > holder.balance {
         return Err(Refusal::new(RefusalCode::NotEnoughBalance));
     }
-    let tokens_sold = amount;
+    // Until the class rules land, only a large account (live balance at T or above) is held to
+    // its allowance, by a partial fill. Small and band sells fill in full.
+    let large = is_large_by_live_balance(state, holder.balance);
+    let room = unmarked_allowance(state, Some(holder), at).sell_room;
+    let (tokens_sold, fill, limit_reason) = if large && amount > room {
+        let fill = if room == 0 { Fill::None } else { Fill::Partial };
+        (room, fill, Some("allowance"))
+    } else {
+        (amount, Fill::Full, None)
+    };
     // NEAR reserve minimum: the payout never takes the NEAR reserve below virtual P.
     let near_before_fee =
         pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens_sold)
@@ -183,40 +194,52 @@ fn sell(
     next.token_reserve += tokens_sold;
     next.real_near -= near_out;
 
-    let events = vec![
-        Event::FtTransfer(FtTransfer {
+    let mut events = Vec::new();
+    if tokens_sold > 0 {
+        events.push(Event::FtTransfer(FtTransfer {
             old_owner_id: account.to_string(),
             new_owner_id: state.coin.clone(),
             amount: tokens_sold,
-        }),
-        Event::FcSell(FcSell {
-            account: account.to_string(),
-            class: "small",
-            tokens_asked: amount,
-            tokens_sold,
-            marked_sold: 0,
-            near_out,
-            fee_near,
-            creator_fee_near: 0,
-            penalty_near: 0,
-            fill: Fill::Full.as_str(),
-            limit_reason: None,
-            allowance_used: after_sell.used,
-            allowance_left: after_sell.left,
-            cap_used: 0,
-            cap_left: 0,
-            window_end_ns: unmarked_window_end_ns(state, at),
-        }),
-    ];
-    let payout = Some(Payout {
+        }));
+    }
+    events.push(Event::FcSell(FcSell {
+        account: account.to_string(),
+        class: if large { "large" } else { "small" },
+        tokens_asked: amount,
+        tokens_sold,
+        marked_sold: 0,
+        near_out,
+        fee_near,
+        creator_fee_near: 0,
+        penalty_near: 0,
+        fill: fill.as_str(),
+        limit_reason,
+        allowance_used: after_sell.used,
+        allowance_left: after_sell.left,
+        cap_used: 0,
+        cap_left: 0,
+        window_end_ns: unmarked_window_end_ns(state, at),
+    }));
+    let payout = (tokens_sold > 0).then(|| Payout {
         account: account.to_string(),
         amount: near_out,
     });
     Ok(Applied {
         state: next,
         holders,
-        fill: Fill::Full,
+        fill,
         events,
         payout,
     })
+}
+
+/// Live balance at the large threshold or above. A stand-in until the class rules (live class,
+/// large until the balance is zero) land.
+fn is_large_by_live_balance(state: &CoinState, balance: u128) -> bool {
+    product_at_least(
+        balance,
+        10_000,
+        state.fixed.total_supply,
+        state.fixed.large_threshold_bps as u128,
+    )
 }
