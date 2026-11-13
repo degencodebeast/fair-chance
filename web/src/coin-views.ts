@@ -1,5 +1,6 @@
 // Typed readings of the coin's view methods. Each parser takes the JSON the coin returned (unknown),
 // checks the fields the page uses once, at the boundary, and returns a named type.
+import { cleanChainText } from "./chain-text.ts";
 
 export class UnexpectedView extends Error {}
 
@@ -34,7 +35,7 @@ export function reader(view: string, f: Fields) {
     },
     text(key: string): string {
       const v = f[key];
-      return typeof v === "string" ? v : bad(key, "text");
+      return typeof v === "string" ? cleanChainText(v) : bad(key, "text");
     },
     optionalText(key: string): string | null {
       return f[key] === null || f[key] === undefined ? null : this.text(key);
@@ -171,4 +172,9 @@ export function parseMetadata(value: unknown): TokenMetadata {
 export function parseTotalSupply(value: unknown): bigint {
   if (typeof value !== "string" || !/^\d+$/.test(value)) throw new UnexpectedView("ft_total_supply is not a decimal string");
   return BigInt(value);
+}
+
+/** `storage_balance_bounds().min`: the deposit an account pays to register on the coin. */
+export function parseStorageMin(value: unknown): bigint {
+  return reader("storage_balance_bounds", fields(value, "storage_balance_bounds")).amount("min");
 }

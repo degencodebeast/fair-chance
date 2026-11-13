@@ -49,7 +49,7 @@ func NewBotAPIFromEnvironment() (*BotAPI, error) {
 }
 
 func (b *BotAPI) Send(ctx context.Context, chatID int64, text string) error {
-	return b.call(ctx, "sendMessage", map[string]any{"chat_id": chatID, "text": text}, nil)
+	return b.call(ctx, "sendMessage", map[string]any{"chat_id": chatID, "text": Prepare(text)}, nil)
 }
 
 // Updates waits for new messages from the offset on. It returns the text messages and the next offset.

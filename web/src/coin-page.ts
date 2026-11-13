@@ -10,6 +10,7 @@ import {
   parseMetadata,
   parsePool,
   parseRules,
+  parseStorageMin,
   parseTotalSupply,
   type Cap,
   type EarlyWindow,
@@ -33,6 +34,8 @@ export interface CoinReads {
   cap: Reading<Cap>;
   creatorFees: Reading<CreatorFees>;
   totalSupply: Reading<bigint>;
+  /** `storage_balance_bounds().min`, for the buy reason. */
+  storageMin: Reading<bigint>;
   metadata: Reading<TokenMetadata>;
   events: CoinEvent[];
   checks: CheckResult[];
@@ -64,17 +67,18 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
     const cfg = configFromUrl(href);
     const reader = load.reader ?? chainReader(cfg, load.fetchFn);
     const rules = parseRules(await reader.view("fc_rules"));
-    const [pool, earlyWindow, cap, creatorFees, totalSupply, metadata, checks, scan] = await Promise.all([
+    const [pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, checks, scan] = await Promise.all([
       optional(() => reader.view("fc_pool"), parsePool),
       optional(() => reader.view("fc_early_window"), parseEarlyWindow),
       optional(() => reader.view("fc_cap"), parseCap),
       optional(() => reader.view("fc_creator_fees"), parseCreatorFees),
+      optional(() => reader.view("storage_balance_bounds"), parseStorageMin),
       optional(() => reader.view("ft_total_supply"), parseTotalSupply),
       optional(() => reader.view("ft_metadata"), parseMetadata),
       runCoinChecks(reader, cfg.coin, link.known),
       reader.events(rules.launchBlock),
     ]);
-    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, totalSupply, metadata, events: scan.events, checks };
+    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
     return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href) };

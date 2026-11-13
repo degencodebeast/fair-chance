@@ -102,3 +102,14 @@ describe("the coin list read from the factory's launch events", () => {
     await expect(loadCoinCards(factoryReader(events), 0, (c) => readerFrom(recordedCoin(c.startsWith("a") ? "normal" : "rpc-error"), c), ctxFor("normal"))).rejects.toThrow();
   });
 });
+
+describe("a coin name or symbol made only of removed characters", () => {
+  const hidden = (r: ReturnType<typeof recordedCoin>) => {
+    r.views.ft_metadata = { ...(r.views.ft_metadata as object), name: "‮‏", symbol: "⁦⁩" };
+  };
+  it("shows the coin account on the card", async () => {
+    const c = await card("normal", hidden);
+    expect(c.name).toBe(coin);
+    expect(c.ticker).toBe("MOTH");
+  });
+});

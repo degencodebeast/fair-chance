@@ -10,6 +10,9 @@ export const LAUNCH_LIMITS = { name: 32, ticker: 8, description: 80 } as const;
 
 const NEAR_DECIMALS = 24;
 
+/** What the factory accepts: it lowers the ticker and uses it as the first part of the coin account, so a dot, a leading or trailing separator and two separators in a row are out. */
+const TICKER_PATTERN = /^[a-z0-9]+([-_][a-z0-9]+)*$/;
+
 export interface LaunchFormInput {
   name: string;
   ticker: string;
@@ -20,6 +23,8 @@ export interface LaunchFormInput {
 export interface LaunchFormModel {
   counts: { name: string; ticker: string; description: string };
   errors: string[];
+  /** The ticker as it appears in the coin account: lowered. Null when the ticker is empty or breaks a rule. */
+  accountLabel: string | null;
   buyHelp: string;
   button: { label: string; reason: string };
   preview: { name: string; ticker: string; description: string; openingBuy: string | null };
@@ -38,13 +43,14 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   if (name === "") errors.push("Type a name.");
   if (name.length > LAUNCH_LIMITS.name) errors.push(`The name can be ${LAUNCH_LIMITS.name} characters at most.`);
   if (ticker === "") errors.push("Type a ticker.");
-  else if (!/^[A-Za-z0-9]+$/.test(ticker)) errors.push("The ticker can use letters and digits only.");
+  else if (!TICKER_PATTERN.test(ticker.toLowerCase())) errors.push("The ticker can use letters, digits, - and _ only.");
   if (ticker.length > LAUNCH_LIMITS.ticker) errors.push(`The ticker can be ${LAUNCH_LIMITS.ticker} characters at most.`);
   if (description.length > LAUNCH_LIMITS.description) errors.push(`The description can be ${LAUNCH_LIMITS.description} characters at most.`);
   if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
     errors.push("Type the opening buy as a number of NEAR, for example 4.40, or leave it empty.");
   }
   const shownTicker = ticker.toUpperCase();
+  const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker.toLowerCase()) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
   return {
     counts: {
       name: `${input.name.length}/${LAUNCH_LIMITS.name}`,
@@ -52,6 +58,7 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
       description: `${description.length}/${LAUNCH_LIMITS.description}`,
     },
     errors,
+    accountLabel,
     buyHelp:
       "Optional. An opening buy counts as early supply and pays the early buy fee. The creator group, sub-accounts included, can hold at most 4% of supply.",
     button: { label: `Launch ${name === "" ? "coin" : name}`, reason: BUTTON_REASON },

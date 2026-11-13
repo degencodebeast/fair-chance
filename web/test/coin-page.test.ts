@@ -327,3 +327,31 @@ describe("known deployment comes from the page code, not the link", () => {
     expect(testnet.checksSource).toBe("Checks read through the RPC host test.rpc.fastnear.com.");
   });
 });
+
+describe("storage bounds", () => {
+  it("reads storage_balance_bounds().min from the coin", async () => {
+    const rec = recordedCoin("normal");
+    rec.views.storage_balance_bounds = { min: "1250000000000000000000", max: null };
+    const nowNs = BigInt(rec.now_ns);
+    const data = await loadCoinPage(baseHref, { reader: readerFrom(rec, coin), nowNs });
+    if (data.kind !== "ready") throw new Error("page is not ready");
+    expect(data.reads.storageMin).toEqual({ kind: "value", value: 1_250_000_000_000_000_000_000n });
+  });
+
+  it("says unavailable when the coin has no such view", async () => {
+    const rec = recordedCoin("normal");
+    delete rec.views.storage_balance_bounds;
+    const data = await loadCoinPage(baseHref, { reader: readerFrom(rec, coin), nowNs: BigInt(rec.now_ns) });
+    if (data.kind !== "ready") throw new Error("page is not ready");
+    expect(data.reads.storageMin).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("a coin name made only of removed characters", () => {
+  it("shows the coin account as the page heading", async () => {
+    const rec = recordedCoin("normal");
+    rec.views.ft_metadata = { ...(rec.views.ft_metadata as object), name: "‮", symbol: "‏" };
+    const view = await ready(rec);
+    expect(view.header.name).toBe(coin);
+  });
+});

@@ -251,7 +251,7 @@ function scheduleRefresh(view: CoinPageView, reload: () => void): void {
 function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
   const chain = chainReader(configFromUrl(location.href));
   const decimals = reads.metadata.kind === "value" ? reads.metadata.value.decimals : 18;
-  return drawTradeBox({ symbol, decimals, largeThresholdBps: reads.rules.largeThresholdBps, loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn) });
+  return drawTradeBox({ symbol, decimals, largeThresholdBps: reads.rules.largeThresholdBps, storageMin: reads.storageMin, loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn) });
 }
 
 function claimPanel(reads: CoinReads): HTMLElement {

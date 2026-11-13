@@ -4,7 +4,7 @@
 // decide "large" itself: it reads `becomes_large` from the view.
 import type { Reading } from "./coin-page.ts";
 import type { BuyQuote } from "./buy-quote.ts";
-import { compactTokens, nearAmount, percentOfBps } from "./format.ts";
+import { compactTokens, exactNear, nearAmount, percentOfBps } from "./format.ts";
 
 export const NOT_AVAILABLE_FROM_COIN = "Not available from this coin";
 
@@ -23,6 +23,8 @@ export interface TradeBoxInput {
   decimals: number;
   /** `fc_rules.large_threshold_bps`, for the words of the warning. */
   largeThresholdBps: number;
+  /** `storage_balance_bounds().min` of the coin, for the buy reason. */
+  storageMin: Reading<bigint>;
   preview: BuyPreview;
 }
 
@@ -47,8 +49,13 @@ export interface TradeBoxModel {
 }
 
 const WALLET_REASON = "Wallet connect is turned off in this version. Nothing on this page signs or sends a transaction.";
-const BUY_REASON =
-  "Buying is turned off in this version. A buy from an account with no storage record also pays the storage deposit, in the same transaction.";
+function buyReason(storageMin: Reading<bigint>): string {
+  const deposit =
+    storageMin.kind === "value"
+      ? `a storage deposit of ${exactNear(storageMin.value.toString())} NEAR.`
+      : "a storage deposit. The amount is not available from this coin.";
+  return `Buying is turned off in this version. If this account never held this coin, the buy also pays ${deposit}`;
+}
 const SELL_REASON = "Selling is turned off in this version. A sell needs your wallet to confirm it with 1 yoctoNEAR attached.";
 
 export function tradeBoxModel(input: TradeBoxInput): TradeBoxModel {
@@ -83,7 +90,7 @@ export function tradeBoxModel(input: TradeBoxInput): TradeBoxModel {
   return {
     connect: { label: "Connect", reason: WALLET_REASON },
     connectPrompt: "Connect a NEAR wallet to buy or sell",
-    buy: { amountLabel: "You pay (NEAR)", lines, note, largeWarning, button: { label: buyLabel, reason: BUY_REASON } },
+    buy: { amountLabel: "You pay (NEAR)", lines, note, largeWarning, button: { label: buyLabel, reason: buyReason(input.storageMin) } },
     sell: {
       amountLabel: `Amount to sell (${symbol})`,
       button: { label: "Sell", reason: SELL_REASON },

@@ -63,7 +63,7 @@ export async function loadCoinCard(reader: ChainReader, coin: string, ctx: TimeC
     optional(() => reader.view("ft_metadata"), parseMetadata),
     reader.events(rules.launchBlock),
   ]);
-  const symbol = meta?.symbol ?? coin.split(".")[0]!.toUpperCase();
+  const symbol = (meta?.symbol || undefined) ?? coin.split(".")[0]!.toUpperCase();
   const ageNs = ctx.nowNs - rules.launchNs;
   const inEarly = early !== null && early.blocksLeft > 0;
 
@@ -88,7 +88,7 @@ export async function loadCoinCard(reader: ChainReader, coin: string, ctx: TimeC
   const prices = priceSeries(scan.events);
   return {
     account: coin,
-    name: meta?.name ?? coin,
+    name: meta?.name || coin,
     ticker: symbol,
     age: age(ageNs),
     ageSeconds: Number(ageNs / 1_000_000_000n),

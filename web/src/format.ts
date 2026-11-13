@@ -85,3 +85,12 @@ export function timeWithHint(ns: bigint, ctx: TimeContext): string {
   const hint = abs < 5n * SECOND ? "now" : delta > 0n ? `in ${age(abs)}` : `${age(abs)} ago`;
   return `${at.clock}${dayWord}, ${hint}`;
 }
+
+/** yoctoNEAR to NEAR in full, without trailing zeros: 0.00125, 1, 1.5. */
+export function exactNear(yocto: string): string {
+  const units = BigInt(yocto);
+  const scale = 10n ** 24n;
+  const whole = units / scale;
+  const fraction = (units % scale).toString().padStart(24, "0").replace(/0+$/, "");
+  return fraction === "" ? whole.toString() : `${whole}.${fraction}`;
+}

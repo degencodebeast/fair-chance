@@ -63,6 +63,10 @@
       "claimable_now": false,
       "claimable_at_ns": null
     },
+    "storage_balance_bounds": {
+      "min": "1250000000000000000000",
+      "max": null
+    },
     "ft_total_supply": "1000000000000000000000000000",
     "ft_metadata": {
       "spec": "ft-1.0.0",

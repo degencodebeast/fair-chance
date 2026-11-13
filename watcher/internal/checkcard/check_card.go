@@ -11,6 +11,7 @@ import (
 
 	"fairchance/watcher/internal/alerts"
 	"fairchance/watcher/internal/eventsource"
+	"fairchance/watcher/internal/telegram"
 )
 
 const (
@@ -20,12 +21,12 @@ const (
 
 // Render writes the card. Times are in loc, each with a hint of how long from now.
 func Render(v eventsource.PreBuyViews, now time.Time, loc *time.Location) string {
-	symbol := v.Symbol
+	symbol := telegram.Label(v.Symbol)
 	if symbol == "" {
 		symbol = "tokens"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s (%s)\nAs of %s.\n\n", v.Name, v.Symbol, now.In(loc).Format("15:04"))
+	fmt.Fprintf(&b, "%s (%s)\nAs of %s.\n\n", telegram.Label(v.Name), telegram.Label(v.Symbol), now.In(loc).Format("15:04"))
 
 	if v.CreatorGroupShareBps == nil {
 		fmt.Fprintf(&b, "Creator group: %s\n", notAvailable)
