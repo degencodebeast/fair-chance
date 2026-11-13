@@ -10,5 +10,12 @@
   "FC_SLIPPAGE": "The price moved below your minimum, so try again or lower your minimum.",
   "FC_TRANSFER_CALL": "This coin does not allow transfer and call, so use a plain send.",
   "FC_UNREGISTER_WINDOW_OPEN": "This account bought or sold in the current 1 hour window, so it can unregister when that window ends.",
-  "FC_UNREGISTER_WITH_BALANCE": "This account holds tokens, so it cannot unregister now."
+  "FC_UNREGISTER_WITH_BALANCE": "This account holds tokens, so it cannot unregister now.",
+  "The account is not registered: <account>": "That account is not registered on this coin, so it must pay the storage deposit before it can buy or receive tokens.",
+  "The account <account> is not registered": "This account is not registered on this coin, so it has no storage deposit to withdraw.",
+  "The account doesn't have enough balance": "This account does not hold that many tokens, so try a smaller amount.",
+  "Sender and receiver should be different": "You cannot send tokens to your own account.",
+  "The amount should be a positive number": "The amount must be more than zero.",
+  "new must be called by the parent account of the coin": "The factory starts each coin, so this account cannot start it.",
+  "icon must be a WebP data URL (data:image/webp;base64,...) under 8192 bytes": "The coin icon must be a WebP image under 8 KB."
 }
