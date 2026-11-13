@@ -3,7 +3,7 @@
 import type { Account, Allowance, SellQuote } from "./account-views.ts";
 import type { Reading } from "./coin-page.ts";
 import { NOT_AVAILABLE, type Tone } from "./coin-page-model.ts";
-import { clockTime, compactTokens, nearAmount, timeWithHint, type TimeContext } from "./format.ts";
+import { clockTime, compactTokens, compactTokensRoundedUp, nearAmount, timeWithHint, type TimeContext } from "./format.ts";
 
 export interface PlanInput {
   accountId: string;
@@ -206,7 +206,7 @@ function previewView(
     tone: limited || penalty ? "limit" : "plain",
     lines,
     copy: limited
-      ? joinCopy(earlySupplyHeldLine(input, a, q, amount), limitedCopy(q, asked, a, ctx, amount, tokens))
+      ? joinCopy(earlySupplyHeldLine(input, a, q), limitedCopy(q, asked, a, ctx, amount, tokens))
       : penalty
         ? penaltyCopy(a, amount)
         : null,
@@ -224,21 +224,22 @@ function previewView(
 /**
  * For an account whose early supply the pool cap holds while it has other tokens: a sell takes the
  * early supply before the other tokens, so a sell of N or less fills nothing. N is checked with a
- * quote of N; when the coin gives no N, the line leaves N out.
+ * quote of N and shown rounded up, so the text is at or above the coin's value; when the coin
+ * gives no N, the line leaves N out and points to the quote.
  */
-function earlySupplyHeldLine(input: PlanInput, a: Account, q: SellQuote, amount: (n: bigint) => string): string | null {
+function earlySupplyHeldLine(input: PlanInput, a: Account, q: SellQuote): string | null {
   if (a.markedBalance === 0n || a.unmarkedBalance === 0n) return null;
   const lead = "Early-supply tokens sell before your other tokens. While the pool cap holds them,";
   const check = input.earlySupplyQuote ?? null;
   if (check !== null && check.quote.kind === "value") {
     const n = check.quote.value;
-    return n.tokensFilled === 0n && n.limitReason === "cap_full"
-      ? `${lead} a sell of ${amount(check.amount)} or less fills nothing, and a larger sell fills from your other tokens.`
-      : null;
+    if (n.tokensFilled !== 0n || n.limitReason !== "cap_full") return null;
+    const shown = `${compactTokensRoundedUp(check.amount.toString(), input.decimals)} ${input.symbol}`;
+    return `${lead} a sell of about ${shown} or less fills nothing, and a larger sell can fill part of the amount above that from your other tokens.`;
   }
   const nUnknown = a.marked.kind === "unavailable" || check !== null;
   const capStops = q.limitReason === "cap_full" || q.limitReason === "floor";
-  return nUnknown && capStops ? `${lead} a sell fills from your other tokens alone.` : null;
+  return nUnknown && capStops ? `${lead} a small sell can fill nothing. The quote shows what this sell fills.` : null;
 }
 
 function joinCopy(first: string | null, rest: string): string {
