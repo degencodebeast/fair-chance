@@ -5,3 +5,7 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc ad183b7d3494cc57aca0072c41466ebdc3efda68880586d2add9c8833acf3a85 # shrinks to history = [Buy { account: 5, near_in: 758980140491974805048750 }, Buy { account: 0, near_in: 6920531327738845529101183 }, Buy { account: 0, near_in: 15772612238901679912002747 }, Buy { account: 0, near_in: 23630972305690285432213539 }, Buy { account: 0, near_in: 11263261550640298493450627 }], who = 5, trades = [Buy { near_in: 673560730771697173802353 }, Sell { share_bps: 6922 }, Sell { share_bps: 10000 }]
+cc 01e1ef8759f774b2d852c9711258d3bfeef99822a5586f0650c998a5f60d9d3f # found with 10,000 cases before the class floor per window
+cc a7283caa1c103599fd09fefb65738c2611a87662306396c6772b60f919081f8a # found with 10,000 cases before the class floor per window
+cc e5b5f58033590a3ec9942d5a6928a0c41ada2a501c4a54d04d62f059f789bbc7 # found with 10,000 cases before the class floor per window
+cc 2cd43f71e718f34325de604a12a580bc392780eca9aac9449256c29db5d3810c # found with 10,000 cases before the class floor per window

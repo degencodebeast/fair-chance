@@ -22,9 +22,11 @@
 //! less the NEAR its buys paid) is at most what a twin run gets: the same trades with its buys
 //! and buy-backs removed (the twin run already includes its floor), plus c x F, plus the price
 //! effect of F (twin NEAR out x F / the lowest NEAR reserve in the window, virtual plus real),
-//! plus 1 yoctoNEAR per trade for rounding. F is the fees the pool kept from the account's buys.
+//! plus 3 yoctoNEAR per trade for rounding (up to three roundings per trade). F is the fees the
+//! pool kept from the account's buys. The account's class in the window never drops below its
+//! class at the window start (the class floor), so the twin run sells in the same class.
 //!
-//! Each gate run tries 1,000 sequences per property. A failing sequence is saved in
+//! Each gate run tries 10,000 sequences per property. A failing sequence is saved in
 //! `proptest-regressions/real_near_cap_properties.txt` (committed), and runs first next time.
 
 use std::collections::BTreeMap;
@@ -454,7 +456,7 @@ fn real_window_actions(
 
 proptest! {
     #![proptest_config(ProptestConfig {
-        cases: 1_000,
+        cases: 10_000,
         failure_persistence: Some(Box::new(FileFailurePersistence::Direct(
             "proptest-regressions/real_near_cap_properties.txt",
         ))),
@@ -482,8 +484,9 @@ proptest! {
 }
 
 /// Rounding slack per trade in the twin bound: each trade has up to three roundings (NEAR out,
-/// fee, penalty), each toward the pool, but on different bases in the two runs.
-const ROUNDING_YOCTO_PER_TRADE: u128 = 1;
+/// fee, penalty). Each one rounds toward the pool, but the real run and the twin run round on
+/// different bases, so each can differ by up to 1 yoctoNEAR per rounding.
+const ROUNDING_YOCTO_PER_TRADE: u128 = 3;
 
 /// The twin-run property for one history, one account and its trades in the next window.
 fn twin_bound_holds(
