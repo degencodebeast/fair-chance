@@ -7,7 +7,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::coin_state::{At, CoinState, Holder};
-use crate::wide_integer_math::tokens_for_price_drop;
+use crate::wide_integer_math::{mul_div, tokens_for_price_drop};
 
 const SECOND_NS: u64 = 1_000_000_000;
 
@@ -37,6 +37,10 @@ pub struct UnmarkedAllowance {
     /// The most tokens one more sell can take while `used` stays at or below `allowance`:
     /// allowance + bought - sold, at least 0. A buy gives room back.
     pub sell_room: u128,
+    /// The floor (ADR 0005) less `used`, at least 0. The floor is `floor_bps` of the window's
+    /// token reserve, rounded down: the room per window a limited sell keeps when the real NEAR
+    /// cap is full.
+    pub floor_left: u128,
     pub window_end_ns: u64,
 }
 
@@ -88,7 +92,9 @@ fn totals_now(state: &CoinState, holder: Option<&Holder>, at: At) -> WindowTotal
 
 /// The account's unmarked allowance at `at`.
 pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) -> UnmarkedAllowance {
-    let allowance = tokens_for_price_drop(window_token_reserve(state, at), state.fixed.p_bps);
+    let reserve = window_token_reserve(state, at);
+    let allowance = tokens_for_price_drop(reserve, state.fixed.p_bps);
+    let floor = mul_div(reserve, state.fixed.floor_bps as u128, 10_000);
     let totals = totals_now(state, holder, at);
     let used = totals.sold.saturating_sub(totals.bought);
     UnmarkedAllowance {
@@ -96,6 +102,7 @@ pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) ->
         used,
         left: allowance.saturating_sub(used),
         sell_room: (allowance + totals.bought).saturating_sub(totals.sold),
+        floor_left: floor.saturating_sub(used),
         window_end_ns: unmarked_window_end_ns(state, at),
     }
 }

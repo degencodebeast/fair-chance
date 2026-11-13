@@ -221,16 +221,16 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             allowance: unmarked.allowance,
             used: unmarked.used,
             left: unmarked.left,
-            floor_left: 0,
+            floor_left: unmarked.floor_left,
             window_end_ns,
         },
         marked: empty(Some(0)),
-        max_full_fill_now: if is_large {
-            balance.min(unmarked.sell_room)
-        } else {
-            balance
+        // A large sell above the room fills in part; a band sell above it pays the penalty.
+        max_full_fill_now: match class {
+            Class::Large | Class::Band => balance.min(unmarked.sell_room),
+            Class::Small => balance,
         },
-        penalty_applies_above: None,
+        penalty_applies_above: (class == Class::Band).then_some(unmarked.sell_room),
     }
 }
 
