@@ -4,7 +4,7 @@
 //! metadata keeps the ticker as given.
 
 use anyhow::Result;
-use fair_chance_sandbox_tests::factory_deploy::{deploy, DeployPlan};
+use fair_chance_sandbox_tests::factory_deploy::{check_deployed, deploy, DeployPlan};
 use fair_chance_sandbox_tests::{
     launch_args, sandbox_with_accounts, transact, view_on, wasm, ContractState, LAUNCH_DEPOSIT,
 };
@@ -47,6 +47,11 @@ async fn the_deploy_step_makes_a_working_factory_and_costs_what_the_plan_says() 
     );
     let recorded = view_on(&network, &plan.factory, "coin_code_hash", json!({})).await?;
     assert_eq!(recorded, json!(plan.coin_code_hash.to_string()));
+
+    // The post-deploy read the testnet run uses: factory code, recorded coin hash, and the global
+    // code found under its hash on a real node.
+    let checked = check_deployed(&plan, &network).await?;
+    assert_eq!(checked.len(), 3, "{checked:?}");
 
     // A second run finds the factory account and refuses before it signs anything.
     let again = before_second_run(&network, funder, &plan).await;
