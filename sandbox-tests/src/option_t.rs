@@ -36,6 +36,66 @@ pub enum DemoNetwork {
     Testnet,
 }
 
+/// The command-line arguments of Option T. `None` means the default.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct OptionTArguments {
+    pub network: Option<String>,
+    pub ticker: Option<String>,
+    pub buy_millinear: Option<u64>,
+    pub buyer_extra_millinear: Option<u64>,
+    pub buyer_tgas: Option<u64>,
+    pub launch_deposit_millinear: Option<u64>,
+    pub delete_buyers: bool,
+}
+
+/// Parses the arguments after the program name. It refuses any argument it does not know, a flag
+/// without its value, `--flag=value`, a number that does not parse and a repeated flag, so a typo
+/// never falls back to the default run or skips a guard.
+pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
+    let mut parsed = OptionTArguments::default();
+    let mut args = args.iter();
+    while let Some(flag) = args.next() {
+        if flag == "--delete-buyers" {
+            if parsed.delete_buyers {
+                bail!("{flag} is given twice");
+            }
+            parsed.delete_buyers = true;
+            continue;
+        }
+        let taken = match flag.as_str() {
+            "--network" => parsed.network.is_some(),
+            "--ticker" => parsed.ticker.is_some(),
+            "--buy-millinear" => parsed.buy_millinear.is_some(),
+            "--buyer-extra-millinear" => parsed.buyer_extra_millinear.is_some(),
+            "--buyer-tgas" => parsed.buyer_tgas.is_some(),
+            "--launch-deposit-millinear" => parsed.launch_deposit_millinear.is_some(),
+            _ => bail!("unknown argument {flag}; nothing was run"),
+        };
+        if taken {
+            bail!("{flag} is given twice");
+        }
+        let value = match args.next() {
+            Some(value) if !value.starts_with("--") => value,
+            _ => bail!("{flag} needs a value"),
+        };
+        let number = || {
+            value
+                .parse::<u64>()
+                .map(Some)
+                .with_context(|| format!("{flag} takes a whole number, not {value}"))
+        };
+        match flag.as_str() {
+            "--network" => parsed.network = Some(value.clone()),
+            "--ticker" => parsed.ticker = Some(value.clone()),
+            "--buy-millinear" => parsed.buy_millinear = number()?,
+            "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
+            "--buyer-tgas" => parsed.buyer_tgas = number()?,
+            _ => parsed.launch_deposit_millinear = number()?,
+        }
+    }
+    Ok(parsed)
+}
+
 /// The network from the `--network` argument (none means sandbox) and the value of
 /// [`TESTNET_YES_FLAG`]. Testnet needs the flag to be exactly `yes`; any other network is refused.
 pub fn choose_network(
@@ -218,20 +278,25 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
 pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
     let mut deleted = Vec::new();
     for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
-        let exists = near_api::Account(id.clone())
+        match near_api::Account(id.clone())
             .view()
             .fetch_from(&setup.network)
             .await
-            .is_ok();
-        if !exists {
-            println!("option-t: {id} does not exist; nothing to delete");
-            continue;
+        {
+            Ok(_) => {}
+            // Only the node's own answer that the account does not exist counts as absent.
+            Err(e) if format!("{e:?}").contains("UnknownAccount") => {
+                println!("option-t: {id} does not exist; nothing to delete");
+                continue;
+            }
+            Err(e) => bail!("unknown result reading {id}: {e}; nothing more deleted"),
         }
         let result = near_api::Account(id.clone())
             .delete_account_with_beneficiary(setup.funder.id.clone())
             .with_signer(setup.funder.signer.clone())
             .send_to(&setup.network)
-            .await?;
+            .await
+            .with_context(|| format!("unknown result deleting {id}; nothing more deleted"))?;
         if !result.is_success() {
             bail!("deleting {id} failed: {result:?}");
         }

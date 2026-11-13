@@ -9,11 +9,26 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Refuse an unknown or incomplete argument before anything builds or starts. The runner checks
+# the same rules again (option_t::parse_arguments), with duplicates and number formats too.
+refuse() { echo "option-t: unknown or incomplete argument: $1" >&2; exit 2; }
 features=""
-previous=""
-for arg in "$@"; do
-  if [ "$previous" = "--network" ] && [ "$arg" = "testnet" ]; then features="--features testnet-keychain"; fi
-  previous="$arg"
+args=("$@")
+i=0
+while [ "$i" -lt "${#args[@]}" ]; do
+  arg="${args[$i]}"
+  case "$arg" in
+    --delete-buyers) ;;
+    --network|--ticker|--buy-millinear|--buyer-extra-millinear|--buyer-tgas|--launch-deposit-millinear)
+      i=$((i + 1))
+      [ "$i" -lt "${#args[@]}" ] || refuse "$arg"
+      value="${args[$i]}"
+      case "$value" in --*) refuse "$arg" ;; esac
+      if [ "$arg" = "--network" ] && [ "$value" = "testnet" ]; then features="--features testnet-keychain"; fi
+      ;;
+    *) refuse "$arg" ;;
+  esac
+  i=$((i + 1))
 done
 if [ -z "$features" ]; then
   : "${NEAR_SANDBOX_BIN_PATH:?set NEAR_SANDBOX_BIN_PATH to a near-sandbox binary}"

@@ -1,7 +1,7 @@
 // Coin list cards read from the chain: the factory's `fc_launch` events name the coins, and each
 // coin's views and events fill its card. When any read fails the whole list fails, so the page
 // never mixes numbers from different reads.
-import { scanStartBlock, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
+import { eventsFromLaunch, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
 import type { CoinCard } from "./coin-list-model.ts";
 import { parseCap, parseEarlyWindow, parseMetadata, parsePool, parseRules, parseTotalSupply } from "./coin-views.ts";
 import { age, clockTime, compactTokens, nearAmount, percentOfBps, type TimeContext } from "./format.ts";
@@ -61,7 +61,7 @@ export async function loadCoinCard(reader: ChainReader, coin: string, ctx: TimeC
     optional(() => reader.view("fc_cap"), parseCap),
     optional(() => reader.view("ft_total_supply"), parseTotalSupply),
     optional(() => reader.view("ft_metadata"), parseMetadata),
-    reader.events(scanStartBlock(rules.launchBlock)),
+    eventsFromLaunch(reader, rules.launchBlock),
   ]);
   const symbol = (meta?.symbol || undefined) ?? coin.split(".")[0]!.toUpperCase();
   const ageNs = ctx.nowNs - rules.launchNs;

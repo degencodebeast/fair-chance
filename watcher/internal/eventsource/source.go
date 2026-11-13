@@ -65,15 +65,31 @@ func ScanStart(launchBlock uint64) Cursor {
 	return Cursor(launchBlock - LaunchScanMarginBlocks)
 }
 
-// LaunchCursor is the first cursor for a coin: ScanStart of its launch block, from fc_rules.
+// LaunchCursor is the first cursor for a coin: ScanStart of its launch block, from fc_rules. A
+// node that dropped the blocks inside the margin but still has the launch block starts at its
+// earliest block instead. When the node dropped the launch block too, the cursor stays at
+// ScanStart, and the scan fails with ErrBlocksGone.
 func LaunchCursor(ctx context.Context, rpcURL, coin string) (Cursor, error) {
+	rpc := newRPC(rpcURL)
 	var rules struct {
 		LaunchBlock uint64 `json:"launch_block"`
 	}
-	if err := newRPC(rpcURL).view(ctx, coin, "fc_rules", &rules); err != nil {
+	if err := rpc.view(ctx, coin, "fc_rules", &rules); err != nil {
 		return 0, fmt.Errorf("fc_rules of %s: %w", coin, err)
 	}
-	return ScanStart(rules.LaunchBlock), nil
+	var status struct {
+		SyncInfo struct {
+			EarliestBlockHeight uint64 `json:"earliest_block_height"`
+		} `json:"sync_info"`
+	}
+	if err := rpc.call(ctx, "status", map[string]any{}, &status); err != nil {
+		return 0, fmt.Errorf("node status: %w", err)
+	}
+	start, earliest := ScanStart(rules.LaunchBlock), status.SyncInfo.EarliestBlockHeight
+	if earliest <= rules.LaunchBlock && uint64(start) < earliest {
+		return Cursor(earliest), nil
+	}
+	return start, nil
 }
 
 // CoinFacts are the fixed facts about one coin that alert sentences need.

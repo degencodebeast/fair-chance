@@ -19,10 +19,10 @@
 //! funder's key from the system keychain (build with `--features testnet-keychain`;
 //! scripts/option-t.sh does this for `--network testnet`).
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use fair_chance_sandbox_tests::option_t::{
-    choose_buyer_deletion, choose_network, delete_buyers, run, DemoNetwork, OptionTSetup,
-    DELETE_BUYERS_YES_FLAG, TESTNET_YES_FLAG,
+    choose_buyer_deletion, choose_network, delete_buyers, parse_arguments, run, DemoNetwork,
+    OptionTSetup, DELETE_BUYERS_YES_FLAG, TESTNET_YES_FLAG,
 };
 use fair_chance_sandbox_tests::pass_list::{print_and_exit, PassList};
 use fair_chance_sandbox_tests::World;
@@ -37,43 +37,28 @@ async fn main() {
     print_and_exit(&list, outcome)
 }
 
-fn argument(name: &str) -> Option<String> {
-    let args: Vec<String> = std::env::args().collect();
-    args.iter()
-        .position(|a| a == name)
-        .and_then(|i| args.get(i + 1).cloned())
-}
-
-fn number_argument(name: &str, default: u64) -> Result<u64> {
-    argument(name)
-        .map(|n| n.parse::<u64>())
-        .transpose()
-        .with_context(|| format!("{name} takes a whole number"))
-        .map(|n| n.unwrap_or(default))
-}
-
 async fn start(list: &mut PassList) -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = parse_arguments(&args)?;
     let network = choose_network(
-        argument("--network").as_deref(),
+        args.network.as_deref(),
         std::env::var(TESTNET_YES_FLAG).ok().as_deref(),
     )?;
-    let delete = std::env::args().any(|a| a == "--delete-buyers");
+    let delete = args.delete_buyers;
     if delete {
         choose_buyer_deletion(
             network,
             std::env::var(DELETE_BUYERS_YES_FLAG).ok().as_deref(),
         )?;
     }
-    let ticker = argument("--ticker").unwrap_or_else(|| "optiont".to_string());
-    let tune = |setup: &mut OptionTSetup| -> Result<()> {
-        setup.buy_near =
-            NearToken::from_millinear(number_argument("--buy-millinear", 1000)?.into());
+    let ticker = args.ticker.clone().unwrap_or_else(|| "optiont".to_string());
+    let tune = |setup: &mut OptionTSetup| {
+        setup.buy_near = NearToken::from_millinear(args.buy_millinear.unwrap_or(1000).into());
         setup.buyer_extra =
-            NearToken::from_millinear(number_argument("--buyer-extra-millinear", 500)?.into());
-        setup.buyer_gas = NearGas::from_tgas(number_argument("--buyer-tgas", 300)?);
+            NearToken::from_millinear(args.buyer_extra_millinear.unwrap_or(500).into());
+        setup.buyer_gas = NearGas::from_tgas(args.buyer_tgas.unwrap_or(300));
         setup.launch_deposit =
-            NearToken::from_millinear(number_argument("--launch-deposit-millinear", 5000)?.into());
-        Ok(())
+            NearToken::from_millinear(args.launch_deposit_millinear.unwrap_or(5000).into());
     };
     let world;
     let mut setup = match network {
@@ -84,20 +69,21 @@ async fn start(list: &mut PassList) -> Result<()> {
         }
         DemoNetwork::Testnet => testnet_setup(&ticker).await?,
     };
-    tune(&mut setup)?;
+    tune(&mut setup);
     if delete {
         if network == DemoNetwork::Sandbox {
             // A fresh sandbox has no buyers yet; make them so the step has something to delete.
             fair_chance_sandbox_tests::option_t::make_accounts(&setup).await?;
         }
-        let deleted = delete_buyers(&setup).await?;
+        let funder = setup.funder.id.clone();
         return list.check(
             "buyer accounts deleted",
-            Ok(format!(
-                "{} buyer accounts deleted, their NEAR went to {}",
-                deleted.len(),
-                setup.funder.id
-            )),
+            delete_buyers(&setup).await.map(|deleted| {
+                format!(
+                    "{} buyer accounts deleted, their NEAR went to {funder}",
+                    deleted.len()
+                )
+            }),
         );
     }
     run(&setup, list).await?;
@@ -106,6 +92,7 @@ async fn start(list: &mut PassList) -> Result<()> {
 
 #[cfg(feature = "testnet-keychain")]
 async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
+    use anyhow::Context;
     use fair_chance_sandbox_tests::option_t::funder_signer_from_keychain;
     let read = |name: &str| std::env::var(name).with_context(|| format!("set {name}"));
     let rpc_url = read("FC_TESTNET_RPC_URL")?;

@@ -52,8 +52,12 @@ export interface ChainReader {
   view<T>(method: string, args?: object): Promise<T>;
   account(accountId: string): Promise<AccountFacts>;
   accessKeyCount(accountId: string): Promise<number>;
-  /** Events since a block height (default: scanStartBlock of the coin's launch block) up to the final head. */
-  events(since?: number): Promise<{ events: CoinEvent[]; cursor: number }>;
+  /**
+   * Events since a block height up to the final head. The default start is scanStartBlock of the
+   * coin's launch block. With `launchBlock`, a node that dropped the blocks before `since` but
+   * still has the launch block starts at its earliest block; a dropped launch block is an error.
+   */
+  events(since?: number, launchBlock?: number): Promise<{ events: CoinEvent[]; cursor: number }>;
 }
 
 /** Reads the coin and the RPC source from the page URL; see page-link.ts for what the link may pick. */
@@ -145,17 +149,18 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
     return res.keys.length;
   }
 
-  async function events(since?: number) {
-    const from = since ?? scanStartBlock((await view<{ launch_block: number }>("fc_rules")).launch_block);
+  async function events(since?: number, launchBlock?: number) {
+    const launch = since === undefined ? (await view<{ launch_block: number }>("fc_rules")).launch_block : launchBlock;
+    let from = since ?? scanStartBlock(launch!);
     if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn });
     // A height with no block answers UNKNOWN_BLOCK and the scan skips it. A node that dropped
     // old blocks answers the same way, so check first that the node still has the blocks.
     const status = await call<{ sync_info: { earliest_block_height: number } }>("status", {});
     const earliest = status.sync_info.earliest_block_height;
+    if (from < earliest && launch !== undefined && launch >= earliest) from = earliest;
     if (from < earliest) {
-      throw new Error(
-        `the node no longer has the blocks from this cursor: cursor ${from}, earliest block ${earliest}`,
-      );
+      const what = launch === undefined ? `cursor ${from}` : `launch block ${launch}, cursor ${from}`;
+      throw new Error(`the node no longer has the blocks from this cursor: ${what}, earliest block ${earliest}`);
     }
     const head = await call<{ header: { height: number } }>("block", { finality: "final" });
     const out: CoinEvent[] = [];
@@ -226,4 +231,9 @@ export function parseLog(line: string): Omit<CoinEvent, "coin" | "receiptId" | "
   } catch {
     return null;
   }
+}
+
+/** The coin's events from just before its launch block (see scanStartBlock and ChainReader.events). */
+export function eventsFromLaunch(reader: ChainReader, launchBlock: number) {
+  return reader.events(scanStartBlock(launchBlock), launchBlock);
 }
