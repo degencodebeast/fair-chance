@@ -15,6 +15,17 @@ use near_api::{Contract, NetworkConfig, Signer};
 use near_sandbox::{GenesisAccount, Sandbox, SandboxConfig};
 use serde_json::{json, Value};
 
+/// Sandbox `config.json` patch for tests that fast-forward a day: nearcore adds (min + max block
+/// production delay) / 2 of block time per fast-forwarded block, so a 200 s max delay makes one
+/// such block about 90 s (93 s measured), and 1,000 blocks pass 24 h. A single validator still
+/// makes normal blocks at the min delay.
+pub fn fast_forward_config() -> Value {
+    json!({
+        "gc_num_epochs_to_keep": 10_000,
+        "consensus": { "max_block_production_delay": { "secs": 200, "nanos": 0 } },
+    })
+}
+
 pub const COIN_TICKER: &str = "walk";
 /// The walking-path coin's icon: a 96 x 96 WebP data URL under 8 KB.
 pub const COIN_ICON: &str = include_str!("../../testdata/coin-icon-96px-webp-data-url.txt");
@@ -212,9 +223,21 @@ impl World {
         Self::launch_with_coin_code(wasm("fair_chance_coin")?).await
     }
 
+    /// As [`World::launch`], on a sandbox where one fast-forwarded block adds about 90 s of block
+    /// time ([`fast_forward_config`]), so a test can pass 24 h in about 1,000 blocks.
+    pub async fn launch_for_fast_forward() -> Result<Self> {
+        Self::launch_on(wasm("fair_chance_coin")?, fast_forward_config()).await
+    }
+
     /// As [`World::launch`], with the given coin wasm as the global code (for example the
     /// reproducible build from [`reproducible_coin_build`]).
     pub async fn launch_with_coin_code(coin_code: Vec<u8>) -> Result<Self> {
+        // The sandbox makes blocks fast and by default drops blocks older than a few epochs of 60
+        // blocks. The block scan reads from the launch block, so keep all.
+        Self::launch_on(coin_code, json!({ "gc_num_epochs_to_keep": 10_000 })).await
+    }
+
+    async fn launch_on(coin_code: Vec<u8>, sandbox_config: Value) -> Result<Self> {
         check_sandbox_binary()?;
         let factory_code = wasm("fair_chance_factory")?;
         let (factory_g, factory) = genesis("factory.sandbox")?;
@@ -223,9 +246,7 @@ impl World {
         let (bob_g, bob) = genesis("bob.sandbox")?;
         let sandbox = Sandbox::start_sandbox_with_config(SandboxConfig {
             additional_accounts: vec![factory_g, creator_g, alice_g, bob_g],
-            // The sandbox makes blocks fast and by default drops blocks older than a few
-            // epochs of 60 blocks. The block scan reads from the launch block, so keep all.
-            additional_config: Some(json!({ "gc_num_epochs_to_keep": 10_000 })),
+            additional_config: Some(sandbox_config),
             ..Default::default()
         })
         .await?;
