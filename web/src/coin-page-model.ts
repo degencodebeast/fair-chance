@@ -36,7 +36,9 @@ export interface Card {
 
 export type Banner =
   | { kind: "early"; blocksLeft: number; block: number; end: number; buyFee: string; feeEnds: string; text: string }
-  | { kind: "ended"; end: number; text: string };
+  | { kind: "ended"; end: number; text: string }
+  /** The block count it showed is over by the clock, so no count is shown as live. */
+  | { kind: "old"; text: string };
 
 export interface ReceiptItem {
   /** Receipt ID of an `fc_sell`; null for the other kinds, which are not sell receipts. */
@@ -57,6 +59,10 @@ export interface CoinPageModel {
   state: "ready";
   /** The one-line load state: how many sell receipts, from which block. */
   status: string;
+  /** When the values were read: "As of 14:24". */
+  asOf: string;
+  /** The time the page should read again: when the cap hour or the early block count ends. Null when none is ahead. */
+  refreshAtNs: bigint | null;
   header: { name: string; symbol: string; creator: string; launched: string; description: string | null; icon: string | null };
   banner: Banner | null;
   /** Set when any chain check failed or could not run. */
@@ -102,8 +108,10 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
   return {
     state: "ready",
     status: `${receipts.filter((x) => x.sellReceiptId !== null).length} sell receipts from block ${r.rules.launchBlock}, read from the chain.`,
+    asOf: `As of ${clockTime(r.loadedAtNs, ctx)}`,
+    refreshAtNs: refreshAt(r, ctx.nowNs),
     header: header(r, ctx),
-    banner: banner(r),
+    banner: banner(r, ctx),
     warning: checksOk ? null : warning(r.checks),
     checks: r.checks,
     checksSource: `Checks read through the RPC host ${r.rpcHost}.`,
@@ -136,7 +144,19 @@ function header(r: CoinReads, ctx: TimeContext): CoinPageModel["header"] {
   };
 }
 
-function banner(r: CoinReads): Banner | null {
+/** When the early block count read at load time runs out, by the block time. Null once the count is over. */
+function earlyCountEndNs(r: CoinReads): bigint | null {
+  if (r.earlyWindow.kind !== "value" || r.earlyWindow.value.blocksLeft === 0) return null;
+  return r.loadedAtNs + BigInt(Math.ceil(r.earlyWindow.value.blocksLeft * SECONDS_PER_BLOCK * 1000)) * 1_000_000n;
+}
+
+function refreshAt(r: CoinReads, nowNs: bigint): bigint | null {
+  const ends = [r.cap.kind === "value" ? r.cap.value.windowEndNs : null, earlyCountEndNs(r)];
+  const ahead = ends.filter((t): t is bigint => t !== null && t > nowNs);
+  return ahead.length === 0 ? null : ahead.reduce((a, b) => (a < b ? a : b));
+}
+
+function banner(r: CoinReads, ctx: TimeContext): Banner | null {
   if (r.earlyWindow.kind !== "value") return null;
   const e = r.earlyWindow.value;
   const end = e.earlyBlocks;
@@ -146,6 +166,10 @@ function banner(r: CoinReads): Banner | null {
       end,
       text: "Early supply sells at one shared pace per 24 h window. The figures are in the card below.",
     };
+  }
+  const countEnd = earlyCountEndNs(r);
+  if (countEnd !== null && ctx.nowNs > countEnd) {
+    return { kind: "old", text: `The early window count was read at ${clockTime(r.loadedAtNs, ctx)} and may be over. Reload to read it.` };
   }
   const blocksIn = (n: number) => `about ${Math.max(1, Math.round(n * SECONDS_PER_BLOCK))} s`;
   const block = r.pool.kind === "value" ? Math.max(0, r.pool.value.block - r.rules.launchBlock) : end - e.blocksLeft;
@@ -223,7 +247,6 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
     early.lines.push(
       line(`Shared allowance per 24 h window: ${compactTokens(e.sharedAllowance.toString(), TOKEN_DECIMALS)} ${symbol}, for all early supply together`),
     );
-    early.lines.push(line(`Refills ${timeWithHint(nextWindowEnd(r.rules.launchNs, r.rules.windowEarlyS, ctx.nowNs), ctx)}`));
   } else {
     early.lines.push(na);
   }
@@ -240,7 +263,12 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
   large.lines.push(line(`Each account has its own allowance every ${hoursText(r.rules.windowUnmarkedS)}.`));
 
   const cap: Card = { id: "cap", title: "Pool cap this hour", chip: null, lines: [], meter: null };
-  if (r.cap.kind === "value") {
+  if (r.cap.kind === "value" && ctx.nowNs >= r.cap.value.windowEndNs) {
+    cap.chip = { text: "Old", tone: "limit" };
+    cap.lines.push(
+      line(`Read at ${clockTime(r.loadedAtNs, ctx)} for the hour that ended at ${clockTime(r.cap.value.windowEndNs, ctx)}. Reload to read the new hour.`, "limit"),
+    );
+  } else if (r.cap.kind === "value") {
     const c = r.cap.value;
     const tone: Tone = c.isFull ? "limit" : "plain";
     cap.chip = { text: c.isFull ? "Full" : "Has room", tone };
@@ -268,17 +296,10 @@ function summaryLines(who: Card[]): CoinPageModel["summaryLines"] {
     { label: "Large holders", value: first(large), tone: "plain" },
     {
       label: "Pool cap",
-      value: cap.meter ? (cap.chip?.text === "Full" ? "Full" : cap.meter.text) : NOT_AVAILABLE,
-      tone: cap.meter?.tone ?? "plain",
+      value: cap.chip?.text === "Old" ? "Old, reload" : cap.meter ? (cap.chip?.text === "Full" ? "Full" : cap.meter.text) : NOT_AVAILABLE,
+      tone: cap.chip?.text === "Old" ? "limit" : (cap.meter?.tone ?? "plain"),
     },
   ];
-}
-
-/** The end of the 24 h window that holds `nowNs`, on the fixed grid from launch. */
-function nextWindowEnd(launchNs: bigint, windowS: number, nowNs: bigint): bigint {
-  const length = BigInt(windowS) * NS_PER_SECOND;
-  const k = nowNs >= launchNs ? (nowNs - launchNs) / length : 0n;
-  return launchNs + (k + 1n) * length;
 }
 
 function hoursText(seconds: number): string {

@@ -58,7 +58,8 @@ async function show(name: string, edit: (s: AccountState) => void = () => {}) {
 
 describe("sell fills in part", () => {
   it("shows the plan and a preview with what fills, what stays and when more can follow", async () => {
-    const { plan, preview } = await show("sell-fills-in-part");
+    const { plan, preview, asOf } = await show("sell-fills-in-part");
+    expect(asOf).toBe("As of 14:24");
     expect(plan).toMatchObject({
       kind: "card",
       accountId: "you.testnet",
@@ -68,7 +69,7 @@ describe("sell fills in part", () => {
       bigLabel: "can sell now",
       bigSub: null,
       usedLabel: "0 of 7.1M used",
-      refill: "Refills 15:02, in 38 min",
+      refill: "Window resets 15:02, in 38 min",
     });
     expect(preview).toMatchObject({
       title: "Your sell fills in part",
@@ -80,7 +81,7 @@ describe("sell fills in part", () => {
         { label: "NEAR out", value: "1.23 NEAR" },
         { label: "Can sell more after", value: "15:02, in 38 min" },
       ],
-      copy: "Fills 7.1M of 30.0M MOTH now. This is all your allowance lets through. 22.9M MOTH stays in your wallet. You can sell up to 7.1M MOTH more after 15:02.",
+      copy: "Fills 7.1M of 30.0M MOTH now. This is all your allowance lets through. 22.9M MOTH stays in your wallet. You can sell again after 15:02. The new allowance depends on your balance then.",
     });
   });
 
@@ -138,7 +139,7 @@ describe("band with penalty", () => {
 describe("cap full floor", () => {
   it("shows that just the small floor fills and when more can follow", async () => {
     const { plan, preview } = await show("cap-full-floor");
-    expect(plan).toMatchObject({ kind: "card", big: "100K", bigSub: "7.1M again after 15:02, in 38 min" });
+    expect(plan).toMatchObject({ kind: "card", big: "100K", bigSub: "Allowance this window: 7.1M. It resets 15:02, in 38 min." });
     expect(preview).toMatchObject({
       title: "Pool cap is full. Your sell fills just a small floor",
       tone: "limit",
@@ -149,8 +150,55 @@ describe("cap full floor", () => {
         { label: "NEAR out", value: "0.02 NEAR" },
         { label: "Can sell more after", value: "15:02, in 38 min" },
       ],
-      copy: "Fills 100K of 30.0M MOTH now. The pool cap is full for this hour, so just a small floor fills. 29.9M MOTH stays in your wallet. You can sell up to 7.1M MOTH more after 15:02.",
+      copy: "Fills 100K of 30.0M MOTH now. The pool cap is full for this hour, so just a small floor fills. 29.9M MOTH stays in your wallet. You can sell again after 15:02. The new allowance depends on your balance then.",
     });
+  });
+});
+
+describe("a band account below one allowance", () => {
+  it("shows band and the penalty line from fc_account.class, not a small bag", async () => {
+    const { plan } = await show("band-below-one-allowance");
+    expect(plan).toMatchObject({ kind: "card", tags: [{ label: "Mid-size" }, { label: "Can send" }] });
+    expect(allText(plan)).toContain("Sells above 7.1M MOTH in one window pay a penalty.");
+    expect(allText(plan).join(" ")).not.toContain("No limit applies");
+  });
+});
+
+describe("an early-supply holder", () => {
+  it("reads the early-supply allowance and its 24 h reset from fc_account.marked", async () => {
+    const { plan, preview } = await show("early-supply-holder");
+    expect(plan).toMatchObject({
+      kind: "card",
+      tags: [{ label: "Early supply" }, { label: "Can send" }],
+      big: "400K",
+      usedLabel: "200K of 600K early supply used",
+      refill: "Window resets 13:02 tomorrow, in 22 h 38 min",
+      bigSub: "Allowance this window: 600K. It resets 13:02 tomorrow, in 22 h 38 min.",
+    });
+    expect(plan.kind === "card" && plan.usedPct).toBe(33);
+    expect(preview).toMatchObject({
+      lines: expect.arrayContaining([{ label: "Can sell more after", value: "13:02 tomorrow, in 22 h 38 min", tone: "limit" }]),
+    });
+    expect(allText(plan).join(" ")).not.toContain("15:02");
+  });
+
+  it("shows both resets when the account holds early supply and other tokens", async () => {
+    const { plan, preview } = await show("early-supply-holder", (s) => {
+      const a = s.views.fc_account as Record<string, unknown>;
+      a.balance = "8000000000000000000000000";
+      a.unmarked_balance = "3000000000000000000000000";
+      a.unmarked = { allowance: "900000000000000000000000", used: "0", left: "900000000000000000000000", floor_left: "0", window_end_ns: "1794582120000000000" };
+    });
+    expect(plan).toMatchObject({
+      refill: "Window resets 15:02, in 38 min",
+      earlyLine: "Early supply: 400K of 600K left. It resets 13:02 tomorrow, in 22 h 38 min.",
+    });
+    expect(preview && preview.kind === "preview" && preview.lines.map((l) => [l.label, l.value])).toEqual(
+      expect.arrayContaining([
+        ["Early supply can sell more after", "13:02 tomorrow, in 22 h 38 min"],
+        ["Other tokens can sell more after", "15:02, in 38 min"],
+      ]),
+    );
   });
 });
 

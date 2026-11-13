@@ -31,6 +31,7 @@ function drawPlan(p: PlanView): HTMLElement {
     p.bigSub && el("p", { class: "num plan-big-sub" }, p.bigSub),
     el("div", { class: "meter" }, el("div", { class: "meter-used meter-plain", style: `width:${Math.min(100, p.usedPct)}%` })),
     el("div", { class: "plan-used num" }, el("span", {}, p.usedLabel), el("span", {}, p.refill)),
+    p.earlyLine && el("p", { class: "num plan-big-sub", id: "plan-early-line" }, p.earlyLine),
     el("div", { class: "plan-notes" }, ...p.notes.map((n) => el("p", { class: `tone-${n.tone}` }, n.text))),
   );
 }
@@ -85,7 +86,11 @@ export function drawYourPlan(reads: CoinReads): HTMLElement {
       const chain = chainReader(configFromUrl(location.href));
       const loaded = await loadAccountPlan(chain, { accountId, asked });
       const view = yourPlanView({ accountId, symbol, decimals, totalSupply: supply, ...loaded }, { nowNs });
-      result.replaceChildren(drawPlan(view.plan), ...(view.preview ? [drawPreview(view.preview)] : []));
+      result.replaceChildren(
+        el("p", { class: "as-of num muted", id: "plan-as-of" }, view.asOf),
+        drawPlan(view.plan),
+        ...(view.preview ? [drawPreview(view.preview)] : []),
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       result.replaceChildren(el("div", { role: "alert", class: "banner banner-error" }, el("b", {}, "Values cannot load from the chain."), ` ${message}`));

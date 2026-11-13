@@ -66,7 +66,6 @@ describe("normal", () => {
       "Creator group: 3.9% of supply, limit 4.0%",
       "Early supply: 18.4% of supply",
       "Shared allowance per 24 h window: 4.2M MOTH, for all early supply together",
-      "Refills 13:02 tomorrow, in 22 h 38 min",
     ]);
     expect(large!.lines[0]!.text).toBe("2 large holders now");
     expect(cap!.chip).toEqual({ text: "Has room", tone: "plain" });
@@ -106,6 +105,46 @@ describe("normal", () => {
     const href = `${baseHref}&receipt=SellReceipt111111111111111111111111111111111`;
     const view = await ready(recordedCoin("normal"), href);
     expect(view.receipts.map((r) => r.fromAlert)).toEqual([true, false]);
+  });
+});
+
+describe("values read at a time", () => {
+  const later = async (state: string, afterNs: bigint) => {
+    const rec = recordedCoin(state);
+    const data = await loadCoinPage(baseHref, { reader: readerFrom(rec, coin), nowNs: BigInt(rec.now_ns) });
+    const view = coinPageModel(data, { nowNs: BigInt(rec.now_ns) + afterNs, timeZone: "UTC" });
+    if (view.state !== "ready") throw new Error("not ready");
+    return view;
+  };
+
+  it("shows the time the values were read", async () => {
+    const view = await ready(recordedCoin("normal"));
+    expect(view.asOf).toBe("As of 14:24");
+  });
+
+  it("shows the cap as live before the hour ends", async () => {
+    const view = await later("normal", 60n * 1_000_000_000n);
+    const cap = view.who.find((c) => c.id === "cap")!;
+    expect(cap.chip).toEqual({ text: "Has room", tone: "plain" });
+    expect(cap.meter).not.toBeNull();
+    expect(view.refreshAtNs).toBe(1794582120000000000n);
+  });
+
+  it("marks the cap values old after the hour ends and shows no live figure", async () => {
+    const view = await later("normal", 40n * 60n * 1_000_000_000n);
+    const cap = view.who.find((c) => c.id === "cap")!;
+    expect(cap.chip).toEqual({ text: "Old", tone: "limit" });
+    expect(cap.meter).toBeNull();
+    expect(cap.lines.map((l) => l.text)).toEqual(["Read at 14:24 for the hour that ended at 15:02. Reload to read the new hour."]);
+    expect(view.summaryLines.find((l) => l.label === "Pool cap")).toEqual({ label: "Pool cap", value: "Old, reload", tone: "limit" });
+  });
+
+  it("marks the early banner old when the block count it showed is over", async () => {
+    const fresh = await later("early-window-live", 1_000_000_000n);
+    expect(fresh.banner).toMatchObject({ kind: "early", blocksLeft: 12 });
+    const old = await later("early-window-live", 20n * 1_000_000_000n);
+    expect(old.banner).toEqual({ kind: "old", text: "The early window count was read at 14:24 and may be over. Reload to read it." });
+    expect(fresh.refreshAtNs).not.toBeNull();
   });
 });
 

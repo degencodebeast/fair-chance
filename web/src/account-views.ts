@@ -13,6 +13,11 @@ export interface Allowance {
   windowEndNs: bigint;
 }
 
+/** The early-supply allowance of one account (`fc_account.marked`), in the 24 h window. */
+export interface MarkedAllowance extends Allowance {
+  shareBps: number;
+}
+
 export interface Account {
   class: AccountClass;
   balance: bigint;
@@ -24,6 +29,7 @@ export interface Account {
   /** Null for a large account; a view that has no such field is "unavailable". */
   maxReceive: Reading<bigint | null>;
   unmarked: Reading<Allowance>;
+  marked: Reading<MarkedAllowance>;
   maxFullFillNow: Reading<bigint>;
   /** Null for an account that is not in the band. */
   penaltyAppliesAbove: Reading<bigint | null>;
@@ -44,6 +50,11 @@ function allowance(view: string, value: unknown): Allowance {
     floorLeft: r.amount("floor_left"),
     windowEndNs: r.amount("window_end_ns"),
   };
+}
+
+function markedAllowance(value: unknown): MarkedAllowance {
+  const view = "fc_account.marked";
+  return { ...allowance(view, value), shareBps: reader(view, fields(value, view)).count("share_bps") };
 }
 
 function accountClass(text: string): AccountClass {
@@ -68,6 +79,7 @@ export function parseAccount(value: unknown): Account {
       ? UNAVAILABLE
       : { kind: "value", value: f.max_receive === null ? null : r.amount("max_receive") },
     unmarked: has(f, "unmarked") ? { kind: "value", value: allowance("fc_account.unmarked", f.unmarked) } : UNAVAILABLE,
+    marked: has(f, "marked") ? { kind: "value", value: markedAllowance(f.marked) } : UNAVAILABLE,
     maxFullFillNow: has(f, "max_full_fill_now") ? { kind: "value", value: r.amount("max_full_fill_now") } : UNAVAILABLE,
     penaltyAppliesAbove: !has(f, "penalty_applies_above")
       ? UNAVAILABLE
