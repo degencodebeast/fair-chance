@@ -308,6 +308,7 @@ fn the_class_floor_resets_in_the_next_window() {
 }
 
 const LARGE: &str = "large.test";
+const SECOND_LARGE: &str = "second-large.test";
 
 /// A large account that sells down to a bag inside one allowance stays large: it is large until
 /// its balance is zero (ADR 0001), so its sells keep the large rules.
@@ -315,6 +316,7 @@ const LARGE: &str = "large.test";
 fn an_account_that_was_large_and_holds_a_bag_inside_one_allowance_is_still_limited_as_large() {
     let mut coin = Coin::launched();
     coin.buy(LARGE, 10 * ONE_NEAR, after(1));
+    coin.buy(SECOND_LARGE, 10 * ONE_NEAR, after(2));
     assert_eq!(coin.account(LARGE, window_1(0)).class, "large");
     let mut window = 1;
     loop {
@@ -333,8 +335,15 @@ fn an_account_that_was_large_and_holds_a_bag_inside_one_allowance_is_still_limit
     assert!(view.balance > 0 && view.balance <= view.unmarked.allowance);
     assert_eq!(view.class, "large");
     assert_eq!(view.penalty_applies_above, None);
-    let sell = coin.sell(LARGE, view.balance / 2, at);
+    // Another large account fills the cap first; the large sells here hold at the floor.
+    let held = view.balance;
+    let first = coin.sell_all(SECOND_LARGE, at);
+    assert_eq!(first.limit_reason, Some("cap_full"));
+    let sell = coin.sell(LARGE, held, at);
     assert_eq!(sell.class, "large");
+    assert_eq!(sell.fill, "partial");
+    assert!(sell.tokens_sold < held);
+    assert_eq!(sell.limit_reason, Some("floor"));
 }
 
 /// A large account that sells to zero is band for the rest of the window, so a buy in the same
