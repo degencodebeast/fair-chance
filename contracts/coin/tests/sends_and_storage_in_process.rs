@@ -285,3 +285,22 @@ fn a_buy_from_an_account_with_no_storage_record_panics() {
     at("alice.test", ONE_NEAR, 11);
     coin.buy(U128(0));
 }
+
+#[test]
+fn fc_account_max_receive_of_an_account_with_no_record_is_zero_until_it_registers() {
+    let mut coin = launched();
+    buy(&mut coin, "alice.test", ONE_NEAR, 11);
+    assert_eq!(
+        json(coin.fc_account(account("nobody.test")))["max_receive"],
+        "0"
+    );
+    at("alice.test", 1, 12);
+    let sent = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        coin.ft_transfer(account("nobody.test"), U128(1), None);
+    }));
+    assert!(sent.is_err());
+
+    register(&mut coin, "nobody.test", 13);
+    let max_receive = json(coin.fc_account(account("nobody.test")))["max_receive"].clone();
+    assert_eq!(max_receive, "19999999999999999999999999");
+}

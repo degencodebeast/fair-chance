@@ -573,3 +573,16 @@ fn an_unregister_with_no_tokens_and_no_used_allowance_refunds_the_storage_deposi
         Ok(rule_engine::Unregistered::NotRegistered)
     );
 }
+
+#[test]
+fn max_receive_of_an_account_with_no_record_is_zero_because_a_send_to_it_is_refused() {
+    let mut coin = coin_with_a_small_and_a_band_holder();
+    let at = after(20);
+    assert_eq!(coin.account("fresh.test", at).max_receive, Some(0));
+    assert!(coin.send(SMALL, "fresh.test", 1, at).is_err());
+    coin.register("fresh.test");
+    assert_eq!(
+        coin.account("fresh.test", at).max_receive,
+        Some(LARGE_THRESHOLD - 1)
+    );
+}
