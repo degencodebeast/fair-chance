@@ -26,7 +26,7 @@ func Render(v eventsource.PreBuyViews, now time.Time, loc *time.Location) string
 		symbol = "tokens"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s (%s)\nAs of %s.\n\n", telegram.Label(v.Name), telegram.Label(v.Symbol), now.In(loc).Format("15:04"))
+	fmt.Fprintf(&b, "%s (%s)\nAs of %s.\n\n", telegram.Label(v.Name), telegram.Label(v.Symbol), now.In(loc).Format("15:04 MST"))
 
 	if v.CreatorGroupShareBps == nil {
 		fmt.Fprintf(&b, "Creator group: %s\n", notAvailable)
@@ -87,7 +87,7 @@ func near(yocto string) string {
 // whenText writes a time as "15:02", "13:02 tomorrow" or "13:02 on 15 Nov", then ", in 38 min".
 func whenText(at, now time.Time, loc *time.Location) string {
 	at, now = at.In(loc), now.In(loc)
-	text := at.Format("15:04")
+	text := at.Format("15:04 MST")
 	days := daysBetween(now, at)
 	switch {
 	case days == 1:

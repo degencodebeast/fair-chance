@@ -42,6 +42,9 @@ jobs:
       - name: Rule engine and contract tests
         run: cargo test --workspace --locked --exclude fair-chance-sandbox-tests
 
+      - name: Trade replay tests (synthetic fixture; the limits-on run builds a coin example)
+        run: scripts/test-trade-replay.sh
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: watcher/go.mod

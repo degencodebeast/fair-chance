@@ -109,6 +109,7 @@ try {
     await page.waitForSelector("#landing-headline");
     const landing = await page.evaluate(() => ({
       headline: document.querySelector("#landing-headline")?.textContent,
+      pitch: document.querySelector("#landing-headline + .hero-sub")?.textContent,
       openApp: document.querySelector<HTMLAnchorElement>("#open-app")?.getAttribute("href"),
       launchOff: document.querySelector<HTMLButtonElement>("#launch-coin")?.disabled,
       launchReason: document.querySelector("#launch-coin-reason")?.textContent?.trim(),
@@ -116,6 +117,7 @@ try {
       buttonsThatDoNothing: [...document.querySelectorAll("button:not([disabled])")].map((b) => b.textContent),
     }));
     if (landing.headline !== "You buy. The creator dumps on you. You hold the bag.") fail(label, `headline is "${landing.headline}"`);
+    if (landing.pitch !== "Fair Chance slows the dump at launch, inside the coin contract.") fail(label, `the line under the headline is "${landing.pitch}"`);
     if (!/view=coins/.test(landing.openApp ?? "")) fail(label, `Open app goes to ${landing.openApp}`);
     if (landing.launchOff !== true || landing.launchReason !== "Launching signs a transaction. This page does not sign yet.") fail(label, `Launch a coin must be turned off with its reason: ${landing.launchReason}`);
     if (!/^Sample data/.test(landing.proofSample ?? "")) fail(label, "the example receipt has no sample label");

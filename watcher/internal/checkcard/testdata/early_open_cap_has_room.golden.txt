@@ -1,5 +1,5 @@
 Moth Lamp (MOTH)
-As of 13:30.
+As of 13:30 UTC.
 
 Creator group: 4.0% of supply
 Early supply: 5.0% of supply
@@ -9,6 +9,6 @@ Large holders: 1
 Large accounts cannot send.
 
 Pool cap this hour: has room, 0.90 NEAR left of 2.13
-Resets 14:02, in 32 min.
+Resets 14:02 UTC, in 32 min.
 
 Nobody can change these rules.

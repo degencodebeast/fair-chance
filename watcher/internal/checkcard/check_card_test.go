@@ -77,3 +77,28 @@ func TestCreatorGroupWithNoTokensIsWrittenAsZeroPercent(t *testing.T) {
 		t.Fatalf("got:\n%s", got)
 	}
 }
+
+func TestCheckCardNamesItsTimeZone(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("testdata", "normal_cap_full.views.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var byMethod map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &byMethod); err != nil {
+		t.Fatal(err)
+	}
+	views, err := eventsource.ParsePreBuyViews(byMethod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lagos := time.FixedZone("WAT", 3600)
+	got := checkcard.Render(views, utc(2026, 11, 13, 14, 24), lagos)
+	for _, want := range []string{"As of 15:24 WAT.", "until 16:02 WAT, in 38 min.", "Refills 14:02 WAT tomorrow"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if utcCard := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC); !strings.Contains(utcCard, "As of 14:24 UTC.") {
+		t.Errorf("UTC card:\n%s", utcCard)
+	}
+}

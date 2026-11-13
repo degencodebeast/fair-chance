@@ -1,0 +1,15 @@
+seq,seconds_from_launch,slot,wallet,role,side,sol_lamports,token_base_units,signature,venue_sol_reserve_before
+1,0,1000,fixture-wallet-creator,creator,buy,2000000000,67062500000000,fixture-signature-01,30000000000
+2,2,1005,fixture-wallet-funded-a,same-funder-1,buy,973100000,30413000000000,fixture-signature-02,32000000000
+3,2,1005,fixture-wallet-funded-b,same-funder-2,buy,1085700000,28771000000000,fixture-signature-03,33000000000
+4,2,1005,fixture-wallet-big-a,large,buy,5361100000,121370000000000,fixture-signature-04,34000000000
+5,2,1006,fixture-wallet-big-a,large,sell,3882900000,121370000000000,fixture-signature-05,39000000000
+6,45,1110,fixture-wallet-small-a,other,buy,317200000,7000000000000,fixture-signature-06,35000000000
+7,70,1170,fixture-wallet-small-d,other,buy,823100000,19213000000000,fixture-signature-07,35300000000
+8,95,1230,fixture-wallet-small-b,other,buy,209300000,4500000000000,fixture-signature-08,36100000000
+9,300,1800,fixture-wallet-small-c,other,buy,512300000,9310000000000,fixture-signature-13,36420000000
+10,610,2500,fixture-wallet-small-a,other,sell,130000000,2830000000000,fixture-signature-09,36300000000
+11,1900,4800,fixture-wallet-small-d,other,sell,541700000,19213000000000,fixture-signature-10,36150000000
+12,2800,7000,fixture-wallet-creator,creator,sell,2500000000,33531250000000,fixture-signature-11,85000000000
+13,2900,7200,fixture-wallet-small-c,other,sell,441000000,9310000000000,fixture-signature-14,83100000000
+14,3000,7500,fixture-wallet-creator,creator,sell,2200000000,33531250000000,fixture-signature-12,82500000000

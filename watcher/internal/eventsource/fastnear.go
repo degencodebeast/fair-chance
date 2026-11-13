@@ -171,12 +171,12 @@ func (f *FastNear) post(ctx context.Context, path string, body any, out any) err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, f.baseURL+path, bytes.NewReader(raw))
 	if err != nil {
-		return err
+		return errors.New("bad FastNEAR URL")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := f.http.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", path, withoutURL(err))
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
