@@ -1,0 +1,13 @@
+{
+  "FC_CLAIM_NOT_READY": "The creator fee claim is not ready, because the pool must hold the minimum real NEAR for 24 hours and the balance must be above zero.",
+  "FC_CREATOR_CAP": "This would take the creator group above 4% of supply, so try a smaller amount.",
+  "FC_EARLY_WINDOW": "Early supply cannot sell in the early blocks, and selling opens when the early window ends.",
+  "FC_LARGE_CANNOT_SEND": "A large account cannot send tokens until its balance is zero.",
+  "FC_NOT_CREATOR": "The creator account is the one that can claim the creator fees.",
+  "FC_ONE_YOCTO": "Confirm this call in your wallet, because it needs exactly 1 yoctoNEAR attached.",
+  "FC_RECEIVER_WOULD_BE_LARGE": "This send would make the receiver a large holder, so send a smaller amount.",
+  "FC_SEND_TO_COIN": "Do not send tokens to the coin account, and use the sell button to sell.",
+  "FC_SLIPPAGE": "The price moved below your minimum, so try again or lower your minimum.",
+  "FC_TRANSFER_CALL": "This coin does not allow transfer and call, so use a plain send.",
+  "FC_UNREGISTER_WITH_BALANCE": "This account holds tokens or has used allowance, so it cannot unregister now."
+}
