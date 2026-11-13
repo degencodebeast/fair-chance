@@ -656,3 +656,50 @@ fn at_an_exactly_full_cap_a_buy_opens_no_room_for_tokens_the_account_held_before
         "Y part {y_near} > floor {floor_near} + fee room {fee_room}"
     );
 }
+
+/// Tokens bought in the current cap window count toward the cap when they are sold, for every
+/// account, small accounts too. The account's net (counted sells minus buys) offsets them.
+#[test]
+fn a_small_account_with_no_earlier_counted_sell_buys_and_sells_back_at_an_over_full_cap() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    // SMALL sold its whole bag uncounted at window_1(2); now it buys X and sells X back.
+    let at = window_1(3);
+    let used = coin.cap(at).cap_used;
+    coin.buy(SMALL, ONE_NEAR / 10, at);
+    let bought = coin.balance(SMALL);
+    let sell = coin.sell(SMALL, bought, window_1(4));
+    assert_eq!(sell.class, "small");
+    assert_eq!(sell.fill, "full");
+    assert_eq!(sell.limit_reason, None);
+    // The resale pays less than X, so the net stays below zero and adds nothing.
+    assert!(sell.near_out < ONE_NEAR / 10);
+    assert_eq!(coin.cap(window_1(4)).cap_used, used);
+}
+
+#[test]
+fn a_small_account_that_sells_bought_tokens_for_more_than_it_paid_at_a_full_cap_waits_for_the_next_window(
+) {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    let near_in = ONE_NEAR / 10;
+    coin.buy(OTHER, near_in, window_1(2));
+    let bought = coin.balance(OTHER);
+    // A large buy raises the price; SECOND_LARGE then fills the cap the buy opened.
+    coin.buy("pump.test", 4 * ONE_NEAR, window_1(3));
+    coin.sell_all(SECOND_LARGE, window_1(4));
+    assert!(coin.cap(window_1(4)).is_full);
+    let worth = payout_for(&coin, bought, window_1(5));
+    assert!(worth > near_in, "{worth}");
+    assert_eq!(coin.account(OTHER, window_1(5)).class, "small");
+
+    let sell = coin.sell(OTHER, bought, window_1(5));
+    assert_eq!(sell.fill, "partial");
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    // The part above its buy NEAR is held back, up to the room the pool's kept fees add.
+    assert!(sell.near_out >= near_in * 99 / 100, "{}", sell.near_out);
+    assert!(sell.near_out < worth);
+    let excess = sell.near_out.saturating_sub(near_in);
+    assert!(excess <= near_in / 100, "{excess}");
+    // The rest fills in the next window.
+    let next = coin.sell_all(OTHER, after(2 * HOUR_S + 1));
+    assert_eq!(next.fill, "full");
+}

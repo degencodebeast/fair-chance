@@ -815,3 +815,60 @@ fn paper_case_8_a_creator_that_sells_in_the_first_minutes_is_refused_then_limite
     assert_eq!(sold.marked_sold, sold.tokens_sold);
     assert!(sold.tokens_sold <= coin.account(CREATOR, after(180)).marked.allowance);
 }
+
+fn real_near(coin: &Coin, at: At) -> u128 {
+    view_pool(&coin.state, at).real_near
+}
+
+/// The marked account sells all its marked tokens, so a resale of X fills only the X tokens it
+/// bought in the window. They count toward the cap, net of the buy.
+#[test]
+fn a_marked_account_that_sells_buys_x_and_resells_x_counts_the_resale() {
+    let mut coin = Coin::launched();
+    let held = coin.buy(EARLY, ONE_NEAR / 10, block(2)).tokens_out;
+    coin.buy(SECOND_EARLY, ONE_NEAR / 5, block(3));
+    deepen_the_pool(&mut coin, 20);
+    let at = after(HOUR_S + 10);
+    let first = coin.sell(EARLY, held, at);
+    assert_eq!(first.marked_sold, first.tokens_sold);
+    assert!(first.tokens_sold > 0);
+    assert_eq!(cap_used(&coin, at), first.near_out);
+
+    let near_in = ONE_NEAR / 10;
+    let bought = coin.buy(EARLY, near_in, after(HOUR_S + 11));
+    assert_eq!(bought.marked_tokens, 0);
+    assert_eq!(first.tokens_sold, held);
+    assert_eq!(coin.account(EARLY, after(HOUR_S + 11)).marked_balance, 0);
+    let resale = coin.sell(EARLY, bought.tokens_out, after(HOUR_S + 12));
+    assert_eq!(resale.tokens_sold, bought.tokens_out);
+    assert_eq!(resale.marked_sold, 0);
+    let used = cap_used(&coin, after(HOUR_S + 12));
+    assert_eq!(used, first.near_out + resale.near_out - near_in);
+    assert!(used * 10_000 <= 500 * real_near(&coin, after(HOUR_S + 12)));
+}
+
+#[test]
+fn a_marked_account_with_unmarked_tokens_from_before_the_window_counts_a_resale_of_its_buy() {
+    let mut coin = Coin::launched();
+    let marked = coin.buy(EARLY, ONE_NEAR, block(2)).tokens_out;
+    coin.buy(SECOND_EARLY, ONE_NEAR / 5, block(3));
+    deepen_the_pool(&mut coin, 20);
+    let unmarked = coin.buy(EARLY, ONE_NEAR / 5, after(60)).tokens_out;
+    assert_eq!(coin.account(EARLY, after(60)).unmarked_balance, unmarked);
+    let at = after(HOUR_S + 10);
+    let view = coin.account(EARLY, at);
+    let share = view.marked.left.min(view.marked_balance);
+    let first = coin.sell(EARLY, share, at);
+    assert_eq!(first.marked_sold, share);
+    assert_eq!(first.tokens_sold, share);
+
+    let near_in = ONE_NEAR / 10;
+    let bought = coin.buy(EARLY, near_in, after(HOUR_S + 11));
+    let resale = coin.sell(EARLY, bought.tokens_out, after(HOUR_S + 12));
+    assert_eq!(resale.tokens_sold, bought.tokens_out);
+    assert_eq!(resale.marked_sold, 0);
+    assert_eq!(
+        cap_used(&coin, after(HOUR_S + 12)),
+        first.near_out + resale.near_out - near_in
+    );
+}
