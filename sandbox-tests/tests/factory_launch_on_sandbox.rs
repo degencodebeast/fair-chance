@@ -150,3 +150,195 @@ async fn a_launch_on_a_taken_ticker_logs_no_fc_launch_and_leaves_the_first_coin(
     assert!(spent < NearToken::from_millinear(100), "spent {spent}");
     Ok(())
 }
+
+/// The fixed values table of the build spec, as `fc_rules` reports them.
+fn spec_fixed_values() -> serde_json::Value {
+    json!({
+        "virtual_near": "100000000000000000000000000",
+        "p_bps": 200,
+        "window_unmarked_s": 3600,
+        "window_early_s": 86400,
+        "early_blocks": 17,
+        "large_threshold_bps": 200,
+        "creator_cap_bps": 400,
+        "real_cap_c_bps": 500,
+        "floor_bps": 10,
+        "penalty_bps": 1000,
+        "swap_fee_bps": 100,
+        "brake_drop_bps": null,
+        "early_fee_start_bps": 5000,
+        "claim_depth_hold_s": 86400,
+        "creator_fee_share_bps": 3000,
+        "claim_min_real_near": "10000000000000000000000000",
+        "unclaimed_to_pool_s": null,
+    })
+}
+
+/// `fc_rules` without the fields that differ per coin by design.
+fn shared_rules(mut rules: serde_json::Value) -> serde_json::Value {
+    let object = rules.as_object_mut().unwrap();
+    for per_coin in ["creator", "launch_block", "launch_ns", "description"] {
+        object.remove(per_coin);
+    }
+    rules
+}
+
+/// One event's data object without the named fields.
+fn data_without(event: &serde_json::Value, fields: &[&str]) -> serde_json::Value {
+    let mut data = event["data"][0].clone();
+    for field in fields {
+        data.as_object_mut().unwrap().remove(*field);
+    }
+    data
+}
+
+#[tokio::test]
+async fn two_coins_have_equal_fixed_rules_and_independent_state() -> Result<()> {
+    let world = World::launch().await?;
+    let second = world.coin_for("second")?;
+    let launched = world
+        .try_launch(
+            &world.alice,
+            launch_args(
+                "Second",
+                "second",
+                Some(COIN_ICON),
+                Some("Another coin."),
+                None,
+            ),
+            LAUNCH_DEPOSIT,
+        )
+        .await?;
+    assert!(launched.is_success(), "{launched:?}");
+
+    let first_rules = world.view(&world.coin, "fc_rules", json!({})).await?;
+    let second_rules = world.view(&second, "fc_rules", json!({})).await?;
+    assert_eq!(
+        shared_rules(first_rules.clone()),
+        shared_rules(second_rules.clone())
+    );
+    assert_eq!(second_rules["code_hash"], world.coin_code_hash.to_string());
+    for (name, value) in spec_fixed_values().as_object().unwrap() {
+        assert_eq!(&first_rules[name], value, "fc_rules.{name}");
+    }
+    assert_eq!(second_rules["creator"], world.alice.id.to_string());
+    assert_eq!(second_rules["description"], "Another coin.");
+    assert_ne!(first_rules["launch_block"], second_rules["launch_block"]);
+
+    let second_pool = world.view(&second, "fc_pool", json!({})).await?;
+    let _bought = world
+        .call(
+            &world.creator,
+            &world.coin,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            NearToken::from_near(1),
+        )
+        .await?;
+    let first_pool = world.view(&world.coin, "fc_pool", json!({})).await?;
+    assert_eq!(
+        first_pool["real_near"],
+        NearToken::from_near(1).as_yoctonear().to_string()
+    );
+    let second_pool_after = world.view(&second, "fc_pool", json!({})).await?;
+    assert_eq!(
+        data_without(&json!({ "data": [second_pool] }), &["block"]),
+        data_without(&json!({ "data": [second_pool_after] }), &["block"]),
+    );
+    let balance_on_second = world
+        .view(
+            &second,
+            "ft_balance_of",
+            json!({ "account_id": world.creator.id }),
+        )
+        .await?;
+    assert_eq!(balance_on_second, "0");
+    Ok(())
+}
+
+#[tokio::test]
+async fn coin_methods_called_by_the_factory_give_the_same_result_as_for_any_account() -> Result<()>
+{
+    let world = World::launch().await?;
+    let other = world.coin_for("other")?;
+    let launched = world
+        .try_launch(
+            &world.alice,
+            launch_args("Other", "other", None, None, None),
+            LAUNCH_DEPOSIT,
+        )
+        .await?;
+    assert!(launched.is_success(), "{launched:?}");
+
+    // Same pool state on both coins, both after the early window, so only the caller differs:
+    // the factory (parent of the first coin) and the creator account (outside the second
+    // coin's creator group).
+    let early_blocks = 17;
+    let last_launch = world.view(&other, "fc_rules", json!({})).await?["launch_block"]
+        .as_u64()
+        .unwrap();
+    world
+        .wait_for_height(last_launch + early_blocks + 2)
+        .await?;
+
+    let one_near = NearToken::from_near(1);
+    let factory_buy = world
+        .call(
+            &world.factory,
+            &world.coin,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            one_near,
+        )
+        .await?;
+    let other_buy = world
+        .call(
+            &world.creator,
+            &other,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            one_near,
+        )
+        .await?;
+    let factory_buy = &events(&factory_buy, "fair_chance", "fc_buy")[0].event;
+    let other_buy = &events(&other_buy, "fair_chance", "fc_buy")[0].event;
+    assert_eq!(
+        data_without(factory_buy, &["account", "block"]),
+        data_without(other_buy, &["account", "block"])
+    );
+
+    for (caller, coin) in [(&world.factory, &world.coin), (&world.creator, &other)] {
+        let failure = world
+            .call_refused(
+                caller,
+                coin,
+                "sell",
+                json!({ "amount": "1", "min_near_out": "0" }),
+                NearToken::from_yoctonear(0),
+            )
+            .await?;
+        assert!(failure.contains("FC_ONE_YOCTO"), "{failure}");
+    }
+
+    let mut sells = Vec::new();
+    for (caller, coin) in [(&world.factory, &world.coin), (&world.creator, &other)] {
+        let balance = world
+            .view(coin, "ft_balance_of", json!({ "account_id": caller.id }))
+            .await?;
+        let sold = world
+            .call(
+                caller,
+                coin,
+                "sell",
+                json!({ "amount": balance, "min_near_out": "0" }),
+                NearToken::from_yoctonear(1),
+            )
+            .await?;
+        sells.push(events(&sold, "fair_chance", "fc_sell")[0].event.clone());
+    }
+    assert_eq!(
+        data_without(&sells[0], &["account", "window_end_ns"]),
+        data_without(&sells[1], &["account", "window_end_ns"])
+    );
+    Ok(())
+}
