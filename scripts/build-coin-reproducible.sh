@@ -4,7 +4,7 @@
 # coin's contract_source_metadata against that wasm.
 # Output in target/near-reproducible/fair_chance_coin/: fair_chance_coin.wasm,
 # built-commit.txt and cargo-near-sha256-base58.txt (the checksum cargo-near printed).
-# Needs Docker. The build ignores uncommitted changes, so the script refuses a dirty tree.
+# Needs Docker. The build reads committed source only, so the script refuses a dirty tree.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -23,8 +23,14 @@ out="target/near-reproducible/fair_chance_coin"
 rm -rf "$out"
 mkdir -p "$out"
 commit="$(git rev-parse HEAD)"
-log="$out/cargo-near-build.log"
-cargo near build reproducible-wasm --manifest-path contracts/coin/Cargo.toml --out-dir "$out" 2>&1 | tee "$log"
+log="$PWD/$out/cargo-near-build.log"
+# cargo-near opens the main repository of a git worktree, not the worktree itself, and so
+# builds the wrong commit. Build from a plain clone of HEAD instead.
+clone="$(mktemp -d)"
+trap 'rm -rf "$clone"' EXIT
+git clone --quiet --no-local . "$clone/fair-chance"
+git -C "$clone/fair-chance" checkout --quiet --detach "$commit"
+(cd "$clone/fair-chance" && cargo near build reproducible-wasm --manifest-path contracts/coin/Cargo.toml --out-dir "$OLDPWD/$out") 2>&1 | tee "$log"
 
 # cargo-near prints "Binary checksum (base58): <hash>"; the hash is the code hash on chain.
 hash="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | awk '/sha256/ && /[Bb]ase58/ {print $NF}' | tail -1)"
