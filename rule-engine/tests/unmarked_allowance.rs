@@ -330,3 +330,29 @@ fn fc_quote_sell_equals_the_real_sell_for_full_partial_and_empty_fills() {
     assert_quote_equals_sell(&mut coin, LARGE, allowance, at_ns(window_1 + 1));
     assert_quote_equals_sell(&mut coin, LARGE, allowance, at_ns(window_1 + 2));
 }
+
+#[test]
+fn fc_account_max_full_fill_now_of_a_large_account_is_a_sell_that_fills_in_full() {
+    let mut coin = coin_with_a_large_holder();
+    let at = after(HOUR_NS / 1_000_000_000 + 10);
+    let view = coin.account(LARGE, at);
+    assert!(view.max_full_fill_now < view.balance);
+    let sold = coin.sell(LARGE, view.max_full_fill_now, at);
+    assert_eq!(sold.fill, "full");
+    assert_eq!(sold.tokens_sold, view.max_full_fill_now);
+}
+
+#[test]
+fn fc_quote_buy_allowance_after_equals_fc_account_unmarked_allowance_after_the_buy() {
+    let quoted = Coin::launched();
+    let at = after(10);
+    let quote = rule_engine::quote_buy(&quoted.state, Holders::new(), SMALL, ONE_NEAR / 10, at)
+        .expect("quote");
+    let mut bought = Coin::launched();
+    bought.buy(SMALL, ONE_NEAR / 10, at);
+    assert_eq!(quote.allowance_after, ALLOWANCE_AT_LAUNCH);
+    assert_eq!(
+        quote.allowance_after,
+        bought.account(SMALL, at).unmarked.allowance
+    );
+}
