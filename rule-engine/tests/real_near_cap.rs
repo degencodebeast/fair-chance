@@ -794,3 +794,36 @@ fn at_a_full_cap_a_small_account_that_bought_in_the_window_cannot_sell_its_whole
     let quote = coin.quote(SMALL, view.balance, at);
     assert_eq!(quote.limit_reason, Some("cap_full"));
 }
+
+/// A small account with no floor buys twice in the window and sells once. Its bought tokens count
+/// above the total NEAR it paid for both buys, and fill only as far as the cap room allows.
+#[test]
+fn a_small_account_that_buys_twice_and_sells_once_counts_the_part_above_all_the_near_it_paid() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    for i in 0..8 {
+        coin.buy(&format!("wallet-{i}.test"), ONE_NEAR / 2, after(11 + i));
+    }
+    let at = window_1(1);
+    coin.sell_all(LARGE, at);
+    for i in 0..8 {
+        coin.sell_all(&format!("wallet-{i}.test"), at);
+    }
+    let (first_buy, second_buy) = (ONE_NEAR / 4, ONE_NEAR / 4);
+    coin.buy(SMALL, first_buy, at);
+    coin.buy(SMALL, second_buy, at);
+    coin.buy(OTHER, 2 * ONE_NEAR, at);
+    let used_before = coin.cap(at).cap_used;
+    assert!(coin.cap(at).is_full);
+    let view = coin.account(SMALL, at);
+    assert_eq!(view.class, "small");
+    assert!(view.max_full_fill_now < view.balance);
+
+    let sell = coin.sell_all(SMALL, at);
+
+    // The sell pays the NEAR of both buys and not more: the part above it counts and is held.
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    assert_eq!(sell.tokens_sold, view.max_full_fill_now);
+    assert_eq!(sell.near_out, first_buy + second_buy);
+    assert_eq!(coin.cap(at).cap_used, used_before);
+}
