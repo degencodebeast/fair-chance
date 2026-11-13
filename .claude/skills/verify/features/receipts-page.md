@@ -25,6 +25,8 @@ Preconditions:
 - **Browser read.** The runner runs `node web/scripts/read-receipt-in-browser.ts "?coin=..&rpc=..&factory=..&code_hash=.." <receipt id> <evidence>/receipts-page.png`. The log shows `walking-path:   browser ("<Chrome version>") row: "Block <n>: <row text>"`, then the stats, the code hash and the three account checks (all `pass`).
 - **Proof.** `receipts-page.png` shows the coin page with the stats row, the card "Who can sell how fast", the receipt row and the rules.
 
+- **Testnet link in the browser.** The runner runs `node web/scripts/check-testnet-link-in-browser.ts`: Chrome opens a `?network=testnet` link with every outside host stubbed from a recorded state, and the page must load and read only from the fixed RPC and FastNEAR hosts.
+
 ## Gotchas
 
 - The sell must be final before the scan; the runner waits for that (`the sell is final at block <n>`).

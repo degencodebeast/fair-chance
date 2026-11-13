@@ -55,6 +55,14 @@ describe("a local sandbox may give the RPC URL, factory and code hash", () => {
     expect(configFromUrl(link(`rpc=${enc("http://127.0.0.1:53021")}`))).toEqual({ coin, rpcUrl: "http://127.0.0.1:53021" });
   });
 
+  it("takes a link FastNEAR URL only for a local host", () => {
+    const sandbox = enc("http://localhost:3030");
+    expect(resolvePageLink(link(`rpc=${sandbox}&fastnear=${enc("http://127.0.0.1:4040")}`)).fastNearUrl).toBe("http://127.0.0.1:4040");
+    for (const bad of ["https://evil.example", "http://localhost.evil.example", "http://127.0.0.1@evil.example"]) {
+      expect(resolvePageLink(link(`rpc=${sandbox}&fastnear=${enc(bad)}`)).fastNearUrl).toBeUndefined();
+    }
+  });
+
   it("does not let a network link pick local anchors", () => {
     const r = resolvePageLink(link(`network=testnet${evilAnchors}`));
     expect(r.known.factory).toBe(KNOWN_NETWORKS.testnet.factory);

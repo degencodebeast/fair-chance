@@ -88,7 +88,9 @@ async function accountTxsSince(read: FastNearRead): Promise<AccountTx[]> {
 }
 
 async function post<T>(read: FastNearRead, path: string, body: object): Promise<T> {
-  const resp = await read.fetchFn(read.baseUrl + path, {
+  // Call fetch with no receiver: window.fetch throws "Illegal invocation" when called as a method of `read`.
+  const { fetchFn } = read;
+  const resp = await fetchFn(read.baseUrl + path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),

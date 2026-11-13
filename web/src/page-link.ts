@@ -48,7 +48,9 @@ export function resolvePageLink(href: string): PageLink {
     throw new Error("the page URL needs &network=testnet (a link may give &rpc=<URL> only for a local sandbox)");
   }
   const rpcUrl = params.get("rpc")!;
-  const fastNearUrl = params.get("fastnear");
+  // The FastNEAR URL follows the same rule as the RPC URL: a link may give it only for a local host.
+  const fastNear = params.get("fastnear");
+  const fastNearUrl = localSandboxUrl(fastNear) !== null ? fastNear : null;
   return {
     coin,
     rpcUrl,
