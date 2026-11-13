@@ -17,6 +17,8 @@ type Event struct {
 	Coin      string          // account that executed the receipt
 	ReceiptID string          // receipt that logged the event
 	Block     uint64          // height of the block that included the transaction
+	TxHash    string          // the transaction that led to the receipt
+	TxSigner  string          // its signer (the RPC tx status call needs it)
 	Data      json.RawMessage // the single object in data[0]
 }
 

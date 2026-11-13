@@ -19,6 +19,8 @@ async fn an_unreachable_rpc_is_an_unknown_result_not_a_missing_account() {
         },
         factory: "factory.sandbox".parse().unwrap(),
         ticker: "optiont".into(),
+        name: "Option T".into(),
+        description: "Option T demo coin.".into(),
         buyers: 20,
         buy_near: NearToken::from_near(1),
         buyer_extra: NearToken::from_millinear(500),

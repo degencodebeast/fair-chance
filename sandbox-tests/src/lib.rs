@@ -5,6 +5,7 @@
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
 pub mod amount_text;
+pub mod factory_deploy;
 pub mod option_t;
 pub mod page_and_watcher_reads;
 pub mod pass_list;
@@ -729,6 +730,41 @@ pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Resu
 /// (`LaunchScanMarginBlocks` in watcher/internal/eventsource/source.go, `LAUNCH_SCAN_MARGIN_BLOCKS`
 /// in web/src/chain.ts). The launch transaction must sit inside this margin.
 pub const LAUNCH_SCAN_MARGIN_BLOCKS: u64 = 10;
+
+/// The hash of the transaction (from its first outcome).
+pub fn transaction_hash(result: &TransactionResult) -> Result<CryptoHash> {
+    let TransactionResult::Full(full) = result else {
+        bail!("the transaction has no execution result yet")
+    };
+    Ok(full
+        .outcomes()
+        .first()
+        .context("the transaction has no outcome")?
+        .transaction_hash)
+}
+
+/// A fresh sandbox with these genesis accounts (each with its own generated key), for tests that
+/// deploy their own contracts. The binary comes from `NEAR_SANDBOX_BIN_PATH`.
+pub async fn sandbox_with_accounts(
+    names: &[&str],
+) -> Result<(Sandbox, NetworkConfig, Vec<Account>)> {
+    check_sandbox_binary()?;
+    let mut genesis_accounts = Vec::new();
+    let mut accounts = Vec::new();
+    for name in names {
+        let (g, a) = genesis(name)?;
+        genesis_accounts.push(g);
+        accounts.push(a);
+    }
+    let sandbox = Sandbox::start_sandbox_with_config(SandboxConfig {
+        additional_accounts: genesis_accounts,
+        additional_config: Some(json!({ "gc_num_epochs_to_keep": 10_000 })),
+        ..Default::default()
+    })
+    .await?;
+    let network = NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+    Ok((sandbox, network, accounts))
+}
 
 /// The hash of the block that included the transaction itself (its first outcome).
 pub fn transaction_block_hash(result: &TransactionResult) -> Result<CryptoHash> {

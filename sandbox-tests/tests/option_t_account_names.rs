@@ -3,9 +3,7 @@
 //! as BAG then gives the symbol BAG and the accounts bag.<factory>, bag-creator.<funder> and
 //! bag-buyer-01.<funder>.
 
-use fair_chance_sandbox_tests::option_t::{
-    buyer_account_ids, coin_account_id, creator_account_id,
-};
+use fair_chance_sandbox_tests::option_t::{buyer_account_ids, coin_account_id, creator_account_id};
 use near_api::types::AccountId;
 
 fn id(s: &str) -> AccountId {

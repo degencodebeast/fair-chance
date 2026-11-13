@@ -54,7 +54,8 @@ type accountTx struct {
 
 type fastNearTx struct {
 	Transaction struct {
-		Hash string `json:"hash"`
+		Hash     string `json:"hash"`
+		SignerID string `json:"signer_id"`
 	} `json:"transaction"`
 	Receipts []struct {
 		Receipt struct {
@@ -120,6 +121,7 @@ func eventsOfTx(tx fastNearTx, coin string, height uint64, seen map[string]bool)
 		for _, line := range r.ExecutionOutcome.Outcome.Logs {
 			if ev, ok := parseLog(line); ok {
 				ev.Coin, ev.ReceiptID, ev.Block = coin, r.Receipt.ReceiptID, height
+				ev.TxHash, ev.TxSigner = tx.Transaction.Hash, tx.Transaction.SignerID
 				out = append(out, ev)
 			}
 		}

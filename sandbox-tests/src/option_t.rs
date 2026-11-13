@@ -20,7 +20,7 @@ use tokio::task::JoinSet;
 use crate::amount_text::{amount, near, tokens};
 use crate::pass_list::PassList;
 use crate::{
-    batch_on_with_gas, events, launch_args, transact, transact_with_gas, view_on,
+    batch_on_with_gas, events, launch_args, transact, transact_with_gas, transaction_hash, view_on,
     wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
 };
 
@@ -41,6 +41,8 @@ pub enum DemoNetwork {
 pub struct OptionTArguments {
     pub network: Option<String>,
     pub ticker: Option<String>,
+    pub name: Option<String>,
+    pub description: Option<String>,
     pub buy_millinear: Option<u64>,
     pub buyer_extra_millinear: Option<u64>,
     pub buyer_tgas: Option<u64>,
@@ -65,6 +67,8 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
         let taken = match flag.as_str() {
             "--network" => parsed.network.is_some(),
             "--ticker" => parsed.ticker.is_some(),
+            "--name" => parsed.name.is_some(),
+            "--description" => parsed.description.is_some(),
             "--buy-millinear" => parsed.buy_millinear.is_some(),
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear.is_some(),
             "--buyer-tgas" => parsed.buyer_tgas.is_some(),
@@ -87,6 +91,8 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
         match flag.as_str() {
             "--network" => parsed.network = Some(value.clone()),
             "--ticker" => parsed.ticker = Some(value.clone()),
+            "--name" => parsed.name = Some(value.clone()),
+            "--description" => parsed.description = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,
@@ -132,8 +138,12 @@ pub struct OptionTSetup {
     pub funder: Account,
     /// The factory that launches the coin.
     pub factory: AccountId,
-    /// Ticker of the coin; the coin account is `<ticker>.<factory>`.
+    /// Ticker of the coin, kept as given for the symbol; the coin account is
+    /// `<lowercase ticker>.<factory>`, as the factory makes it.
     pub ticker: String,
+    /// Name and description of the coin (`ft_metadata.name`, `fc_rules.description`).
+    pub name: String,
+    pub description: String,
     pub buyers: usize,
     /// NEAR each buyer pays in its one buy.
     pub buy_near: NearToken,
@@ -147,7 +157,26 @@ pub struct OptionTSetup {
 }
 
 /// NEAR the creator gets on top of the launch deposit, for the gas of `launch` (300 TGas).
-const CREATOR_EXTRA: NearToken = NearToken::from_millinear(500);
+pub const CREATOR_EXTRA: NearToken = NearToken::from_millinear(500);
+/// NEAR an Option T run moves from the funder into the new accounts: the creator's launch
+/// deposit and [`CREATOR_EXTRA`], and each buyer's buy and extra.
+pub fn funding(
+    launch_deposit: NearToken,
+    buy_near: NearToken,
+    buyer_extra: NearToken,
+    buyers: usize,
+) -> NearToken {
+    let buyer = buy_near.saturating_add(buyer_extra);
+    launch_deposit
+        .saturating_add(CREATOR_EXTRA)
+        .saturating_add(NearToken::from_yoctonear(
+            buyer.as_yoctonear() * buyers as u128,
+        ))
+}
+
+/// The coin name and description when the run gets no `--name` or `--description`.
+pub const DEFAULT_NAME: &str = "Option T";
+pub const DEFAULT_DESCRIPTION: &str = "Option T demo coin.";
 
 impl OptionTSetup {
     /// The default run on a sandbox World: funder bob, the World's factory, 1 NEAR buys.
@@ -157,6 +186,8 @@ impl OptionTSetup {
             funder: world.bob.clone(),
             factory: world.factory.id.clone(),
             ticker: ticker.to_string(),
+            name: DEFAULT_NAME.to_string(),
+            description: DEFAULT_DESCRIPTION.to_string(),
             buyers,
             buy_near: NearToken::from_near(1),
             buyer_extra: NearToken::from_millinear(500),
@@ -166,7 +197,18 @@ impl OptionTSetup {
     }
 
     fn coin(&self) -> Result<AccountId> {
-        sub_account(&self.ticker, &self.factory)
+        coin_account_id(&self.ticker, &self.factory)
+    }
+
+    /// NEAR the run moves from the funder into the new accounts: the creator's launch deposit and
+    /// gas, and each buyer's buy and extra. Gas the funder burns itself is not in it.
+    pub fn funding(&self) -> NearToken {
+        funding(
+            self.launch_deposit,
+            self.buy_near,
+            self.buyer_extra,
+            self.buyers,
+        )
     }
 }
 
@@ -196,13 +238,19 @@ fn sub_account(name: &str, parent: &AccountId) -> Result<AccountId> {
     Ok(format!("{name}.{parent}").parse()?)
 }
 
-/// The creator account: `<ticker>-creator.<funder>`.
-pub fn creator_account_id(ticker: &str, funder: &AccountId) -> Result<AccountId> {
-    sub_account(&format!("{ticker}-creator"), funder)
+/// The coin account the factory makes: `<lowercase ticker>.<factory>`.
+pub fn coin_account_id(ticker: &str, factory: &AccountId) -> Result<AccountId> {
+    sub_account(&ticker.to_lowercase(), factory)
 }
 
-/// The buyer accounts: `<ticker>-buyer-01.<funder>` to `<ticker>-buyer-<n>.<funder>`.
+/// The creator account: `<lowercase ticker>-creator.<funder>`.
+pub fn creator_account_id(ticker: &str, funder: &AccountId) -> Result<AccountId> {
+    sub_account(&format!("{}-creator", ticker.to_lowercase()), funder)
+}
+
+/// The buyer accounts: `<lowercase ticker>-buyer-01.<funder>` to `...-buyer-<n>.<funder>`.
 pub fn buyer_account_ids(ticker: &str, funder: &AccountId, n: usize) -> Result<Vec<AccountId>> {
+    let ticker = ticker.to_lowercase();
     (1..=n)
         .map(|i| sub_account(&format!("{ticker}-buyer-{i:02}"), funder))
         .collect()
@@ -338,10 +386,10 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         &setup.factory,
         "launch",
         launch_args(
-            "Option T",
+            &setup.name,
             &setup.ticker,
             None,
-            Some("Option T demo coin."),
+            Some(&setup.description),
             None,
         ),
         setup.launch_deposit,
@@ -350,6 +398,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     if events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
         bail!("the launch logged no fc_launch: {launched:?}");
     }
+    say(&format!("launch tx {}", transaction_hash(&launched)?));
     let storage = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
     let storage_min: u128 = storage["min"].as_str().context("storage min")?.parse()?;
 
@@ -408,10 +457,11 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         let data = buy.event["data"][0].clone();
         let block = data["block"].as_u64().context("fc_buy.block")? - launch_block;
         println!(
-            "option-t:   buy  {} block {block:>2}: {} tokens, {} marked",
+            "option-t:   buy  {} block {block:>2}: {} tokens, {} marked, tx {}",
             buyer.id,
             tokens(amount(&data["tokens_out"])?),
-            tokens(amount(&data["marked_tokens"])?)
+            tokens(amount(&data["marked_tokens"])?),
+            transaction_hash(result)?
         );
         buy_blocks.push(block);
         buy_events.push(data);
@@ -515,8 +565,9 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             .with_context(|| format!("{} logged no fc_sell: {result:?}", buyer.id))?;
         let data = sell.event["data"][0].clone();
         println!(
-            "option-t:   sell {} receipt {}: asked {}, sold {} (marked {}) for {}, fill {}, limit_reason {}",
+            "option-t:   sell {} tx {} receipt {}: asked {}, sold {} (marked {}) for {}, fill {}, limit_reason {}",
             buyer.id,
+            transaction_hash(result)?,
             sell.receipt_id,
             tokens(amount(&data["tokens_asked"])?),
             tokens(amount(&data["tokens_sold"])?),

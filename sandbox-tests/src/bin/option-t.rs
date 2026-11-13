@@ -13,7 +13,10 @@
 //!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
 //!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
 //!   --launch-deposit-millinear <n>    NEAR the creator attaches to launch (default 5000)
-//!   --ticker <ticker>                 coin ticker (default optiont)
+//!   --ticker <ticker>                 coin ticker, kept as given for the symbol; accounts use it
+//!                                     in lowercase (default optiont)
+//!   --name <name>                     coin name (default "Option T")
+//!   --description <text>              coin description (default "Option T demo coin.")
 //!
 //! Testnet reads FC_TESTNET_RPC_URL, FC_TESTNET_FACTORY and FC_TESTNET_FUNDER, and loads the
 //! funder's key from the system keychain (build with `--features testnet-keychain`;
@@ -59,6 +62,12 @@ async fn start(list: &mut PassList) -> Result<()> {
         setup.buyer_gas = NearGas::from_tgas(args.buyer_tgas.unwrap_or(300));
         setup.launch_deposit =
             NearToken::from_millinear(args.launch_deposit_millinear.unwrap_or(5000).into());
+        if let Some(name) = &args.name {
+            setup.name = name.clone();
+        }
+        if let Some(description) = &args.description {
+            setup.description = description.clone();
+        }
     };
     let world;
     let mut setup = match network {
@@ -113,6 +122,8 @@ async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
         funder: fair_chance_sandbox_tests::Account { id: funder, signer },
         factory,
         ticker: ticker.to_string(),
+        name: fair_chance_sandbox_tests::option_t::DEFAULT_NAME.to_string(),
+        description: fair_chance_sandbox_tests::option_t::DEFAULT_DESCRIPTION.to_string(),
         buyers: BUYERS,
         buy_near: NearToken::from_near(1),
         buyer_extra: NearToken::from_millinear(500),

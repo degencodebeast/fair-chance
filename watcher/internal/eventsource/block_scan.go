@@ -115,6 +115,7 @@ func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]E
 					for _, line := range r.Outcome.Logs {
 						if ev, ok := parseLog(line); ok {
 							ev.Coin, ev.ReceiptID, ev.Block = r.Outcome.ExecutorID, r.ID, h
+							ev.TxHash, ev.TxSigner = tx.Hash, tx.SignerID
 							out = append(out, ev)
 						}
 					}
