@@ -98,14 +98,6 @@ p { margin: 0; }
   #app { padding: 12px; gap: 12px; }
   h1 { font-size: 28px; }
   .summary-lines { display: block; }
-  /* Phone card order: lines, plan, who, receipts, rules. The trade box, fees, chart and holders go
-     in their places when they exist. Everything else keeps its place in the page order. */
-  #your-plan { order: 1; }
-  #who-can-sell { order: 2; }
-  #receipts-section { order: 4; }
-  #price-chart { order: 5; }
-  #holders { order: 6; }
-  #rules { order: 7; }
   .receipt { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .rules-grid { grid-template-columns: minmax(0, 1fr); }
   .rules-grid dd { text-align: left; }
@@ -133,3 +125,37 @@ p { margin: 0; }
 .preview-lines dt { font-family: var(--font-body); color: var(--muted); }
 .preview-lines dd { margin: 0; text-align: right; }
 .preview-copy { padding-top: 10px; border-top: 2px solid var(--ink); font-size: 14px; }
+
+/* Coin page grid: two columns on a desktop, one on a phone (the phone areas are in the media query above). */
+.coin-page-grid { display: grid; gap: 20px; align-items: start; grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "fees fees" "who plan" "chart sell" "receipts sell" "holders holders" "rules rules"; }
+.coin-page-grid > * { min-width: 0; }
+#summary-lines { grid-area: lines; }
+#creator-fees { grid-area: fees; }
+#who-can-sell { grid-area: who; }
+#your-plan { grid-area: plan; }
+#trade-box { grid-area: sell; }
+#price-chart { grid-area: chart; }
+#receipts-section { grid-area: receipts; }
+#holders { grid-area: holders; }
+#rules { grid-area: rules; }
+
+/* Trade box and creator fee claim panel */
+.trade-box { display: flex; flex-direction: column; gap: 12px; }
+.trade-connect-prompt { font: 700 16px/1.4 var(--font-body); }
+.off-control { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--ink); border-radius: 24px; padding: 3px; }
+.tab { border: 0; border-radius: 20px; min-height: 44px; font: 800 16px var(--font-body); cursor: pointer; background: transparent; color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.trade-panel { display: flex; flex-direction: column; gap: 12px; }
+.trade-panel[hidden] { display: none; }
+.warning-box { border: 2px solid var(--limit); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.text-link { color: var(--ink); font-weight: 700; text-underline-offset: 3px; }
+.claim-panel { display: flex; flex-direction: column; gap: 10px; }
+.claim-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.claim-amount { font-size: 18px; font-weight: 600; }
+.claim-progress { display: flex; align-items: center; gap: 10px; max-width: 420px; }
+.claim-progress .meter { flex: 1; margin-top: 0; }
+@media (max-width: 720px) {
+  /* v5 phone order: lines, trade box, your plan, who can sell, fees, receipts, chart, holders, rules. */
+  .coin-page-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; grid-template-areas: "lines" "sell" "plan" "who" "fees" "receipts" "chart" "holders" "rules"; }
+}

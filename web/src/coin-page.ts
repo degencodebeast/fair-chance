@@ -1,6 +1,7 @@
 // Loads everything the coin page shows, through the chain-read module only. The result is either
 // all of it or an error: when any read fails, no number from an earlier or partial read is kept.
 import { chainReader, configFromUrl, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
+import { parseCreatorFees, type CreatorFees } from "./creator-fees.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
 import { resolvePageLink, sourceLabel } from "./page-link.ts";
 import {
@@ -30,6 +31,7 @@ export interface CoinReads {
   pool: Reading<Pool>;
   earlyWindow: Reading<EarlyWindow>;
   cap: Reading<Cap>;
+  creatorFees: Reading<CreatorFees>;
   totalSupply: Reading<bigint>;
   metadata: Reading<TokenMetadata>;
   events: CoinEvent[];
@@ -62,16 +64,17 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
     const cfg = configFromUrl(href);
     const reader = load.reader ?? chainReader(cfg, load.fetchFn);
     const rules = parseRules(await reader.view("fc_rules"));
-    const [pool, earlyWindow, cap, totalSupply, metadata, checks, scan] = await Promise.all([
+    const [pool, earlyWindow, cap, creatorFees, totalSupply, metadata, checks, scan] = await Promise.all([
       optional(() => reader.view("fc_pool"), parsePool),
       optional(() => reader.view("fc_early_window"), parseEarlyWindow),
       optional(() => reader.view("fc_cap"), parseCap),
+      optional(() => reader.view("fc_creator_fees"), parseCreatorFees),
       optional(() => reader.view("ft_total_supply"), parseTotalSupply),
       optional(() => reader.view("ft_metadata"), parseMetadata),
       runCoinChecks(reader, cfg.coin, link.known),
       reader.events(rules.launchBlock),
     ]);
-    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, totalSupply, metadata, events: scan.events, checks };
+    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
     return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href) };

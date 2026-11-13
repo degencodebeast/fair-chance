@@ -115,3 +115,20 @@ pre { margin: 6px 0 0; font: 400 12.5px/1.55 var(--font-num); white-space: pre-w
   .holder-tags, .holder-now, .holder-send { grid-column: 1 / -1; }
   .holder-send::before { content: "Can send "; color: var(--muted); }
 }
+
+/* Launch form */
+.launch-grid { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+.launch-form { display: flex; flex-direction: column; gap: 18px; padding: 24px; }
+.launch-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.launch-field input, .launch-buy-row { border: 2px solid var(--ink); border-radius: 14px; padding: 12px 14px; font: 500 16px var(--font-body); background: var(--paper); color: var(--ink); min-width: 0; }
+.launch-buy-row { display: flex; align-items: center; gap: 8px; max-width: 320px; padding: 10px 14px; }
+.launch-buy-row input { border: 0; padding: 0; font: 600 18px var(--font-num); width: 100%; }
+.launch-picture { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.launch-errors { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.launch-errors:empty { display: none; }
+#launch-preview { display: flex; flex-direction: column; gap: 8px; position: sticky; top: 20px; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .launch-grid { grid-template-columns: minmax(0, 1fr); }
+  .launch-form { padding: 16px; }
+  #launch-preview { position: static; }
+}

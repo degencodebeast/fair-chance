@@ -19,7 +19,7 @@ describe("which screen a page link opens", () => {
     expect(screenFor(`${base}?view=alerts&coin=moth.factory.testnet&network=testnet`)).toBe("alerts");
   });
   it("falls back to the landing screen for a view it does not know", () => {
-    expect(screenFor(`${base}?view=launch`)).toBe("landing");
+    expect(screenFor(`${base}?view=nothing`)).toBe("landing");
   });
 });
 

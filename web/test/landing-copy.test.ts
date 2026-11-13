@@ -30,6 +30,6 @@ describe("landing copy", () => {
   });
 
   it("has no buttons that do nothing: every action names the screen it opens", () => {
-    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["coins", "launch-off", "rules"]);
+    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["coins", "launch", "rules"]);
   });
 });

@@ -127,7 +127,7 @@ try {
     const top = (id: string) => document.querySelector(id)?.getBoundingClientRect().top ?? null;
     return {
       width: document.documentElement.scrollWidth,
-      order: ["#summary-lines", "#your-plan", "#who-can-sell", "#receipts-section", "#rules"].map(top),
+      order: ["#summary-lines", "#trade-box", "#your-plan", "#who-can-sell", "#creator-fees", "#receipts-section", "#price-chart", "#holders", "#rules"].map(top),
     };
   });
   if (phone.width > 390) throw new Error(`the page is ${phone.width} px wide at 390 px`);

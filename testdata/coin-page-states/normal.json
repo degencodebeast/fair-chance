@@ -55,6 +55,14 @@
       "is_full": false,
       "fills_this_window": 0
     },
+    "fc_creator_fees": {
+      "creator": "lamp.testnet",
+      "balance": "420000000000000000000000",
+      "claimed_total": "0",
+      "depth_ok_since_ns": null,
+      "claimable_now": false,
+      "claimable_at_ns": null
+    },
     "ft_total_supply": "1000000000000000000000000000",
     "ft_metadata": {
       "spec": "ft-1.0.0",
