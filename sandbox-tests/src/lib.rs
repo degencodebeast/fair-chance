@@ -348,6 +348,35 @@ impl World {
         }
     }
 
+    /// NEP-145: pays the storage minimum for `who`'s holder record on `coin`.
+    pub async fn register(&self, who: &Account, coin: &AccountId) -> Result<TransactionResult> {
+        let bounds = self.view(coin, "storage_balance_bounds", json!({})).await?;
+        let min: u128 = bounds["min"].as_str().context("storage min")?.parse()?;
+        self.call(
+            who,
+            coin,
+            "storage_deposit",
+            json!({}),
+            NearToken::from_yoctonear(min),
+        )
+        .await
+    }
+
+    /// NEAR protocol storage price is 10^19 yoctoNEAR per byte. The coin's NEAR balance minus
+    /// its storage lock, minus the pool's real NEAR: NEAR that belongs to neither the pool nor
+    /// the storage lock. Holder records must never take it below its launch value.
+    pub async fn free_near_beyond_pool(&self, coin: &AccountId) -> Result<i128> {
+        let account = near_api::Account(coin.clone())
+            .view()
+            .fetch_from(&self.network)
+            .await?
+            .data;
+        let lock = u128::from(account.storage_usage) * 10_000_000_000_000_000_000;
+        let pool = self.view(coin, "fc_pool", json!({})).await?;
+        let real_near: u128 = pool["real_near"].as_str().context("real_near")?.parse()?;
+        Ok(account.amount.as_yoctonear() as i128 - lock as i128 - real_near as i128)
+    }
+
     pub async fn view(&self, contract: &AccountId, method: &str, args: Value) -> Result<Value> {
         let data: Data<Value> = Contract(contract.clone())
             .call_function(method, args)

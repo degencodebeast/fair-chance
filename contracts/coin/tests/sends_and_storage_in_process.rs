@@ -274,3 +274,11 @@ fn fc_account_fc_pool_and_fc_quote_buy_report_the_class() {
     assert_eq!(view["max_receive"], Value::Null);
     assert_eq!(json(coin.fc_pool())["large_holders"], 1);
 }
+
+#[test]
+#[should_panic(expected = "The account is not registered: alice.test")]
+fn a_buy_from_an_account_with_no_storage_record_panics() {
+    let mut coin = launched();
+    at("alice.test", ONE_NEAR, 11);
+    coin.buy(U128(0));
+}

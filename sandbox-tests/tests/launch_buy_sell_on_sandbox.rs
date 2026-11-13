@@ -221,3 +221,86 @@ async fn a_send_to_a_registered_account_logs_fc_send_and_ft_transfer_call_is_ref
     assert!(failure.contains("FC_TRANSFER_CALL"), "{failure}");
     Ok(())
 }
+
+/// After every action, the coin's balance minus its storage lock is at least `fc_pool.real_near`,
+/// and holder records never take the NEAR beyond the pool below its launch value: NEP-145
+/// storage deposits pay for every record, never the pool.
+#[tokio::test]
+async fn holder_records_are_paid_by_storage_deposits_and_never_by_pool_near() -> Result<()> {
+    let world = World::launch().await?;
+    let at_launch = world.free_near_beyond_pool(&world.coin).await?;
+    assert!(at_launch >= 0);
+    let check = |step: &'static str, free: i128| {
+        assert!(free >= at_launch, "{step}: {free} < {at_launch} at launch");
+    };
+
+    let refused = world
+        .call_refused(
+            &world.alice,
+            &world.coin,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            NearToken::from_near(1),
+        )
+        .await?;
+    assert!(
+        refused.contains("The account is not registered"),
+        "{refused}"
+    );
+
+    let _ = world.register(&world.alice, &world.coin).await?;
+    check("register", world.free_near_beyond_pool(&world.coin).await?);
+    let _ = world
+        .call(
+            &world.alice,
+            &world.coin,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            NearToken::from_near(1),
+        )
+        .await?;
+    check("buy", world.free_near_beyond_pool(&world.coin).await?);
+    let _ = world.register(&world.factory, &world.coin).await?;
+    let _ = world
+        .call(
+            &world.alice,
+            &world.coin,
+            "ft_transfer",
+            json!({ "receiver_id": world.factory.id, "amount": "1000" }),
+            NearToken::from_yoctonear(1),
+        )
+        .await?;
+    check("send", world.free_near_beyond_pool(&world.coin).await?);
+    let balance = world
+        .view(
+            &world.coin,
+            "ft_balance_of",
+            json!({ "account_id": world.alice.id }),
+        )
+        .await?;
+    let _ = world
+        .call(
+            &world.alice,
+            &world.coin,
+            "sell",
+            json!({ "amount": balance, "min_near_out": "0" }),
+            NearToken::from_yoctonear(1),
+        )
+        .await?;
+    check("sell", world.free_near_beyond_pool(&world.coin).await?);
+    let _ = world.register(&world.creator, &world.coin).await?;
+    let _ = world
+        .call(
+            &world.creator,
+            &world.coin,
+            "storage_unregister",
+            json!({}),
+            NearToken::from_yoctonear(1),
+        )
+        .await?;
+    check(
+        "unregister",
+        world.free_near_beyond_pool(&world.coin).await?,
+    );
+    Ok(())
+}
