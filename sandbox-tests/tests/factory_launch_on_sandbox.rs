@@ -403,3 +403,56 @@ async fn an_opening_buy_of_the_whole_deposit_is_refused() -> Result<()> {
     );
     Ok(())
 }
+
+/// NEAR protocol storage price: 10^19 yoctoNEAR per byte.
+const YOCTO_PER_STORAGE_BYTE: u128 = 10_000_000_000_000_000_000;
+
+/// The coin's NEAR balance minus its storage lock: the most NEAR it can pay out.
+async fn payable_near(world: &World, coin: &near_api::types::AccountId) -> Result<u128> {
+    let account = near_api::Account(coin.clone())
+        .view()
+        .fetch_from(&world.network)
+        .await?
+        .data;
+    let lock = u128::from(account.storage_usage) * YOCTO_PER_STORAGE_BYTE;
+    Ok(account.amount.as_yoctonear().saturating_sub(lock))
+}
+
+#[tokio::test]
+async fn after_an_opening_buy_the_coin_can_pay_out_all_of_its_real_near() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("covered")?;
+    let opening_buy = NearToken::from_near(1);
+    let result = world
+        .try_launch(
+            &world.alice,
+            launch_args("Covered", "covered", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
+    let pool = world.view(&coin, "fc_pool", json!({})).await?;
+    let real_near: u128 = pool["real_near"].as_str().unwrap().parse()?;
+    assert!(payable_near(&world, &coin).await? >= real_near);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_opening_buy_that_leaves_too_little_for_storage_makes_no_coin() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("thin")?;
+    let opening_buy = NearToken::from_near(1);
+    let before = world.balance(&world.alice.id).await?;
+    let result = world
+        .try_launch(
+            &world.alice,
+            launch_args("Thin", "thin", None, None, Some(opening_buy)),
+            opening_buy.saturating_add(NearToken::from_yoctonear(1)),
+        )
+        .await?;
+    assert!(events(&result, "fair_chance_factory", "fc_launch").is_empty());
+    assert_eq!(world.contract_state(&coin).await?, None);
+    let spent = before.saturating_sub(world.balance(&world.alice.id).await?);
+    assert!(spent < NearToken::from_millinear(100), "spent {spent}");
+    Ok(())
+}
