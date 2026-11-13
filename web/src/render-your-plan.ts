@@ -3,6 +3,7 @@
 import { chainReader, configFromUrl } from "./chain.ts";
 import type { CoinReads } from "./coin-page.ts";
 import { el } from "./dom-elements.ts";
+import { listen } from "./dom-listen.ts";
 import { loadAccountPlan } from "./your-plan.ts";
 import { yourPlanView, type PlanView, type PreviewView } from "./your-plan-model.ts";
 import { parseTokenAmount } from "./token-amount.ts";
@@ -106,7 +107,7 @@ export function drawYourPlan(reads: CoinReads): HTMLElement {
     amountInput,
     el("button", { type: "submit", class: "button button-dark" }, "Show plan and preview"),
   );
-  form.addEventListener("submit", (event) => {
+  listen(form, "submit", (event) => {
     event.preventDefault();
     void show();
   });

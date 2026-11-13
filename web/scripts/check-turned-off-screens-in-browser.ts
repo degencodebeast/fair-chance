@@ -109,7 +109,7 @@ try {
         const r = document.querySelector(id)?.getBoundingClientRect();
         return r ? { left: r.left, right: r.right, top: r.top, width: r.width } : null;
       };
-      const grid = document.querySelector(".coin-grid");
+      const grid = document.querySelector(".coin-page-grid");
       return {
         columns: grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : 0,
         sideWidth: box("#trade-box")?.width ?? 0,

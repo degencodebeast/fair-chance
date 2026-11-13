@@ -1,13 +1,17 @@
 // Browser entry: loads the coin page from the page URL and draws it. All text comes from the
 // page model; this file only builds elements. It never sets innerHTML, so chain text cannot
 // become markup.
-import { loadCoinPage, type CoinPageData } from "./coin-page.ts";
+import { loadCoinPage, type CoinPageData, type CoinReads } from "./coin-page.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { telegramButton } from "./telegram-button.ts";
 import { chainReader, configFromUrl } from "./chain.ts";
 import { drawPriceChart } from "./render-price-chart.ts";
 import { fillHolders, holdersPlaceholder } from "./render-holders-table.ts";
 import { drawYourPlan } from "./render-your-plan.ts";
+import { loadBuyQuote } from "./buy-quote.ts";
+import { claimPanelModel } from "./claim-panel-model.ts";
+import { drawClaimPanel } from "./render-claim-panel.ts";
+import { drawTradeBox } from "./render-trade-box.ts";
 import {
   coinPageModel,
   type Banner,
@@ -77,7 +81,16 @@ function drawReceipt(r: ReceiptItem): HTMLElement {
   );
 }
 
-function drawReady(m: CoinPageModel, plan: HTMLElement | null, chart: HTMLElement | null, holders: HTMLElement | null): HTMLElement[] {
+interface ReadyParts {
+  plan: HTMLElement | null;
+  chart: HTMLElement | null;
+  holders: HTMLElement | null;
+  trade: HTMLElement | null;
+  claim: HTMLElement | null;
+}
+
+function drawReady(m: CoinPageModel, parts: ReadyParts): HTMLElement[] {
+  const { plan, chart, holders, trade, claim } = parts;
   const h = m.header;
   const nodes: (HTMLElement | null)[] = [];
   nodes.push(
@@ -128,20 +141,23 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null, chart: HTMLElemen
       ),
     ),
   );
-  nodes.push(
+  const grid: (HTMLElement | null)[] = [];
+  grid.push(
     el(
       "div",
       { class: "summary-lines card", id: "summary-lines" },
       ...m.summaryLines.map((l) => el("div", { class: "summary-line" }, el("b", {}, l.label), el("span", { class: `num tone-${l.tone}` }, l.value))),
     ),
   );
-  nodes.push(section(
+  grid.push(claim);
+  grid.push(section(
       "Who can sell how fast",
       "who-can-sell",
       el("div", { class: "section-head" }, el("h2", {}, "Who can sell how fast"), el("span", { class: "as-of num muted", id: "as-of" }, m.asOf)),
       el("div", { class: "who-grid" }, ...m.who.map(drawCard))));
-  nodes.push(plan);
-  nodes.push(
+  grid.push(plan);
+  grid.push(trade);
+  grid.push(
     section(
       "Receipts",
       "receipts-section",
@@ -150,9 +166,9 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null, chart: HTMLElemen
       el("ol", { id: "receipts" }, ...m.receipts.map(drawReceipt)),
     ),
   );
-  nodes.push(chart);
-  nodes.push(holders);
-  nodes.push(
+  grid.push(chart);
+  grid.push(holders);
+  grid.push(
     section(
       "Rules",
       "rules",
@@ -178,6 +194,7 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null, chart: HTMLElemen
       el("p", { class: "legend" }, el("span", { class: "swatch", "aria-hidden": "true" }), "Magenta means a limit is in force."),
     ),
   );
+  nodes.push(el("div", { class: "coin-page-grid" }, ...grid.filter((n): n is HTMLElement => n !== null)));
   return nodes.filter((n): n is HTMLElement => n !== null);
 }
 
@@ -231,6 +248,16 @@ function scheduleRefresh(view: CoinPageView, reload: () => void): void {
   refreshTimer = setTimeout(reload, Math.min(Math.max(waitMs, 500), 2_147_483_647));
 }
 
+function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
+  const chain = chainReader(configFromUrl(location.href));
+  const decimals = reads.metadata.kind === "value" ? reads.metadata.value.decimals : 18;
+  return drawTradeBox({ symbol, decimals, largeThresholdBps: reads.rules.largeThresholdBps, loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn) });
+}
+
+function claimPanel(reads: CoinReads): HTMLElement {
+  return drawClaimPanel(claimPanelModel({ fees: reads.creatorFees, claimMinRealNear: reads.rules.claimMinRealNear, claimDepthHoldS: reads.rules.claimDepthHoldS, nowNs: reads.loadedAtNs }));
+}
+
 function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null): void {
   scheduleRefresh(view, retry);
   const status = el("p", { id: "status", class: "status", role: "status" }, view.status);
@@ -238,7 +265,8 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null):
   const symbol = reads?.metadata.kind === "value" ? reads.metadata.value.symbol : "tokens";
   const chart = reads ? drawPriceChart(reads.events, symbol) : null;
   const holders = reads ? holdersPlaceholder() : null;
-  const body = view.state === "ready" ? drawReady(view, reads ? drawYourPlan(reads) : null, chart, holders) : drawError(view);
+  const parts = reads ? { plan: drawYourPlan(reads), chart, holders, trade: tradeBox(reads, symbol), claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };
+  const body = view.state === "ready" ? drawReady(view, parts) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));
   if (holders && reads) {
     const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
