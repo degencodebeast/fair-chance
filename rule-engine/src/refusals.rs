@@ -134,6 +134,8 @@ mod every_refusal_message_fixture {
             | RefusalCode::SendToCoin
             | RefusalCode::UnregisterWithBalance
             | RefusalCode::UnregisterWindowOpen
+            | RefusalCode::CreatorCap
+            | RefusalCode::EarlyWindow
             | RefusalCode::SendToSelf
             | RefusalCode::AmountNotPositive
             | RefusalCode::NotEnoughBalance
