@@ -4,7 +4,7 @@ This page lists what each test proves and what the tests leave open. It is refer
 
 Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_SANDBOX_BIN_PATH` and the wasm from `scripts/build-contracts.sh`. The merge gate is `.claude/skills/verify/verify.sh`.
 
-<!-- waits on: the final test count and the date of the run -->
+Last full run: 13 November 2026 (UTC), Rust 1.97.1, near-sandbox 2.13.4: `cargo test --workspace --locked --no-fail-fast` gave 263 passed, 0 failed, 2 ignored. The 2 ignored tests build the coin in Docker and run with `scripts/build-coin-reproducible.sh`.
 
 ## Rule tests (`rule-engine/tests/`)
 
