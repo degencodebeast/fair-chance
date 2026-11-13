@@ -5,6 +5,7 @@
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
 pub mod option_t;
+pub mod page_and_watcher_reads;
 pub mod pass_list;
 pub mod refusal_texts;
 

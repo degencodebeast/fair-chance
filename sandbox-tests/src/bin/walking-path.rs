@@ -11,19 +11,15 @@
 //! (`web/scripts/read-receipt-in-browser.ts`) and checks that it shows the same receipt row. It needs
 //! `npm ci` in `web/`. `FC_EVIDENCE_DIR`, when set, receives the page screenshot.
 
-use std::path::{Path, PathBuf};
-use std::process::Stdio;
-use std::time::Duration;
+use std::path::Path;
 
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{ensure, Context, Result};
+use fair_chance_sandbox_tests::page_and_watcher_reads::{
+    run_browser_read, run_page_read, run_watcher,
+};
 use fair_chance_sandbox_tests::{events, field_names, World, FC_SELL_FIELDS};
 use near_api::types::NearToken;
-use serde_json::{json, Value};
-use tokio::process::Command;
-
-fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
-}
+use serde_json::json;
 
 fn step(name: &str) {
     println!("walking-path: {name}");
@@ -119,7 +115,7 @@ async fn main() -> Result<()> {
     step("the page finds the receipt by a block scan from the launch block");
     let final_block = world.wait_final(&sell).await?;
     println!("walking-path:   the sell is final at block {final_block}");
-    let page = run_page_read(&world).await?;
+    let page = run_page_read(world.rpc_url(), world.coin.as_str()).await?;
     let receipts = page["receipts"].as_array().context("receipts list")?;
     let found = receipts
         .iter()
@@ -143,7 +139,18 @@ async fn main() -> Result<()> {
 
     if read_in_browser {
         step("headless Chrome opens the receipts page and shows the same receipt");
-        let shown = run_browser_read(&world, &fc_sell.receipt_id).await?;
+        let screenshot = std::env::var("FC_EVIDENCE_DIR")
+            .ok()
+            .map(|dir| Path::new(&dir).join("receipts-page.png"));
+        let shown = run_browser_read(
+            world.rpc_url(),
+            world.coin.as_str(),
+            world.factory.id.as_str(),
+            &world.coin_code_hash.to_string(),
+            &fc_sell.receipt_id,
+            screenshot.as_deref(),
+        )
+        .await?;
         let want_text = format!(
             "Block {}: {}",
             found["block"],
@@ -166,7 +173,7 @@ async fn main() -> Result<()> {
     }
 
     step("the watcher reads the event through its adapter and sends one alert to the fake sender");
-    let alerts = run_watcher(&world).await?;
+    let alerts = run_watcher(world.rpc_url(), world.coin.as_str(), 1).await?;
     let alerts = alerts["alerts"].as_array().context("alerts list")?;
     ensure!(alerts.len() == 1, "expected one alert, got {alerts:?}");
     let text = alerts[0]["text"].as_str().context("alert text")?;
@@ -178,98 +185,4 @@ async fn main() -> Result<()> {
 
     step("ok");
     Ok(())
-}
-
-async fn run_watcher(world: &World) -> Result<Value> {
-    let bin = std::env::var("FC_WATCHER_BIN")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root().join("target/watcher"));
-    let out = Command::new(&bin)
-        .args(["-once", "-want", "1", "-timeout", "60s"])
-        .env("FC_RPC_URL", world.rpc_url())
-        .env("FC_COINS", world.coin.as_str())
-        .env("FC_SENDER", "fake")
-        .stderr(Stdio::inherit())
-        .output();
-    let out = tokio::time::timeout(Duration::from_secs(90), out)
-        .await
-        .context("watcher timed out")?
-        .with_context(|| format!("run {}", bin.display()))?;
-    if !out.status.success() {
-        bail!(
-            "watcher exited with {}: {}",
-            out.status,
-            String::from_utf8_lossy(&out.stdout)
-        );
-    }
-    serde_json::from_slice(&out.stdout).context("watcher output is not JSON")
-}
-
-async fn run_browser_read(world: &World, receipt_id: &str) -> Result<Value> {
-    // The link also names the known factory and the known coin code hash, so the page can check
-    // the coin account against them.
-    let query = format!(
-        "?coin={}&rpc={}&factory={}&code_hash={}",
-        world.coin,
-        urlencode(world.rpc_url()),
-        world.factory.id,
-        world.coin_code_hash
-    );
-    let mut command = Command::new("node");
-    command
-        .arg(repo_root().join("web/scripts/read-receipt-in-browser.ts"))
-        .arg(&query)
-        .arg(receipt_id);
-    if let Ok(dir) = std::env::var("FC_EVIDENCE_DIR") {
-        command.arg(Path::new(&dir).join("receipts-page.png"));
-    }
-    let out = command.stderr(Stdio::inherit()).output();
-    let out = tokio::time::timeout(Duration::from_secs(180), out)
-        .await
-        .context("browser read timed out")?
-        .context("run node")?;
-    if !out.status.success() {
-        bail!(
-            "browser read exited with {}: {}",
-            out.status,
-            String::from_utf8_lossy(&out.stdout)
-        );
-    }
-    serde_json::from_slice(&out.stdout).context("browser read output is not JSON")
-}
-
-async fn run_page_read(world: &World) -> Result<Value> {
-    let page_url = format!(
-        "http://localhost/?coin={}&rpc={}",
-        world.coin,
-        urlencode(world.rpc_url())
-    );
-    let out = Command::new("node")
-        .arg(repo_root().join("web/scripts/read-receipts.ts"))
-        .arg(&page_url)
-        .stderr(Stdio::inherit())
-        .output();
-    let out = tokio::time::timeout(Duration::from_secs(90), out)
-        .await
-        .context("page read timed out")?
-        .context("run node")?;
-    if !out.status.success() {
-        bail!(
-            "page read exited with {}: {}",
-            out.status,
-            String::from_utf8_lossy(&out.stdout)
-        );
-    }
-    serde_json::from_slice(&out.stdout).context("page read output is not JSON")
-}
-
-fn urlencode(text: &str) -> String {
-    text.bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => {
-                (b as char).to_string()
-            }
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
 }
