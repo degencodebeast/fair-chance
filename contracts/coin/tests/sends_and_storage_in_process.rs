@@ -14,14 +14,17 @@ fn account(name: &str) -> AccountId {
     name.parse().unwrap()
 }
 
+/// The context of a call at `block`, at `block` seconds. Calls after the launch at block 10 run
+/// 18 blocks later, after the early window (blocks 0 to 17), so their buys are unmarked.
 fn context(predecessor: &str, deposit: u128, block: u64) -> VMContextBuilder {
+    let height = if block > 10 { block + 18 } else { block };
     let mut ctx = VMContextBuilder::new();
     ctx.current_account_id(account(COIN))
         .predecessor_account_id(account(predecessor))
         .signer_account_id(account(predecessor))
         .attached_deposit(NearToken::from_yoctonear(deposit))
         .account_balance(NearToken::from_near(1_000))
-        .block_height(block)
+        .block_height(height)
         .block_timestamp(block * 1_000_000_000);
     ctx
 }
