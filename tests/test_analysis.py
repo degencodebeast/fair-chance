@@ -61,7 +61,7 @@ class SimulationTests(unittest.TestCase):
     def policy(self): return sim.Policy(17, .02, None, .1)
 
     def test_pool_cannot_pay_more_real_near_than_it_has(self):
-        pool = sim.Pool(); pool.buy(5, 0); payout, _ = pool.sell(sim.SUPPLY, 0)
+        pool = sim.Pool(); pool.buy(5, 0); payout, _, _ = pool.sell(sim.SUPPLY, 0)
         self.assertLessEqual(payout, 5); self.assertGreaterEqual(pool.real, 0)
 
     def test_marked_sellers_share_their_allowance_pro_rata(self):

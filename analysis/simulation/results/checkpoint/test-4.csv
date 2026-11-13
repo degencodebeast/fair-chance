@@ -1,3 +1,3 @@
 label,n,t,brake,penalty,creator_fee_share,window_hours,test,max_drawdown,final_price,penalty_near
-simulation,17,0.02,off,0.1,0.0,1.0,4_small_holder_drawdown,0.7022847883242264,1.9471050169388478e-07,5.964315202282257
-simulation,17,0.02,off,0.1,0.3,1.0,4_small_holder_drawdown,0.707322147556035,1.9126328195239087e-07,4.168316732093686
+simulation,17,0.02,off,0.1,0.0,1.0,4_small_holder_drawdown,0.7022847883242264,1.9471050169388478e-07,0.0
+simulation,17,0.02,off,0.1,0.3,1.0,4_small_holder_drawdown,0.707322147556035,1.9126328195239087e-07,0.0
