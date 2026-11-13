@@ -45,7 +45,7 @@ describe("FastNEAR event source", () => {
   });
 
   it("is used by the chain reader on a testnet RPC URL, and not on a sandbox URL", async () => {
-    expect(configFromUrl("http://x/?coin=a.testnet&rpc=https%3A%2F%2Frpc.testnet.example").fastNearUrl).toBe(
+    expect(configFromUrl("http://x/?coin=a.testnet&network=testnet").fastNearUrl).toBe(
       "https://tx.test.fastnear.com",
     );
     expect(configFromUrl("http://x/?coin=a.sandbox&rpc=http%3A%2F%2F127.0.0.1%3A5").fastNearUrl).toBeUndefined();

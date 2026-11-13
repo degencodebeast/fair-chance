@@ -1,6 +1,7 @@
 // Chain-read module: views and events for one coin, from a NEAR RPC endpoint.
 // The page reads the chain only through this module, never through the watcher.
 import { fastNearEvents } from "./fastnear-events.ts";
+import { resolvePageLink } from "./page-link.ts";
 
 export interface ReaderConfig {
   rpcUrl: string;
@@ -8,8 +9,6 @@ export interface ReaderConfig {
   /** Base URL of the FastNEAR transactions API. Set: events come from it (testnet). Unset: block scan. */
   fastNearUrl?: string;
 }
-
-export const FASTNEAR_TESTNET_URL = "https://tx.test.fastnear.com";
 
 export interface CoinEvent {
   standard: "fair_chance" | "fair_chance_factory";
@@ -43,14 +42,9 @@ export interface ChainReader {
   events(since?: number): Promise<{ events: CoinEvent[]; cursor: number }>;
 }
 
-/** Reads `?coin=<account>&rpc=<url>` from the page URL. */
+/** Reads the coin and the RPC source from the page URL; see page-link.ts for what the link may pick. */
 export function configFromUrl(href: string): ReaderConfig {
-  const params = new URL(href).searchParams;
-  const coin = params.get("coin");
-  const rpcUrl = params.get("rpc");
-  if (!coin) throw new Error("the page URL needs ?coin=<coin account>");
-  if (!rpcUrl) throw new Error("the page URL needs &rpc=<NEAR RPC URL>");
-  const fastNearUrl = params.get("fastnear") ?? (/testnet/i.test(rpcUrl) ? FASTNEAR_TESTNET_URL : null);
+  const { coin, rpcUrl, fastNearUrl } = resolvePageLink(href);
   return fastNearUrl ? { coin, rpcUrl, fastNearUrl } : { coin, rpcUrl };
 }
 

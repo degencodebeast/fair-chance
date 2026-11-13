@@ -2,7 +2,7 @@
 // all of it or an error: when any read fails, no number from an earlier or partial read is kept.
 import { chainReader, configFromUrl, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
-import { knownDeploymentFor } from "./known-deployments.ts";
+import { resolvePageLink } from "./page-link.ts";
 import {
   parseCap,
   parseEarlyWindow,
@@ -22,6 +22,10 @@ export type Reading<T> = { kind: "value"; value: T } | { kind: "unavailable" };
 
 export interface CoinReads {
   coin: string;
+  /** The RPC host (and port) the checks and the reads used. */
+  rpcHost: string;
+  /** The time the reads were made, for the "as of" label. */
+  loadedAtNs: bigint;
   rules: Rules;
   pool: Reading<Pool>;
   earlyWindow: Reading<EarlyWindow>;
@@ -54,6 +58,7 @@ export interface PageLoad {
 
 export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPageData> {
   try {
+    const link = resolvePageLink(href);
     const cfg = configFromUrl(href);
     const reader = load.reader ?? chainReader(cfg, load.fetchFn);
     const rules = parseRules(await reader.view("fc_rules"));
@@ -63,10 +68,10 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
       optional(() => reader.view("fc_cap"), parseCap),
       optional(() => reader.view("ft_total_supply"), parseTotalSupply),
       optional(() => reader.view("ft_metadata"), parseMetadata),
-      runCoinChecks(reader, cfg.coin, knownDeploymentFor(href)),
+      runCoinChecks(reader, cfg.coin, link.known),
       reader.events(rules.launchBlock),
     ]);
-    const reads: CoinReads = { coin: cfg.coin, rules, pool, earlyWindow, cap, totalSupply, metadata, events: scan.events, checks };
+    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
     return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs };

@@ -62,6 +62,8 @@ export interface CoinPageModel {
   /** Set when any chain check failed or could not run. */
   warning: { title: string; reasons: string[] } | null;
   checks: CheckResult[];
+  /** Names the RPC host the checks (and every read) used. */
+  checksSource: string;
   stats: Stat[];
   /** The three short lines the phone layout shows under the stats. */
   summaryLines: { label: string; value: string; tone: Tone }[];
@@ -104,6 +106,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
     banner: banner(r),
     warning: checksOk ? null : warning(r.checks),
     checks: r.checks,
+    checksSource: `Checks read through the RPC host ${r.rpcHost}.`,
     stats: stats(r, ctx, symbol, supply),
     summaryLines: summaryLines(who),
     who,

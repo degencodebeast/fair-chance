@@ -152,6 +152,7 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
       ),
       m.rulesStatement && el("p", { class: "statement", id: "rules-statement" }, m.rulesStatement),
       el("h3", {}, "Coin account checks"),
+      el("p", { class: "muted", id: "checks-source" }, m.checksSource),
       el(
         "ul",
         { class: "checks", id: "chain-checks" },

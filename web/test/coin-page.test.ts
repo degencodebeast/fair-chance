@@ -248,10 +248,9 @@ describe("copy rules", () => {
 
 describe("known deployment comes from the page code, not the link", () => {
   const anchors = `&factory=${factory}&code_hash=${knownHash}`;
-  const testnetRpc = encodeURIComponent("https://rpc.testnet.example");
 
   it("does not let a crafted testnet link supply its own factory and hash", async () => {
-    const href = `http://localhost/?coin=${coin}&rpc=${testnetRpc}${anchors}`;
+    const href = `http://localhost/?coin=${coin}&network=testnet${anchors}`;
     const view = await ready(recordedCoin("normal"), href);
     expect(view.checks.map((c) => [c.id, c.status])).toEqual([
       ["parent-account", "unchecked"],
@@ -264,12 +263,12 @@ describe("known deployment comes from the page code, not the link", () => {
     expect(view.rulesStatement).toBeNull();
   });
 
-  it.each(["http://localhost.evil.example:1", "http://127.0.0.1.evil.example:1", "https://rpc.mainnet.example"])(
-    "ignores link anchors for the RPC host %s",
+  it.each(["http://localhost.evil.example:1", "https://rpc.testnet.evil.example"])(
+    "loads nothing from the link RPC %s, even with anchors in the link",
     async (rpc) => {
       const href = `http://localhost/?coin=${coin}&rpc=${encodeURIComponent(rpc)}${anchors}`;
-      const view = await ready(recordedCoin("normal"), href);
-      expect(view.checks.slice(0, 2).map((c) => c.status)).toEqual(["unchecked", "unchecked"]);
+      const view = await page(recordedCoin("normal"), href);
+      expect(view.state).toBe("error");
     },
   );
 
@@ -279,5 +278,12 @@ describe("known deployment comes from the page code, not the link", () => {
       const view = await ready(recordedCoin("normal"), href);
       expect(view.checks.map((c) => c.status)).toEqual(["pass", "pass", "pass"]);
     }
+  });
+
+  it("names the RPC host the checks used", async () => {
+    const sandbox = await ready(recordedCoin("normal"));
+    expect(sandbox.checksSource).toBe("Checks read through the RPC host 127.0.0.1:1.");
+    const testnet = await ready(recordedCoin("normal"), `http://localhost/?coin=${coin}&network=testnet`);
+    expect(testnet.checksSource).toBe("Checks read through the RPC host test.rpc.fastnear.com.");
   });
 });

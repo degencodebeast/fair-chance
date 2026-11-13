@@ -91,8 +91,8 @@ case "$mode" in
     doctor || finish FAIL "doctor found problems"
     install_web_packages || finish FAIL "npm ci in web/ failed"
     private_string_scan || finish FAIL "the private-string scan found private names or paths"
-    rpc="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$FC_TESTNET_RPC_URL")"
-    node web/scripts/read-receipt-in-browser.ts "?coin=$FC_TESTNET_COIN&rpc=$rpc" any "$evidence/receipts-page.png" \
+    # The page reads testnet through its own fixed RPC list; a link may not give an RPC URL.
+    node web/scripts/read-receipt-in-browser.ts "?coin=$FC_TESTNET_COIN&network=testnet" any "$evidence/receipts-page.png" \
       || finish FAIL "the testnet page shows no receipt"
     finish PASS "testnet page shows a receipt (evidence target/verify-evidence/$run_id/)"
     ;;
