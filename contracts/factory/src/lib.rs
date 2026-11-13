@@ -31,7 +31,6 @@ impl Factory {
         description: Option<String>,
         opening_buy: Option<U128>,
     ) -> Promise {
-        let _ = description;
         if opening_buy.is_some() {
             env::panic_str("opening_buy is not in this build");
         }
@@ -45,6 +44,7 @@ impl Factory {
             "name": name,
             "symbol": ticker,
             "icon": icon,
+            "description": description,
             "code_hash": code_hash,
         });
         let hash: [u8; 32] = self.coin_code_hash.into();

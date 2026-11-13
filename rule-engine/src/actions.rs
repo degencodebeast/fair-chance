@@ -2,8 +2,9 @@
 
 use crate::coin_state::{At, CoinState, Holders};
 use crate::events::{Event, FcBuy, FcSell, FtTransfer};
+use crate::pool_math;
 use crate::refusals::{Refusal, RefusalCode};
-use crate::wide_integer_math::{mul_div, product_at_least};
+use crate::wide_integer_math::product_at_least;
 
 /// One action on the coin. Accounts are account IDs; amounts are base units or yoctoNEAR.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -102,7 +103,12 @@ fn buy(
     min_tokens_out: u128,
     at: At,
 ) -> Result<Applied, Refusal> {
-    let tokens_out = mul_div(state.token_reserve, near_in, state.near_reserve() + near_in);
+    let fee_near = pool_math::fee(near_in, state.fixed.swap_fee_bps);
+    let tokens_out = pool_math::tokens_out(
+        state.token_reserve,
+        state.near_reserve(),
+        near_in - fee_near,
+    );
     if tokens_out < min_tokens_out {
         return Err(Refusal::new(RefusalCode::Slippage));
     }
@@ -120,7 +126,7 @@ fn buy(
         Event::FcBuy(FcBuy {
             account: account.to_string(),
             near_in,
-            fee_near: 0,
+            fee_near,
             creator_fee_near: 0,
             tokens_out,
             marked_tokens: 0,
@@ -154,12 +160,12 @@ fn sell(
         return Err(Refusal::new(RefusalCode::NotEnoughBalance));
     }
     let tokens_sold = amount;
-    let near_out = mul_div(
-        state.near_reserve(),
-        tokens_sold,
-        state.token_reserve + tokens_sold,
-    )
-    .min(state.real_near);
+    // NEAR reserve minimum: the payout never takes the NEAR reserve below virtual P.
+    let near_before_fee =
+        pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens_sold)
+            .min(state.real_near);
+    let fee_near = pool_math::fee(near_before_fee, state.fixed.swap_fee_bps);
+    let near_out = near_before_fee - fee_near;
     if !product_at_least(near_out, amount, min_near_out, tokens_sold) {
         return Err(Refusal::new(RefusalCode::Slippage));
     }
@@ -181,7 +187,7 @@ fn sell(
             tokens_sold,
             marked_sold: 0,
             near_out,
-            fee_near: 0,
+            fee_near,
             creator_fee_near: 0,
             penalty_near: 0,
             fill: Fill::Full.as_str(),

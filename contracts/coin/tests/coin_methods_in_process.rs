@@ -5,6 +5,7 @@ use near_sdk::{testing_env, AccountId, NearToken};
 use serde_json::Value;
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
+const ICON: &str = include_str!("../../../testdata/coin-icon-96px-webp-data-url.txt");
 
 fn account(name: &str) -> AccountId {
     name.parse().unwrap()
@@ -31,15 +32,20 @@ fn events(standard: &str, name: &str) -> Vec<Value> {
         .collect()
 }
 
-fn launched() -> Coin {
-    testing_env!(context("factory.test", 0, 10).build());
+fn new_coin(caller: &str) -> Coin {
+    testing_env!(context(caller, 0, 10).build());
     Coin::new(
         account("creator.test"),
         "Test Coin".into(),
         "TEST".into(),
-        None,
+        Some(ICON.into()),
+        Some("A test coin.".into()),
         "hash".into(),
     )
+}
+
+fn launched() -> Coin {
+    new_coin("factory.test")
 }
 
 #[test]
@@ -108,4 +114,65 @@ fn the_nep330_fair_chance_standard_version_is_the_interface_version() {
         source.contains(&expected),
         "contracts/coin/src/lib.rs must contain {expected}"
     );
+}
+
+#[test]
+#[should_panic(expected = "new must be called by the parent account of the coin")]
+fn new_called_by_an_account_that_is_not_the_parent_panics() {
+    new_coin("creator.test");
+}
+
+#[test]
+fn ft_metadata_returns_the_webp_icon_under_8_kb_and_no_reference() {
+    let coin = launched();
+    let metadata = serde_json::to_value(coin.ft_metadata()).unwrap();
+    let icon = metadata["icon"].as_str().unwrap();
+    assert!(icon.starts_with("data:image/webp;base64,"));
+    assert!(icon.len() < 8 * 1024);
+    assert_eq!(metadata["reference"], Value::Null);
+    assert_eq!(metadata["reference_hash"], Value::Null);
+    assert_eq!(metadata["decimals"], 18);
+    assert_eq!(metadata["symbol"], "TEST");
+}
+
+#[test]
+fn fc_rules_returns_the_launch_description() {
+    let coin = launched();
+    let rules = serde_json::to_value(coin.fc_rules()).unwrap();
+    assert_eq!(rules["description"], "A test coin.");
+}
+
+#[test]
+#[should_panic(expected = "FC_ONE_YOCTO")]
+fn a_sell_with_two_yocto_panics_with_fc_one_yocto() {
+    let mut coin = launched();
+    testing_env!(context("alice.test", ONE_NEAR, 11).build());
+    coin.buy(U128(0));
+    testing_env!(context("alice.test", 2, 12).build());
+    let _ = coin.sell(U128(1), U128(0));
+}
+
+#[test]
+#[should_panic(expected = "FC_SLIPPAGE")]
+fn a_buy_below_min_tokens_out_panics_with_fc_slippage() {
+    let mut coin = launched();
+    testing_env!(context("alice.test", ONE_NEAR, 11).build());
+    coin.buy(U128(9_802_950_787_206_654_124_170_710));
+}
+
+#[test]
+fn fc_quote_buy_equals_the_buy_that_follows() {
+    let mut coin = launched();
+    testing_env!(context("alice.test", 2 * ONE_NEAR, 11).build());
+    let quote =
+        serde_json::to_value(coin.fc_quote_buy(account("alice.test"), U128(2 * ONE_NEAR))).unwrap();
+    coin.buy(U128(0));
+    let buys = events("fair_chance", "fc_buy");
+    assert_eq!(buys.len(), 1);
+    let buy = &buys[0]["data"][0];
+    assert_eq!(quote["tokens_out"], buy["tokens_out"]);
+    assert_eq!(quote["fee_near"], buy["fee_near"]);
+    assert_eq!(buy["fee_near"], (2 * ONE_NEAR / 100).to_string());
+    let pool = serde_json::to_value(coin.fc_pool()).unwrap();
+    assert_eq!(pool["real_near"], (2 * ONE_NEAR).to_string());
 }

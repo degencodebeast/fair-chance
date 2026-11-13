@@ -1,7 +1,7 @@
 [package]
 name = "fair-chance-coin"
 # The coin's package version is the coin interface version (INTERFACE.md); NEP-330 reports it.
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 edition.workspace = true
 license.workspace = true
 repository = "https://github.com/degencodebeast/fair-chance"

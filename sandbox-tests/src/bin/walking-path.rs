@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
     ensure!(fc_sell.event["version"] == rule_engine::INTERFACE_VERSION);
     let sold = &fc_sell.event["data"][0];
     println!(
-        "walking-path:   fc_sell in receipt {} with the rc.4 field names: tokens_sold {} near_out {}",
+        "walking-path:   fc_sell in receipt {} with the interface field names: tokens_sold {} near_out {}",
         fc_sell.receipt_id, sold["tokens_sold"], sold["near_out"]
     );
 

@@ -23,7 +23,7 @@ Preconditions:
 
 - **Launch.** Run `.claude/skills/verify/verify.sh`. The log shows `walking-path:   coin walk.factory.sandbox launch_block <n> version "<interface version>"`.
 - **Buy.** The log shows `walking-path: one account buys`, and the next step reads `ft_balance_of` for `alice.sandbox`.
-- **Limited sell.** The log shows `walking-path:   fc_sell in receipt <id> with the rc.4 field names: tokens_sold "<n>" near_out "<n>"`.
+- **Limited sell.** The log shows `walking-path:   fc_sell in receipt <id> with the interface field names: tokens_sold "<n>" near_out "<n>"`.
 - **Proof.** `verify.log` in the run's evidence folder ends with `verify: PASS (sandbox)`.
 
 ## Gotchas

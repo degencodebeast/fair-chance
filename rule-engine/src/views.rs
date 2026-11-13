@@ -32,6 +32,8 @@ pub struct RulesView {
     pub claim_depth_hold_s: u64,
     pub unclaimed_to_pool_s: Option<u64>,
     pub code_hash: String,
+    /// The one-line launch description; null when the creator gave none.
+    pub description: Option<String>,
 }
 
 pub fn view_rules(state: &CoinState) -> RulesView {
@@ -58,6 +60,7 @@ pub fn view_rules(state: &CoinState) -> RulesView {
         claim_depth_hold_s: r.claim_depth_hold_s,
         unclaimed_to_pool_s: r.unclaimed_to_pool_s,
         code_hash: state.code_hash.clone(),
+        description: state.metadata.description.clone(),
     }
 }
 

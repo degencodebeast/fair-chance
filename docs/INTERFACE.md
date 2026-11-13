@@ -1,9 +1,10 @@
-# Fair Chance coin interface (1.0.0-rc.4)
+# Fair Chance coin interface (1.0.0-rc.5)
 
 Status: Frozen as 1.0.0-rc on 2026-11-12. The paper test set 1.0.0-rc.3. It becomes `1.0.0` when every coin rule in this file passes its sandbox tests. There is no vault, so penalties and the pool part of fees stay in locked liquidity.
 `1.0.0-rc.2` (builder, 2026-11-12): `cap_used` counts only the part of a band sell above the account's first allowance in the window. Also in `1.0.0-rc.2`: `FC_EARLY_WINDOW`, and the creator fee share (ADR 0010): new fields, one new view, one claim method, one new event, two refusal codes. All are additions; no existing field changes meaning except that `real_near` and `real_near_now` now exclude the creator balance.
 `1.0.0-rc.3` (builder, 2026-11-12 and 2026-11-13): the c cap is checked against real NEAR after each sell, so `cap_total` and `cap_left` change meaning; the creator fee depth test uses the lowest real NEAR of each 1 h window; `FC_TRANSFER_CALL_NOT_POOL` is renamed `FC_TRANSFER_CALL`; new refusal codes `FC_SEND_TO_COIN` and `FC_RECEIVER_WOULD_BE_LARGE`; new field `fc_account.max_receive`; every large, band and marked sell is checked, also when its own net adds zero; marked sells count net of the same account's buys for the cap only (the marked allowance stays gross); an account's buys first offset its sells that do not count (small sells and a band account's first allowance), and each account's signed value is clamped at zero when read, before it is added to the cap total; window 0 starts its lowest real NEAR at 0, and a claim needs at least 24 h since `depth_ok_since`.
 `1.0.0-rc.4` (builder, 2026-11-13): additions only. New `fc_pool` fields `large_holders` and `creator_group_share_bps`. `FC_ONE_YOCTO` now also lists `claim_creator_fees`, which already needed 1 yoctoNEAR. Standard methods are named under Conventions.
+`1.0.0-rc.5` (builder, 2026-11-13): additions only. The buy and sell methods are named: `buy(min_tokens_out)` and `sell(amount, min_near_out)`. `sell` takes `min_near_out` for all of `amount` and checks it per token. New `fc_rules` field `description`. `new` refuses any caller that is not the coin's parent account, and any icon that is not a WebP data URL under 8 KB.
 Builder-confirmed fields (2026-11-12): `fc_send.to_marked_amount`, `fc_sell.marked_sold` and `fc_account.in_creator_group`. They are outputs only; no rule reads them.
 Change rule: a later change adds fields only, or bumps the version. Each change goes in a message to Kalu.
 
@@ -11,7 +12,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 
 ## Conventions
 
-- NEP-297 standard name: `fair_chance`. Version string: `1.0.0-rc.4`.
+- NEP-297 standard name: `fair_chance`. Version string: `1.0.0-rc.5`.
 - Standard methods follow their NEPs and are not repeated here: NEP-141 (`ft_transfer`, `ft_transfer_call`, `ft_balance_of`, `ft_total_supply`, with NEP-297 `nep141` events `ft_mint` and `ft_transfer`), NEP-145 storage, NEP-148 `ft_metadata`, and NEP-330 `contract_source_metadata`.
 - Every token or NEAR amount is a decimal string in the smallest unit (token base units, yoctoNEAR).
 - Every time is a block timestamp in nanoseconds, as a decimal string. Block heights are numbers.
@@ -49,7 +50,7 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 ## View methods
 
 1. `fc_rules()`: the fixed values of this coin.
-   `creator`, `launch_block`, `launch_ns`, `p_bps` (200), `window_unmarked_s` (3600), `window_early_s` (86400), `early_blocks` (N), `large_threshold_bps` (T), `creator_cap_bps` (400), `real_cap_c_bps` (500), `floor_bps` (10), `penalty_bps` (1000), `virtual_near` (P), `swap_fee_bps`, `early_fee_start_bps`, `brake_drop_bps` (null = off), `creator_fee_share_bps` (s, share of the normal swap fee `swap_fee_bps` that goes to the creator balance; never applied to `penalty_bps` or to the early-fee extra above `swap_fee_bps`), `claim_min_real_near` (X), `claim_depth_hold_s` (86400), `unclaimed_to_pool_s` (D, null = off), `code_hash`.
+   `creator`, `launch_block`, `launch_ns`, `p_bps` (200), `window_unmarked_s` (3600), `window_early_s` (86400), `early_blocks` (N), `large_threshold_bps` (T), `creator_cap_bps` (400), `real_cap_c_bps` (500), `floor_bps` (10), `penalty_bps` (1000), `virtual_near` (P), `swap_fee_bps`, `early_fee_start_bps`, `brake_drop_bps` (null = off), `creator_fee_share_bps` (s, share of the normal swap fee `swap_fee_bps` that goes to the creator balance; never applied to `penalty_bps` or to the early-fee extra above `swap_fee_bps`), `claim_min_real_near` (X), `claim_depth_hold_s` (86400), `unclaimed_to_pool_s` (D, null = off), `code_hash`, `description` (the creator's one-line launch description; null when none was given; added for `1.0.0-rc.5`).
 2. `fc_pool()`: `token_reserve`, `near_reserve`, `virtual_near`, `real_near`, `creator_fee_balance`, `large_holders` (number of accounts whose class is `large` now), `creator_group_share_bps` (creator group balance ÷ total supply, in basis points), `block`. Both new fields are added for `1.0.0-rc.4`. `real_near` is NEAR in the pool paid in by buyers, minus NEAR paid out. It never includes `creator_fee_balance`.
 3. `fc_early_window()`: `early_blocks`, `blocks_left`, `early_supply_total`, `shared_allowance`, `rate_per_token`, `buy_fee_bps_now`, `fee_end_block`.
 4. `fc_cap()`: the pool-wide real NEAR cap in the current 1 h window.
@@ -65,9 +66,13 @@ Consumers: the builder's frontend (coin page, receipts), any indexer, and any la
 8. `fc_quote_buy(account_id, near_in)`: a preview of one buy now, with no state change. Added for `1.0.0-rc.2`.
    `tokens_out`, `fee_near`, `creator_fee_near`, `marked_tokens` (all of `tokens_out` in blocks 0 to N or for a creator-group buyer, else 0), `class_after`, `becomes_large` (true when the account is not large now and the buy takes its balance to `large_threshold_bps` of supply or more), `allowance_after` (the account's unmarked allowance in the current window after the buy). The frontend sets the buy's `min_tokens_out` from `tokens_out`.
 
-## Change methods added or changed in 1.0.0-rc.2 and 1.0.0-rc.3
+## Change methods added or changed in 1.0.0-rc.2, 1.0.0-rc.3 and 1.0.0-rc.5
 
-- Buy: takes `min_tokens_out` (token base units). The contract refuses a buy with `FC_SLIPPAGE` when `tokens_out` would be below it. The frontend sets it from the buy preview minus a small margin. A buy is never filled in part.
+- `new(creator, name, symbol, icon, description, code_hash)`: the one-time start of the coin. Only the coin's parent account (the factory) can call it; any other caller is refused. The factory passes its one recorded `code_hash`. `icon` is null or a WebP data URL (`data:image/webp;base64,...`) under 8192 bytes; any other icon is refused. Caller and icon checks added for `1.0.0-rc.5`.
+
+- `buy(min_tokens_out)`: payable; the attached NEAR is `near_in`. Takes `min_tokens_out` (token base units). The contract refuses a buy with `FC_SLIPPAGE` when `tokens_out` would be below it. The frontend sets it from the buy preview minus a small margin. A buy is never filled in part. Method name added for `1.0.0-rc.5`.
+
+- `sell(amount, min_near_out)`: exactly 1 yoctoNEAR attached, else `FC_ONE_YOCTO`. `amount` is the tokens asked (token base units). `min_near_out` is the NEAR the seller accepts for all of `amount`. The check is on the price per token of the filled part: the sell is refused with `FC_SLIPPAGE` when `near_out × amount < min_near_out × tokens_sold`. Method name and arguments added for `1.0.0-rc.5`.
 
 - `claim_creator_fees()`: creator only, 1 yoctoNEAR attached. Sets the balance to 0, sends the whole amount to the creator, and checks the result in a callback. If the transfer fails (for example, the creator account no longer exists), the callback adds the amount back to `creator_fee_balance`, so no NEAR is lost between counters. `fc_creator_claim` is emitted in the callback, only after the transfer succeeds. Refusals: `FC_NOT_CREATOR`, `FC_CLAIM_NOT_READY`.
 

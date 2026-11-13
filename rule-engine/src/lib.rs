@@ -9,12 +9,15 @@ mod coin_state;
 pub mod decimal_string;
 mod events;
 mod fixed_values;
+mod pool_math;
 mod refusals;
 mod views;
 mod wide_integer_math;
 
 pub use actions::{Action, Applied, Fill, Payout};
-pub use coin_state::{launch, At, CoinState, Holder, Holders, Launched};
+pub use coin_state::{
+    launch, At, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
+};
 pub use events::{Event, FcBuy, FcSell, FtMint, FtTransfer};
 pub use fixed_values::FixedValues;
 pub use refusals::{Refusal, RefusalCode};
@@ -25,7 +28,7 @@ pub use views::{
 };
 
 /// Version string of the coin interface (INTERFACE.md) and of every `fair_chance` event.
-pub const INTERFACE_VERSION: &str = "1.0.0-rc.4";
+pub const INTERFACE_VERSION: &str = "1.0.0-rc.5";
 
 /// The pure rule step: one action on the coin state at one block.
 ///
