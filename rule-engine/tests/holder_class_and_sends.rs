@@ -261,17 +261,32 @@ fn a_send_moves_tokens_and_emits_ft_transfer_with_the_memo_and_fc_send() {
     assert_eq!(coin.balance(OTHER), other_before + amount);
     assert_eq!(sent.payout, None);
     assert_eq!(sent.state, coin.state);
-    let lines: Vec<String> = sent.events.iter().map(Event::log_line).collect();
+    let lines: Vec<serde_json::Value> = sent
+        .events
+        .iter()
+        .map(|e| {
+            let line = e.log_line();
+            serde_json::from_str(line.strip_prefix("EVENT_JSON:").expect("prefix")).expect("json")
+        })
+        .collect();
     assert_eq!(
         lines,
         vec![
-            format!(
-                r#"EVENT_JSON:{{"data":[{{"amount":"{amount}","memo":"thanks","new_owner_id":"{OTHER}","old_owner_id":"{SMALL}"}}],"event":"ft_transfer","standard":"nep141","version":"1.0.0"}}"#
-            ),
-            format!(
-                r#"EVENT_JSON:{{"data":[{{"amount":"{amount}","from":"{SMALL}","marked_amount":"0","to":"{OTHER}","to_marked_amount":"0"}}],"event":"fc_send","standard":"fair_chance","version":"{}"}}"#,
-                rule_engine::INTERFACE_VERSION
-            ),
+            serde_json::json!({
+                "standard": "nep141", "version": "1.0.0", "event": "ft_transfer",
+                "data": [{
+                    "old_owner_id": SMALL, "new_owner_id": OTHER,
+                    "amount": amount.to_string(), "memo": "thanks"
+                }]
+            }),
+            serde_json::json!({
+                "standard": "fair_chance", "version": rule_engine::INTERFACE_VERSION,
+                "event": "fc_send",
+                "data": [{
+                    "from": SMALL, "to": OTHER, "amount": amount.to_string(),
+                    "marked_amount": "0", "to_marked_amount": "0"
+                }]
+            }),
         ]
     );
 }
