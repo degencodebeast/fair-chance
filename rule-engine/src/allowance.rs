@@ -19,7 +19,7 @@ pub struct WindowReserve {
 }
 
 /// One account's unmarked tokens sold and bought in one 1 h window, and its marked tokens sold
-/// in that window (they use up the unmarked floor: one floor per account per window).
+/// in that window. All tokens sold use up the unmarked floor: one floor per account per window.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct WindowTotals {
     pub window: u64,
@@ -43,10 +43,10 @@ pub struct UnmarkedAllowance {
     /// buys: the part of a band account's sells that never counts toward the real NEAR cap. A
     /// band account that buys and sells back in the window counts the bought part (ADR 0005).
     pub first_allowance_left: u128,
-    /// The floor (ADR 0005) less `used` and less the marked tokens the account sold in the
-    /// window, at least 0. The floor is `floor_bps` of the window's token reserve, rounded down:
-    /// the room per window a limited sell keeps when the real NEAR cap is full. One floor per
-    /// account per window, marked and unmarked together.
+    /// The floor (ADR 0005) less every token the account sold in the window, unmarked and
+    /// marked, at least 0. A buy gives no floor room back. The floor is `floor_bps` of the
+    /// window's token reserve, rounded down: the room per window a limited sell keeps when the
+    /// real NEAR cap is full. One floor per account per window, marked and unmarked together.
     pub floor_left: u128,
     pub window_end_ns: u64,
 }
@@ -111,10 +111,16 @@ pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) ->
         sell_room: (allowance + totals.bought).saturating_sub(totals.sold),
         first_allowance_left: allowance.saturating_sub(totals.sold),
         floor_left: floor
-            .saturating_sub(used)
+            .saturating_sub(totals.sold)
             .saturating_sub(totals.marked_sold),
         window_end_ns: unmarked_window_end_ns(state, at),
     }
+}
+
+/// The unmarked tokens the holder sold in the 1 h window that holds `at`. The marked floor
+/// subtracts them, so an account gets one floor per window in either order.
+pub fn unmarked_sold_in_window(state: &CoinState, holder: Option<&Holder>, at: At) -> u128 {
+    totals_now(state, holder, at).sold
 }
 
 /// Adds unmarked tokens sold to the holder's totals for the window that holds `at`.

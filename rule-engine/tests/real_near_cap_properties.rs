@@ -21,6 +21,10 @@
 //!   small sell of tokens bought in the window counts; it fills as far as it passes the cap
 //!   check or adds nothing to the cap used. Sends never count, and no account's buys lower
 //!   another account's counted sells: the cap used falls by at most the buyer's own part.
+//! - No account takes two floors in one window, in either order: its unmarked floor left is the
+//!   window's floor less every token it sold in the window (a buy gives none back), its marked
+//!   floor left is its marked floor at the window's first sell less the same tokens, and the
+//!   tokens of its sells that could fill at any cap add up to at most the larger of the two.
 //! - Every holder record has the size of an empty record, so the storage deposit for a record
 //!   pays for it whatever the account does.
 //! - Marked tokens: the early supply total equals the marked balances held; the creator group
@@ -57,8 +61,8 @@ use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 use rule_engine::{
     apply, launch, quote_sell, settle_creator_claim, view_account, view_cap, view_creator_fees,
-    view_early_window, view_pool, Action, At, CoinState, Event, FcBuy, FcSell, FcSend, FixedValues,
-    Holder, Holders, LaunchRequest,
+    view_early_window, view_pool, AccountView, Action, At, CoinState, Event, FcBuy, FcSell, FcSend,
+    FixedValues, Holder, Holders, LaunchRequest,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -147,6 +151,9 @@ struct Coin {
     claim_in_flight: u128,
     /// Check, after every step, that each marked token counts once per 24 h window.
     check_marked_shares: bool,
+    /// Each account's tokens sold in its current 1 h window, and the tokens of those sells that
+    /// could fill at any cap (its unmarked floor left before each sell), keyed by window end.
+    floor_use: BTreeMap<String, FloorUse>,
 }
 
 impl Coin {
@@ -182,6 +189,7 @@ impl Coin {
             bought_in_window: BTreeSet::new(),
             claim_in_flight: 0,
             check_marked_shares: false,
+            floor_use: BTreeMap::new(),
         }
     }
 
@@ -364,6 +372,7 @@ impl Coin {
             return Ok(());
         };
         let quote = quote.expect("a quote for a sell that went through");
+        self.one_floor_per_window(account, &before, &sell)?;
         prop_assert_eq!(quote.tokens_filled, sell.tokens_sold);
         prop_assert_eq!(quote.near_out, sell.near_out);
         prop_assert_eq!(quote.penalty_near, sell.penalty_near);
@@ -438,6 +447,57 @@ impl Coin {
                 + pool.creator_fee_balance
                 + fees.claimed_total
                 + self.claim_in_flight
+        );
+        Ok(())
+    }
+
+    /// No account takes two floors in one window, in either order. The unmarked floor left is
+    /// the window's floor less every token the account sold in the window, marked and unmarked,
+    /// and the marked floor left is the marked floor left at the window's first sell less the
+    /// same tokens; a buy gives no room back. One floor is the larger of the two at the window's
+    /// first sell. The tokens of the account's sells that could fill at any cap (each sell's
+    /// `min(tokens sold, the larger floor left before it)`) add up to at most one floor.
+    fn one_floor_per_window(
+        &mut self,
+        account: &str,
+        before: &AccountView,
+        sell: &FcSell,
+    ) -> Result<(), TestCaseError> {
+        let unmarked_floor = view_account(&self.state, "no-record.test", None, self.at)
+            .unmarked
+            .floor_left;
+        let window_end_ns = before.unmarked.window_end_ns;
+        let used = self.floor_use.entry(account.to_string()).or_default();
+        if used.window_end_ns != window_end_ns {
+            *used = FloorUse {
+                window_end_ns,
+                marked_floor: before.marked.floor_left,
+                ..FloorUse::default()
+            };
+        }
+        prop_assert_eq!(
+            before.unmarked.floor_left,
+            unmarked_floor.saturating_sub(used.sold),
+            "{}'s floor left is not the floor less its tokens sold in the window",
+            account
+        );
+        prop_assert_eq!(
+            before.marked.floor_left,
+            used.marked_floor.saturating_sub(used.sold),
+            "{}'s marked floor left is not its marked floor less its tokens sold in the window",
+            account
+        );
+        let one_floor = unmarked_floor.max(used.marked_floor);
+        used.sold += sell.tokens_sold;
+        used.taken += sell
+            .tokens_sold
+            .min(before.unmarked.floor_left.max(before.marked.floor_left));
+        prop_assert!(
+            used.taken <= one_floor,
+            "{} took {} at its floors in one window, above one floor {}",
+            account,
+            used.taken,
+            one_floor
         );
         Ok(())
     }
@@ -622,6 +682,18 @@ impl Coin {
         }
         Ok(())
     }
+}
+
+/// One account's sells in one 1 h window, for the one-floor-per-window check.
+#[derive(Debug, Default)]
+struct FloorUse {
+    window_end_ns: u64,
+    /// The marked floor left at the account's first sell in the window.
+    marked_floor: u128,
+    /// Tokens sold in the window, marked and unmarked.
+    sold: u128,
+    /// The tokens of those sells that could fill at any cap.
+    taken: u128,
 }
 
 /// A send moves the sender's marked tokens first, and every token the creator group receives is
