@@ -120,6 +120,19 @@ impl Coin {
         self.sell(account, self.balance(account), at)
     }
 
+    fn send(&mut self, from: &str, to: &str, amount: u128, at: At) {
+        self.ledger.entry(to.to_string()).or_default();
+        self.act(
+            Action::Send {
+                from: from.into(),
+                to: to.into(),
+                amount,
+                memo: None,
+            },
+            at,
+        );
+    }
+
     fn quote(&self, account: &str, amount: u128, at: At) -> rule_engine::SellQuote {
         quote_sell(
             &self.state,
@@ -227,4 +240,316 @@ fn test_1_a_large_sell_with_no_buy_in_the_window_fills_to_c_of_the_real_near_lef
     assert_eq!(filled[0]["fill_index"], 1);
     assert_eq!(filled[0]["cap_used"], sell.near_out.to_string());
     assert_eq!(filled[0]["real_near"], left.to_string());
+}
+
+/// Test 2 (also paper case a): a seller that already holds tokens buys 100 NEAR of tokens in
+/// the window, then sells all of them. Its own buy gains it no cap room: its net NEAR out is at
+/// most the Test 1 fill plus the NEAR value of one token unit.
+#[test]
+fn test_2_a_seller_s_own_buy_in_the_window_gains_it_no_cap_room() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    let mut test_1 = coin.clone();
+    let test_1_fill = test_1.sell_all(LARGE, window_1(10)).near_out;
+
+    coin.buy(LARGE, 100 * ONE_NEAR, window_1(10));
+    let pool = view_pool(&coin.state, window_1(20));
+    let one_token_unit = pool.near_reserve.div_ceil(pool.token_reserve);
+    let sell = coin.sell_all(LARGE, window_1(20));
+
+    // Here the allowance (with room back for the tokens bought) stops the sell first; the cap
+    // would stop it at the same net.
+    assert!(sell.limit_reason.is_some());
+    let net_out = sell.near_out.saturating_sub(100 * ONE_NEAR);
+    assert!(
+        net_out <= test_1_fill + one_token_unit,
+        "net {net_out} > fill {test_1_fill} + {one_token_unit}"
+    );
+    assert_eq!(coin.cap(window_1(20)).cap_used, net_out);
+}
+
+/// Window 0: LARGE buys 10 NEAR, SECOND_LARGE 3 NEAR, BAND 1.5 NEAR and SMALL 0.5 NEAR.
+/// Window 1: LARGE sells its whole balance, and the cap stops it: the cap is full.
+fn coin_with_a_full_cap_in_window_1() -> Coin {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    coin.buy(SECOND_LARGE, 3 * ONE_NEAR, after(11));
+    coin.buy(BAND, 1_500 * ONE_NEAR / 1_000, after(12));
+    coin.buy(SMALL, ONE_NEAR / 2, after(13));
+    let at = window_1(1);
+    assert_eq!(coin.account(SECOND_LARGE, at).class, "large");
+    assert_eq!(coin.account(BAND, at).class, "band");
+    assert_eq!(coin.account(SMALL, at).class, "small");
+    let sell = coin.sell_all(LARGE, at);
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    assert!(coin.cap(at).is_full);
+    coin
+}
+
+/// The full cap of [`coin_with_a_full_cap_in_window_1`], then SMALL sells its whole bag. A
+/// small sell never counts but lowers the real NEAR, so the cap used is now above c x the real
+/// NEAR.
+fn coin_with_a_cap_above_full_in_window_1() -> Coin {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    coin.sell_all(SMALL, window_1(2));
+    let cap = coin.cap(window_1(2));
+    assert!(!within_cap(cap.cap_used, cap.real_near_now));
+    coin
+}
+
+#[test]
+fn a_small_sell_fills_in_full_when_the_cap_is_full_and_never_counts() {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    let used = coin.cap(window_1(2)).cap_used;
+    let sell = coin.sell_all(SMALL, window_1(2));
+    assert_eq!(sell.class, "small");
+    assert_eq!(sell.fill, "full");
+    assert_eq!(sell.limit_reason, None);
+    assert_eq!(sell.cap_used, used);
+    assert_eq!(coin.cap(window_1(2)).cap_used, used);
+}
+
+#[test]
+fn when_the_cap_is_full_a_large_sell_fills_its_floor_and_a_band_sell_fills_zero_above_its_first_allowance(
+) {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+
+    let floor_left = coin.account(SECOND_LARGE, at).unmarked.floor_left;
+    assert!(floor_left > 0);
+    assert_eq!(coin.account(SECOND_LARGE, at).max_full_fill_now, floor_left);
+    let large = coin.sell_all(SECOND_LARGE, at);
+    assert_eq!(large.class, "large");
+    assert_eq!(large.tokens_sold, floor_left);
+    assert_eq!(large.fill, "partial");
+    assert_eq!(large.limit_reason, Some("floor"));
+    assert_eq!(coin.account(SECOND_LARGE, at).unmarked.floor_left, 0);
+    let after_floor = coin.sell_all(SECOND_LARGE, at);
+    assert_eq!(after_floor.tokens_sold, 0);
+    assert_eq!(after_floor.fill, "none");
+    assert_eq!(after_floor.limit_reason, Some("cap_full"));
+
+    let first_allowance = coin.account(BAND, at).penalty_applies_above.expect("band");
+    let band_balance = coin.balance(BAND);
+    assert!(band_balance > first_allowance);
+    let band = coin.sell_all(BAND, at);
+    assert_eq!(band.class, "band");
+    assert_eq!(band.tokens_sold, first_allowance);
+    assert_eq!(band.fill, "partial");
+    assert_eq!(band.limit_reason, Some("cap_full"));
+    assert_eq!(band.penalty_near, 0);
+}
+
+/// The buy raises the cap by c x X, and the sell back takes that room out again. Here X (0.3
+/// NEAR) is below the amount by which SMALL's sell put the cap used above c x real NEAR (about
+/// 0.49 NEAR of real NEAR), so even the floor sell leaves the cap above full.
+#[test]
+fn cap_full_a_large_account_that_buys_x_and_sells_x_in_the_window_is_held_at_the_floor() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+    let held_before = coin.balance(SECOND_LARGE);
+    coin.buy(SECOND_LARGE, 3 * ONE_NEAR / 10, at);
+    let bought = coin.balance(SECOND_LARGE) - held_before;
+    let floor_left = coin.account(SECOND_LARGE, at).unmarked.floor_left;
+    assert!(floor_left < bought);
+
+    let sell = coin.sell(SECOND_LARGE, bought, at);
+
+    assert_eq!(sell.tokens_sold, floor_left);
+    assert_eq!(sell.limit_reason, Some("floor"));
+}
+
+#[test]
+fn a_limited_sell_whose_own_net_adds_zero_is_still_checked_against_the_cap() {
+    let coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+    let mut full = coin.clone();
+    let held = full.balance(SECOND_LARGE);
+    full.buy(SECOND_LARGE, ONE_NEAR, at);
+    // A sell of nine tenths of the tokens it just bought for 1 NEAR: it pays out less than
+    // 1 NEAR, so its own net adds zero.
+    let tokens = (full.balance(SECOND_LARGE) - held) * 9 / 10;
+    let used_before = full.cap(at).cap_used;
+    let sell = full.sell(SECOND_LARGE, tokens, at);
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    assert!(sell.tokens_sold < tokens);
+    assert!(sell.near_out < ONE_NEAR);
+    assert_eq!(full.cap(at).cap_used, used_before);
+
+    // With the cap's room back (a new window), the same buy and sell fill in full.
+    let mut next_window = coin.clone();
+    let at_2 = after(2 * HOUR_S);
+    next_window.buy(SECOND_LARGE, ONE_NEAR, at_2);
+    assert_eq!(next_window.sell(SECOND_LARGE, tokens, at_2).fill, "full");
+}
+
+#[test]
+fn one_account_s_buys_never_offset_another_account_s_counted_sells() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 50 * ONE_NEAR, after(10));
+    let at = window_1(1);
+    let half_allowance = coin.account(LARGE, at).unmarked.allowance / 2;
+    let sell = coin.sell(LARGE, half_allowance, at);
+    assert_eq!(sell.fill, "full");
+    assert_eq!(coin.cap(at).cap_used, sell.near_out);
+
+    coin.buy(OTHER, 20 * ONE_NEAR, at);
+    let cap = coin.cap(at);
+    assert_eq!(cap.cap_used, sell.near_out);
+    assert!(cap.cap_total > sell.near_out);
+}
+
+/// Window 0: LARGE buys 100 NEAR (a deep pool), then BAND buys 6 NEAR (band, more than two
+/// allowances).
+fn coin_with_a_deep_band_holder() -> Coin {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 100 * ONE_NEAR, after(5));
+    coin.buy(BAND, 6 * ONE_NEAR, after(10));
+    let view = coin.account(BAND, window_1(0));
+    assert_eq!(view.class, "band");
+    assert!(view.balance > 2 * view.unmarked.allowance);
+    coin
+}
+
+#[test]
+fn an_account_s_buys_offset_its_uncounted_sells_first_and_only_the_rest_offsets_counted_sells() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let allowance = coin.account(BAND, at).unmarked.allowance;
+
+    // The whole first allowance: it never counts.
+    let first = coin.sell(BAND, allowance, at);
+    assert_eq!(first.penalty_near, 0);
+    assert_eq!(coin.cap(at).cap_used, 0);
+    // A buy of half that NEAR offsets the uncounted sell, so it leaves nothing to offset later.
+    let held = coin.balance(BAND);
+    coin.buy(BAND, first.near_out / 2, at);
+    let bought = coin.balance(BAND) - held;
+    assert_eq!(coin.cap(at).cap_used, 0);
+    // The next sell is all above the first allowance (the bought tokens and more): it counts in
+    // full, with no offset by the buy.
+    let counted = coin.sell(BAND, bought + allowance / 4, at);
+    assert_eq!(counted.fill, "full");
+    assert!(counted.penalty_near > 0);
+    assert_eq!(coin.cap(at).cap_used, counted.near_out);
+}
+
+#[test]
+fn a_buy_after_a_counted_sell_offsets_it() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let allowance = coin.account(LARGE, at).unmarked.allowance;
+    let sell = coin.sell(LARGE, allowance / 2, at);
+    assert_eq!(sell.fill, "full");
+    let used = coin.cap(at).cap_used;
+    assert_eq!(used, sell.near_out);
+
+    coin.buy(LARGE, used / 3, at);
+    assert_eq!(coin.cap(at).cap_used, used - used / 3);
+    coin.buy(LARGE, used, at);
+    assert_eq!(coin.cap(at).cap_used, 0);
+}
+
+#[test]
+fn a_buy_after_a_band_sell_offsets_the_sell_s_uncounted_first_allowance_part_first() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let allowance = coin.account(BAND, at).unmarked.allowance;
+    let sell = coin.sell(BAND, allowance + allowance / 4, at);
+    let used = coin.cap(at).cap_used;
+    let uncounted = sell.near_out - used;
+    assert!(used > 0 && uncounted > used);
+
+    // NEAR up to the uncounted part offsets it and leaves the counted part as it is.
+    coin.buy(BAND, uncounted, at);
+    assert_eq!(coin.cap(at).cap_used, used);
+    coin.buy(BAND, used, at);
+    assert_eq!(coin.cap(at).cap_used, 0);
+}
+
+/// Paper case 5 (wash trading): ten first-allowance round trips by a band account, then a sell
+/// above the first allowance from the same account. The round trips add nothing to the cap, and
+/// the later sell counts in full: the part of it outside the first allowance left.
+#[test]
+fn paper_case_5_first_allowance_round_trips_give_no_offset_to_a_later_counted_sell() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let allowance = coin.account(BAND, at).unmarked.allowance;
+    let round_trip = allowance / 50;
+    for _ in 0..10 {
+        let sold = coin.sell(BAND, round_trip, at);
+        coin.buy(BAND, sold.near_out, at);
+        assert_eq!(coin.cap(at).cap_used, 0);
+    }
+
+    // The first allowance left with no room back for buys: the allowance less the ten sells.
+    let first_allowance_left = allowance - 10 * round_trip;
+    let before = coin.clone();
+    let sell = coin.sell(BAND, allowance + allowance / 4, at);
+    let uncounted = payout_for(&before, first_allowance_left, at);
+    assert!(sell.penalty_near > 0);
+    assert_eq!(coin.cap(at).cap_used, sell.near_out - uncounted);
+}
+
+#[test]
+fn a_round_trip_by_one_account_adds_nothing_to_the_cap_total() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 50 * ONE_NEAR, after(10));
+    coin.buy(SECOND_LARGE, 3 * ONE_NEAR, after(11));
+    let at = window_1(1);
+    let half_allowance = coin.account(LARGE, at).unmarked.allowance / 2;
+    let first = coin.sell(LARGE, half_allowance, at);
+    let used = coin.cap(at).cap_used;
+    assert_eq!(used, first.near_out);
+
+    let held = coin.balance(SECOND_LARGE);
+    coin.buy(SECOND_LARGE, 5 * ONE_NEAR, at);
+    let round_trip = coin.sell(SECOND_LARGE, coin.balance(SECOND_LARGE) - held, at);
+    assert_eq!(round_trip.fill, "full");
+    assert_eq!(coin.cap(at).cap_used, used);
+    assert_eq!(round_trip.cap_used, used);
+}
+
+#[test]
+fn fc_quote_sell_cap_left_after_equals_the_real_sell_and_the_cap_resets_in_the_next_window() {
+    let mut coin = coin_with_a_full_cap_in_window_1();
+    let at = window_1(2);
+    let quote = coin.quote(SECOND_LARGE, coin.balance(SECOND_LARGE), at);
+    let sell = coin.sell_all(SECOND_LARGE, at);
+    assert_eq!(quote.tokens_filled, sell.tokens_sold);
+    assert_eq!(quote.near_out, sell.near_out);
+    assert_eq!(quote.limit_reason, sell.limit_reason);
+    assert_eq!(quote.cap_left_after, sell.cap_left);
+
+    let next = after(2 * HOUR_S);
+    let cap = coin.cap(next);
+    assert_eq!(cap.cap_used, 0);
+    assert_eq!(cap.fills_this_window, 0);
+    assert!(!cap.is_full);
+    assert_eq!(cap.cap_left, cap.real_near_now * C_BPS / (BPS + C_BPS));
+    assert_eq!(cap.window_start_ns, LAUNCH_NS + 2 * HOUR_S * 1_000_000_000);
+}
+
+/// QUESTIONS.md Q12 (b): for a band account, `penalty_applies_above` and `max_full_fill_now`
+/// give the same value, also when the account's balance is below its first allowance left.
+#[test]
+fn band_penalty_applies_above_equals_max_full_fill_now_when_the_balance_is_below_the_room() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let at = window_1(1);
+    let allowance = coin.account(BAND, at).unmarked.allowance;
+    // Send away all but a little more than one allowance.
+    let keep = allowance + allowance / 10;
+    coin.send(BAND, OTHER, coin.balance(BAND) - keep, at);
+    // A buy gives room back; sending the bought tokens away keeps the balance.
+    coin.buy(BAND, ONE_NEAR / 2, at);
+    coin.send(BAND, OTHER, coin.balance(BAND) - keep, at);
+
+    let view = coin.account(BAND, at);
+    assert_eq!(view.class, "band");
+    assert_eq!(view.balance, keep);
+    assert_eq!(view.max_full_fill_now, keep);
+    assert_eq!(view.penalty_applies_above, Some(view.max_full_fill_now));
+    let sell = coin.sell_all(BAND, at);
+    assert_eq!(sell.fill, "full");
+    assert_eq!(sell.penalty_near, 0);
 }
