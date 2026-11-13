@@ -15,7 +15,11 @@ describe("landing copy", () => {
 
   it("says small bags are not limited, with the one exception at a full cap", () => {
     const item = landingCopy.buyers.items.find((i) => i.b === "Small bags are not limited.");
-    expect(item?.t).toBe("One exception: when the pool cap is full, profit on tokens bought in the same hour is held back.");
+    expect(item?.t).toBe("One exception: when the pool cap has too little room, profit on tokens bought in the same hour is held back.");
+  });
+
+  it("does not call a late splitter unlimited without the same exception", () => {
+    expect(landingCopy.wont[2]).toBe("Someone who buys later through many small wallets is not limited, except that profit on tokens bought in the same hour is held back when the pool cap has too little room.");
   });
 
   it("follows the copy rules in every string", () => {
