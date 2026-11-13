@@ -4,8 +4,9 @@
 // coin's launch block to the final head at the end.
 //
 // It reads only public endpoints with no key: FastNEAR (-fastnear) and NEAR RPC (-rpc). On a 429 it
-// backs off and goes on; on a 403 or an answer it does not know it stops, writes what it has and
-// exits 1. It signs nothing.
+// waits and reads again, at most twice and at most 15 minutes in all for the whole tool; past that,
+// on a 403 or on an answer it does not know, it stops, writes what it has and exits 1. It signs
+// nothing.
 //
 // The latency is local clock minus chain block time, so a skewed local clock moves every value by
 // the same amount. The report says so.
@@ -77,11 +78,13 @@ func main() {
 
 	r := report{Coin: *coin, FastNearURL: *fastNearURL, RPCURL: *rpcURL, PollSeconds: poll.Seconds(),
 		Note: "latency_s = local time of the first FastNEAR read that showed the event minus the receipt block timestamp; local clock skew shifts every value"}
-	err := run(ctx, &r, *poll, *idle, *want)
+	// One 429 limit for the whole tool: the coin wait, the polling and finish share it.
+	back := limitedBackOff(2 * time.Second)
+	err := runLimited(ctx, &r, *poll, *idle, *want, defaultCoinWaitPoll, &back)
 	if err != nil {
 		r.StoppedBy = err.Error()
 	}
-	if ferr := finish(ctx, &r); ferr != nil && (err == nil || errors.Is(err, errDone)) {
+	if ferr := finishLimited(ctx, &r, &back); ferr != nil && (err == nil || errors.Is(err, errDone)) {
 		err = ferr
 	}
 	raw, _ := json.MarshalIndent(r, "", "  ")
@@ -132,6 +135,11 @@ func rateLimitStop(who string) error {
 
 func runWithCoinWaitAndBackOff(ctx context.Context, r *report, poll, idle time.Duration, want int, coinPoll, firstWait time.Duration) error {
 	back := limitedBackOff(firstWait)
+	return runLimited(ctx, r, poll, idle, want, coinPoll, &back)
+}
+
+// runLimited is run with the caller's 429 limit, so later steps of the tool share it.
+func runLimited(ctx context.Context, r *report, poll, idle time.Duration, want int, coinPoll time.Duration, back *timing.LimitedBackOff) error {
 	var facts eventsource.CoinFacts
 	for {
 		f, err := eventsource.ReadCoinFacts(ctx, r.RPCURL, r.Coin)
@@ -244,9 +252,14 @@ func finish(parent context.Context, r *report) error {
 }
 
 func finishWithBackOff(parent context.Context, r *report, firstWait time.Duration) error {
+	back := limitedBackOff(firstWait)
+	return finishLimited(parent, r, &back)
+}
+
+// finishLimited is finish with the caller's 429 limit, the one the run already used.
+func finishLimited(parent context.Context, r *report, back *timing.LimitedBackOff) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 5*time.Minute)
 	defer cancel()
-	back := limitedBackOff(firstWait)
 	retry := func(read func() error) error {
 		for {
 			err := read()
