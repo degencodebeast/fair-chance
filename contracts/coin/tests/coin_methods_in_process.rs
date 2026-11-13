@@ -66,7 +66,7 @@ fn a_sell_logs_fc_sell_with_the_interface_version() {
     let _ = coin.sell(U128(tokens), U128(0));
     let sells = events("fair_chance", "fc_sell");
     assert_eq!(sells.len(), 1);
-    assert_eq!(sells[0]["version"], "1.0.0-rc.4");
+    assert_eq!(sells[0]["version"], rule_engine::INTERFACE_VERSION);
     assert_eq!(sells[0]["data"][0]["tokens_sold"], tokens.to_string());
     assert_eq!(coin.ft_balance_of(account("alice.test")).0, 0);
 }
@@ -93,4 +93,19 @@ fn fc_rules_reports_the_launch_block_and_creator() {
 #[test]
 fn the_package_version_is_the_interface_version() {
     assert_eq!(env!("CARGO_PKG_VERSION"), rule_engine::INTERFACE_VERSION);
+}
+
+/// The `contract_metadata` attribute needs a string literal, so it cannot use the constant.
+/// This test keeps that literal equal to the interface version.
+#[test]
+fn the_nep330_fair_chance_standard_version_is_the_interface_version() {
+    let source = include_str!("../src/lib.rs");
+    let expected = format!(
+        "standard(standard = \"fair_chance\", version = \"{}\")",
+        rule_engine::INTERFACE_VERSION
+    );
+    assert!(
+        source.contains(&expected),
+        "contracts/coin/src/lib.rs must contain {expected}"
+    );
 }

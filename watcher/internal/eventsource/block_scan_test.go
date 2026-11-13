@@ -3,6 +3,7 @@ package eventsource_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"fairchance/watcher/internal/eventsource"
@@ -59,5 +60,16 @@ func TestBlockScanIgnoresOtherCoins(t *testing.T) {
 	got, _, err := eventsource.NewRPCScan(rpc.URL).Events(context.Background(), []string{"other.factory.sandbox"}, 15)
 	if err != nil || len(got) != 0 {
 		t.Fatalf("got %v err %v", got, err)
+	}
+}
+
+func TestBlockScanFailsWhenTheCursorIsBelowTheNodesEarliestBlock(t *testing.T) {
+	rpc := recordedrpc.ServeWithEarliest(t, "../../../testdata/recorded-rpc-walking-path", 27, 20)
+	got, next, err := eventsource.NewRPCScan(rpc.URL).Events(context.Background(), []string{coin}, 15)
+	if !errors.Is(err, eventsource.ErrBlocksGone) {
+		t.Fatalf("err %v, want ErrBlocksGone", err)
+	}
+	if len(got) != 0 || next != 15 {
+		t.Fatalf("got %v next %d; want no events and the same cursor", got, next)
 	}
 }

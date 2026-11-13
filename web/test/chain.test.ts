@@ -70,3 +70,10 @@ describe("receipts page", () => {
     expect(page.receipts.map((r) => r.receipt_id)).toEqual(["AieYQm9t4UEvo41tkdAFBiwHqnkDAfAi8zetodrZ7fRA"]);
   });
 });
+
+describe("block scan guard", () => {
+  it("fails when the scan start is below the node's earliest block", async () => {
+    const reader = chainReader({ rpcUrl, coin }, recordedFetch(RECORDED, 27, 20));
+    await expect(reader.events(15)).rejects.toThrow(/no longer has the blocks.*15.*20/);
+  });
+});

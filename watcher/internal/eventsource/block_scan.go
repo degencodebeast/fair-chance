@@ -10,6 +10,11 @@ import (
 // Plain RPC cannot list past events, so it reads every block from the cursor to the final
 // head: block, then its new chunks, then each transaction's receipt outcomes and their logs.
 // A transaction's events are reported at the block that included the transaction.
+// ErrBlocksGone means the node no longer has the blocks from the cursor on, so a scan would
+// miss events. A node that has never had a block at a height answers UNKNOWN_BLOCK for it, and
+// the scan skips that height; it cannot tell that from lost data without this check.
+var ErrBlocksGone = errors.New("the node no longer has the blocks from this cursor")
+
 type RPCScan struct {
 	rpc *rpcClient
 }
@@ -47,6 +52,17 @@ type txStatus struct {
 }
 
 func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]Event, Cursor, error) {
+	var status struct {
+		SyncInfo struct {
+			EarliestBlockHeight uint64 `json:"earliest_block_height"`
+		} `json:"sync_info"`
+	}
+	if err := s.rpc.call(ctx, "status", map[string]any{}, &status); err != nil {
+		return nil, since, fmt.Errorf("node status: %w", err)
+	}
+	if uint64(since) < status.SyncInfo.EarliestBlockHeight {
+		return nil, since, fmt.Errorf("%w: cursor %d, earliest block %d", ErrBlocksGone, since, status.SyncInfo.EarliestBlockHeight)
+	}
 	watched := make(map[string]bool, len(coins))
 	for _, c := range coins {
 		watched[c] = true

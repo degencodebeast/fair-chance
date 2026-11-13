@@ -4,7 +4,7 @@
 //! port and makes a new temporary data folder, so runs in parallel do not share either.
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
@@ -15,6 +15,33 @@ use near_sandbox::{GenesisAccount, Sandbox, SandboxConfig};
 use serde_json::{json, Value};
 
 pub const COIN_TICKER: &str = "walk";
+
+/// The near-sandbox (neard) release these tests run on. `NEAR_SANDBOX_BIN_PATH` must point to it.
+pub const SANDBOX_RELEASE: &str = "2.13.4";
+
+/// Fails unless `NEAR_SANDBOX_BIN_PATH` is set and its binary reports [`SANDBOX_RELEASE`].
+pub fn check_sandbox_binary() -> Result<()> {
+    let bin = std::env::var("NEAR_SANDBOX_BIN_PATH").context(
+        "set NEAR_SANDBOX_BIN_PATH to a near-sandbox binary; the tests never download one",
+    )?;
+    let out = std::process::Command::new(&bin)
+        .arg("--version")
+        .output()
+        .with_context(|| format!("run {bin} --version"))?;
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let want = format!("(release {SANDBOX_RELEASE})");
+    if !text.contains(&want) {
+        bail!(
+            "near-sandbox at {bin} is not release {SANDBOX_RELEASE}: {}",
+            text.trim()
+        );
+    }
+    Ok(())
+}
 
 pub struct Account {
     pub id: AccountId,
@@ -40,17 +67,65 @@ pub struct LoggedEvent {
     pub event: Value,
 }
 
+/// The built wasm of one contract crate, refused when it is missing or older than any of its
+/// sources, so a sandbox test never runs against stale code.
 pub fn wasm(name: &str) -> Result<Vec<u8>> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../target/near")
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let contract_dir = match name {
+        "fair_chance_coin" => "contracts/coin",
+        "fair_chance_factory" => "contracts/factory",
+        other => bail!("unknown contract {other}"),
+    };
+    let path = repo
+        .join("target/near")
         .join(name)
         .join(format!("{name}.wasm"));
-    std::fs::read(&path).with_context(|| {
-        format!(
-            "missing {}; build the contracts first (scripts/build-contracts.sh)",
-            path.display()
-        )
-    })
+    let sources: Vec<PathBuf> = [
+        contract_dir,
+        "rule-engine",
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain.toml",
+    ]
+    .iter()
+    .map(|p| repo.join(p))
+    .collect();
+    let newer = newer_sources(&path, &sources)
+        .context("build the contracts first: scripts/build-contracts.sh")?;
+    if !newer.is_empty() {
+        bail!(
+            "{} is older than {} source file(s), first {}; run scripts/build-contracts.sh",
+            path.display(),
+            newer.len(),
+            newer[0].display()
+        );
+    }
+    std::fs::read(&path).with_context(|| format!("read {}", path.display()))
+}
+
+/// Every file under `sources` (files or folders, `target` folders skipped) that changed after
+/// `artifact`. An error when `artifact` does not exist.
+pub fn newer_sources(artifact: &Path, sources: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    let built = std::fs::metadata(artifact)
+        .and_then(|m| m.modified())
+        .with_context(|| format!("missing {}", artifact.display()))?;
+    let mut newer = Vec::new();
+    let mut stack: Vec<PathBuf> = sources.to_vec();
+    while let Some(path) = stack.pop() {
+        let meta = std::fs::metadata(&path).with_context(|| format!("read {}", path.display()))?;
+        if meta.is_dir() {
+            if path.file_name().is_some_and(|n| n == "target") {
+                continue;
+            }
+            for entry in std::fs::read_dir(&path)? {
+                stack.push(entry?.path());
+            }
+        } else if path != artifact && meta.modified()? > built {
+            newer.push(path);
+        }
+    }
+    newer.sort();
+    Ok(newer)
 }
 
 fn genesis(name: &str) -> Result<(GenesisAccount, Account)> {
@@ -67,6 +142,7 @@ impl World {
     /// Start a fresh sandbox, put the coin code in global storage by hash, deploy the factory
     /// and launch one coin from the creator account.
     pub async fn launch() -> Result<Self> {
+        check_sandbox_binary()?;
         let coin_code = wasm("fair_chance_coin")?;
         let factory_code = wasm("fair_chance_factory")?;
         let (factory_g, factory) = genesis("factory.sandbox")?;
@@ -244,4 +320,36 @@ async fn send(
         bail!("{method} on {contract} failed: {result:?}");
     }
     Ok(result)
+}
+
+impl World {
+    /// Waits until the final head reaches the last block of the transaction's receipts, so a
+    /// reader that scans to the final head sees all of them. Returns that block height.
+    pub async fn wait_final(&self, result: &TransactionResult) -> Result<u64> {
+        let TransactionResult::Full(full) = result else {
+            bail!("the transaction has no execution result yet")
+        };
+        let mut last = 0;
+        for outcome in full.receipt_outcomes() {
+            let block = near_api::Chain::block()
+                .at(near_api::Reference::AtBlockHash(outcome.block_hash))
+                .fetch_from(&self.network)
+                .await?;
+            last = last.max(block.header.height);
+        }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        loop {
+            let head = near_api::Chain::block_number()
+                .at(near_api::Reference::Final)
+                .fetch_from(&self.network)
+                .await?;
+            if head >= last {
+                return Ok(last);
+            }
+            if std::time::Instant::now() > deadline {
+                bail!("final head {head} did not reach block {last} in 60 s");
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    }
 }

@@ -21,7 +21,7 @@ async fn launch_runs_the_batch_and_emits_fc_launch() -> Result<()> {
     let source = world
         .view(&world.coin, "contract_source_metadata", json!({}))
         .await?;
-    assert_eq!(source["version"], "1.0.0-rc.4");
+    assert_eq!(source["version"], rule_engine::INTERFACE_VERSION);
 
     let mints = events(&world.launch, "nep141", "ft_mint");
     assert_eq!(mints.len(), 1);
@@ -61,7 +61,7 @@ async fn a_sell_receipt_logs_fc_sell_with_the_interface_field_names() -> Result<
     let sells = events(&sell, "fair_chance", "fc_sell");
     assert_eq!(sells.len(), 1);
     assert_eq!(sells[0].executor, world.coin.to_string());
-    assert_eq!(sells[0].event["version"], "1.0.0-rc.4");
+    assert_eq!(sells[0].event["version"], rule_engine::INTERFACE_VERSION);
     let mut expected: Vec<String> = FC_SELL_FIELDS.iter().map(|s| s.to_string()).collect();
     expected.sort();
     assert_eq!(field_names(&sells[0].event), expected);

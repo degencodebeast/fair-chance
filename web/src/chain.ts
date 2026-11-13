@@ -75,6 +75,15 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
 
   async function events(since?: number) {
     const from = since ?? (await view<{ launch_block: number }>("fc_rules")).launch_block;
+    // A height with no block answers UNKNOWN_BLOCK and the scan skips it. A node that dropped
+    // old blocks answers the same way, so check first that the node still has the blocks.
+    const status = await call<{ sync_info: { earliest_block_height: number } }>("status", {});
+    const earliest = status.sync_info.earliest_block_height;
+    if (from < earliest) {
+      throw new Error(
+        `the node no longer has the blocks from this cursor: cursor ${from}, earliest block ${earliest}`,
+      );
+    }
     const head = await call<{ header: { height: number } }>("block", { finality: "final" });
     const out: CoinEvent[] = [];
     const seen = new Set<string>();

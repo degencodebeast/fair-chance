@@ -902,6 +902,7 @@ dependencies = [
 name = "fair-chance-factory"
 version = "0.1.0"
 dependencies = [
+ "fair-chance-rule-engine",
  "near-sdk",
  "serde_json",
 ]
@@ -921,6 +922,7 @@ name = "fair-chance-sandbox-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fair-chance-rule-engine",
  "near-api",
  "near-sandbox",
  "serde_json",

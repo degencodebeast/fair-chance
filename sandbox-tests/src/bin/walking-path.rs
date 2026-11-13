@@ -1,7 +1,8 @@
 //! The walking path on a fresh sandbox: the factory launches one coin, one account buys and
-//! sells, the sell logs `fc_sell`, the Go watcher reads it through its event adapter and sends one
-//! alert to its fake sender, and the page's chain-read module finds the same receipt by a block
-//! scan. Exits 0 only when every step passes.
+//! sells, and the sell logs `fc_sell`. The page's chain-read module waits for the sell to be final
+//! and finds the receipt by a block scan; then the Go watcher reads it through its event adapter
+//! and sends one alert to its fake sender. Each step waits for the chain itself, so neither depends
+//! on the other. Exits 0 only when every step passes.
 //!
 //! `walking-path --hold` stops after the sell, prints the RPC URL and coin, and keeps the sandbox up
 //! until it is killed.
@@ -41,7 +42,7 @@ async fn main() -> Result<()> {
         .view(&world.coin, "contract_source_metadata", json!({}))
         .await?;
     ensure!(
-        source["version"] == "1.0.0-rc.4",
+        source["version"] == rule_engine::INTERFACE_VERSION,
         "coin reports version {}",
         source["version"]
     );
@@ -94,7 +95,7 @@ async fn main() -> Result<()> {
         "fc_sell fields {:?}",
         field_names(&fc_sell.event)
     );
-    ensure!(fc_sell.event["version"] == "1.0.0-rc.4");
+    ensure!(fc_sell.event["version"] == rule_engine::INTERFACE_VERSION);
     let sold = &fc_sell.event["data"][0];
     println!(
         "walking-path:   fc_sell in receipt {} with the rc.4 field names: tokens_sold {} near_out {}",
@@ -109,18 +110,9 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    step("the watcher reads the event through its adapter and sends one alert to the fake sender");
-    let alerts = run_watcher(&world).await?;
-    let alerts = alerts["alerts"].as_array().context("alerts list")?;
-    ensure!(alerts.len() == 1, "expected one alert, got {alerts:?}");
-    let text = alerts[0]["text"].as_str().context("alert text")?;
-    ensure!(
-        text.contains(world.alice.id.as_str()),
-        "alert does not name the seller: {text}"
-    );
-    println!("walking-path:   alert: {text}");
-
     step("the page finds the receipt by a block scan from the launch block");
+    let final_block = world.wait_final(&sell).await?;
+    println!("walking-path:   the sell is final at block {final_block}");
     let page = run_page_read(&world).await?;
     let receipts = page["receipts"].as_array().context("receipts list")?;
     let found = receipts
@@ -142,6 +134,17 @@ async fn main() -> Result<()> {
         page["source"]
     );
     println!("walking-path:   page row: {}", found["text"]);
+
+    step("the watcher reads the event through its adapter and sends one alert to the fake sender");
+    let alerts = run_watcher(&world).await?;
+    let alerts = alerts["alerts"].as_array().context("alerts list")?;
+    ensure!(alerts.len() == 1, "expected one alert, got {alerts:?}");
+    let text = alerts[0]["text"].as_str().context("alert text")?;
+    ensure!(
+        text.contains(world.alice.id.as_str()),
+        "alert does not name the seller: {text}"
+    );
+    println!("walking-path:   alert: {text}");
 
     step("ok");
     Ok(())

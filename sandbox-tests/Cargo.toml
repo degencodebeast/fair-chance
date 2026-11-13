@@ -8,6 +8,7 @@ description = "Fair Chance sandbox tests and the walking-path runner."
 
 [dependencies]
 anyhow = "1"
+rule_engine = { package = "fair-chance-rule-engine", path = "../rule-engine" }
 near-api = "0.8.7"
 near-sandbox = { version = "0.3.16", features = ["generate"] }
 serde_json.workspace = true

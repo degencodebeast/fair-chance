@@ -1,6 +1,6 @@
 // Package recordedrpc serves recorded NEAR JSON-RPC responses from a folder, for tests.
 //
-// Files: block_<height>.json, chunk_<hash>.json, tx_<hash>.json, query_<method>.json.
+// Files: block_<height>.json, chunk_<hash>.json, tx_<hash>.json, query_<method>.json, status.json.
 // A block request by finality answers with block_<head>.json. A missing block answers
 // UNKNOWN_BLOCK the way a node does for a height with no block.
 package recordedrpc
@@ -28,6 +28,17 @@ type request struct {
 
 func Serve(t testing.TB, dir string, head uint64) *httptest.Server {
 	t.Helper()
+	return serve(t, dir, head, nil)
+}
+
+// ServeWithEarliest is Serve, but the status answer gives this earliest block height, as a node
+// that dropped older blocks does.
+func ServeWithEarliest(t testing.TB, dir string, head, earliest uint64) *httptest.Server {
+	t.Helper()
+	return serve(t, dir, head, &earliest)
+}
+
+func serve(t testing.TB, dir string, head uint64, earliest *uint64) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req request
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -50,6 +61,12 @@ func Serve(t testing.TB, dir string, head uint64) *httptest.Server {
 			name = "chunk_" + req.Params.ChunkID + ".json"
 		case "EXPERIMENTAL_tx_status":
 			name = "tx_" + req.Params.TxHash + ".json"
+		case "status":
+			if earliest != nil {
+				fmt.Fprintf(w, `{"jsonrpc":"2.0","id":"fc","result":{"sync_info":{"earliest_block_height":%d,"latest_block_height":%d}}}`, *earliest, head)
+				return
+			}
+			name = "status.json"
 		case "query":
 			name = "query_" + req.Params.MethodName + ".json"
 		default:

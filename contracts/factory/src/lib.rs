@@ -71,7 +71,7 @@ impl Factory {
         if env::promise_result_checked(0, 0).is_ok() {
             let event = json!({
                 "standard": "fair_chance_factory",
-                "version": "1.0.0-rc.4",
+                "version": rule_engine::INTERFACE_VERSION,
                 "event": "fc_launch",
                 "data": [{
                     "coin": coin,
