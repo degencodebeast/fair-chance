@@ -15,6 +15,9 @@ describe("which screen a page link opens", () => {
     expect(screenFor(`${base}?coin=moth.factory.testnet&network=testnet`)).toBe("coin");
     expect(screenFor(`${base}?view=coins&coin=moth.factory.testnet`)).toBe("coin");
   });
+  it("keeps the alerts screen when a coin is named, because the alerts link its receipts to that coin", () => {
+    expect(screenFor(`${base}?view=alerts&coin=moth.factory.testnet&network=testnet`)).toBe("alerts");
+  });
   it("falls back to the landing screen for a view it does not know", () => {
     expect(screenFor(`${base}?view=launch`)).toBe("landing");
   });
