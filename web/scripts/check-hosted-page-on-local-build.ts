@@ -74,6 +74,21 @@ function listenWithoutStyleFile(target: string): Promise<{ server: Server; origi
   });
 }
 
+// A host that adds one script to the page it serves; the rest passes through to the local build.
+function listenWithScript(target: string, script: (originOfSelf: string) => string): Promise<{ server: Server; origin: string }> {
+  const served: { origin: string } = { origin: "" };
+  return listen((_body, path, res, search) => {
+    void fetch(`${target}${path}${search}`).then(async (r) => {
+      const type = r.headers.get("content-type") ?? "text/plain";
+      const text = type.startsWith("text/html") ? (await r.text()).replace("</body>", `<script>${script(served.origin)}</script></body>`) : Buffer.from(await r.arrayBuffer());
+      res.writeHead(r.status, { "content-type": type }).end(text);
+    });
+  }).then((listening) => {
+    served.origin = listening.origin;
+    return listening;
+  });
+}
+
 const page = await buildAndServePage();
 const goodRpc = await listen(rpcHandler(true));
 const badRpc = await listen(rpcHandler(false));
@@ -81,6 +96,10 @@ const fastNear = await listen(fastNearHandler);
 const pageWithoutStyleFile = await listenWithoutStyleFile(page.origin);
 // A host that redirects every request to another host.
 const redirecting = await listen((_body, path, res, search) => void res.writeHead(301, { location: `${pageWithoutStyleFile.origin}${path}${search}` }).end());
+// A host whose page sends the browser to another host from script, after it loaded.
+const scriptRedirecting = await listenWithScript(page.origin, () => `setTimeout(() => { location.href = ${JSON.stringify(pageWithoutStyleFile.origin + "/")}; }, 800);`);
+// A host whose page logs an error that holds a value from the link's query.
+const queryLeaking = await listenWithScript(page.origin, () => `setTimeout(() => console.error("bad link secret=" + new URLSearchParams(location.search).get("secret")), 300);`);
 // A port with nothing listening, so the browser cannot open the page.
 const closed = await listen((_body, _path, res) => void res.end());
 const closedOrigin = closed.origin;
@@ -103,6 +122,15 @@ try {
   const redirected = await runHosted(linkTo(goodRpc.origin, redirecting.origin));
   console.log(`hosted command, host that redirects to another host: exit ${redirected.code}: ${redirected.last}`);
   if (redirected.code === 0 || !redirected.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a redirect to another host");
+  // A redirect from script after the page loaded must fail too.
+  const scripted = await runHosted(linkTo(goodRpc.origin, scriptRedirecting.origin));
+  console.log(`hosted command, page that moves to another host from script: exit ${scripted.code}: ${scripted.last}`);
+  if (scripted.code === 0 || !scripted.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a script redirect to another host");
+  // A console error that holds a value from the link's query must fail and must not print that value.
+  const leaking = await runHosted(`${linkTo(goodRpc.origin, queryLeaking.origin)}&secret=SECRETVALUE2`);
+  console.log(`hosted command, page error that holds a query value: exit ${leaking.code}: ${leaking.last}`);
+  if (leaking.code === 0 || !leaking.last.startsWith("verify: FAIL (hosted)")) throw new Error("the hosted command did not fail on a console error");
+  if (leaking.output.includes("SECRETVALUE2")) throw new Error("the hosted command printed a value from the query of the link");
   // A page that cannot open must not print the query of the link, which may hold a key.
   const unreachable = await runHosted(`${closedOrigin}/?coin=moth.factory.sandbox&rpc_key=SECRETVALUE`);
   console.log(`hosted command, page that cannot open: exit ${unreachable.code}: ${unreachable.last}`);
@@ -112,7 +140,7 @@ try {
   console.error(`check-hosted-page-on-local-build: ${err instanceof Error ? err.message : String(err)}`);
   exitCode = 1;
 } finally {
-  for (const s of [goodRpc, badRpc, fastNear, pageWithoutStyleFile, redirecting]) s.server.close();
+  for (const s of [goodRpc, badRpc, fastNear, pageWithoutStyleFile, redirecting, scriptRedirecting, queryLeaking]) s.server.close();
   await page.close();
 }
 process.exit(exitCode);
