@@ -2,7 +2,7 @@
 import { el, type Child } from "./dom-elements.ts";
 import { landingCopy as copy } from "./landing-copy.ts";
 import { sampleLabel } from "./sample-label.ts";
-import { screenHeader } from "./screen-chrome.ts";
+import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
 
 function itemCard(id: string, block: { kicker: string; title: string; items: { b: string; t: string }[]; note?: string }): HTMLElement {
@@ -30,7 +30,7 @@ export function drawLanding(app: HTMLElement, href: string): void {
         "div",
         { class: "hero-actions" },
         el("a", { class: "button button-dark button-big", id: "open-app", href: coins }, copy.actions[0].label),
-        el("a", { class: "button button-dark button-big", id: "launch-coin", href: screenLink(href, "launch") }, copy.actions[1].label),
+        turnedOffButton("launch-coin", copy.actions[1].label, copy.launchOffNote),
         el("a", { class: "text-link", id: "see-rules", href: coins }, copy.actions[2].label),
       ),
       el("div", { class: "proof", id: "proof" }, sampleLabel(copy.proof.label), el("p", {}, copy.proof.sentence)),
