@@ -64,6 +64,16 @@ async fn start(list: &mut PassList) -> Result<()> {
             "--sells-only runs on testnet only (the sandbox check is the bag_sells_on_sandbox test); nothing was run"
         );
     }
+    // The sells-only step runs only on bag.factory.fairchance.testnet: check the factory before any
+    // read or signature, and again on the setup the run uses.
+    let sells_only_coin = match sell_plan {
+        Some(_) => Some(
+            fair_chance_sandbox_tests::sells_only::check_sells_only_factory(
+                std::env::var("FC_TESTNET_FACTORY").ok().as_deref(),
+            )?,
+        ),
+        None => None,
+    };
     let delete = args.delete_buyers;
     if delete {
         choose_buyer_deletion(
@@ -99,6 +109,13 @@ async fn start(list: &mut PassList) -> Result<()> {
     tune(&mut setup);
     setup.limits = limits;
     if let Some(plan) = sell_plan {
+        let coin =
+            fair_chance_sandbox_tests::option_t::coin_account_id(&setup.ticker, &setup.factory)?;
+        if Some(&coin) != sells_only_coin.as_ref() {
+            anyhow::bail!(
+                "the run would sell on {coin}, not on the checked coin; nothing was signed"
+            );
+        }
         fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
         return Ok(());
     }

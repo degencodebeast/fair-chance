@@ -4,7 +4,8 @@
 //!
 //! Before any signature the step reads the 18 balances from the chain, writes the plan file (a
 //! file that exists already stops it) and reads the file back. Before each sell it reads the
-//! seller's balance again and refuses any account or amount that is not the plan's next step, then
+//! seller's balance again and refuses any account or amount that is not the next step of the plan
+//! read back from the file, then
 //! runs the spend check. Each sell goes out once ([`crate::transact_once`]). Every step line starts
 //! with a UTC timestamp ([`crate::stamp`]).
 
@@ -23,6 +24,11 @@ use crate::{account_view, events, stamp, transact_once, transaction_hash, view_o
 pub const SELLERS: usize = 18;
 /// How many buyers there are; the last two keep their tokens.
 const BUYERS: usize = 20;
+
+/// The one ticker, factory and coin the step runs on. Any other is refused before any read.
+pub const SELLS_ONLY_TICKER: &str = "BAG";
+pub const SELLS_ONLY_FACTORY: &str = "factory.fairchance.testnet";
+pub const SELLS_ONLY_COIN: &str = "bag.factory.fairchance.testnet";
 
 /// The fixed rule, written into the plan file.
 pub const RULE: &str = "bag-buyer-01 to bag-buyer-18 each sell their full balance, read from the chain just before the run, one after another in that order, with 1 yoctoNEAR and min_near_out 0. bag-buyer-19 and bag-buyer-20 never sell.";
@@ -126,6 +132,47 @@ pub fn check_plan_file(text: &str, plan: &SellPlan) -> Result<()> {
     Ok(())
 }
 
+/// The plan in a plan file, as [`plan_json`] writes it. It refuses a file that is not JSON, an
+/// amount that is not a whole number and a sell out of order.
+pub fn plan_from_file(text: &str) -> Result<SellPlan> {
+    let file: Value =
+        serde_json::from_str(text).context("the plan file is not JSON; nothing was signed")?;
+    let bad = || {
+        anyhow::anyhow!("the plan file has a field that is missing or wrong; nothing was signed")
+    };
+    let account =
+        |v: &Value| -> Result<AccountId> { v.as_str().ok_or_else(bad)?.parse().map_err(|_| bad()) };
+    let coin = account(&file["coin"])?;
+    let mut steps = Vec::new();
+    for (i, sell) in file["sells"].as_array().ok_or_else(bad)?.iter().enumerate() {
+        if sell["order"].as_u64() != Some(i as u64 + 1) {
+            bail!(
+                "sell {} of the plan file is out of order; nothing was signed",
+                i + 1
+            );
+        }
+        steps.push(SellStep {
+            account: account(&sell["account"])?,
+            amount: sell["amount"]
+                .as_str()
+                .ok_or_else(bad)?
+                .parse()
+                .map_err(|_| bad())?,
+        });
+    }
+    let keepers = file["keep"]
+        .as_array()
+        .ok_or_else(bad)?
+        .iter()
+        .map(account)
+        .collect::<Result<_>>()?;
+    Ok(SellPlan {
+        coin,
+        steps,
+        keepers,
+    })
+}
+
 /// Refuses a sell that is not the plan's step `index`: another account, another amount, or a
 /// chain balance that is not the planned amount.
 pub fn check_step(
@@ -166,15 +213,19 @@ pub fn check_step(
 }
 
 /// The plan file path when the arguments ask for the sells-only step. `--sells-only` needs
-/// `--sell-plan` and `--ticker`, and does not mix with `--delete-buyers`.
+/// `--sell-plan`, `--network testnet` and `--ticker BAG` exactly, and does not mix with
+/// `--delete-buyers`.
 pub fn sells_only_request(args: &OptionTArguments) -> Result<Option<PathBuf>> {
     match (args.sells_only, &args.sell_plan) {
         (false, None) => Ok(None),
         (false, Some(_)) => bail!("--sell-plan needs --sells-only; nothing was run"),
         (true, None) => bail!("--sells-only needs --sell-plan <file>; nothing was run"),
         (true, Some(path)) => {
-            if args.ticker.is_none() {
-                bail!("--sells-only needs --ticker; nothing was run");
+            if args.ticker.as_deref() != Some(SELLS_ONLY_TICKER) {
+                bail!("--sells-only runs only with --ticker {SELLS_ONLY_TICKER}; nothing was run");
+            }
+            if args.network.as_deref() != Some("testnet") {
+                bail!("--sells-only runs only with --network testnet; nothing was run");
             }
             if args.delete_buyers {
                 bail!("--sells-only does not mix with --delete-buyers; nothing was run");
@@ -182,6 +233,19 @@ pub fn sells_only_request(args: &OptionTArguments) -> Result<Option<PathBuf>> {
             Ok(Some(PathBuf::from(path)))
         }
     }
+}
+
+/// The coin of the sells-only step, from the FC_TESTNET_FACTORY value. It refuses any factory that
+/// is not exactly [`SELLS_ONLY_FACTORY`], before any read or signature.
+pub fn check_sells_only_factory(factory: Option<&str>) -> Result<AccountId> {
+    if factory != Some(SELLS_ONLY_FACTORY) {
+        bail!("--sells-only runs only on the factory {SELLS_ONLY_FACTORY}; set FC_TESTNET_FACTORY to it; nothing was run");
+    }
+    let coin = coin_account_id(SELLS_ONLY_TICKER, &SELLS_ONLY_FACTORY.parse()?)?;
+    if coin.as_str() != SELLS_ONLY_COIN {
+        bail!("the coin is {coin}, not {SELLS_ONLY_COIN}; nothing was run");
+    }
+    Ok(coin)
 }
 
 fn say(text: &str) {
@@ -280,7 +344,16 @@ pub async fn run_sells(
         )
     })?;
     drop(file);
-    check_plan_file(&std::fs::read_to_string(plan_path)?, &plan)?;
+    let written = std::fs::read_to_string(plan_path)?;
+    check_plan_file(&written, &plan)?;
+    // Each send is checked against this copy, read back from the file, not against `plan`.
+    let filed = plan_from_file(&written)?;
+    if filed.coin != coin {
+        bail!(
+            "the plan file names {}, not {coin}; nothing was signed",
+            filed.coin
+        );
+    }
     say(&format!(
         "plan file written before any signature: {}",
         plan_path.display()
@@ -294,7 +367,7 @@ pub async fn run_sells(
             step.account
         ));
         let on_chain = token_balance(setup, &coin, &step.account).await?;
-        check_step(&plan, index, &step.account, step.amount, on_chain)?;
+        check_step(&filed, index, &step.account, step.amount, on_chain)?;
         check_funder(
             setup.limits.as_ref(),
             &setup.network,
