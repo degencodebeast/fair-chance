@@ -90,4 +90,4 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 
 - What it shows: how much of the tokens sold and of the NEAR paid out each group (creator, wallets funded by one funder, large buyers, others) takes, with and without the rules.
 - What it does not show: demand, or how NEAR traders would act. The trade file is not in this repository, so a reader checks the replay code and the results and cannot rerun the trade file. The two checks that need the file skip when it is absent.
-- Test command: `python3 -m unittest discover -s analysis/smdd-replay/tests` (124 tests, 2 skipped without the trade file, in the last run).
+- Test command: `python3 -m unittest discover -s analysis/smdd-replay/tests` (141 tests, 2 skipped without the trade file, in the last run).
