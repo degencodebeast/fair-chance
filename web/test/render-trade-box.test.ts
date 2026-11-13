@@ -92,3 +92,29 @@ describe("trade box", () => {
     expect(root.querySelector("#trade-buy-lines")?.textContent ?? "").toBe("");
   });
 });
+
+describe("trade box with slow answers", () => {
+  it("drops an older quote that arrives after a newer one", async () => {
+    const pending: { resolve: (v: { kind: "value"; value: ReturnType<typeof parseBuyQuote> }) => void }[] = [];
+    const root = drawTradeBox({
+      symbol: "MOTH", decimals: 18, largeThresholdBps: 200,
+      loadQuote: () => new Promise((resolve) => { pending.push({ resolve }); }),
+    });
+    document.body.replaceChildren(root);
+    const submit = (near: string) => {
+      root.querySelector<HTMLInputElement>("#trade-buy-account")!.value = "you.testnet";
+      root.querySelector<HTMLInputElement>("#trade-buy-amount")!.value = near;
+      root.querySelector<HTMLFormElement>("#trade-buy-form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+    };
+    submit("100");
+    submit("1");
+    const answer = (becomesLarge: boolean, tokens: string) => ({ kind: "value" as const, value: parseBuyQuote({ ...quoteView, becomes_large: becomesLarge, tokens_out: tokens }) });
+    pending[1]!.resolve(answer(false, "1000000000000000000000000"));
+    await vi.waitFor(() => expect(root.querySelector("#trade-buy-lines")?.textContent).toContain("1.0M"));
+    pending[0]!.resolve(answer(true, "90000000000000000000000000"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(root.querySelector("#trade-buy-lines")?.textContent).toContain("1.0M");
+    expect(root.querySelector("#trade-buy-lines")?.textContent).not.toContain("90.0M");
+    expect(root.querySelector("#large-buy-warning")).toBeNull();
+  });
+});
