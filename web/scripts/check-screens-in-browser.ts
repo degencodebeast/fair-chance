@@ -171,21 +171,27 @@ try {
       bubbles: document.querySelectorAll(".chat-bubble").length,
       label: document.querySelector("#alerts-sample-label")?.textContent ?? "",
       preBuy: document.querySelector("#pre-buy-card .sample-label")?.textContent ?? "",
+      cardLabels: ["section[aria-label='Telegram chat']", "section[aria-label='Plain text']", "#pre-buy-card"].map((sel) => document.querySelector(`${sel} .sample-label`)?.textContent ?? ""),
+      headings: document.querySelectorAll(".chat-head").length,
       opens: [...document.querySelectorAll(".open-on-fair-chance")].map((o) => ({ tag: o.tagName, off: (o as HTMLButtonElement).disabled === true })),
     }));
+    if (alerts.cardLabels.some((t) => !/^Sample data/.test(t))) fail(label, `a sample card has no label of its own: ${JSON.stringify(alerts.cardLabels)}`);
+    if (alerts.headings > 0) fail(label, "a bubble shows a heading the bot does not send");
     if (alerts.bubbles < 10) fail(label, `${alerts.bubbles} chat bubbles`);
     if (!/^Sample data/.test(alerts.label) || !/^Sample data/.test(alerts.preBuy)) fail(label, "a sample label is missing");
     if (alerts.opens.length === 0 || alerts.opens.some((o) => o.tag !== "BUTTON" || !o.off)) fail(label, "Open on Fair Chance must be turned off with no coin");
     await noOverflow(page, width, label);
     await page.close();
 
-    label = `alerts with a coin at ${width}`;
+    label = `alerts with a coin in the link at ${width}`;
     page = await openScreen(browser, width, `?view=alerts&coin=${COIN}&rpc=${encodeURIComponent(RPC)}`);
     await page.waitForSelector(".chat-bubble");
-    const hrefs = await page.evaluate(() => [...document.querySelectorAll<HTMLAnchorElement>("a.open-on-fair-chance")].map((a) => a.getAttribute("href") ?? ""));
-    if (hrefs.length !== 6 || !hrefs.every((h) => new URLSearchParams(h).get("coin") === COIN && (new URLSearchParams(h).get("receipt") ?? "") !== "")) {
-      fail(label, `links: ${JSON.stringify(hrefs)}`);
-    }
+    const live = await page.evaluate(() => ({
+      links: document.querySelectorAll("a.open-on-fair-chance").length,
+      off: [...document.querySelectorAll("button.open-on-fair-chance")].every((b) => (b as HTMLButtonElement).disabled),
+      buttons: document.querySelectorAll("button.open-on-fair-chance").length,
+    }));
+    if (live.links !== 0 || live.buttons === 0 || !live.off) fail(label, `sample alerts must have no live link: ${JSON.stringify(live)}`);
     await noOverflow(page, width, label);
     await page.close();
 
