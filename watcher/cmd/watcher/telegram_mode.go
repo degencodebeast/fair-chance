@@ -14,6 +14,7 @@ import (
 	"fairchance/watcher/internal/commands"
 	"fairchance/watcher/internal/eventsource"
 	"fairchance/watcher/internal/telegram"
+	"fairchance/watcher/internal/urlsafe"
 	"fairchance/watcher/internal/watchedcoins"
 )
 
@@ -31,8 +32,7 @@ func runTelegram(poll time.Duration) error {
 	if rpcURL == "" || err != nil || chatID == 0 {
 		return fmt.Errorf("set FC_RPC_URL and FC_TELEGRAM_CHAT_ID")
 	}
-	api, err := telegram.NewBotAPIFromEnvironment()
-	if err != nil {
+	if err := urlsafe.CheckEndpoint("FC_RPC_URL", rpcURL); err != nil {
 		return err
 	}
 	var src eventsource.Source
@@ -44,9 +44,17 @@ func runTelegram(poll time.Duration) error {
 		if url == "" {
 			url = defaultFastNearTestnet
 		}
+		if err := urlsafe.CheckEndpoint("FC_FASTNEAR_URL", url); err != nil {
+			return err
+		}
 		src = eventsource.NewFastNear(url)
 	default:
 		return fmt.Errorf("FC_EVENT_SOURCE=%q: use block-scan or fastnear", kind)
+	}
+	// The endpoints pass their checks before the bot token is read.
+	api, err := telegram.NewBotAPIFromEnvironment()
+	if err != nil {
+		return err
 	}
 
 	set := &watchedcoins.Set{

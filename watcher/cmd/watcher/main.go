@@ -23,6 +23,7 @@ import (
 	"fairchance/watcher/internal/alerts"
 	"fairchance/watcher/internal/eventsource"
 	"fairchance/watcher/internal/telegram"
+	"fairchance/watcher/internal/urlsafe"
 )
 
 func main() {
@@ -33,6 +34,8 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 	log.SetPrefix("watcher: ")
+	// No URL reaches the log: an RPC URL could hold a key, and a Telegram request URL holds the token.
+	log.SetOutput(urlsafe.Writer{W: os.Stderr})
 
 	if os.Getenv("FC_SENDER") == "telegram" {
 		if err := runTelegram(*poll); err != nil {
@@ -45,6 +48,9 @@ func main() {
 	coins := strings.Split(os.Getenv("FC_COINS"), ",")
 	if rpcURL == "" || os.Getenv("FC_COINS") == "" {
 		log.Fatal("set FC_RPC_URL and FC_COINS")
+	}
+	if err := urlsafe.CheckEndpoint("FC_RPC_URL", rpcURL); err != nil {
+		log.Fatal(err)
 	}
 	if s := os.Getenv("FC_SENDER"); s != "fake" {
 		log.Fatalf("FC_SENDER=%q: use fake or telegram", s)

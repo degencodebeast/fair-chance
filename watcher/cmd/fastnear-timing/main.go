@@ -25,6 +25,7 @@ import (
 
 	"fairchance/watcher/internal/eventsource"
 	"fairchance/watcher/internal/timing"
+	"fairchance/watcher/internal/urlsafe"
 )
 
 type report struct {
@@ -66,13 +67,12 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 	log.SetPrefix("fastnear-timing: ")
+	log.SetOutput(urlsafe.Writer{W: os.Stderr})
 	if *coin == "" {
 		log.Fatal("set -coin")
 	}
-	for _, u := range []string{*rpcURL, *fastNearURL} {
-		if strings.Contains(u, "mainnet") || strings.ContainsAny(u, "?@") {
-			log.Fatalf("use a public testnet endpoint with no key in the URL, not %s", u)
-		}
+	if err := checkEndpoints(*rpcURL, *fastNearURL); err != nil {
+		log.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
@@ -83,7 +83,7 @@ func main() {
 	back := limitedBackOff(2 * time.Second)
 	err := runLimited(ctx, &r, *poll, *idle, *want, defaultCoinWaitPoll, &back)
 	if err != nil {
-		r.StoppedBy = err.Error()
+		r.StoppedBy = urlsafe.Redact(err.Error())
 	}
 	if ferr := finishLimited(ctx, &r, &back); ferr != nil && (err == nil || errors.Is(err, errDone)) {
 		err = ferr
@@ -107,6 +107,14 @@ var errDone = errors.New("done")
 const defaultCoinWaitPoll = 5 * time.Second
 
 // run waits for the coin, then reads FastNEAR every poll and keeps the first-read time per event.
+// checkEndpoints refuses an RPC or FastNEAR URL that could hold a key, without echoing it.
+func checkEndpoints(rpcURL, fastNearURL string) error {
+	if err := urlsafe.CheckEndpoint("-rpc", rpcURL); err != nil {
+		return err
+	}
+	return urlsafe.CheckEndpoint("-fastnear", fastNearURL)
+}
+
 func run(ctx context.Context, r *report, poll, idle time.Duration, want int) error {
 	return runWithCoinWait(ctx, r, poll, idle, want, defaultCoinWaitPoll)
 }
@@ -287,9 +295,9 @@ func finishLimited(parent context.Context, r *report, back *timing.LimitedBackOf
 	stop := func(what string, err error) error {
 		err = fmt.Errorf("%s: %w; stopped, no retry", what, err)
 		if r.StoppedBy == "" {
-			r.StoppedBy = err.Error()
+			r.StoppedBy = urlsafe.Redact(err.Error())
 		} else {
-			r.StoppedBy += "; then " + err.Error()
+			r.StoppedBy += "; then " + urlsafe.Redact(err.Error())
 		}
 		return err
 	}
