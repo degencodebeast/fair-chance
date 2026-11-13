@@ -1,7 +1,9 @@
 // Browser entry: loads the coin page from the page URL and draws it. All text comes from the
 // page model; this file only builds elements. It never sets innerHTML, so chain text cannot
 // become markup.
-import { loadCoinPage } from "./coin-page.ts";
+import { loadCoinPage, type CoinPageData } from "./coin-page.ts";
+import { el, type Child } from "./dom-elements.ts";
+import { drawYourPlan } from "./render-your-plan.ts";
 import {
   coinPageModel,
   type Banner,
@@ -10,19 +12,6 @@ import {
   type CoinPageView,
   type ReceiptItem,
 } from "./coin-page-model.ts";
-
-type Child = Node | string | null | false;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  attrs: Record<string, string> = {},
-  ...children: Child[]
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  for (const [name, value] of Object.entries(attrs)) node.setAttribute(name, value);
-  for (const child of children) if (child) node.append(child);
-  return node;
-}
 
 const app = document.querySelector<HTMLElement>("#app")!;
 
@@ -81,7 +70,7 @@ function drawReceipt(r: ReceiptItem): HTMLElement {
   );
 }
 
-function drawReady(m: CoinPageModel): HTMLElement[] {
+function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
   const h = m.header;
   const nodes: (HTMLElement | null)[] = [];
   nodes.push(
@@ -138,6 +127,7 @@ function drawReady(m: CoinPageModel): HTMLElement[] {
     ),
   );
   nodes.push(section("Who can sell how fast", "who-can-sell", el("h2", {}, "Who can sell how fast"), el("div", { class: "who-grid" }, ...m.who.map(drawCard))));
+  nodes.push(plan);
   nodes.push(
     section(
       "Receipts",
@@ -187,9 +177,9 @@ function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement
   ];
 }
 
-function draw(view: CoinPageView, retry: () => void): void {
+function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null): void {
   const status = el("p", { id: "status", class: "status", role: "status" }, view.status);
-  const body = view.state === "ready" ? drawReady(view) : drawError(view);
+  const body = view.state === "ready" ? drawReady(view, data?.kind === "ready" ? drawYourPlan(data.reads) : null) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));
   app.querySelector("#load-error button")?.addEventListener("click", retry);
   const marked = app.querySelector(".from-alert");
@@ -208,11 +198,11 @@ function load(): void {
   drawLoading();
   const nowNs = BigInt(Date.now()) * 1_000_000n;
   loadCoinPage(location.href, { nowNs })
-    .then((data) => draw(coinPageModel(data, { nowNs }), load))
+    .then((data) => draw(coinPageModel(data, { nowNs }), load, data))
     .catch((err: unknown) => {
       // loadCoinPage does not throw; this only guards the drawing code.
       const message = err instanceof Error ? err.message : String(err);
-      draw({ state: "error", status: `Values cannot load: ${message}`, title: "Values cannot load from the chain.", detail: message, lastAttempt: "" }, load);
+      draw({ state: "error", status: `Values cannot load: ${message}`, title: "Values cannot load from the chain.", detail: message, lastAttempt: "" }, load, null);
     });
 }
 

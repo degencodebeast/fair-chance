@@ -93,3 +93,26 @@ p { margin: 0; }
   .rules-grid { grid-template-columns: minmax(0, 1fr); }
   .rules-grid dd { text-align: left; }
 }
+
+/* Your plan and sell preview */
+.tone-limit { color: var(--limit); font-weight: 700; }
+.plan-form { display: flex; flex-direction: column; gap: 8px; max-width: 520px; margin-top: 12px; }
+.plan-form label { font-size: 13px; color: var(--muted); }
+.plan-form input { border: 2px solid var(--ink); border-radius: 14px; padding: 10px 14px; font: 600 16px var(--font-num); background: var(--paper); color: var(--ink); min-width: 0; }
+.button-dark { background: var(--ink); color: var(--paper); align-self: flex-start; margin-top: 4px; }
+#plan-result { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; align-items: start; }
+.plan-card, .preview { border: 2px solid var(--ink); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--paper); }
+.plan-quiet { border: 2px solid var(--ink); border-radius: 16px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.plan-head, .preview-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; overflow-wrap: anywhere; }
+.chip-tag-dark { background: var(--ink); color: var(--paper); }
+.chip-tag-limit { background: var(--paper); color: var(--limit); border-color: var(--limit); }
+.plan-big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.plan-big .num-big { font-size: 38px; }
+.plan-big .tone-limit { font-weight: 600; }
+.plan-big-sub { font-size: 13px; font-weight: 600; }
+.plan-used, .preview-bar-labels { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.plan-notes { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 2px dashed var(--rule); font-size: 13px; }
+.preview-lines { display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; margin: 0; font: 500 13px var(--font-num); }
+.preview-lines dt { font-family: var(--font-body); color: var(--muted); }
+.preview-lines dd { margin: 0; text-align: right; }
+.preview-copy { padding-top: 10px; border-top: 2px solid var(--ink); font-size: 14px; }

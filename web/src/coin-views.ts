@@ -3,16 +3,16 @@
 
 export class UnexpectedView extends Error {}
 
-type Fields = Record<string, unknown>;
+export type Fields = Record<string, unknown>;
 
-function fields(value: unknown, view: string): Fields {
+export function fields(value: unknown, view: string): Fields {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new UnexpectedView(`${view} did not return an object`);
   }
   return value as Fields;
 }
 
-function reader(view: string, f: Fields) {
+export function reader(view: string, f: Fields) {
   const bad = (key: string, want: string): never => {
     throw new UnexpectedView(`${view}.${key} is not ${want}`);
   };
