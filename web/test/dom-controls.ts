@@ -7,9 +7,10 @@ const CONTROLS = "button, input, select, textarea, a[href]";
 
 function hasHandler(node: Element): boolean {
   if (node.hasAttribute("data-handler")) return true;
-  // A submit button works through the handler of its form.
+  // A submit button, and a field the visitor types into, work through the handler of their form.
   const form = (node as HTMLButtonElement).form;
-  return node.getAttribute("type") === "submit" && form !== null && form !== undefined && form.hasAttribute("data-handler");
+  const works = node.tagName !== "BUTTON" || node.getAttribute("type") === "submit";
+  return works && form !== null && form !== undefined && form.hasAttribute("data-handler");
 }
 
 /** Every control that is not turned off has a handler. A plain link is not a control that acts. */
