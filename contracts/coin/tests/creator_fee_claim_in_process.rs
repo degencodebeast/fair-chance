@@ -6,7 +6,7 @@
 use fair_chance_coin::Coin;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::test_utils::{get_logs, VMContextBuilder};
-use near_sdk::{testing_env, AccountId, NearToken, PromiseResult, RuntimeFeesConfig};
+use near_sdk::{env, testing_env, AccountId, NearToken, PromiseResult, RuntimeFeesConfig};
 use serde_json::Value;
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -204,4 +204,57 @@ fn new_refuses_an_opening_buy_whose_storage_would_come_out_of_the_creator_balanc
     // real NEAR (1 NEAR less the 0.003 NEAR creator share) and the lock fit only if the creator
     // share pays for storage.
     new_with_opening_buy(lock - 1);
+}
+
+/// Runs `new` with no opening buy on empty storage, on a coin account that holds `balance`
+/// yoctoNEAR. Returns the storage it uses and the length of its state, or `None` when `new`
+/// refuses.
+fn new_without_opening_buy(balance: u128) -> Option<(u64, usize)> {
+    near_sdk::mock::with_mocked_blockchain(|b| {
+        b.take_storage();
+    });
+    let mut ctx = context("factory.test", 0, LAUNCH_S);
+    ctx.account_balance(NearToken::from_yoctonear(balance));
+    testing_env!(ctx.build());
+    std::panic::catch_unwind(|| {
+        Coin::new(
+            account(CREATOR),
+            "Test Coin".into(),
+            "TEST".into(),
+            Some(ICON.into()),
+            None,
+            "hash".into(),
+        )
+    })
+    .ok()?;
+    Some((env::storage_usage(), state_len()))
+}
+
+fn state_len() -> usize {
+    env::storage_read(b"STATE").map_or(0, |state| state.len())
+}
+
+/// The coin state grows after `new`: the creator fee depth record gains its start time when the
+/// first 1 h window with enough real NEAR closes. The balance `new` requires must cover the state
+/// at that size, so the growth never comes out of the real NEAR or the creator balance, also
+/// with no gas reward to the coin.
+#[test]
+fn new_requires_a_balance_that_covers_the_coin_state_at_its_largest_size() {
+    let (launch_usage, launch_len) = new_without_opening_buy(1_000 * ONE_NEAR).expect("launch");
+
+    let mut coin = coin_with_depth();
+    testing_env!(context("friend-0.test", ONE_NEAR / 2, in_window(2, 0)).build());
+    coin.buy(U128(0));
+    assert_eq!(
+        fees(&coin)["depth_ok_since_ns"],
+        depth_ok_since_ns().to_string()
+    );
+    env::state_write(&coin);
+    let growth = state_len() - launch_len;
+    assert!(growth > 0);
+
+    let largest_cost =
+        env::storage_byte_cost().as_yoctonear() * u128::from(launch_usage + growth as u64);
+    assert!(new_without_opening_buy(largest_cost - 1).is_none());
+    assert!(new_without_opening_buy(largest_cost).is_some());
 }
