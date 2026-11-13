@@ -265,7 +265,7 @@ impl World {
             .await
         {
             Ok(data) => Ok(Some(data.data.contract_state)),
-            Err(e) if e.to_string().contains("does not exist") => Ok(None),
+            Err(e) if format!("{e:?}").contains("UnknownAccount") => Ok(None),
             Err(e) => Err(e.into()),
         }
     }

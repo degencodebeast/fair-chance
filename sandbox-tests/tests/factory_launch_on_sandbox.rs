@@ -3,8 +3,10 @@
 
 use anyhow::Result;
 use fair_chance_sandbox_tests::{
-    events, launch_args, World, COIN_DESCRIPTION, COIN_ICON, LAUNCH_DEPOSIT,
+    events, launch_args, ContractState, World, COIN_DESCRIPTION, COIN_ICON, COIN_TICKER,
+    LAUNCH_DEPOSIT,
 };
+use near_api::types::NearToken;
 use serde_json::json;
 
 #[tokio::test]
@@ -50,5 +52,101 @@ async fn fc_launch_reports_a_null_description_when_none_was_given() -> Result<()
     let data = &launches[0].event["data"][0];
     assert!(data.as_object().unwrap().contains_key("description"));
     assert_eq!(data["description"], serde_json::Value::Null);
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_coin_runs_the_recorded_global_code_by_hash_and_has_no_access_keys() -> Result<()> {
+    let world = World::launch().await?;
+
+    let recorded = world
+        .view(&world.factory.id, "coin_code_hash", json!({}))
+        .await?;
+    assert_eq!(recorded, world.coin_code_hash.to_string());
+
+    let state = world.contract_state(&world.coin).await?;
+    assert_eq!(state, Some(ContractState::GlobalHash(world.coin_code_hash)));
+
+    let rules = world.view(&world.coin, "fc_rules", json!({})).await?;
+    assert_eq!(rules["code_hash"], recorded);
+
+    assert_eq!(world.access_key_count(&world.coin).await?, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_second_new_is_refused_even_from_the_factory() -> Result<()> {
+    let world = World::launch().await?;
+    let args = json!({
+        "creator": world.alice.id,
+        "name": "Again",
+        "symbol": "AGAIN",
+        "icon": null,
+        "description": null,
+        "code_hash": world.coin_code_hash.to_string(),
+    });
+    for caller in [&world.factory, &world.creator] {
+        let failure = world
+            .call_refused(
+                caller,
+                &world.coin,
+                "new",
+                args.clone(),
+                NearToken::from_yoctonear(0),
+            )
+            .await?;
+        assert!(failure.contains("already been initialized"), "{failure}");
+    }
+    let rules = world.view(&world.coin, "fc_rules", json!({})).await?;
+    assert_eq!(rules["creator"], world.creator.id.to_string());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_launch_whose_new_fails_leaves_no_coin_account_and_returns_the_deposit() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("badicon")?;
+    let before = world.balance(&world.alice.id).await?;
+    let result = world
+        .try_launch(
+            &world.alice,
+            launch_args(
+                "Bad",
+                "badicon",
+                Some("data:image/png;base64,AAAA"),
+                None,
+                None,
+            ),
+            LAUNCH_DEPOSIT,
+        )
+        .await?;
+
+    assert!(events(&result, "fair_chance_factory", "fc_launch").is_empty());
+    assert_eq!(world.contract_state(&coin).await?, None);
+    // The refund arrives in a later receipt of the same transaction; allow for gas only.
+    let after = world.balance(&world.alice.id).await?;
+    let spent = before.saturating_sub(after);
+    assert!(spent < NearToken::from_millinear(100), "spent {spent}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_launch_on_a_taken_ticker_logs_no_fc_launch_and_leaves_the_first_coin() -> Result<()> {
+    let world = World::launch().await?;
+    let before = world.balance(&world.alice.id).await?;
+    let result = world
+        .try_launch(
+            &world.alice,
+            launch_args("Copy", COIN_TICKER, None, Some("a copy"), None),
+            LAUNCH_DEPOSIT,
+        )
+        .await?;
+
+    assert!(events(&result, "fair_chance_factory", "fc_launch").is_empty());
+    let rules = world.view(&world.coin, "fc_rules", json!({})).await?;
+    assert_eq!(rules["creator"], world.creator.id.to_string());
+    assert_eq!(rules["description"], COIN_DESCRIPTION);
+    let spent = before.saturating_sub(world.balance(&world.alice.id).await?);
+    assert!(spent < NearToken::from_millinear(100), "spent {spent}");
     Ok(())
 }
