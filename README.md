@@ -197,7 +197,7 @@ flowchart LR
 
 ## Network
 
-The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. Its length in seconds is the measured testnet block time times 18. <!-- waits on: the measured testnet block time (the number of seconds goes here, as "about X seconds at the measured testnet block time") -->
+The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. Its length in seconds is the measured testnet block time times 18. <!-- waits on: evidence/testnet-run.json (the recorded run that this paragraph describes) --> <!-- waits on: the measured testnet block time (the number of seconds goes here, as "about X seconds at the measured testnet block time") -->
 
 <!-- waits on: the testnet deploy (factory account, coin code hash, deployed commit, explorer links) -->
 
@@ -220,14 +220,23 @@ scripts/build-coin-reproducible.sh
 
 The script builds from a clone of the committed source, checks the hash against the wasm file, and prints `build-coin-reproducible: commit <commit> code hash <hash>`. It also leaves the hash in `target/near-reproducible/fair_chance_coin/cargo-near-sha256-base58.txt`.
 
-Read the code hash the chain stores for a deployed coin, from any machine:
+Read the code hash the chain holds for a deployed coin, from any machine:
+
+```sh
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"<COIN ACCOUNT>"}}'
+```
+
+A coin runs a global contract used by hash, so the field to read is `global_contract_hash` in the reply, not `code_hash`. The chain sets that field when the factory's launch batch runs. It must equal the hash the build prints for the deployed commit. If it differs, the deployed code is not that commit. <!-- waits on: the real reply of this call for the deployed coin (confirms which field holds the hash) -->
+
+The coin also reports a hash itself. This read shows what the coin says, not what the chain holds. The factory passes that hash to `new` at launch.
 
 ```sh
 curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"fc_rules","args_base64":"e30="}}'
 ```
 
-The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_hash` field is the hash the coin reports. The two hashes must match: the hash the build prints for the deployed commit, and the hash the coin reports. If they differ, the deployed code is not that commit.
+The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_hash` field is the hash the coin reports. It should equal the chain's `global_contract_hash`.
 
 <!-- waits on: the deployed commit and its code hash (the expected hash goes next to this command) -->
 
@@ -281,7 +290,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 - Wallet splitting. Small sells of tokens held from before the window never count toward the cap. A band holder or a late buyer who splits into small wallets skips the cap. Each fresh small wallet carries at most one allowance per window. Measured at a full cap: up to 0.31 of one allowance's NEAR per fresh wallet ([ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#consequences)).
 - Creator-funded wallets. The contract cannot see who funded an account. A wallet the creator funds that buys after block N is unmarked.
 - Late splitters. People who buy after block N through many small wallets at market price skip the early-supply rules.
-- Floors above the cap. Each account has its own floor, so many accounts can each fill their floor at a full cap. A buy of X raises the cap by 5% of X, and an account with early supply can fill its sell into that room. The bound is at most one floor per window. Measured: up to 0.29 of one floor (0.031 of 0.106 NEAR, 2,340 swept shapes). The 50,000-case property test found at most 0.09 of one floor ([ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#consequences)).
+- Floors above the cap. Each account has its own floor, so many accounts can each fill their floor at a full cap. A buy of X raises the cap by 5% of X, and an account with early supply can fill its sell into that room. The bound is at most one floor per window. Measured: up to 0.29 of one floor (0.031 of 0.106 NEAR, 2,340 swept shapes). Details are in [ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#consequences).
 - Bots at the reset. Every allowance and the cap reset at the same moment.
 - Aggregators and routers cannot buy for users, because the caller holds the tokens.
 - Account handover. A holder can give away a whole account, keys included.
