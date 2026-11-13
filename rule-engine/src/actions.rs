@@ -567,12 +567,14 @@ fn sell_outcome(
         pool_math::near_out_before_fee(state.token_reserve, state.near_reserve(), tokens)
             .min(state.real_near);
     let fee_near = pool_math::fee(near_before_fee, state.fixed.swap_fee_bps);
-    // The marked part pays no penalty; it goes into the pool first.
+    // The marked part pays no penalty; it goes into the pool first. On a sell worth a few yocto
+    // the rounded-up penalty can pass what the fee leaves; the seller then gets 0.
     let penalty_near = penalty_above_first_allowance(
         state,
         parts.marked + parts.unmarked.min(plan.penalty_free),
         near_before_fee,
-    );
+    )
+    .min(near_before_fee - fee_near);
     let near_out = near_before_fee - fee_near - penalty_near;
     let creator_fee_near = pool_math::creator_fee(fee_near);
     // Cap count order: the marked part, then the tokens bought in the window (both count), then
@@ -653,9 +655,10 @@ fn payout_of_tokens_after(
 /// The band penalty (ADR 0004): `penalty_bps` of the NEAR output of the part of a sell above the
 /// first allowance. That part gets the NEAR the whole sell pays (`near_before_fee`) minus the
 /// NEAR the tokens before it alone would pay (the marked part and the first allowance), both
-/// before the swap fee; its NEAR output is that amount minus its own swap fee. Both roundings go
-/// in the pool's favour. The penalty stays in the pool. Zero when the whole sell is inside the
-/// marked part and the first allowance.
+/// before the swap fee; its NEAR output is that amount minus its own swap fee. Every rounding
+/// goes in the pool's favour: that swap fee rounds down here, so the NEAR output the penalty is
+/// taken from rounds up, and the penalty rounds up. The penalty stays in the pool. Zero when the
+/// whole sell is inside the marked part and the first allowance.
 fn penalty_above_first_allowance(
     state: &CoinState,
     penalty_free_part: u128,
@@ -669,7 +672,7 @@ fn penalty_above_first_allowance(
     .min(near_before_fee);
     let above_before_fee = near_before_fee - penalty_free_near;
     let above_near_output =
-        above_before_fee - pool_math::fee(above_before_fee, state.fixed.swap_fee_bps);
+        above_before_fee - pool_math::fee_rounded_down(above_before_fee, state.fixed.swap_fee_bps);
     pool_math::fee(above_near_output, state.fixed.penalty_bps)
 }
 
@@ -764,11 +767,11 @@ fn send(
 
 /// The largest sell up to `target` tokens that fills in full now (`fc_account.max_full_fill_now`).
 ///
-/// A sell of `target` fills some part. When the cap holds back the marked part, a larger sell
-/// only gives more of its tokens to the marked part, which the cap holds back again; so the
-/// marked fill alone is the answer, and a sell of it fills in full. When only the unmarked part
-/// is held back, a sell of the filled part keeps the same marked part and fills in full. Each
-/// case needs one more step at most; the bound on the steps only guards the loop.
+/// The filled part of a sell of `target` is a first guess: the marked fill alone when the cap
+/// holds back the marked part, else the whole fill. That guess can be too small, because the
+/// marked part of a sell of `target` was checked with the unmarked tokens that always fill next
+/// to it, and the floor the marked part uses. So the answer is then found by halving the range
+/// between a sell that fills in full and one that does not; a larger sell never uses less cap.
 pub(crate) fn largest_full_fill(
     state: &CoinState,
     holder: &Holder,
@@ -776,18 +779,20 @@ pub(crate) fn largest_full_fill(
     target: u128,
     at: At,
 ) -> u128 {
-    let mut target = target;
-    for _ in 0..8 {
-        let plan = SellFillPlan::new(state, holder, class, target, at);
-        let parts = plan.tokens_sold(state, holder, at);
-        if parts.tokens() == target {
-            return target;
-        }
-        target = if parts.marked < plan.marked_most {
-            parts.marked
-        } else {
-            parts.tokens()
-        };
+    let filled = |tokens: u128| {
+        let plan = SellFillPlan::new(state, holder, class, tokens, at);
+        (plan.tokens_sold(state, holder, at), plan.marked_most)
+    };
+    let (parts, marked_most) = filled(target);
+    if parts.tokens() == target {
+        return target;
     }
-    target
+    let guess = if parts.marked < marked_most {
+        parts.marked
+    } else {
+        parts.tokens()
+    };
+    let fills_in_full = |tokens: u128| filled(tokens).0.tokens() == tokens;
+    let fills = if fills_in_full(guess) { guess } else { 0 };
+    largest_that_fits(fills, target - 1, fills_in_full)
 }

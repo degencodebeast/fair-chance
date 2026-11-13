@@ -10,6 +10,11 @@ pub fn fee(near: u128, fee_bps: u32) -> u128 {
     mul_div_up(near, fee_bps as u128, BPS)
 }
 
+/// `fee_bps` of `near`, rounded down. Only for a step where a smaller fee favours the pool.
+pub fn fee_rounded_down(near: u128, fee_bps: u32) -> u128 {
+    mul_div(near, fee_bps as u128, BPS)
+}
+
 /// Tokens out for `near_after_fee` NEAR in. The fee part of a buy stays in the pool and does
 /// not trade.
 pub fn tokens_out(token_reserve: u128, near_reserve: u128, near_after_fee: u128) -> u128 {

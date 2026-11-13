@@ -863,7 +863,7 @@ fn a_marked_account_that_sells_buys_x_and_resells_x_counts_the_resale() {
 #[test]
 fn a_marked_account_with_unmarked_tokens_from_before_the_window_counts_a_resale_of_its_buy() {
     let mut coin = Coin::launched();
-    let marked = coin.buy(EARLY, ONE_NEAR, block(2)).tokens_out;
+    coin.buy(EARLY, ONE_NEAR, block(2));
     coin.buy(SECOND_EARLY, ONE_NEAR / 5, block(3));
     deepen_the_pool(&mut coin, 20);
     let unmarked = coin.buy(EARLY, ONE_NEAR / 5, after(60)).tokens_out;
