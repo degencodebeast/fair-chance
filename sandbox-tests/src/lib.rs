@@ -787,23 +787,29 @@ pub async fn send_once(
         Err(e) => format!("{e:?}"),
     };
     println!("send: tx {hash} of {signer_id} gave no clear answer; looking it up by hash, not sending it again");
-    let found = rate_limit::with_rate_limit_backoff(
+    // First a lookup that does not wait: a node answers UNKNOWN_TRANSACTION at once for a hash it
+    // never saw. A lookup that waits for Final instead hangs until the node times out (HTTP 408),
+    // which is an unknown result, not "not found".
+    let seen = rate_limit::with_rate_limit_backoff(
         &format!("the status of tx {hash}"),
         rate_limit::Waits::for_reads(),
         || async {
             match near_api::Transaction::status_with_options(
                 signer_id.clone(),
                 hash,
-                near_api::types::TxExecutionStatus::Final,
+                near_api::types::TxExecutionStatus::None,
             )
             .fetch_from(read)
             .await
             {
-                Ok(result) => Ok(Some(result)),
+                Ok(result) => Ok(Lookup::Done(Box::new(result))),
                 Err(e) => {
                     let text = format!("{e:?}");
                     if text.contains("UnknownTransaction") || text.contains("UNKNOWN_TRANSACTION") {
-                        Ok(None)
+                        Ok(Lookup::Missing)
+                    } else if text.contains("ConversionError") {
+                        // The node knows the hash, but the outcome is not complete yet.
+                        Ok(Lookup::Pending)
                     } else {
                         Err(e)
                     }
@@ -812,15 +818,37 @@ pub async fn send_once(
         },
     )
     .await?;
-    match found {
-        Some(result) => {
-            println!("send: tx {hash} found on chain by its hash");
-            Ok(TransactionResult::Full(Box::new(result)))
-        }
-        None => bail!(
+    let result = match seen {
+        Lookup::Missing => bail!(
             "tx {hash} of {signer_id} was not found on chain after a send with no clear answer ({error}); stopped, not sent again"
         ),
-    }
+        Lookup::Done(result) => *result,
+        Lookup::Pending => {
+            println!("send: tx {hash} is on chain but not done; waiting for its final outcome");
+            rate_limit::with_rate_limit_backoff(
+                &format!("the final status of tx {hash}"),
+                rate_limit::Waits::for_reads(),
+                || {
+                    near_api::Transaction::status_with_options(
+                        signer_id.clone(),
+                        hash,
+                        near_api::types::TxExecutionStatus::Final,
+                    )
+                    .fetch_from(read)
+                },
+            )
+            .await?
+        }
+    };
+    println!("send: tx {hash} found on chain by its hash");
+    Ok(TransactionResult::Full(Box::new(result)))
+}
+
+/// What a lookup by hash found after a send with no clear answer.
+enum Lookup {
+    Missing,
+    Pending,
+    Done(Box<near_api::types::transaction::result::ExecutionFinalResult>),
 }
 
 /// The account view, or `None` when the node answers that the account does not exist. Reads back
