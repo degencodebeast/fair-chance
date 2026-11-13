@@ -29,6 +29,13 @@ title, metadata), comments, CDATA and attribute values, with entities decoded. O
 attributes (coordinates, sizes, colours) do not count.
 A finding names the file, the line and, in a table, the column number. It never shows the text.
 
+One exception, by exact value. If `evidence/testnet-run.json` exists, the guard lets through the
+values in it that have the shape of a code hash or a transaction hash (base58 of 43 or 44
+characters, or 64 hex characters) and the accounts that end in ".testnet". A value counts only
+when the whole word matches; a changed character, a longer word or a mainnet account fails. The
+guard reads that file and nothing else. It makes no network call. Without the file, nothing is
+let through.
+
 Command (a video script or a caption file goes through it too):
   python3 -I analysis/smdd-replay/published_figures_guard.py <file>...
 It exits 1 on any finding.
@@ -36,6 +43,7 @@ It exits 1 on any finding.
 from __future__ import annotations
 
 import html
+import json
 import re
 import sys
 import unicodedata
@@ -120,6 +128,41 @@ _DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−﹣"), "-")
 _INVISIBLE = dict.fromkeys(map(ord, "­​‌‍⁠﻿"), None)
 
 
+EVIDENCE_FILE = Path(__file__).resolve().parents[2] / "evidence" / "testnet-run.json"
+_HASH_SHAPE = re.compile(r"[1-9A-HJ-NP-Za-km-z]{43,44}|[0-9a-fA-F]{64}")
+_ACCOUNT_SHAPE = re.compile(r"[a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet")
+
+
+def _strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _strings(item)
+
+
+def load_allowlist(path: Path = EVIDENCE_FILE) -> frozenset:
+    """The exact values the guard lets through, from the testnet run record. A missing or
+    unreadable file gives an empty set, which is the guard without an exception."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(
+        s for s in _strings(data) if _HASH_SHAPE.fullmatch(s) or _ACCOUNT_SHAPE.fullmatch(s)
+    )
+
+
+def _without_allowed(text: str, allowed: frozenset) -> str:
+    for value in allowed:
+        edge = r"(?<![A-Za-z0-9_.-])" + re.escape(value) + r"(?![A-Za-z0-9_-]|\.[A-Za-z0-9])"
+        text = re.sub(edge, " ", text)
+    return text
+
+
 def normalized(text: str) -> str:
     """NFKC, ASCII digits, plain dashes, no zero-width character, lower case."""
     text = unicodedata.normalize("NFKC", text).translate(_DASHES).translate(_INVISIBLE)
@@ -143,9 +186,9 @@ def _sentence_fails(sentence: str) -> bool:
     return bool(EXAMPLE.search(sentence) and TRADE_WORD.search(sentence))
 
 
-def text_fails(text: str, venues_allowed: bool = False) -> bool:
+def text_fails(text: str, venues_allowed: bool = False, allowed: frozenset = frozenset()) -> bool:
     """True when this piece of text (a line or a table cell) breaks a rule."""
-    text = normalized(CREATOR_CHECK_LINE.sub(" ", text))
+    text = normalized(_without_allowed(CREATOR_CHECK_LINE.sub(" ", text), allowed))
     text = FUNDER_PHRASE.sub(" ", text)
     rules = (CLOCK_TIME, TRADE_SIZE, PER_WALLET) + (() if venues_allowed else (VENUE,))
     if any(rule.search(text) for rule in rules) or _long_code(text) or _raw_count(text):
@@ -161,7 +204,9 @@ def _is_separator(row: str) -> bool:
     return _is_table_row(row) and set(row.replace("|", "").strip()) <= set("-: ")
 
 
-def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list[str]:
+def findings_in_text(
+    name: str, text: str, venues_allowed: bool = False, allowed: frozenset = frozenset()
+) -> list[str]:
     """One finding per failing line, as "<name>: line N", or per failing table cell, as
     "<name>: line N, column C". A table's header is its first row when a separator follows it;
     every other row must be a group (or the README row)."""
@@ -169,7 +214,7 @@ def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list
     lines = text.splitlines()
     for number, line in enumerate(lines, 1):
         if not _is_table_row(line):
-            if text_fails(line, venues_allowed):
+            if text_fails(line, venues_allowed, allowed):
                 findings.append(f"{name}: line {number}")
             continue
         if _is_separator(line):
@@ -179,7 +224,7 @@ def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list
         is_header = starts_table and number < len(lines) and _is_separator(lines[number])
         for index, cell in enumerate(cells):
             not_a_group = index == 0 and not is_header and cell not in ROW_LABELS
-            if not_a_group or text_fails(cell, venues_allowed):
+            if not_a_group or text_fails(cell, venues_allowed, allowed):
                 findings.append(f"{name}: line {number}, column {index + 1}")
     return findings
 
@@ -214,12 +259,12 @@ def visible_text(name: str, text: str) -> str:
     return "\n".join(part for part in joined if part) + "\n"
 
 
-def findings_in_files(paths: list[Path]) -> list[str]:
+def findings_in_files(paths: list[Path], allowed: frozenset = frozenset()) -> list[str]:
     findings = []
     for path in paths:
         name = Path(path).name
         text = visible_text(name, Path(path).read_text())
-        findings += findings_in_text(name, text, venues_allowed=name == METHOD_FILE)
+        findings += findings_in_text(name, text, venues_allowed=name == METHOD_FILE, allowed=allowed)
     return findings
 
 
@@ -227,7 +272,7 @@ def main() -> None:
     if len(sys.argv) < 2:
         print("published figures guard: name the files", file=sys.stderr)
         sys.exit(2)
-    findings = findings_in_files([Path(p) for p in sys.argv[1:]])
+    findings = findings_in_files([Path(p) for p in sys.argv[1:]], load_allowlist())
     for finding in findings:
         print(f"published figures guard: failed at {finding}")
     if findings:
