@@ -2,13 +2,17 @@
 
 use serde::Serialize;
 
-use crate::actions::{apply, Action, SellFillPlan};
+use crate::actions::{apply, largest_full_fill, Action};
 use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
+use crate::creator_group::in_creator_group;
+use crate::early_buy_fee;
+use crate::early_supply::{self, marked_allowance};
 use crate::events::Event;
 use crate::holder_class::{class_of, max_receive, Class};
 use crate::pool_math;
 use crate::real_near_cap;
+use crate::wide_integer_math::mul_div;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RulesView {
@@ -93,7 +97,12 @@ pub fn view_pool(state: &CoinState, at: At) -> PoolView {
         real_near: state.real_near,
         creator_fee_balance: state.creator_fee_balance,
         large_holders: state.large_holders,
-        creator_group_share_bps: 0,
+        // Rounded down.
+        creator_group_share_bps: mul_div(
+            state.creator_group_balance,
+            10_000,
+            state.fixed.total_supply,
+        ) as u32,
         block: at.block,
     }
 }
@@ -113,14 +122,21 @@ pub struct EarlyWindowView {
 }
 
 pub fn view_early_window(state: &CoinState, at: At) -> EarlyWindowView {
+    let shared = early_supply::shared_allowance(state, at);
     let end = state.launch_block + state.fixed.early_blocks;
     EarlyWindowView {
         early_blocks: state.fixed.early_blocks,
         blocks_left: end.saturating_sub(at.block),
-        early_supply_total: 0,
-        shared_allowance: 0,
-        rate_per_token: 0,
-        buy_fee_bps_now: state.fixed.swap_fee_bps,
+        early_supply_total: state.marked_supply,
+        shared_allowance: shared.allowance,
+        // The shared allowance per marked token at the window start, in basis points, rounded
+        // down: an account may sell this share of its marked balance in the window.
+        rate_per_token: if shared.marked_supply_at_start == 0 {
+            0
+        } else {
+            mul_div(shared.allowance, 10_000, shared.marked_supply_at_start)
+        },
+        buy_fee_bps_now: early_buy_fee::buy_fee_bps_now(state, at),
         fee_end_block: end + 1,
     }
 }
@@ -202,28 +218,32 @@ pub struct AccountView {
     pub penalty_applies_above: Option<u128>,
 }
 
-pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> AccountView {
+pub fn view_account(
+    state: &CoinState,
+    account: &str,
+    holder: Option<&Holder>,
+    at: At,
+) -> AccountView {
     let balance = holder.map_or(0, |h| h.balance);
+    let marked_balance = holder.map_or(0, |h| h.marked_balance);
+    let marked = marked_allowance(state, holder, at);
     let class = class_of(state, holder, at);
     let is_large = class == Class::Large;
     let unmarked = unmarked_allowance(state, holder, at);
-    let window_end_ns = unmarked.window_end_ns;
-    let empty = |share_bps| AllowanceView {
-        share_bps,
-        allowance: 0,
-        used: 0,
-        left: 0,
-        floor_left: 0,
-        window_end_ns,
+    let marked_part = marked_balance.min(marked.left);
+    let unmarked_part = match class {
+        Class::Large | Class::Band => (balance - marked_balance).min(unmarked.sell_room),
+        Class::Small => balance - marked_balance,
     };
+    let window_end_ns = unmarked.window_end_ns;
     AccountView {
         class: class.as_str(),
         balance,
-        marked_balance: 0,
-        unmarked_balance: balance,
+        marked_balance,
+        unmarked_balance: balance - marked_balance,
         is_large,
         can_send: !is_large,
-        in_creator_group: false,
+        in_creator_group: in_creator_group(state, account),
         max_receive: max_receive(state, holder),
         unmarked: AllowanceView {
             share_bps: None,
@@ -233,21 +253,25 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             floor_left: unmarked.floor_left,
             window_end_ns,
         },
-        marked: empty(Some(0)),
-        // A large sell above the room, or above what the real NEAR cap lets through, fills in
-        // part; a band sell above the room pays the penalty.
-        max_full_fill_now: match class {
-            Class::Large => {
-                let holder = holder.cloned().unwrap_or_default();
-                SellFillPlan::new(state, &holder, class, balance.min(unmarked.sell_room), at)
-                    .tokens_sold(state, &holder, at)
-            }
-            Class::Band => balance.min(unmarked.sell_room),
-            Class::Small => balance,
+        marked: AllowanceView {
+            share_bps: Some(marked.share_bps),
+            allowance: marked.allowance,
+            used: marked.used,
+            left: marked.left,
+            floor_left: marked.floor_left,
+            window_end_ns: marked.window_end_ns,
         },
-        // A band sell above this pays the penalty; no sell can go above the balance, so it is
-        // the same value as `max_full_fill_now`.
-        penalty_applies_above: (class == Class::Band).then_some(balance.min(unmarked.sell_room)),
+        // The marked part fills first, up to the share left; then the unmarked part up to the
+        // allowance room (large and band) or in full (small). A large or marked sell above what
+        // the real NEAR cap lets through fills in part; a band sell above the room pays the
+        // penalty.
+        max_full_fill_now: {
+            let holder = holder.cloned().unwrap_or_default();
+            largest_full_fill(state, &holder, class, marked_part + unmarked_part, at)
+        },
+        // A band sell above the marked share left plus the unmarked first allowance room pays
+        // the penalty. It equals `max_full_fill_now` unless the cap holds the marked part.
+        penalty_applies_above: (class == Class::Band).then_some(marked_part + unmarked_part),
     }
 }
 

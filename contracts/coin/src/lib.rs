@@ -331,7 +331,12 @@ impl Coin {
     }
 
     pub fn fc_account(&self, account_id: AccountId) -> AccountView {
-        rule_engine::view_account(&self.state, self.holders.get(account_id.as_str()), now())
+        rule_engine::view_account(
+            &self.state,
+            account_id.as_str(),
+            self.holders.get(account_id.as_str()),
+            now(),
+        )
     }
 
     pub fn fc_quote_sell(&self, account_id: AccountId, amount: U128) -> Option<SellQuote> {

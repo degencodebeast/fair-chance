@@ -15,6 +15,11 @@ pub enum RefusalCode {
     /// `storage_unregister` with no tokens, but with used allowance or a real NEAR cap record
     /// in the current window, with or without force.
     UnregisterWindowOpen,
+    /// A buy by the creator group, or a send into it, that takes the group above
+    /// `creator_cap_bps` of supply.
+    CreatorCap,
+    /// A sell of marked tokens in blocks 0 to N.
+    EarlyWindow,
     /// Not an `FC_` code: the standard NEP-141 error for a send to yourself.
     SendToSelf,
     /// Not an `FC_` code: the standard NEP-141 error for a send of 0 tokens.
@@ -42,6 +47,8 @@ impl RefusalCode {
             Self::SendToCoin => "FC_SEND_TO_COIN",
             Self::UnregisterWithBalance => "FC_UNREGISTER_WITH_BALANCE",
             Self::UnregisterWindowOpen => "FC_UNREGISTER_WINDOW_OPEN",
+            Self::CreatorCap => "FC_CREATOR_CAP",
+            Self::EarlyWindow => "FC_EARLY_WINDOW",
             Self::SendToSelf => "Sender and receiver should be different",
             Self::AmountNotPositive => "The amount should be a positive number",
             Self::NotRegistered => "The account is not registered",

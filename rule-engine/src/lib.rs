@@ -7,7 +7,10 @@
 mod actions;
 mod allowance;
 mod coin_state;
+mod creator_group;
 pub mod decimal_string;
+mod early_buy_fee;
+mod early_supply;
 mod events;
 mod fixed_values;
 mod holder_class;
@@ -16,7 +19,7 @@ mod real_near_cap;
 mod refusals;
 mod storage_registration;
 mod views;
-mod wide_integer_math;
+pub(crate) mod wide_integer_math;
 
 pub use actions::{Action, Applied, Fill, Payout};
 pub use allowance::{WindowReserve, WindowTotals};

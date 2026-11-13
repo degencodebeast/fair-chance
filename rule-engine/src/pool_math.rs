@@ -31,3 +31,13 @@ pub fn applied_creator_fee_share_bps() -> u32 {
 pub fn creator_fee(fee_near: u128) -> u128 {
     mul_div(fee_near, applied_creator_fee_share_bps() as u128, BPS)
 }
+
+/// NEAR out before the fee for `tokens_in` tokens in, rounded up. Used only where a larger
+/// value favours the pool.
+pub fn near_out_before_fee_rounded_up(
+    token_reserve: u128,
+    near_reserve: u128,
+    tokens_in: u128,
+) -> u128 {
+    mul_div_up(near_reserve, tokens_in, token_reserve + tokens_in)
+}
