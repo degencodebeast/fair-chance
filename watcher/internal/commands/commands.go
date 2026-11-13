@@ -1,4 +1,5 @@
-// Package commands answers the bot's chat commands. The bot answers one configured chat and no other.
+// Package commands answers the bot's chat commands. Only the configured chat can use /watch. Any chat can
+// use /start, /help and, when Public is set, a rate limited /check of coins of the one factory.
 package commands
 
 import (
@@ -30,62 +31,68 @@ type Bot struct {
 	Reply   telegram.Sender
 	Watcher Watcher
 	Checker Checker
+	Public  *PublicCheck // nil: the bot answers the configured chat only
 }
 
 const retryAfterFailure = 3 * time.Second
 
 var nearAccount = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,63}$`)
 
-// Handle answers one message. A message from any chat but the configured one gets no reply and starts nothing.
+// Handle answers one message. A message from any chat but the configured one gets no reply and starts
+// nothing, except /start, /help and a public /check when Public is set.
 func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
-	if msg.ChatID != b.ChatID {
-		return
-	}
 	fields := strings.Fields(msg.Text)
 	if len(fields) == 0 {
 		return
 	}
 	command, _, _ := strings.Cut(fields[0], "@") // /watch@bot_name in a group chat
-	switch command {
-	case "/watch":
+	own := msg.ChatID == b.ChatID
+	switch {
+	case command == "/watch" && own:
 		b.handleWatch(ctx, fields)
-	case "/check":
-		b.handleCheck(ctx, fields)
+	case command == "/check" && own:
+		b.handleCheck(ctx, msg.ChatID, fields)
+	case command == "/check" && b.Public != nil:
+		b.handlePublicCheck(ctx, msg.ChatID, fields)
+	case (command == "/start" || command == "/help") && b.Public != nil:
+		if own || b.Public.takeReplySlot(msg.ChatID) {
+			b.reply(ctx, msg.ChatID, b.Public.helpLine())
+		}
 	}
 }
 
 func (b Bot) handleWatch(ctx context.Context, fields []string) {
 	if len(fields) != 2 || !nearAccount.MatchString(fields[1]) {
-		b.reply(ctx, "Send /watch and one coin account, for example /watch moth.factory.testnet.")
+		b.reply(ctx, b.ChatID, "Send /watch and one coin account, for example /watch moth.factory.testnet.")
 		return
 	}
 	coin := fields[1]
 	if err := b.Watcher.Watch(ctx, coin); err != nil {
-		b.reply(ctx, "I cannot read "+coin+". Check the account name and try again.")
+		b.reply(ctx, b.ChatID, "I cannot read "+coin+". Check the account name and try again.")
 		return
 	}
-	b.reply(ctx, "Watching "+coin+". You get one message each time a limit acts on that coin.")
+	b.reply(ctx, b.ChatID, "Watching "+coin+". You get one message each time a limit acts on that coin.")
 }
 
-func (b Bot) handleCheck(ctx context.Context, fields []string) {
+func (b Bot) handleCheck(ctx context.Context, chat int64, fields []string) {
 	if b.Checker == nil {
 		return
 	}
 	if len(fields) != 2 || !nearAccount.MatchString(fields[1]) {
-		b.reply(ctx, "Send /check and one coin account, for example /check moth.factory.testnet.")
+		b.reply(ctx, chat, "Send /check and one coin account, for example /check moth.factory.testnet.")
 		return
 	}
 	coin := fields[1]
 	card, err := b.Checker.Check(ctx, coin)
 	if err != nil {
-		b.reply(ctx, "I cannot read "+coin+". Check the account name and try again.")
+		b.reply(ctx, b.ChatID, "I cannot read "+coin+". Check the account name and try again.")
 		return
 	}
-	b.reply(ctx, card)
+	b.reply(ctx, chat, card)
 }
 
-func (b Bot) reply(ctx context.Context, text string) {
-	_ = b.Reply.Send(ctx, b.ChatID, text)
+func (b Bot) reply(ctx context.Context, chat int64, text string) {
+	_ = b.Reply.Send(ctx, chat, text)
 }
 
 // Serve reads messages from the long poll and handles each one until the context ends.

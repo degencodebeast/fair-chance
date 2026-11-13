@@ -22,7 +22,9 @@ const defaultFastNearTestnet = "https://tx.test.fastnear.com"
 // runTelegram runs the bot: long polling for /watch and /check, and a read pass for alerts.
 // Environment: FC_RPC_URL, FC_TELEGRAM_CHAT_ID (the one chat the bot answers), TELEGRAM_BOT_TOKEN
 // (read here and nowhere else), FC_EVENT_SOURCE ("block-scan" by default, or "fastnear" with
-// FC_FASTNEAR_URL), FC_COINS (optional coins to watch from the start).
+// FC_FASTNEAR_URL), FC_COINS (optional coins to watch from the start). FC_PUBLIC_FACTORY (optional, the
+// testnet factory account) lets any chat send /check for a coin of that factory, rate limited; FC_PAGE_URL
+// (optional) is the hosted page link in the /start and /help line. Alerts and /watch stay in the one chat.
 func runTelegram(poll time.Duration) error {
 	rpcURL := os.Getenv("FC_RPC_URL")
 	chatID, err := strconv.ParseInt(os.Getenv("FC_TELEGRAM_CHAT_ID"), 10, 64)
@@ -85,8 +87,32 @@ func runTelegram(poll time.Duration) error {
 	}()
 	bot := commands.Bot{ChatID: chatID, Reply: api, Watcher: set,
 		Checker: checkcard.Checker{RPCURL: rpcURL, Location: time.Local}}
+	if factory := strings.TrimSpace(os.Getenv("FC_PUBLIC_FACTORY")); factory != "" {
+		public, err := commands.NewPublicCheck(factory, strings.TrimSpace(os.Getenv("FC_PAGE_URL")), nil)
+		if err != nil {
+			return fmt.Errorf("FC_PUBLIC_FACTORY: %w", err)
+		}
+		bot.Public = public
+		go logPublicCounts(ctx, bot.Public)
+	}
 	if err := bot.Serve(ctx, api); err != nil && ctx.Err() == nil {
 		return err
 	}
 	return nil
+}
+
+// logPublicCounts logs numbers only, never message text or chat IDs, and only when they changed.
+func logPublicCounts(ctx context.Context, p *commands.PublicCheck) {
+	var last commands.PublicCounts
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(10 * time.Minute):
+		}
+		if now := p.Counts(); now != last {
+			log.Printf("public check: served %d, busy %d, refused %d", now.Served, now.Busy, now.Refused)
+			last = now
+		}
+	}
 }
