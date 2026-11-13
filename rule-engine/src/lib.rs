@@ -38,7 +38,7 @@ pub use views::{
 };
 
 /// Version string of the coin interface (INTERFACE.md) and of every `fair_chance` event.
-pub const INTERFACE_VERSION: &str = "1.0.0-rc.5";
+pub const INTERFACE_VERSION: &str = "1.0.0-rc.6";
 
 /// The pure rule step: one action on the coin state at one block.
 ///
