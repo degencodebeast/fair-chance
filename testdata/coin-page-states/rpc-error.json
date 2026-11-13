@@ -1,0 +1,14 @@
+{
+  "description": "The RPC answers with a server error.",
+  "now_ns": "1794579840000000000",
+  "views": {},
+  "missing_views": [],
+  "events": [],
+  "account": {
+    "code_hash": "11111111111111111111111111111111",
+    "global_contract_hash": "DmuJEGxMYTS5hjKvhyYpcJmoUBwHXmBRjCpWWDhbKXSa",
+    "global_contract_account_id": null
+  },
+  "access_key_count": 0,
+  "fail": "fc_rules: HTTP 503"
+}
