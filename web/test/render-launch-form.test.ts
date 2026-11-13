@@ -49,7 +49,7 @@ describe("launch form", () => {
     const app = form();
     type(app, "#launch-name", "Moth Lamp");
     type(app, "#launch-ticker", "MO TH");
-    expect(app.querySelector("#launch-errors")?.textContent).toContain("letters and digits only");
+    expect(app.querySelector("#launch-errors")?.textContent).toContain("letters, digits, - and _ only");
   });
 
   it("does not submit anything: the form handler stops the default", () => {
