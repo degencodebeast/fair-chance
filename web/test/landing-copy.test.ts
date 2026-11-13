@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { landingCopy } from "../src/landing-copy.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
@@ -53,5 +54,16 @@ describe("launch button reason", () => {
   it("says what is true now: launching signs a transaction and this page does not sign", () => {
     expect(landingCopy.launchOffNote).toBe("Launching signs a transaction. This page does not sign yet.");
     expect(copyViolations(landingCopy.launchOffNote)).toEqual([]);
+  });
+});
+
+describe("README pitch line", () => {
+  it("is its own plain paragraph right after the bold headline", () => {
+    const lines = readFileSync(new URL("../../README.md", import.meta.url), "utf8").split("\n");
+    const head = lines.indexOf(`**${landingCopy.headline}**`);
+    expect(head).toBeGreaterThan(-1);
+    expect(lines[head + 1]).toBe("");
+    expect(lines[head + 2]).toBe(landingCopy.subheadline);
+    expect(lines[head + 3]).toBe("");
   });
 });
