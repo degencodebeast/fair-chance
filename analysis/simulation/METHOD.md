@@ -31,7 +31,12 @@ and never reaches the cap; the above-allowance part pays the configured
 10/20/30% penalty and is cap-limited. Large and marked sales remain
 allowance-limited and cap-counted. For every account, cap usage is its limited
 NEAR out net of its own buys, clamped at zero. Small sells and the band
-account's first allowance do not count. The cap window matches the configured
+account's first allowance do not count. The account cap record is updated in
+action order: buys first consume outstanding uncounted small/band proceeds,
+then reduce the signed net; uncounted sells consume unused buy credit before
+they become outstanding proceeds; counted sells increase the signed net.
+Marked and unmarked token-sold totals use separate counters even when their
+window indices coincide. The cap window matches the configured
 unmarked window: the 10-minute check also uses a 10-minute cap window, and the
 24-hour check uses a 24-hour cap window. A limited fill is the larger of the
 cap-permitted amount and the account's remaining floor, capped by the request.
@@ -63,9 +68,11 @@ after it; a buy offsets an account's uncounted sell proceeds before counted
 proceeds; and the cap check uses real NEAR after the actual net payout, including
 the penalty retained in the pool. The model implements those details separately
 in Python. It does not copy contract code or integer rounding: pool math uses
-binary floats and 100 bisection iterations. We found no rule-text/code
-disagreement in these cases; the cap vectors expose the specific edge cases for
-contract comparison.
+binary floats and 100 bisection iterations. One rule-text/code disagreement
+remains: the band vector follows the code by counting tokens sold from a
+same-window buy toward the cap, while ADR 0005 currently says the first
+allowance never counts. The docs owner has identified this as a wording issue;
+the vector preserves the implemented behavior for contract comparison.
 
 The model uses binary floating point with 100 bisection iterations; values are
 rounded to the nearest base unit only when serialized. Run

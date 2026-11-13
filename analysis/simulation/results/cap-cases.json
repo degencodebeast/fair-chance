@@ -55,7 +55,7 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount_token_base": "51596767987687470000000000",
+          "amount": "all",
           "time_s": 1,
           "block": 100,
           "result": {
@@ -69,7 +69,8 @@
             "class_after": "large"
           }
         }
-      ]
+      ],
+      "note": "Cap is measured in real NEAR."
     },
     {
       "name": "band-sell-above-allowance",
@@ -124,7 +125,7 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount_token_base": "20923129620643377000000000",
+          "amount": "20923129620643377000000000",
           "time_s": 1,
           "block": 100,
           "result": {
@@ -136,7 +137,8 @@
             "cap_used_yocto": "193013276029149420000000",
             "class_before": "band",
             "class_after": "band"
-          }
+          },
+          "amount_token_base": "20923129620643377000000000"
         }
       ]
     },
@@ -145,11 +147,11 @@
       "start_state": {
         "real_near_yocto": "10000000000000000000000000",
         "virtual_near_yocto": "100000000000000000000000000",
-        "token_reserve_base": "970000000000000000000000000",
+        "token_reserve_base": "988000000000000000000000000",
         "holders": [
           {
             "account": "band",
-            "tokens_base": "30000000000000000000000000",
+            "tokens_base": "12000000000000000000000000",
             "marked_base": "0",
             "large": false,
             "class": "band"
@@ -178,36 +180,38 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount_token_base": "5000000000000000000000000",
+          "amount": "5000000000000000000000000",
           "time_s": 0,
           "block": 100,
           "result": {
             "tokens_filled_base": "5000000000000000000000000",
-            "near_out_yocto": "558461538461543600000000",
+            "near_out_yocto": "548338368580061900000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
             "class_before": "band",
             "class_after": "band"
-          }
+          },
+          "amount_token_base": "5000000000000000000000000"
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount_token_base": "7000000000000000000000000",
+          "amount": "7000000000000000000000000",
           "time_s": 1,
           "block": 100,
           "result": {
             "tokens_filled_base": "7000000000000000000000000",
-            "near_out_yocto": "748705274373802700000000",
+            "near_out_yocto": "737268954743627000000000",
             "fill": "full",
             "limit_reason": null,
-            "penalty_near": "23626560186737820000000",
-            "cap_used_yocto": "212639041680640400000000",
+            "penalty_near": "21231060362107200000000",
+            "cap_used_yocto": "191079543258964800000000",
             "class_before": "band",
             "class_after": "band"
-          }
+          },
+          "amount_token_base": "7000000000000000000000000"
         }
       ]
     },
@@ -1063,7 +1067,7 @@
         {
           "account": "marked",
           "kind": "sell",
-          "amount_token_base": "4975124378109455000000000",
+          "amount": "4975124378109455000000000",
           "time_s": 1,
           "block": 18,
           "result": {
@@ -1075,7 +1079,8 @@
             "cap_used_yocto": "0",
             "class_before": "small",
             "class_after": "small"
-          }
+          },
+          "amount_token_base": "4975124378109455000000000"
         }
       ]
     },
@@ -1134,7 +1139,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount_token_base": "65238558909444930000000000",
+          "amount": "all",
           "time_s": 3601,
           "block": 100,
           "result": {
@@ -1151,7 +1156,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount_token_base": "39480459127396050000000000",
+          "amount": "all",
           "time_s": 3602,
           "block": 100,
           "result": {
@@ -1160,7 +1165,7 @@
             "fill": "partial",
             "limit_reason": "floor",
             "penalty_near": "0",
-            "cap_used_yocto": "549914667596396200000000",
+            "cap_used_yocto": "549914667596396300000000",
             "class_before": "large",
             "class_after": "large"
           }
@@ -1212,7 +1217,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount_token_base": "26290165530671835000000000",
+          "amount": "26290165530671835000000000",
           "time_s": 3600,
           "block": 100,
           "result": {
@@ -1224,7 +1229,8 @@
             "cap_used_yocto": "619047619047618500000000",
             "class_before": "large",
             "class_after": "large"
-          }
+          },
+          "amount_token_base": "26290165530671835000000000"
         }
       ]
     },
@@ -1273,7 +1279,7 @@
         {
           "account": "round-trip",
           "kind": "sell",
-          "amount_token_base": "473684210526315800000000000",
+          "amount": "all",
           "time_s": 1,
           "block": 100,
           "result": {
@@ -1334,7 +1340,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount_token_base": "26290165530671835000000000",
+          "amount": "26290165530671835000000000",
           "time_s": 3600,
           "block": 100,
           "result": {
@@ -1346,7 +1352,8 @@
             "cap_used_yocto": "618529793680559300000000",
             "class_before": "large",
             "class_after": "large"
-          }
+          },
+          "amount_token_base": "26290165530671835000000000"
         }
       ]
     },
@@ -1395,7 +1402,7 @@
         {
           "account": "round-trip",
           "kind": "sell",
-          "amount_token_base": "473684210526315800000000000",
+          "amount": "all",
           "time_s": 1,
           "block": 100,
           "result": {
@@ -1407,6 +1414,503 @@
             "cap_used_yocto": "0",
             "class_before": "large",
             "class_after": "band"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-independence-buy-first",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "995000000000000000000000000",
+        "holders": [
+          {
+            "account": "small",
+            "tokens_base": "5000000000000000000000000",
+            "marked_base": "0",
+            "large": false,
+            "class": "small"
+          }
+        ],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "small",
+          "kind": "buy",
+          "amount_near_yocto": "50000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "449797591084003450000000",
+            "large_before": false,
+            "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "small",
+          "kind": "sell",
+          "amount": "all",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "5449797591084003000000000",
+            "near_out_yocto": "590798729004787100000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "small",
+            "class_after": "small"
+          }
+        }
+      ]
+    },
+    {
+      "name": "order-independence-sell-first",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "995000000000000000000000000",
+        "holders": [
+          {
+            "account": "small",
+            "tokens_base": "5000000000000000000000000",
+            "marked_base": "0",
+            "large": false,
+            "class": "small"
+          }
+        ],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "small",
+          "kind": "sell",
+          "amount": "all",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "5000000000000000000000000",
+            "near_out_yocto": "541791044776121900000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "small",
+            "class_after": "small"
+          }
+        },
+        {
+          "account": "small",
+          "kind": "buy",
+          "amount_near_yocto": "50000000000000000000000",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "454283086319804200000000",
+            "large_before": false,
+            "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
+            "cap_used_yocto": "0"
+          }
+        }
+      ]
+    },
+    {
+      "name": "band-round-trip-credit",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "989000000000000000000000000",
+        "holders": [
+          {
+            "account": "band",
+            "tokens_base": "11000000000000000000000000",
+            "marked_base": "0",
+            "large": false,
+            "class": "band"
+          }
+        ],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991900728940960000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991900728940960000000",
+          "time_s": 0.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991900728940960000000",
+            "near_out_yocto": "9801008909204115000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991900728940960000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991737947583200000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991737947583200000000",
+          "time_s": 1.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991737947583200000000",
+            "near_out_yocto": "9801008909175978000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991737947583200000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 2,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991575166940690000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991575166940690000000",
+          "time_s": 2.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991575166940690000000",
+            "near_out_yocto": "9801008909175978000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991575166940690000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 3,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991412386894230000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991412386894230000000",
+          "time_s": 3.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991412386894230000000",
+            "near_out_yocto": "9801008909161907000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991412386894230000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 4,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991249607205390000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991249607205390000000",
+          "time_s": 4.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991249607205390000000",
+            "near_out_yocto": "9801008909119701000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991249607205390000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991086828351020000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89991086828351020000000",
+          "time_s": 5.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89991086828351020000000",
+            "near_out_yocto": "9801008909119701000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89991086828351020000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 6,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990924049973490000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89990924049973490000000",
+          "time_s": 6.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990924049973490000000",
+            "near_out_yocto": "9801008909091564000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89990924049973490000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 7,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990761272192000000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89990761272192000000000",
+          "time_s": 7.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990761272192000000000",
+            "near_out_yocto": "9801008909077496000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89990761272192000000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 8,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990598495006560000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89990598495006560000000",
+          "time_s": 8.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990598495006560000000",
+            "near_out_yocto": "9801008909063427000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89990598495006560000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "10000000000000000000000",
+          "time_s": 9,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990435718417170000000",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "89990435718417170000000",
+          "time_s": 9.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "89990435718417170000000",
+            "near_out_yocto": "9801008909049358000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          },
+          "amount_token_base": "89990435718417170000000"
+        },
+        {
+          "account": "band",
+          "kind": "buy",
+          "amount_near_yocto": "1200000000000000000000000",
+          "time_s": 10,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "10684415035489202000000000",
+            "large_before": false,
+            "large_after": true,
+            "class_before": "band",
+            "class_after": "large",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount": "all",
+          "time_s": 10.5,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "15314293925840557000000000",
+            "near_out_yocto": "1678180387099229100000000",
+            "fill": "partial",
+            "limit_reason": "cap_full",
+            "penalty_near": "0",
+            "cap_used_yocto": "476190476190468300000000",
+            "class_before": "large",
+            "class_after": "large"
           }
         }
       ]

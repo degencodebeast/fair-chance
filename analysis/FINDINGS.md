@@ -64,6 +64,7 @@ full simulation tables and committed charts with:
 
 ```sh
 python3 analysis/near-replay/replay.py --as-of-ms 1794496145054
+python3 analysis/simulation/simulate.py --checkpoint
 python3 analysis/simulation/simulate.py
 python3 analysis/simulation/charts.py
 ```
