@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fairchance/watcher/internal/eventsource"
+	"fairchance/watcher/internal/telegram"
 )
 
 const (
@@ -52,7 +53,7 @@ func (w Writer) Sentence(ev eventsource.Event) (string, bool) {
 		return "", false
 	}
 	rules, _ := w.rulesFor(ev.Coin)
-	symbol := rules.Symbol
+	symbol := telegram.Label(rules.Symbol)
 	if symbol == "" {
 		symbol = "tokens"
 	}

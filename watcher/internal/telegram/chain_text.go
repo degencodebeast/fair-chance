@@ -73,3 +73,17 @@ func Compose(head, description, tail string) string {
 	}
 	return Prepare(head + description + tail)
 }
+
+// MaxLabelRunes is the longest coin name or symbol a message shows.
+const MaxLabelRunes = 64
+
+// Label cleans a coin name or symbol from the chain and cuts it to MaxLabelRunes with an ellipsis,
+// so a very long name cannot push the rest of a message past the Telegram limit.
+func Label(s string) string {
+	s = CleanChainText(s)
+	r := []rune(s)
+	if len(r) <= MaxLabelRunes {
+		return s
+	}
+	return string(r[:MaxLabelRunes-1]) + ellipsis
+}

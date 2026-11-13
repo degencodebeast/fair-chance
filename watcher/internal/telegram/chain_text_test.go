@@ -14,9 +14,9 @@ import (
 
 func TestCleanChainTextRemovesControlAndDirectionCharacters(t *testing.T) {
 	cases := map[string]string{
-		"a‮b‏c⁦d⁧e⁨f⁩g‪h‬i‎j؜k": "abcdefghijk",
-		"a\x00b\x07c\x1bd\x7fe\u0085f\u009Fg\nh\ti":                              "abcdefg\nhi",
-		"Moth Lamp, café 日本 👩‍💻 100%":                                    "Moth Lamp, café 日本 👩‍💻 100%",
+		"a‮b‏c⁦d⁧e⁨f⁩g‪h‬i‎j؜k":                     "abcdefghijk",
+		"a\x00b\x07c\x1bd\x7fe\u0085f\u009Fg\nh\ti": "abcdefg\nhi",
+		"Moth Lamp, café 日本 👩‍💻 100%":               "Moth Lamp, café 日本 👩‍💻 100%",
 	}
 	for in, want := range cases {
 		if got := telegram.CleanChainText(in); got != want {
