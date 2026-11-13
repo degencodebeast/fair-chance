@@ -74,6 +74,9 @@ try {
           throw new Error(`${label}: ${selector} never showed`);
         }
       }
+      // A late error counts too: wait for the network to settle and a fixed time before the errors are read.
+      await page.waitForLoadState("networkidle").catch(() => undefined);
+      await page.waitForTimeout(2_000);
       const main = await page.evaluate(() => {
         const m = document.querySelector("main");
         const h = m?.querySelector("h1, h2");
