@@ -18,6 +18,15 @@ describe("the alerts screen", () => {
     expect(m.chat.at(-1)!.text).toBe(file.check_reply);
   });
 
+  it("shows in each bot bubble only the text the bot sends, with no heading of the page's own", () => {
+    const m = watcherScreenModel(bare);
+    expect(m.chat.filter((c) => c.from === "bot").map((c) => [c.head, c.text])).toEqual([
+      [null, file.watch_reply],
+      ...file.alerts.map((a: { text: string }) => [null, a.text]),
+      [null, file.check_reply],
+    ]);
+  });
+
   it("uses the alert sentences from the watcher templates and does not write its own", () => {
     const m = watcherScreenModel(bare);
     expect(m.plain.map((p) => p.text)).toEqual([file.watch_reply, ...file.alerts.map((a: { text: string }) => a.text), file.check_reply]);
@@ -32,23 +41,12 @@ describe("the alerts screen", () => {
     expect(m.preBuyLabel).toMatch(/^Sample data/);
   });
 
-  it("gives no Open on Fair Chance link when the page link names no real coin", () => {
-    const m = watcherScreenModel(bare);
-    expect(m.chat.every((c) => c.openHref === null)).toBe(true);
-    expect(m.openNote).toMatch(/needs a real coin/);
-  });
-
-  it("links each alert to the coin page with its receipt when the page link names a coin", () => {
-    const m = watcherScreenModel(withCoin);
-    const alerts = m.chat.filter((c) => c.receipt !== null);
-    expect(alerts).toHaveLength(file.alerts.length);
-    for (const a of alerts) {
-      const url = new URL(a.openHref!, "http://localhost/");
-      expect(url.searchParams.get("coin")).toBe("real.factory.testnet");
-      expect(url.searchParams.get("receipt")).toBe(a.receipt);
-      expect(url.searchParams.get("network")).toBe("testnet");
+  it("keeps Open on Fair Chance off for sample alerts even when the page link names a coin, because no sample receipt exists on chain", () => {
+    for (const href of [bare, withCoin]) {
+      const m = watcherScreenModel(href);
+      expect(m.chat.every((c) => c.openHref === null)).toBe(true);
+      expect(m.openNote).toMatch(/no real receipt/);
     }
-    expect(m.openNote).toBeNull();
   });
 
   it("follows the copy rules", () => {
