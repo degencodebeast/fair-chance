@@ -766,3 +766,31 @@ fn at_a_full_cap_a_band_first_allowance_fills_and_only_the_part_above_is_checked
     assert_eq!(above.penalty_near, 0);
     assert_eq!(coin.cap(at).cap_used, used);
 }
+
+/// Window 1 ends with a full cap well past full: LARGE and eight small wallets sold everything.
+/// Then SMALL (bought in window 1) gains from a later buy by OTHER. SMALL is small with no
+/// marked tokens, and the cap holds its profit: `fc_account.max_full_fill_now` is below its
+/// balance and the quote for the whole balance stops at the cap.
+#[test]
+fn at_a_full_cap_a_small_account_that_bought_in_the_window_cannot_sell_its_whole_balance_now() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(10));
+    for i in 0..8 {
+        coin.buy(&format!("wallet-{i}.test"), ONE_NEAR / 2, after(11 + i));
+    }
+    let at = window_1(1);
+    coin.sell_all(LARGE, at);
+    for i in 0..8 {
+        coin.sell_all(&format!("wallet-{i}.test"), at);
+    }
+    coin.buy(SMALL, ONE_NEAR / 2, at);
+    coin.buy(OTHER, 2 * ONE_NEAR, at);
+    assert!(coin.cap(at).is_full);
+
+    let view = coin.account(SMALL, at);
+    assert_eq!(view.class, "small");
+    assert_eq!(view.marked_balance, 0);
+    assert!(view.max_full_fill_now < view.balance);
+    let quote = coin.quote(SMALL, view.balance, at);
+    assert_eq!(quote.limit_reason, Some("cap_full"));
+}
