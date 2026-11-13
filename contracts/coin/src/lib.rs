@@ -227,7 +227,9 @@ impl Coin {
         let balance = self
             .storage_balance_of(account_id.clone())
             .unwrap_or_else(|| {
-                env::panic_str(&format!("The account {account_id} is not registered"))
+                env::panic_str(&rule_engine::storage_withdraw_not_registered(
+                    account_id.as_str(),
+                ))
             });
         if amount.is_some_and(|a| !a.is_zero()) {
             env::panic_str("The amount is greater than the available storage balance");
