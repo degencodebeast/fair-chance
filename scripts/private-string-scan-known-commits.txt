@@ -1,4 +1,11 @@
-# Commits whose messages hold private build-plan names and are already on the remote main branch.
-# The private-string scan skips them and prints how many it skipped. Removing them needs a
-# history rewrite of main, which is the builder's decision. Delete a line once its commit is gone.
+# Commits whose messages hold private build-plan names and that cannot change. The private-string
+# scan skips only the exact full hashes listed here and prints how many it skipped; a short or
+# longer hash does not count, and every other commit is still scanned.
+# 95af792...: already on the remote main branch; removing it needs a history rewrite of main,
+# which is the builder's decision.
+# 8fdca11... and fc67a3c...: ancestors of b42fdde, the commit the deployed testnet coin wasm was
+# built from (its source revision is in the wasm), so they cannot change. Kept by the builder.
+# Delete a line once its commit is gone.
 95af79217e0997a6662b868d2132ad4d1b001f5e
+8fdca111327e680cdf6fb664793d502d22f8eed7
+fc67a3c5d53b379862f99447797d217196b8ed41

@@ -81,6 +81,22 @@ printf "# reason\n%s\n" "$(git -C "$repo" rev-parse HEAD)" >"$repo/scripts/priva
 git -C "$repo" add scripts
 expect "a commit listed as known is skipped" 0 "$repo"
 
+repo="$(new_repo known-then-new)"; echo "more" >>"$repo/clean.txt"
+git -C "$repo" commit -q -am "Finish tick""et 17"
+mkdir -p "$repo/scripts"
+printf "# reason\n%s\n" "$(git -C "$repo" rev-parse HEAD)" >"$repo/scripts/private-string-scan-known-commits.txt"
+git -C "$repo" add scripts
+git -C "$repo" commit -q -m "Start tick""et 18"
+expect "a new commit with a ticket number fails after a listed one" 1 "$repo"
+
+repo="$(new_repo known-short-hash)"; echo "more" >>"$repo/clean.txt"
+git -C "$repo" commit -q -am "Finish tick""et 17"
+mkdir -p "$repo/scripts"
+full="$(git -C "$repo" rev-parse HEAD)"
+printf "# reason\n%s\n%s\n%sx\n" "${full:0:7}" "${full:0:39}" "$full" >"$repo/scripts/private-string-scan-known-commits.txt"
+git -C "$repo" add scripts
+expect "only the exact full hash is skipped, not a short or longer one" 1 "$repo"
+
 repo="$(new_repo plain-words)"; plant "$repo" "Part of the plan. A ticket price of 17 NEAR. Users can sell."
 expect "plain words that only look close pass" 0 "$repo"
 
