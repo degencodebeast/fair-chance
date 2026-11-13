@@ -72,13 +72,13 @@
       "receipt_id": "CapReceipt11111111111111111111111111111111",
       "block": 2300,
       "time_ns": "1794579480000000000",
-      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.6\",\"event\":\"fc_cap_filled\",\"data\":[{\"window_start_ns\":\"1794578520000000000\",\"window_end_ns\":\"1794582120000000000\",\"real_near\":\"40470000000000000000000000\",\"cap_total\":\"2130000000000000000000000\",\"cap_used\":\"2130000000000000000000000\",\"by_account\":\"bigfish.testnet\",\"fill_index\":1}]}"
+      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.7\",\"event\":\"fc_cap_filled\",\"data\":[{\"window_start_ns\":\"1794578520000000000\",\"window_end_ns\":\"1794582120000000000\",\"real_near\":\"40470000000000000000000000\",\"cap_total\":\"2130000000000000000000000\",\"cap_used\":\"2130000000000000000000000\",\"by_account\":\"bigfish.testnet\",\"fill_index\":1}]}"
     },
     {
       "receipt_id": "PartialReceipt1111111111111111111111111111111",
       "block": 2310,
       "time_ns": "1794579720000000000",
-      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.6\",\"event\":\"fc_sell\",\"data\":[{\"account\":\"you.testnet\",\"class\":\"large\",\"tokens_asked\":\"30000000000000000000000000\",\"tokens_sold\":\"100000000000000000000000\",\"marked_sold\":\"0\",\"near_out\":\"20000000000000000000000\",\"fee_near\":\"10000000000000000000000\",\"creator_fee_near\":\"0\",\"penalty_near\":\"0\",\"fill\":\"partial\",\"limit_reason\":\"cap_full\",\"allowance_used\":\"500000000000000000000000\",\"allowance_left\":\"0\",\"cap_used\":\"2130000000000000000000000\",\"cap_left\":\"0\",\"window_end_ns\":\"1794582120000000000\"}]}"
+      "line": "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.7\",\"event\":\"fc_sell\",\"data\":[{\"account\":\"you.testnet\",\"class\":\"large\",\"tokens_asked\":\"30000000000000000000000000\",\"tokens_sold\":\"100000000000000000000000\",\"marked_sold\":\"0\",\"near_out\":\"20000000000000000000000\",\"fee_near\":\"10000000000000000000000\",\"creator_fee_near\":\"0\",\"penalty_near\":\"0\",\"fill\":\"partial\",\"limit_reason\":\"cap_full\",\"allowance_used\":\"500000000000000000000000\",\"allowance_left\":\"0\",\"cap_used\":\"2130000000000000000000000\",\"cap_left\":\"0\",\"window_end_ns\":\"1794582120000000000\"}]}"
     }
   ],
   "account": {
