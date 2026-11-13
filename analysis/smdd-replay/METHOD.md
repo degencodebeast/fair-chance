@@ -110,8 +110,9 @@ sandbox, so it runs only when the verify gate turns on `FC_REPLAY_ON_SANDBOX`).
   pool, the venue depth), because this file describes the method; every other rule holds.
 - The guard is also a command:
   `python3 -I analysis/smdd-replay/published_figures_guard.py <file>...`.
-- If `evidence/testnet-run.json` exists, the guard lets through the exact code hash, transaction
-  hashes and testnet accounts written in it, and nothing else. It makes no network call.
+- If `evidence/testnet-run.json` exists and names the testnet, the guard lets through its exact
+  code hash, factory and coin accounts and transaction hashes, and nothing else. It makes no
+  network call.
 - The command refuses an output folder inside a Git repository. Output enters this repository
   only after a person checks it.
 

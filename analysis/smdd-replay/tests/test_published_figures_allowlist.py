@@ -19,12 +19,15 @@ TX_HASH = "7mPqRs2tUvWxYz3AbCdEfGhJkLnNpQrStUvWxYz4Ab5C"
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 FACTORY = "fc-demo.testnet"
 COIN = "bag.fc-demo.testnet"
+OTHER_HASH = "Zx9cV8bN7mK6jH5gF4dS3aQ2wE1rT0yUiOpLkJhGfDsA"
 RECORD = {
+    "network": "testnet",
     "deployed_commit": COMMIT,
     "factory": FACTORY,
     "coin": COIN,
     "code_hash": CODE_HASH,
-    "transactions": [{"hash": TX_HASH, "outcome": "partial fill"}],
+    "note": OTHER_HASH,
+    "transactions": [{"tx_hash": TX_HASH, "outcome": "partial_fill", "account": "buyer1.testnet", "memo": OTHER_HASH}],
 }
 
 
@@ -61,6 +64,12 @@ class AllowlistTest(unittest.TestCase):
     def test_a_mainnet_style_account_fails(self):
         self.assertEqual(len(findings("The coin is bag.near.", self.allowed)), 1)
 
+    def test_a_hash_shaped_string_in_another_field_does_not_pass(self):
+        self.assertEqual(len(findings(f"Hash {OTHER_HASH}.", self.allowed)), 1)
+
+    def test_an_account_in_a_transaction_row_does_not_pass(self):
+        self.assertEqual(len(findings("The buyer is buyer1.testnet.", self.allowed)), 1)
+
     def test_the_commit_in_the_record_is_not_allowed(self):
         self.assertEqual(len(findings(f"Built from commit {COMMIT}.", self.allowed)), 1)
 
@@ -75,6 +84,15 @@ class AllowlistTest(unittest.TestCase):
     def test_an_allowed_account_in_a_table_row_is_still_not_a_group(self):
         table = f"| Group | Account |\n| --- | --- |\n| {COIN} | x |\n"
         self.assertTrue(findings_in_text("results.md", table, allowed=self.allowed))
+
+
+class NetworkTest(unittest.TestCase):
+    def test_a_mainnet_file_gives_an_empty_allowlist(self):
+        self.assertEqual(load_allowlist(record_file(dict(RECORD, network="mainnet"))), frozenset())
+
+    def test_a_file_with_no_network_gives_an_empty_allowlist(self):
+        data = {k: v for k, v in RECORD.items() if k != "network"}
+        self.assertEqual(load_allowlist(record_file(data)), frozenset())
 
 
 class MissingFileTest(unittest.TestCase):

@@ -29,9 +29,9 @@ title, metadata), comments, CDATA and attribute values, with entities decoded. O
 attributes (coordinates, sizes, colours) do not count.
 A finding names the file, the line and, in a table, the column number. It never shows the text.
 
-One exception, by exact value. If `evidence/testnet-run.json` exists, the guard lets through the
-values in it that have the shape of a code hash or a transaction hash (base58 of 43 or 44
-characters, or 64 hex characters) and the accounts that end in ".testnet". A value counts only
+One exception, by exact value. If `evidence/testnet-run.json` exists and says "network":
+"testnet", the guard lets through its coin code hash, its factory and coin accounts and each
+transaction hash in it, and no other field. A value counts only
 when the whole word matches; a changed character, a longer word or a mainnet account fails. The
 guard reads that file and nothing else. It makes no network call. Without the file, nothing is
 let through.
@@ -133,27 +133,33 @@ _HASH_SHAPE = re.compile(r"[1-9A-HJ-NP-Za-km-z]{43,44}|[0-9a-fA-F]{64}")
 _ACCOUNT_SHAPE = re.compile(r"[a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet")
 
 
-def _strings(value):
-    if isinstance(value, str):
-        yield value
-    elif isinstance(value, dict):
-        for item in value.values():
-            yield from _strings(item)
-    elif isinstance(value, list):
-        for item in value:
-            yield from _strings(item)
-
-
 def load_allowlist(path: Path = EVIDENCE_FILE) -> frozenset:
-    """The exact values the guard lets through, from the testnet run record. A missing or
-    unreadable file gives an empty set, which is the guard without an exception."""
+    """The exact values the guard lets through, from the testnet run record: the coin code hash
+    ("code_hash"), the factory and coin accounts ("factory", "coin") and each "tx_hash" in
+    "transactions". Only when the file says "network": "testnet", and only these fields, each
+    with the shape of its kind. A missing, unreadable or other file gives an empty set, which is
+    the guard without an exception."""
     try:
         data = json.loads(Path(path).read_text())
     except (OSError, ValueError):
         return frozenset()
-    return frozenset(
-        s for s in _strings(data) if _HASH_SHAPE.fullmatch(s) or _ACCOUNT_SHAPE.fullmatch(s)
-    )
+    if not isinstance(data, dict) or data.get("network") != "testnet":
+        return frozenset()
+    found = []
+    if _is(data.get("code_hash"), _HASH_SHAPE):
+        found.append(data["code_hash"])
+    for field in ("factory", "coin"):
+        if _is(data.get(field), _ACCOUNT_SHAPE):
+            found.append(data[field])
+    transactions = data.get("transactions")
+    for tx in transactions if isinstance(transactions, list) else []:
+        if isinstance(tx, dict) and _is(tx.get("tx_hash"), _HASH_SHAPE):
+            found.append(tx["tx_hash"])
+    return frozenset(found)
+
+
+def _is(value, shape) -> bool:
+    return isinstance(value, str) and shape.fullmatch(value) is not None
 
 
 def _without_allowed(text: str, allowed: frozenset) -> str:
