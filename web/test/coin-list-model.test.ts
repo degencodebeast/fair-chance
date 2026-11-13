@@ -43,6 +43,9 @@ describe("the coin list", () => {
     expect(coinListModel([alpha], { tab: "Big sells held", query: "" }).emptyText).toBe("No big sell was limited in the last hour.");
     expect(coinListModel([alpha], { tab: "Market cap", query: "" }).emptyText).toBeNull();
   });
+  it("names the early window as blocks 0 to 17, not a count of blocks", () => {
+    expect(coinListModel([], { tab: "Early window now", query: "" }).emptyText).toMatch(/blocks 0 to 17/);
+  });
   it("puts a coin with no market cap last in the market cap tab", () => {
     expect(coinListModel([card({ name: "Blank", marketCapNear: null, marketCap: "Not available" }), alpha], { tab: "Market cap", query: "" }).visible[0]!.name).toBe("Alpha");
   });

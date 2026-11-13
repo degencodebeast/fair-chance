@@ -84,6 +84,11 @@ describe("the coin list read from the factory's launch events", () => {
     expect(await loadCoinCards(factoryReader([other]), 0, () => { throw new Error("no coin"); }, ctxFor("normal"))).toEqual([]);
   });
 
+  it("ignores a launch event that a coin contract emitted under the coin standard", async () => {
+    const forged = { ...launch("forged.factory.testnet", 5), standard: "fair_chance" as const };
+    expect(await loadCoinCards(factoryReader([forged]), 0, () => { throw new Error("no coin"); }, ctxFor("normal"))).toEqual([]);
+  });
+
   it("reads the newest coins only", async () => {
     const events = Array.from({ length: MOST_COINS_SHOWN + 1 }, (_, i) => launch(`c${i}.factory.testnet`, i + 1));
     const seen: string[] = [];
