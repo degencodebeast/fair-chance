@@ -12,7 +12,8 @@
 //! - No sell pays out NEAR that buyers did not put in: NEAR in = NEAR out + real NEAR + creator
 //!   balance, and the NEAR reserve never falls below virtual P.
 //! - The total supply never changes.
-//! - `fc_quote_sell` equals the real sell.
+//! - `fc_quote_sell` equals the real sell, and `max_full_fill_now` is the largest sell that fills
+//!   in full with no penalty: a sell of it does, one more token unit does not.
 //! - For a band account, `penalty_applies_above` equals `max_full_fill_now`.
 //! - A small sell by an account that bought no unmarked tokens in the window never counts. A
 //!   small sell of tokens bought in the window counts; it fills as far as it passes the cap
@@ -281,6 +282,47 @@ impl Coin {
                 prop_assert_eq!(penalty_applies_above, before.max_full_fill_now);
             } else {
                 prop_assert!(penalty_applies_above >= before.max_full_fill_now);
+            }
+        }
+        // `max_full_fill_now` is the largest sell that fills in full with no penalty now: a
+        // sell of it does, and a sell of one more token unit does not.
+        let fills_full = |tokens: u128| {
+            apply(
+                &self.state,
+                self.holders(&[account.to_string()]),
+                &Action::Sell {
+                    account: account.to_string(),
+                    amount: tokens,
+                    min_near_out: 0,
+                    attached: 1,
+                },
+                self.at,
+            )
+            .ok()
+            .and_then(|applied| {
+                applied.events.into_iter().find_map(|e| match e {
+                    Event::FcSell(s) => Some(s.fill == "full" && s.penalty_near == 0),
+                    _ => None,
+                })
+            })
+        };
+        let max = before.max_full_fill_now;
+        if max > 0 {
+            if let Some(full) = fills_full(max) {
+                prop_assert!(
+                    full,
+                    "a sell of max_full_fill_now {} did not fill in full",
+                    max
+                );
+            }
+        }
+        if max < before.balance {
+            if let Some(full) = fills_full(max + 1) {
+                prop_assert!(
+                    !full,
+                    "a sell above max_full_fill_now {} filled in full",
+                    max
+                );
             }
         }
         let quote = quote_sell(

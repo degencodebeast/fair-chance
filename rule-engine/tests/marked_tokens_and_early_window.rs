@@ -10,8 +10,8 @@
 use std::collections::BTreeMap;
 
 use rule_engine::{
-    apply, launch, quote_buy, view_account, view_early_window, view_pool, AccountView, Action,
-    Applied, At, CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders,
+    apply, launch, quote_buy, view_account, view_cap, view_early_window, view_pool, AccountView,
+    Action, Applied, At, CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders,
     LaunchRequest, Refusal,
 };
 
@@ -884,4 +884,110 @@ fn a_marked_account_with_unmarked_tokens_from_before_the_window_counts_a_resale_
         cap_used(&coin, after(HOUR_S + 12)),
         first.near_out + resale.near_out.saturating_sub(near_in)
     );
+}
+
+const OTHER: &str = "other.near";
+
+/// EARLY holds marked tokens (block 1) and unmarked tokens (after block N) and is large; OTHER
+/// fills the cap at the start of the next 1 h window.
+fn large_marked_holder_at_a_full_cap() -> (Coin, At) {
+    let mut coin = Coin::launched();
+    coin.buy(EARLY, 2 * ONE_NEAR, block(1));
+    coin.buy(EARLY, 3 * ONE_NEAR, after(20));
+    coin.buy(OTHER, 3 * ONE_NEAR, after(21));
+    let at = after(HOUR_S + 30);
+    coin.sell(OTHER, coin.balance(OTHER), at);
+    assert!(view_cap(&coin.state, at).is_full);
+    assert_eq!(coin.account(EARLY, at).class, "large");
+    (coin, at)
+}
+
+/// One floor per account per window (ADR 0005): the marked part of a sell uses up the unmarked
+/// floor of the same sell, so one sell of everything fills the same tokens as a sell of the
+/// marked part and then a sell of the rest.
+#[test]
+fn one_sell_and_two_sells_of_marked_then_unmarked_tokens_fill_the_same_at_a_full_cap() {
+    let (coin, at) = large_marked_holder_at_a_full_cap();
+    let marked = coin.account(EARLY, at).marked_balance;
+
+    let mut one = coin.clone();
+    let all = one.sell(EARLY, one.balance(EARLY), at);
+
+    let mut two = coin.clone();
+    let first = two.sell(EARLY, marked, at);
+    let rest = two.sell(EARLY, two.balance(EARLY), at);
+
+    assert!(first.marked_sold >= coin.account(EARLY, at).unmarked.floor_left);
+    assert_eq!(rest.tokens_sold, 0);
+    assert_eq!(all.marked_sold, first.marked_sold);
+    assert_eq!(all.tokens_sold - all.marked_sold, 0);
+    assert_eq!(all.tokens_sold, first.tokens_sold + rest.tokens_sold);
+}
+
+/// The largest amount whose real sell fills in full with no penalty, by bisection on the real
+/// sell from `known_full` (which fills in full) up to the balance.
+fn largest_real_full_fill(coin: &Coin, account: &str, known_full: u128, at: At) -> u128 {
+    let fills_full = |amount: u128| {
+        let mut trial = coin.clone();
+        let sold = trial.sell(account, amount, at);
+        sold.fill == "full" && sold.penalty_near == 0
+    };
+    let balance = coin.balance(account);
+    if fills_full(balance) {
+        return balance;
+    }
+    let (mut full, mut not_full) = (known_full, balance);
+    while not_full - full > 1 {
+        let middle = full + (not_full - full) / 2;
+        if fills_full(middle) {
+            full = middle;
+        } else {
+            not_full = middle;
+        }
+    }
+    full
+}
+
+/// `max_full_fill_now` is the largest sell that fills in full now (INTERFACE), also for a large
+/// account that holds marked tokens.
+#[test]
+fn max_full_fill_now_equals_the_largest_real_full_fill_for_a_large_marked_holder() {
+    for (late_buy, buy_in_window) in [(0u128, ONE_NEAR / 10), (ONE_NEAR / 10, 0)] {
+        let mut coin = Coin::launched();
+        coin.buy(EARLY, 4 * ONE_NEAR, block(1));
+        if late_buy > 0 {
+            coin.buy(EARLY, late_buy, after(20));
+        }
+        let at = after(HOUR_S + 30);
+        if buy_in_window > 0 {
+            coin.buy(EARLY, buy_in_window, at);
+        }
+        let view = coin.account(EARLY, at);
+        let mut trial = coin.clone();
+        let at_view = trial.sell(EARLY, view.max_full_fill_now, at);
+        assert_eq!(at_view.fill, "full");
+        assert_eq!(at_view.penalty_near, 0);
+        assert_eq!(
+            view.max_full_fill_now,
+            largest_real_full_fill(&coin, EARLY, view.max_full_fill_now, at),
+            "late buy {late_buy}, buy in window {buy_in_window}"
+        );
+    }
+}
+
+/// `fc_early_window.blocks_left` counts the blocks of the early window still open, the current
+/// block included: 18 in block 0, 1 in block N = 17 (still early: the early fee applies and
+/// marked tokens cannot sell), 0 from block 18.
+#[test]
+fn blocks_left_counts_the_open_block_and_is_zero_from_block_n_plus_one() {
+    let mut coin = Coin::launched();
+    assert_eq!(view_early_window(&coin.state, block(0)).blocks_left, 18);
+    assert_eq!(view_early_window(&coin.state, block(17)).blocks_left, 1);
+    assert_eq!(view_early_window(&coin.state, block(18)).blocks_left, 0);
+    let bought = coin.buy(EARLY, ONE_NEAR, block(17));
+    assert!(bought.fee_near > ONE_NEAR / 100);
+    let refused = coin
+        .try_sell(EARLY, bought.tokens_out, block(17))
+        .expect_err("early window");
+    assert_eq!(refused.to_string(), "FC_EARLY_WINDOW");
 }
