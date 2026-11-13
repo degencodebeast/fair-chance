@@ -166,9 +166,20 @@ async fn global_code_exists(network: &NetworkConfig, hash: CryptoHash) -> Result
         .await
     {
         Ok(_) => Ok(true),
-        Err(e) if format!("{e:?}").contains("NoGlobalContractCode") => Ok(false),
+        Err(e) if is_no_global_code(&format!("{e:?}"), hash) => Ok(false),
         Err(e) => bail!("unknown result reading global code {hash}: {e}; stop and report"),
     }
+}
+
+/// Whether an error is the node's answer that no global code exists under `hash`. near-api 0.8.7
+/// does not parse that answer: it comes back as a transport error that holds the raw JSON, with
+/// the error name `NO_GLOBAL_CONTRACT_CODE` and the hash (seen on near-sandbox 2.13.4). A parsed
+/// `NoGlobalContractCode` counts too. Anything else is an unknown result.
+pub fn is_no_global_code(error: &str, hash: CryptoHash) -> bool {
+    let named = error.contains("NoGlobalContractCode")
+        || error.contains(r#"\"name\":\"NO_GLOBAL_CONTRACT_CODE\""#)
+        || error.contains(r#""name":"NO_GLOBAL_CONTRACT_CODE""#);
+    named && error.contains(&hash.to_string())
 }
 
 /// Runs the plan. It refuses before signing when the factory account exists already (no

@@ -114,3 +114,21 @@ fn every_other_form_is_refused() {
         );
     }
 }
+
+#[test]
+fn only_the_nodes_no_global_code_answer_for_this_hash_counts_as_absent() {
+    use fair_chance_sandbox_tests::factory_deploy::is_no_global_code;
+    let hash: CryptoHash = "2qUeEiS27wiu3QZAbsJMP7adv1iZhY7zu8EhCSHUiEj5"
+        .parse()
+        .unwrap();
+    // The Debug text near-api 0.8.7 gave on near-sandbox 2.13.4 (trimmed).
+    let seen = r#"Critical(TransportError(Invalid Response Payload (b"{\"jsonrpc\":\"2.0\",\"error\":{\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"identifier\":{\"hash\":\"2qUeEiS27wiu3QZAbsJMP7adv1iZhY7zu8EhCSHUiEj5\"}},\"name\":\"NO_GLOBAL_CONTRACT_CODE\"}}}")))"#;
+    assert!(is_no_global_code(seen, hash));
+    let other: CryptoHash = CryptoHash::hash(b"other");
+    assert!(!is_no_global_code(seen, other), "another hash counted");
+    assert!(!is_no_global_code("TransportError(timeout)", hash));
+    assert!(!is_no_global_code(
+        "UNKNOWN_BLOCK 2qUeEiS27wiu3QZAbsJMP7adv1iZhY7zu8EhCSHUiEj5",
+        hash
+    ));
+}
