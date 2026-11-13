@@ -316,6 +316,7 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
       tone,
     };
     cap.lines.push(line(`Resets ${timeWithHint(c.windowEndNs, ctx)}`, tone));
+    cap.lines.push(line("Selling tokens you bought this hour counts toward the cap. At a full cap, profit from them is held back until the next hour."));
     if (c.isFull) {
       cap.lines.push(line(`Large and early-supply sells fill just a small floor until ${clockTime(c.windowEndNs, ctx)}.`, "limit"));
     }

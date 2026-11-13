@@ -27,7 +27,7 @@ export const landingCopy = {
       { b: "Big wallets sell a bit at a time.", t: "A wallet with 2% of the supply or more can sell a set amount each hour. It can't move its tokens to fresh wallets to get around that." },
       { b: "You see every big sell.", t: "When someone tries to sell over the limit, part of it goes through and the rest stays in their wallet. You get a receipt that says how much sold, and when more can follow." },
       { b: "Nobody can change the rules later.", t: "The coin has no owner, no pause button and no upgrade. What you read at launch is what runs." },
-      { b: "Small bags bought after launch never hit a limit.", t: "If you buy after the early blocks and hold a normal amount, you buy and sell freely." },
+      { b: "Small bags are not limited.", t: "One exception: when the pool cap is full, profit on tokens bought in the same hour is held back." },
     ],
   },
   creators: {
