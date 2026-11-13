@@ -30,7 +30,7 @@ describe("the hosted entry link", () => {
     expect(hostedEntryHref("http://127.0.0.1:5173/", withDemo)).toBeNull();
     expect(hostedEntryHref("http://localhost:5173/", withDemo)).toBeNull();
   });
-  it.each(["http://[::1]:5173/", "http://0.0.0.0:5173/", "http://app.localhost:5173/", "http://127.0.0.2:5173/", "http://127.255.255.254/"])("leaves the local host %s alone", (href) => {
+  it.each(["http://[::1]:5173/", "http://0.0.0.0:5173/", "http://app.localhost:5173/", "http://127.0.0.2:5173/", "http://127.255.255.254/", "http://[::ffff:127.0.0.1]:5173/", "http://LOCALHOST.:5173/", "http://[0:0:0:0:0:0:0:1]:5173/"])("leaves the local host %s alone", (href) => {
     expect(hostedEntryHref(href, withDemo)).toBeNull();
   });
   it.each(["https://localhost.evil.example/", "https://127.0.0.1.evil.example/", "https://128.0.0.1/", "https://notlocalhost/"])("still redirects on the hosted host %s", (href) => {
