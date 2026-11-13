@@ -2,7 +2,7 @@
 // all of it or an error: when any read fails, no number from an earlier or partial read is kept.
 import { chainReader, configFromUrl, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
-import { resolvePageLink } from "./page-link.ts";
+import { resolvePageLink, sourceLabel } from "./page-link.ts";
 import {
   parseCap,
   parseEarlyWindow,
@@ -38,7 +38,7 @@ export interface CoinReads {
 
 export type CoinPageData =
   | { kind: "ready"; reads: CoinReads; highlightReceipt: string | null }
-  | { kind: "error"; message: string; attemptedAtNs: bigint };
+  | { kind: "error"; message: string; attemptedAtNs: bigint; source: string };
 
 async function optional<T>(read: () => Promise<unknown>, parse: (value: unknown) => T): Promise<Reading<T>> {
   try {
@@ -74,6 +74,6 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
     const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
-    return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs };
+    return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href) };
   }
 }

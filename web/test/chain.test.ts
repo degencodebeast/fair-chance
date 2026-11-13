@@ -54,7 +54,7 @@ describe("chain reader on recorded sandbox responses", () => {
         near_out: "502487562189054726368159",
         fill: "full",
         limit_reason: null,
-        text: "alice.sandbox sold 4,950,495.04 of 4,950,495.04 tokens for 0.5024 NEAR. Fill: full.",
+        text: "alice.sandbox sold 4.9M of 4.9M tokens for 0.50 NEAR. It filled in full.",
       },
     ]);
   });

@@ -59,3 +59,15 @@ export function resolvePageLink(href: string): PageLink {
     known: { factory: params.get("factory"), codeHash: params.get("code_hash") },
   };
 }
+
+/** Names where the page reads from, for the error text: "NEAR testnet", "the local sandbox", else "the chain". */
+export function sourceLabel(href: string): string {
+  try {
+    const params = new URL(href).searchParams;
+    const network = params.get("network");
+    if (network !== null) return isNetworkName(network) ? `NEAR ${network}` : "the chain";
+    return localSandboxUrl(params.get("rpc")) !== null ? "the local sandbox" : "the chain";
+  } catch {
+    return "the chain";
+  }
+}

@@ -58,6 +58,13 @@ try {
   );
   const status = (await page.textContent("#status")) ?? "";
   if (status.startsWith("Values cannot load")) throw new Error(`the testnet link does not load: ${status}`);
+  const telegram = await page.evaluate(() => {
+    const b = document.querySelector<HTMLButtonElement>("#watch-telegram");
+    return { found: b !== null, disabled: b?.disabled ?? false, reason: document.querySelector("#watch-telegram-reason")?.textContent ?? "" };
+  });
+  if (!telegram.found || !telegram.disabled || telegram.reason.trim() === "") {
+    throw new Error(`the Telegram button must be turned off and show its reason: ${JSON.stringify(telegram)}`);
+  }
   if (!hostsSeen.has(rpcHost) || !hostsSeen.has(fastNearHost)) {
     throw new Error(`the page did not read from both fixed hosts: ${[...hostsSeen].join(", ")}`);
   }
