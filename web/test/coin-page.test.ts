@@ -26,12 +26,12 @@ describe("early window live", () => {
     const view = await ready(recordedCoin("early-window-live"));
     expect(view.banner).toEqual({
       kind: "early",
-      blocksLeft: 12,
+      blocksLeft: 13,
       block: 5,
       end: 17,
       buyFee: "30.0%",
       feeEnds: "Fee ends at block 18, about 8 s",
-      text: "Buys in the next 12 blocks (about 7 s) count as early supply. Early supply sells at one shared pace for the whole group.",
+      text: "Buys in the next 13 blocks (about 8 s) count as early supply. Early supply sells at one shared pace for the whole group.",
     });
     const early = view.who.find((c) => c.id === "early")!;
     expect(early.lines.map((l) => l.text)).toContain("Early supply cannot sell until block 17 has passed.");
@@ -141,7 +141,7 @@ describe("values read at a time", () => {
 
   it("marks the early banner old when the block count it showed is over", async () => {
     const fresh = await later("early-window-live", 1_000_000_000n);
-    expect(fresh.banner).toMatchObject({ kind: "early", blocksLeft: 12 });
+    expect(fresh.banner).toMatchObject({ kind: "early", blocksLeft: 13 });
     const old = await later("early-window-live", 20n * 1_000_000_000n);
     expect(old.banner).toEqual({ kind: "old", text: "The early window count was read at 14:24 and may be over. Reload to read it." });
     expect(fresh.refreshAtNs).not.toBeNull();

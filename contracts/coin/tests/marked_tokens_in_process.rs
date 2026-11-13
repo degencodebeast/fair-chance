@@ -109,7 +109,7 @@ fn the_opening_buy_is_marked_pays_the_early_fee_and_shows_in_the_creator_s_accou
     );
     let early = view(coin.fc_early_window());
     assert_eq!(amount(&early["early_supply_total"]), tokens);
-    assert_eq!(early["blocks_left"], 16);
+    assert_eq!(early["blocks_left"], 17);
     assert_eq!(early["fee_end_block"], LAUNCH_BLOCK + 18);
     assert_eq!(early["shared_allowance"], "0");
     assert!(early["buy_fee_bps_now"].as_u64().unwrap() > 100);

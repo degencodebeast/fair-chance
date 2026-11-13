@@ -135,7 +135,9 @@ pub fn view_early_window(state: &CoinState, at: At) -> EarlyWindowView {
     let end = state.launch_block + state.fixed.early_blocks;
     EarlyWindowView {
         early_blocks: state.fixed.early_blocks,
-        blocks_left: end.saturating_sub(at.block),
+        // The early window is blocks 0 to `early_blocks` after the launch, so the current block
+        // counts while it is one of them: 18 at block 0, 1 at block 17, 0 from block 18.
+        blocks_left: (end + 1).saturating_sub(at.block),
         early_supply_total: state.marked_supply,
         shared_allowance: shared.allowance,
         // The shared allowance per marked token at the window start, in basis points, rounded

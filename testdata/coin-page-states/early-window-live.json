@@ -38,7 +38,7 @@
     },
     "fc_early_window": {
       "early_blocks": 17,
-      "blocks_left": 12,
+      "blocks_left": 13,
       "early_supply_total": "184000000000000000000000000",
       "shared_allowance": "4200000000000000000000000",
       "rate_per_token": "0",
