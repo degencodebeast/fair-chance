@@ -7,7 +7,7 @@ const app = document.querySelector<HTMLElement>("#app")!;
 const href = location.href;
 const screen = screenFor(href);
 
-const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", coin: "Fair Chance coin" };
+const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", launch: "Launch a coin", coin: "Fair Chance coin" };
 document.title = TITLES[screen];
 
 async function open(): Promise<void> {
@@ -15,6 +15,8 @@ async function open(): Promise<void> {
     await import("./render-coin-page.ts");
   } else if (screen === "coins") {
     (await import("./render-coin-list.ts")).drawCoinList(app, href);
+  } else if (screen === "launch") {
+    (await import("./render-launch-form.ts")).drawLaunchForm(app, href);
   } else if (screen === "alerts") {
     (await import("./render-alerts-screen.ts")).drawAlertsScreen(app, href);
   } else {
