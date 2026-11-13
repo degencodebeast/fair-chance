@@ -263,7 +263,8 @@ fn coin_where_alice_sold_to_zero() -> Coin {
 
 #[test]
 #[should_panic(expected = "FC_UNREGISTER_WINDOW_OPEN")]
-fn storage_unregister_at_zero_tokens_in_the_window_of_a_sell_panics_with_fc_unregister_window_open() {
+fn storage_unregister_at_zero_tokens_in_the_window_of_a_sell_panics_with_fc_unregister_window_open()
+{
     let mut coin = coin_where_alice_sold_to_zero();
     at("alice.test", 1, 13);
     coin.storage_unregister(None);

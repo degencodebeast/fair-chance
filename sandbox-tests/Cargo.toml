@@ -13,3 +13,6 @@ near-api = "0.8.7"
 near-sandbox = { version = "0.3.16", features = ["generate"] }
 serde_json.workspace = true
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "signal"] }
+
+[dev-dependencies]
+ethnum = "1"

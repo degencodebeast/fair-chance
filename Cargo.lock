@@ -934,6 +934,7 @@ name = "fair-chance-sandbox-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ethnum",
  "fair-chance-rule-engine",
  "near-api",
  "near-sandbox",

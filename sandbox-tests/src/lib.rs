@@ -77,6 +77,7 @@ pub struct World {
     pub factory: Account,
     pub creator: Account,
     pub alice: Account,
+    pub bob: Account,
     pub coin: AccountId,
     pub coin_code_hash: CryptoHash,
     pub launch: TransactionResult,
@@ -173,8 +174,9 @@ impl World {
         let (factory_g, factory) = genesis("factory.sandbox")?;
         let (creator_g, creator) = genesis("creator.sandbox")?;
         let (alice_g, alice) = genesis("alice.sandbox")?;
+        let (bob_g, bob) = genesis("bob.sandbox")?;
         let sandbox = Sandbox::start_sandbox_with_config(SandboxConfig {
-            additional_accounts: vec![factory_g, creator_g, alice_g],
+            additional_accounts: vec![factory_g, creator_g, alice_g, bob_g],
             // The sandbox makes blocks fast and by default drops blocks older than a few
             // epochs of 60 blocks. The block scan reads from the launch block, so keep all.
             additional_config: Some(json!({ "gc_num_epochs_to_keep": 10_000 })),
@@ -223,6 +225,7 @@ impl World {
             factory,
             creator,
             alice,
+            bob,
             coin,
             coin_code_hash,
             launch,
