@@ -1,0 +1,4 @@
+# Commits whose messages hold private build-plan names and are already on the remote main branch.
+# The private-string scan skips them and prints how many it skipped. Removing them needs a
+# history rewrite of main, which is the builder's decision. Delete a line once its commit is gone.
+95af79217e0997a6662b868d2132ad4d1b001f5e

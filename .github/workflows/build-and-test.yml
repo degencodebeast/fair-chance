@@ -1,0 +1,67 @@
+# Build plus contract tests on every push and pull request. The sandbox walking path is not run
+# here: it needs a near-sandbox binary and headless Chrome, and it runs in the project verify
+# skill (.claude/skills/verify/verify.sh) before every merge.
+name: build-and-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # the private-string scan reads every commit message
+
+      - name: Private-string scan and its tests
+        run: |
+          scripts/test-scan-private-strings.sh
+          scripts/scan-private-strings.sh
+
+      - name: Rust toolchain from rust-toolchain.toml
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: System packages for cargo-near
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libudev-dev
+
+      - name: cargo-near 0.21.1
+        run: cargo install cargo-near --version 0.21.1 --locked
+
+      - name: Rust format check
+        run: cargo fmt --all --check
+
+      - name: Build the coin and factory wasm
+        run: scripts/build-contracts.sh
+
+      - name: Rule engine and contract tests
+        run: cargo test --workspace --locked --exclude fair-chance-sandbox-tests
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: watcher/go.mod
+          cache-dependency-path: watcher/go.mod
+
+      - name: Watcher build and tests
+        working-directory: watcher
+        run: |
+          go vet ./...
+          go build ./...
+          go test ./...
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: web/.nvmrc
+
+      - name: Web page typecheck, tests and build
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npm run build

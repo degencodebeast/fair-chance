@@ -1,0 +1,118 @@
+// Builds the receipts page, serves it on a free local port, opens it in headless Google Chrome and
+// waits until the page shows one receipt. Prints that receipt row as JSON.
+//   node scripts/read-receipt-in-browser.ts "?coin=<coin>&rpc=<url-encoded RPC URL>" <receipt id | any> [screenshot.png]
+// "any" waits for the first receipt row. Each run builds into its own temporary folder and the
+// browser uses a fresh profile, so runs at the same time share nothing. Set FC_BROWSER_PATH to use
+// a Chrome binary that is not at the standard install place. Nothing is downloaded.
+import { createServer, type Server } from "node:http";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { extname, join, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
+import { build } from "vite";
+import { chromium } from "playwright-core";
+
+const webRoot = fileURLToPath(new URL("..", import.meta.url));
+const waitMs = 90_000;
+
+const [query, wantReceipt, screenshotPath] = process.argv.slice(2);
+if (!query?.startsWith("?") || !wantReceipt) {
+  console.error('usage: node scripts/read-receipt-in-browser.ts "?coin=..&rpc=.." <receipt id | any> [screenshot.png]');
+  process.exit(2);
+}
+if (!/^[A-Za-z0-9]+$/.test(wantReceipt)) {
+  console.error(`read-receipt-in-browser: receipt id must be base58 or "any", got ${wantReceipt}`);
+  process.exit(2);
+}
+
+const contentTypes: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+};
+
+function serveFolder(folder: string): Promise<{ server: Server; origin: string }> {
+  const server = createServer(async (req, res) => {
+    const path = new URL(req.url ?? "/", "http://localhost").pathname;
+    const relative = normalize(path === "/" ? "/index.html" : path);
+    if (relative.includes("..")) {
+      res.writeHead(400).end();
+      return;
+    }
+    try {
+      const body = await readFile(join(folder, relative));
+      res.writeHead(200, { "content-type": contentTypes[extname(relative)] ?? "application/octet-stream" });
+      res.end(body);
+    } catch {
+      res.writeHead(404).end();
+    }
+  });
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") return reject(new Error("no port"));
+      resolve({ server, origin: `http://127.0.0.1:${address.port}` });
+    });
+  });
+}
+
+const scratch = await mkdtemp(join(tmpdir(), "fair-chance-page-"));
+let server: Server | undefined;
+let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+let exitCode = 0;
+try {
+  const outDir = join(scratch, "page");
+  await build({
+    root: webRoot,
+    configFile: false,
+    logLevel: "silent",
+    cacheDir: join(scratch, "vite-cache"),
+    build: { outDir, emptyOutDir: true },
+  });
+  const served = await serveFolder(outDir);
+  server = served.server;
+
+  const executablePath = process.env.FC_BROWSER_PATH || undefined;
+  browser = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : { channel: "chrome" }) });
+  const page = await browser.newPage();
+  const consoleErrors: string[] = [];
+  page.on("console", (msg) => {
+    if (msg.type() === "error") consoleErrors.push(msg.text());
+  });
+
+  const pageUrl = `${served.origin}/${query}`;
+  await page.goto(pageUrl);
+  const rowSelector =
+    wantReceipt === "any" ? "#receipts li[data-receipt-id]" : `#receipts li[data-receipt-id="${wantReceipt}"]`;
+  // The page either shows the row or puts "Values cannot load: ..." in #status.
+  await page.waitForFunction(
+    (selector) =>
+      document.querySelector(selector) !== null ||
+      (document.querySelector("#status")?.textContent ?? "").startsWith("Values cannot load"),
+    rowSelector,
+    { timeout: waitMs },
+  );
+  const status = (await page.textContent("#status")) ?? "";
+  if (screenshotPath) await page.screenshot({ path: screenshotPath, fullPage: true });
+  const row = await page.$(rowSelector);
+  if (row === null) throw new Error(`the page shows no receipt row: ${status} ${consoleErrors.join(" | ")}`);
+  console.log(
+    JSON.stringify({
+      coin: await page.textContent("#coin"),
+      receipt_id: await row.getAttribute("data-receipt-id"),
+      text: await row.textContent(),
+      status,
+      browser: browser.version(),
+    }),
+  );
+} catch (err) {
+  console.error(`read-receipt-in-browser: ${err instanceof Error ? err.message : String(err)}`);
+  exitCode = 1;
+} finally {
+  await browser?.close();
+  server?.close();
+  await rm(scratch, { recursive: true, force: true });
+}
+process.exit(exitCode);

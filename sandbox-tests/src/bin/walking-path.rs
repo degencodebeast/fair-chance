@@ -6,6 +6,10 @@
 //!
 //! `walking-path --hold` stops after the sell, prints the RPC URL and coin, and keeps the sandbox up
 //! until it is killed.
+//!
+//! `walking-path --read-in-browser` also opens the built receipts page in headless Google Chrome
+//! (`web/scripts/read-receipt-in-browser.ts`) and checks that it shows the same receipt row. It needs
+//! `npm ci` in `web/`. `FC_EVIDENCE_DIR`, when set, receives the page screenshot.
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -28,6 +32,7 @@ fn step(name: &str) {
 #[tokio::main]
 async fn main() -> Result<()> {
     let hold = std::env::args().any(|a| a == "--hold");
+    let read_in_browser = std::env::args().any(|a| a == "--read-in-browser");
 
     step("start a fresh sandbox, deploy the coin code by hash and the factory, launch one coin");
     let world = World::launch().await?;
@@ -135,6 +140,26 @@ async fn main() -> Result<()> {
     );
     println!("walking-path:   page row: {}", found["text"]);
 
+    if read_in_browser {
+        step("headless Chrome opens the receipts page and shows the same receipt");
+        let shown = run_browser_read(&world, &fc_sell.receipt_id).await?;
+        let want_text = format!(
+            "Block {}: {}",
+            found["block"],
+            found["text"].as_str().context("row text")?
+        );
+        ensure!(
+            shown["receipt_id"] == fc_sell.receipt_id.as_str()
+                && shown["text"] == want_text.as_str(),
+            "the browser shows {shown}, want receipt {} with text {want_text:?}",
+            fc_sell.receipt_id
+        );
+        println!(
+            "walking-path:   browser ({}) row: {}",
+            shown["browser"], shown["text"]
+        );
+    }
+
     step("the watcher reads the event through its adapter and sends one alert to the fake sender");
     let alerts = run_watcher(&world).await?;
     let alerts = alerts["alerts"].as_array().context("alerts list")?;
@@ -173,6 +198,31 @@ async fn run_watcher(world: &World) -> Result<Value> {
         );
     }
     serde_json::from_slice(&out.stdout).context("watcher output is not JSON")
+}
+
+async fn run_browser_read(world: &World, receipt_id: &str) -> Result<Value> {
+    let query = format!("?coin={}&rpc={}", world.coin, urlencode(world.rpc_url()));
+    let mut command = Command::new("node");
+    command
+        .arg(repo_root().join("web/scripts/read-receipt-in-browser.ts"))
+        .arg(&query)
+        .arg(receipt_id);
+    if let Ok(dir) = std::env::var("FC_EVIDENCE_DIR") {
+        command.arg(Path::new(&dir).join("receipts-page.png"));
+    }
+    let out = command.stderr(Stdio::inherit()).output();
+    let out = tokio::time::timeout(Duration::from_secs(180), out)
+        .await
+        .context("browser read timed out")?
+        .context("run node")?;
+    if !out.status.success() {
+        bail!(
+            "browser read exited with {}: {}",
+            out.status,
+            String::from_utf8_lossy(&out.stdout)
+        );
+    }
+    serde_json::from_slice(&out.stdout).context("browser read output is not JSON")
 }
 
 async fn run_page_read(world: &World) -> Result<Value> {
