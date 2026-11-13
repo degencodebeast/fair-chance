@@ -1,0 +1,19 @@
+[package]
+name = "fc-coin"
+# The coin's package version is the coin interface version (INTERFACE.md); NEP-330 reports it.
+version = "1.0.0-rc.4"
+edition.workspace = true
+license.workspace = true
+repository = "https://github.com/degencodebeast/fair-chance"
+description = "Fair Chance coin: NEP-141 token and its own pool, with sell limits."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+fc-rules = { path = "../../crates/rules" }
+near-sdk.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

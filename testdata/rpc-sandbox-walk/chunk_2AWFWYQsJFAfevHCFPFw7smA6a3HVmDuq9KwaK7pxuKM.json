@@ -1,0 +1,68 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "test.near",
+    "header": {
+      "balance_burnt": "30925159287500000000",
+      "bandwidth_requests": {
+        "V1": {
+          "requests": []
+        }
+      },
+      "chunk_hash": "2AWFWYQsJFAfevHCFPFw7smA6a3HVmDuq9KwaK7pxuKM",
+      "congestion_info": {
+        "allowed_shard": 0,
+        "buffered_receipts_gas": "0",
+        "delayed_receipts_gas": "0",
+        "receipt_bytes": 0
+      },
+      "encoded_length": 218,
+      "encoded_merkle_root": "EpfrgmgWZrDYLvdAobuZ7tf2157K4Ekn8Z2ucYXdNcjC",
+      "gas_limit": 1000000000000000,
+      "gas_used": 309251592875,
+      "height_created": 22,
+      "height_included": 0,
+      "outcome_root": "EizubAaRpFhkwPKjFsjMyvaiJf6jLvopLTY6NhHKedcQ",
+      "outgoing_receipts_root": "7Q67gNG6ZV7ZhFeEXiWEZLEo45CKc4ErPMX9b1PKD3UJ",
+      "prev_block_hash": "8zEQNPCq6y6PnXhfTpULua2TN3LWEJ3f156aF4rXjqvc",
+      "prev_state_root": "B7n4bDLBkFGAj93BpjGcRk2x3RbjJu4hnLByBWjAxaA3",
+      "proposed_split": null,
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:3Kb9euNTQYxSyp2N5xms98bLD1sUbvnrxQ6Mg7B4pRNHasdybJQXu3ojTitjRB9uA8V73LdwLHcAkyQTbykebjCe",
+      "tx_root": "11111111111111111111111111111111",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [
+      {
+        "predecessor_id": "alice.sandbox",
+        "priority": 0,
+        "receipt": {
+          "Action": {
+            "actions": [
+              {
+                "FunctionCall": {
+                  "args": "eyJtaW5fdG9rZW5zX291dCI6IjAifQ==",
+                  "deposit": "1000000000000000000000000",
+                  "gas": 100000000000000,
+                  "method_name": "buy"
+                }
+              }
+            ],
+            "gas_price": "1000000000",
+            "input_data_ids": [],
+            "is_promise_yield": false,
+            "output_data_receivers": [],
+            "signer_id": "alice.sandbox",
+            "signer_public_key": "ed25519:D2vZGf3kqDT8CdPQJKx6L2w6HSeHsZoiyTijBk5FzAio"
+          }
+        },
+        "receipt_id": "AFW3mqxcC8vefgcMLywya7bdkBn62N4emQE9rF4GyDUa",
+        "receiver_id": "walk.factory.sandbox"
+      }
+    ],
+    "transactions": []
+  },
+  "id": "fc"
+}

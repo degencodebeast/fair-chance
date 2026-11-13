@@ -1,0 +1,27 @@
+// What the receipts page shows, from the page URL alone. The browser page and the
+// command-line read both call this, so they show the same receipts.
+import { chainReader, configFromUrl } from "./chain.ts";
+import { receiptRows, type ReceiptRow } from "./receipts.ts";
+
+export interface ReceiptsPage {
+  coin: string;
+  rpcUrl: string;
+  /** Where the receipts come from: the block scan from the coin's launch block. */
+  source: "block-scan";
+  launchBlock: number;
+  receipts: ReceiptRow[];
+}
+
+export async function loadReceiptsPage(href: string, fetchFn: typeof fetch = fetch): Promise<ReceiptsPage> {
+  const cfg = configFromUrl(href);
+  const reader = chainReader(cfg, fetchFn);
+  const rules = await reader.view<{ launch_block: number }>("fc_rules");
+  const { events } = await reader.events(rules.launch_block);
+  return {
+    coin: cfg.coin,
+    rpcUrl: cfg.rpcUrl,
+    source: "block-scan",
+    launchBlock: rules.launch_block,
+    receipts: receiptRows(events),
+  };
+}

@@ -1,0 +1,94 @@
+// Command watcher reads coin events and sends one alert per limited-sell event.
+//
+// Environment: FC_RPC_URL (NEAR RPC endpoint), FC_COINS (comma-separated coin accounts),
+// FC_SENDER (only "fake" in this build: alerts go to an in-memory sender and are printed as
+// JSON), FC_CHAT_ID (optional chat ID, default 0). It holds no NEAR keys and signs nothing.
+//
+// With -once it stops after -want alerts or after -timeout, prints {"alerts": [...]}, and
+// exits 0 only when it got the alerts it wanted.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"fairchance/watcher/internal/events"
+	"fairchance/watcher/internal/telegram"
+	"fairchance/watcher/internal/watch"
+)
+
+func main() {
+	once := flag.Bool("once", false, "stop after -want alerts or -timeout")
+	want := flag.Int("want", 1, "alerts to wait for with -once")
+	timeout := flag.Duration("timeout", 60*time.Second, "time limit with -once")
+	poll := flag.Duration("poll", time.Second, "time between read passes")
+	flag.Parse()
+	log.SetFlags(0)
+	log.SetPrefix("watcher: ")
+
+	rpcURL := os.Getenv("FC_RPC_URL")
+	coins := strings.Split(os.Getenv("FC_COINS"), ",")
+	if rpcURL == "" || os.Getenv("FC_COINS") == "" {
+		log.Fatal("set FC_RPC_URL and FC_COINS")
+	}
+	if s := os.Getenv("FC_SENDER"); s != "fake" {
+		log.Fatalf("FC_SENDER=%q: only the fake sender is in this build", s)
+	}
+	chatID, _ := strconv.ParseInt(os.Getenv("FC_CHAT_ID"), 10, 64)
+
+	ctx := context.Background()
+	if *once {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, *timeout)
+		defer cancel()
+	}
+	if err := run(ctx, rpcURL, coins, chatID, *once, *want, *poll); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context, rpcURL string, coins []string, chatID int64, once bool, want int, poll time.Duration) error {
+	cursor := events.Cursor(^uint64(0))
+	for _, coin := range coins {
+		c, err := events.LaunchCursor(ctx, rpcURL, coin)
+		if err != nil {
+			return err
+		}
+		cursor = min(cursor, c)
+	}
+	src := events.NewRPCScan(rpcURL)
+	fake := &telegram.Fake{}
+	printed := 0
+	for {
+		_, next, err := watch.Pass(ctx, src, coins, cursor, fake, chatID)
+		cursor = next
+		if err != nil && ctx.Err() == nil {
+			log.Printf("read pass: %v", err)
+		}
+		if !once {
+			for ; printed < len(fake.Sent); printed++ {
+				line, _ := json.Marshal(fake.Sent[printed])
+				fmt.Println(string(line))
+			}
+		}
+		if once && (len(fake.Sent) >= want || ctx.Err() != nil) {
+			out, _ := json.Marshal(map[string]any{"alerts": fake.Sent})
+			fmt.Println(string(out))
+			if len(fake.Sent) < want {
+				return fmt.Errorf("got %d alerts, wanted %d", len(fake.Sent), want)
+			}
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+		case <-time.After(poll):
+		}
+	}
+}

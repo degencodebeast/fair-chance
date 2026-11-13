@@ -1,0 +1,61 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "test.near",
+    "header": {
+      "balance_burnt": "0",
+      "bandwidth_requests": {
+        "V1": {
+          "requests": []
+        }
+      },
+      "chunk_hash": "5CFRdwJE8FnmRBwjaGwpRg331FSrPJt1uJrPkqLy1Re2",
+      "congestion_info": {
+        "allowed_shard": 0,
+        "buffered_receipts_gas": "0",
+        "delayed_receipts_gas": "0",
+        "receipt_bytes": 0
+      },
+      "encoded_length": 285,
+      "encoded_merkle_root": "Fx8FAqU96MrrNTj6NHf4QitHALUGZ9VoRSeYpiNjwKdk",
+      "gas_limit": 1000000000000000,
+      "gas_used": 0,
+      "height_created": 27,
+      "height_included": 0,
+      "outcome_root": "11111111111111111111111111111111",
+      "outgoing_receipts_root": "H4Rd6SGeEBTbxkitsCdzfu9xL9HtZ2eHoPCQXUeZ6bW4",
+      "prev_block_hash": "c4TrAg5HAjFkfKUeteY3BeVHjeeCoTc25SWWGYQ4P4u",
+      "prev_state_root": "72pkMU9vkhy8r6zMWskytgkNPAFTp5ACnQShN9q4SvNh",
+      "proposed_split": null,
+      "rent_paid": "0",
+      "shard_id": 0,
+      "signature": "ed25519:22G7YhGXxCLCWcSST6Tt3QcxFbKmLuaBLVYeusVy2htN96QynT9ccL2nhN8oynUE21sjJb7Fc7AvRz8P3BQLg4iq",
+      "tx_root": "F6Y9hyydZPnrvUax5X4ctj18nMwzsygTgcPGzJTEjYfj",
+      "validator_proposals": [],
+      "validator_reward": "0"
+    },
+    "receipts": [],
+    "transactions": [
+      {
+        "actions": [
+          {
+            "FunctionCall": {
+              "args": "eyJhbW91bnQiOiI0OTUwNDk1MDQ5NTA0OTUwNDk1MDQ5NTA0IiwibWluX25lYXJfb3V0IjoiMCJ9",
+              "deposit": "1",
+              "gas": 100000000000000,
+              "method_name": "sell"
+            }
+          }
+        ],
+        "hash": "Fy6sboDgwfKMDsMTqGaURTDFTX9eRinb4JKdKoGmvRSt",
+        "nonce": 2,
+        "priority_fee": 0,
+        "public_key": "ed25519:D2vZGf3kqDT8CdPQJKx6L2w6HSeHsZoiyTijBk5FzAio",
+        "receiver_id": "walk.factory.sandbox",
+        "signature": "ed25519:1etS8xg7obGuV6yS7VbXCJTyki6yTLNQsJr1camKHLnjY6YEuYpGp6cVHhjDssGMqCVY1qCnH5RbdKjVuMWkCwz",
+        "signer_id": "alice.sandbox"
+      }
+    ]
+  },
+  "id": "fc"
+}
