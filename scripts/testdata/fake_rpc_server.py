@@ -22,9 +22,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         elif mode == "unknown":
             body = json.dumps({"jsonrpc": "2.0", "id": "fc", "result": {"something": "else"}})
         elif mode == "launch" and count <= 2:
-            body = json.dumps({"jsonrpc": "2.0", "id": "fc", "error": {"name": "HANDLER_ERROR", "cause": {"name": "UNKNOWN_ACCOUNT"}}})
+            body = json.dumps({"jsonrpc": "2.0", "error": {"name": "HANDLER_ERROR", "cause": {"info": {}, "name": "UNKNOWN_ACCOUNT"}, "code": -32000, "message": "Server error", "data": "account coin.testnet does not exist while viewing"}, "id": "fc"}, separators=(",", ":"))
         else:
-            body = json.dumps({"jsonrpc": "2.0", "id": "fc", "result": {"result": [123, 125], "logs": []}}, separators=(",", ":"))
+            # The field order of a real testnet answer: block_hash, block_height, logs, result.
+            body = json.dumps({"jsonrpc": "2.0", "result": {"block_hash": "x", "block_height": 1, "logs": [], "result": [123, 125]}, "id": "fc"}, separators=(",", ":"))
         raw = body.encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")

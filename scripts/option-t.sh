@@ -19,7 +19,7 @@ while [ "$i" -lt "${#args[@]}" ]; do
   arg="${args[$i]}"
   case "$arg" in
     --delete-buyers) ;;
-    --network|--ticker|--name|--description|--buy-millinear|--buyer-extra-millinear|--buyer-tgas|--launch-deposit-millinear)
+    --network|--ticker|--name|--description|--start-balance|--spend-cap|--keep|--buy-millinear|--buyer-extra-millinear|--buyer-tgas|--launch-deposit-millinear)
       i=$((i + 1))
       [ "$i" -lt "${#args[@]}" ] || refuse "$arg"
       value="${args[$i]}"

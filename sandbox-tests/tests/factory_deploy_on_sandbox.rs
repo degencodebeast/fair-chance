@@ -22,7 +22,7 @@ async fn the_deploy_step_makes_a_working_factory_and_costs_what_the_plan_says() 
     )?;
     let before = balance(&network, &funder.id).await?;
 
-    let report = deploy(&plan, &network, funder).await?;
+    let report = deploy(&plan, &network, funder, None).await?;
 
     assert!(
         report.global_deploy_tx.is_some(),
@@ -78,7 +78,7 @@ async fn before_second_run(
     plan: &DeployPlan,
 ) -> Result<()> {
     let before = balance(network, &funder.id).await?;
-    let result = deploy(plan, network, funder).await.map(|_| ());
+    let result = deploy(plan, network, funder, None).await.map(|_| ());
     let after = balance(network, &funder.id).await?;
     assert_eq!(before, after, "the refused second run spent NEAR");
     result

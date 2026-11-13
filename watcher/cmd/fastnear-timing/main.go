@@ -81,7 +81,9 @@ func main() {
 	if err != nil {
 		r.StoppedBy = err.Error()
 	}
-	finish(ctx, &r)
+	if ferr := finish(ctx, &r); ferr != nil && (err == nil || errors.Is(err, errDone)) {
+		err = ferr
+	}
 	raw, _ := json.MarshalIndent(r, "", "  ")
 	fmt.Println(string(raw))
 	if *out != "" {
@@ -155,11 +157,16 @@ func run(ctx context.Context, r *report, poll, idle time.Duration, want int) err
 			sleep(ctx, poll)
 			continue
 		}
+		// One receipt can log several events (fc_sell and fc_cap_filled): key each by its receipt
+		// and its place among that receipt's events, which is the log order and the same each read.
+		place := map[string]int{}
 		for _, ev := range evs {
-			if seen[ev.ReceiptID] {
+			key := fmt.Sprintf("%s#%d", ev.ReceiptID, place[ev.ReceiptID])
+			place[ev.ReceiptID]++
+			if seen[key] {
 				continue
 			}
-			seen[ev.ReceiptID] = true
+			seen[key] = true
 			last = now
 			r.Events = append(r.Events, row{Seen: timing.Seen{Event: ev.Name, ReceiptID: ev.ReceiptID, TxHash: ev.TxHash,
 				SeenAtNs: uint64(now.UnixNano())}, TxSigner: ev.TxSigner})
@@ -182,11 +189,17 @@ func run(ctx context.Context, r *report, poll, idle time.Duration, want int) err
 }
 
 // finish reads each receipt's block time and the seconds per block over RPC, with its own time
-// limit so a stopped run still gets them.
-func finish(parent context.Context, r *report) {
+// limit so a stopped run still gets them. It waits and reads again only on a 429. Any other error
+// (a 403, an answer it does not know, a timeout) stops it at once: StoppedBy says why, the events
+// read so far stay in the report and the error comes back, so the tool exits 1.
+func finish(parent context.Context, r *report) error {
+	return finishWithBackOff(parent, r, 2*time.Second)
+}
+
+func finishWithBackOff(parent context.Context, r *report, firstWait time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), 5*time.Minute)
 	defer cancel()
-	back := timing.BackOff{Start: 2 * time.Second, Max: time.Minute}
+	back := timing.BackOff{Start: firstWait, Max: time.Minute}
 	retry := func(read func() error) error {
 		for {
 			err := read()
@@ -197,40 +210,61 @@ func finish(parent context.Context, r *report) {
 			sleep(ctx, back.Next(0))
 		}
 	}
-	kept := r.Events[:0]
-	var seen []timing.Seen
-	for _, e := range r.Events {
-		var bt eventsource.BlockTime
-		err := retry(func() (err error) {
-			bt, err = eventsource.ReceiptBlockTime(ctx, r.RPCURL, e.TxHash, e.TxSigner, e.ReceiptID)
-			return err
-		})
-		if err != nil {
-			log.Printf("receipt %s: %v; left out of the report", e.ReceiptID, err)
-			continue
+	stop := func(what string, err error) error {
+		err = fmt.Errorf("%s: %w; stopped, no retry", what, err)
+		if r.StoppedBy == "" {
+			r.StoppedBy = err.Error()
+		} else {
+			r.StoppedBy += "; then " + err.Error()
+		}
+		return err
+	}
+	done := 0
+	times := map[string]eventsource.BlockTime{} // per receipt: one receipt can hold several events
+	for i := range r.Events {
+		e := &r.Events[i]
+		bt, known := times[e.ReceiptID]
+		if !known {
+			err := retry(func() (err error) {
+				bt, err = eventsource.ReceiptBlockTime(ctx, r.RPCURL, e.TxHash, e.TxSigner, e.ReceiptID)
+				return err
+			})
+			if err != nil {
+				r.Events = r.Events[:done]
+				r.Summary = summarize(r.Events)
+				return stop("receipt "+e.ReceiptID, err)
+			}
+			times[e.ReceiptID] = bt
 		}
 		e.ReceiptBlock, e.ReceiptBlockNs = bt.Height, bt.Ns
 		e.LatencySeconds = e.Seen.LatencySeconds()
-		kept = append(kept, e)
-		seen = append(seen, e.Seen)
+		done++
 	}
-	r.Events = kept
-	r.Summary = timing.Summarize(seen)
+	r.Summary = summarize(r.Events)
 	if r.LaunchBlock == 0 {
-		return
+		return nil
 	}
 	var from, to eventsource.BlockTime
 	if err := retry(func() (err error) { from, err = eventsource.BlockTimeAt(ctx, r.RPCURL, r.LaunchBlock); return err }); err != nil {
-		log.Printf("launch block: %v", err)
-		return
+		return stop("launch block", err)
 	}
 	if err := retry(func() (err error) { to, err = eventsource.BlockTimeAt(ctx, r.RPCURL, 0); return err }); err != nil {
-		log.Printf("final head: %v", err)
-		return
+		return stop("final head", err)
 	}
-	if spb, err := timing.SecondsPerBlock(from.Height, from.Ns, to.Height, to.Ns); err == nil {
-		r.SecondsPerBlock = &blocksMeasured{FromHeight: from.Height, ToHeight: to.Height, Seconds: spb}
+	spb, err := timing.SecondsPerBlock(from.Height, from.Ns, to.Height, to.Ns)
+	if err != nil {
+		return stop("seconds per block", err)
 	}
+	r.SecondsPerBlock = &blocksMeasured{FromHeight: from.Height, ToHeight: to.Height, Seconds: spb}
+	return nil
+}
+
+func summarize(rows []row) timing.Summary {
+	seen := make([]timing.Seen, len(rows))
+	for i, e := range rows {
+		seen[i] = e.Seen
+	}
+	return timing.Summarize(seen)
 }
 
 func sleep(ctx context.Context, d time.Duration) {

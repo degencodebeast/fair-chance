@@ -19,6 +19,7 @@ use tokio::task::JoinSet;
 
 use crate::amount_text::{amount, near, tokens};
 use crate::pass_list::PassList;
+use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{
     batch_on_with_gas, events, launch_args, transact, transact_with_gas, transaction_hash, view_on,
     wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
@@ -43,6 +44,9 @@ pub struct OptionTArguments {
     pub ticker: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
+    pub start_balance: Option<String>,
+    pub spend_cap: Option<String>,
+    pub keep: Option<String>,
     pub buy_millinear: Option<u64>,
     pub buyer_extra_millinear: Option<u64>,
     pub buyer_tgas: Option<u64>,
@@ -69,6 +73,9 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--ticker" => parsed.ticker.is_some(),
             "--name" => parsed.name.is_some(),
             "--description" => parsed.description.is_some(),
+            "--start-balance" => parsed.start_balance.is_some(),
+            "--spend-cap" => parsed.spend_cap.is_some(),
+            "--keep" => parsed.keep.is_some(),
             "--buy-millinear" => parsed.buy_millinear.is_some(),
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear.is_some(),
             "--buyer-tgas" => parsed.buyer_tgas.is_some(),
@@ -93,6 +100,9 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--ticker" => parsed.ticker = Some(value.clone()),
             "--name" => parsed.name = Some(value.clone()),
             "--description" => parsed.description = Some(value.clone()),
+            "--start-balance" => parsed.start_balance = Some(value.clone()),
+            "--spend-cap" => parsed.spend_cap = Some(value.clone()),
+            "--keep" => parsed.keep = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,
@@ -116,6 +126,25 @@ pub fn choose_network(
         ),
         Some(other) => bail!("unknown network {other:?}: use sandbox or testnet"),
     }
+}
+
+/// The spend limits of the run: testnet needs all three of `--start-balance`, `--spend-cap` and
+/// `--keep`; sandbox takes them when given and runs without them otherwise.
+pub fn choose_spend_limits(
+    args: &OptionTArguments,
+    network: DemoNetwork,
+) -> Result<Option<SpendLimits>> {
+    let limits = limits_from(
+        args.start_balance.as_deref(),
+        args.spend_cap.as_deref(),
+        args.keep.as_deref(),
+    )?;
+    if network == DemoNetwork::Testnet && limits.is_none() {
+        bail!(
+            "Option T on testnet needs --start-balance, --spend-cap and --keep; nothing was signed"
+        );
+    }
+    Ok(limits)
 }
 
 /// Whether the delete step may run: on testnet only with [`DELETE_BUYERS_YES_FLAG`] exactly
@@ -154,6 +183,8 @@ pub struct OptionTSetup {
     pub buyer_gas: NearGas,
     /// NEAR the creator attaches to `launch` for the coin's storage.
     pub launch_deposit: NearToken,
+    /// Checked against the funder balance before each step that signs; none on a plain sandbox run.
+    pub limits: Option<SpendLimits>,
 }
 
 /// NEAR the creator gets on top of the launch deposit, for the gas of `launch` (300 TGas).
@@ -193,6 +224,7 @@ impl OptionTSetup {
             buyer_extra: NearToken::from_millinear(500),
             buyer_gas: NearGas::from_tgas(300),
             launch_deposit: LAUNCH_DEPOSIT,
+            limits: None,
         }
     }
 
@@ -281,6 +313,14 @@ async fn new_sub_account(
     id: AccountId,
     amount: NearToken,
 ) -> Result<Account> {
+    check_funder(
+        setup.limits.as_ref(),
+        &setup.network,
+        &setup.funder.id,
+        amount.saturating_add(GAS_MARGIN),
+        &format!("funding {id}"),
+    )
+    .await?;
     let public_key = setup.funder.signer.get_public_key().await?;
     let made = near_api::Account::create_account(id.clone())
         .fund_myself(setup.funder.id.clone(), amount)
@@ -380,6 +420,14 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     let (creator, buyers) = make_accounts(setup).await?;
 
     say(&format!("{} launches {coin}", creator.id));
+    check_funder(
+        setup.limits.as_ref(),
+        &setup.network,
+        &setup.funder.id,
+        NearToken::from_yoctonear(0),
+        "the launch",
+    )
+    .await?;
     let launched = transact(
         &setup.network,
         &creator,
@@ -414,7 +462,21 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         let coin = coin.clone();
         let buy_near = setup.buy_near;
         let gas = setup.buyer_gas;
+        let limits = setup.limits;
+        let funder = setup.funder.id.clone();
         tasks.spawn(async move {
+            let step = format!("the buy of {}", buyer.id);
+            if let Err(e) = check_funder(
+                limits.as_ref(),
+                &network,
+                &funder,
+                NearToken::from_yoctonear(0),
+                &step,
+            )
+            .await
+            {
+                return (index, Err(e));
+            }
             let calls = vec![
                 FunctionCall::new(
                     "storage_deposit",
@@ -538,7 +600,21 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             .context("tokens_out")?
             .to_string();
         let gas = setup.buyer_gas;
+        let limits = setup.limits;
+        let funder = setup.funder.id.clone();
         tasks.spawn(async move {
+            let step = format!("the sell of {}", buyer.id);
+            if let Err(e) = check_funder(
+                limits.as_ref(),
+                &network,
+                &funder,
+                NearToken::from_yoctonear(0),
+                &step,
+            )
+            .await
+            {
+                return (index, Err(e));
+            }
             let sold = transact_with_gas(
                 &network,
                 &buyer,

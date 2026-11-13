@@ -27,6 +27,8 @@ type FastNear struct {
 var (
 	ErrForbidden   = errors.New("FastNEAR answered 403: stop and report")
 	ErrRateLimited = errors.New("the service answered 429: wait before the next read")
+	// ErrRPCForbidden is a 403 from the NEAR RPC: stop and report, no retry.
+	ErrRPCForbidden = errors.New("the RPC answered 403: stop and report")
 	// ErrUnexpectedResponse is any other answer (status or body). The result is unknown: stop and report.
 	ErrUnexpectedResponse = errors.New("FastNEAR gave an answer the watcher does not know: stop and report")
 )

@@ -18,6 +18,7 @@ use near_api::{Contract, NetworkConfig};
 use serde_json::json;
 
 use crate::option_t::TESTNET_YES_FLAG;
+use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{transaction_hash, view_on, Account, ContractState};
 
 /// NEAR burnt per byte of code put into global storage: nearcore parameters.yaml,
@@ -39,12 +40,13 @@ const NEW_GAS: NearGas = NearGas::from_tgas(30);
 pub enum DeployMode {
     /// Print the plan from the wasm bytes; read no chain, load no key, sign nothing.
     DryRun,
-    /// Sign on testnet with the funder key from the keychain.
-    Testnet,
+    /// Sign on testnet with the funder key from the keychain, inside these spend limits.
+    Testnet(SpendLimits),
 }
 
 /// Parses the arguments after the program name: exactly `--dry-run`, or exactly
-/// `--network testnet` with [`TESTNET_YES_FLAG`] set to `yes`. Anything else is refused.
+/// `--network testnet --start-balance <NEAR> --spend-cap <NEAR> --keep <NEAR>` with
+/// [`TESTNET_YES_FLAG`] set to `yes`. Anything else is refused.
 pub fn parse_deploy_arguments(
     args: &[String],
     testnet_yes_flag: Option<&str>,
@@ -52,12 +54,18 @@ pub fn parse_deploy_arguments(
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     match args.as_slice() {
         ["--dry-run"] => Ok(DeployMode::DryRun),
-        ["--network", "testnet"] if testnet_yes_flag == Some("yes") => Ok(DeployMode::Testnet),
-        ["--network", "testnet"] => bail!(
-            "the deploy signs real transactions on testnet; it runs there only when the builder sets {TESTNET_YES_FLAG}=yes for that run"
-        ),
+        ["--network", "testnet", "--start-balance", start, "--spend-cap", cap, "--keep", keep] => {
+            if testnet_yes_flag != Some("yes") {
+                bail!(
+                    "the deploy signs real transactions on testnet; it runs there only when the builder sets {TESTNET_YES_FLAG}=yes for that run"
+                );
+            }
+            let limits = limits_from(Some(start), Some(cap), Some(keep))?
+                .context("the testnet deploy needs its spend limits")?;
+            Ok(DeployMode::Testnet(limits))
+        }
         _ => bail!(
-            "use exactly --dry-run or --network testnet, not {args:?}; nothing was run"
+            "use exactly --dry-run, or --network testnet --start-balance <NEAR> --spend-cap <NEAR> --keep <NEAR>, not {args:?}; nothing was run"
         ),
     }
 }
@@ -182,13 +190,15 @@ pub fn is_no_global_code(error: &str, hash: CryptoHash) -> bool {
     named && error.contains(&hash.to_string())
 }
 
-/// Runs the plan. It refuses before signing when the factory account exists already (no
+/// Runs the plan. With `limits` it reads the funder balance before each signing and refuses a step
+/// that breaks them (see [`SpendLimits::check`]). It refuses before signing when the factory account exists already (no
 /// redeploy). After the global deploy it stops on any failure or unknown result and never
 /// retries: the caller reports and asks.
 pub async fn deploy(
     plan: &DeployPlan,
     network: &NetworkConfig,
     funder: &Account,
+    limits: Option<&SpendLimits>,
 ) -> Result<DeployReport> {
     if funder.id != plan.funder {
         bail!(
@@ -211,6 +221,14 @@ pub async fn deploy(
         );
         None
     } else {
+        check_funder(
+            limits,
+            network,
+            &funder.id,
+            plan.global_burn.saturating_add(GAS_MARGIN),
+            "the global deploy",
+        )
+        .await?;
         let result = Contract::deploy_global_contract_code(plan.coin_code.clone())
             .as_hash()
             .with_signer(funder.id.clone(), funder.signer.clone())
@@ -228,6 +246,14 @@ pub async fn deploy(
         Some(hash)
     };
 
+    check_funder(
+        limits,
+        network,
+        &funder.id,
+        plan.factory_funding.saturating_add(GAS_MARGIN),
+        "the factory transaction",
+    )
+    .await?;
     let public_key = funder.signer.get_public_key().await?;
     let actions = vec![
         Action::CreateAccount(CreateAccountAction {}),

@@ -2,8 +2,12 @@
 //!
 //!   deploy-factory --dry-run            print the plan and its cost from the wasm files; reads no
 //!                                       chain, loads no key, signs nothing
-//!   deploy-factory --network testnet    deploy on testnet; refused unless the builder sets
-//!                                       FC_BUILDER_SAID_YES_TO_TESTNET_SIGNING=yes for that run
+//!   deploy-factory --network testnet --start-balance <NEAR> --spend-cap <NEAR> --keep <NEAR>
+//!                                       deploy on testnet; refused unless the builder sets
+//!                                       FC_BUILDER_SAID_YES_TO_TESTNET_SIGNING=yes for that run.
+//!                                       Before each signing it reads the funder balance and
+//!                                       refuses a step that would spend more than the cap since
+//!                                       the start balance or leave less than --keep
 //!
 //! Both read FC_TESTNET_FUNDER. Testnet also reads FC_TESTNET_RPC_URL and loads the funder key
 //! from the system keychain (build with `--features testnet-keychain`; scripts/deploy-factory.sh
@@ -63,7 +67,7 @@ async fn start() -> Result<()> {
             println!("deploy-factory: dry run; nothing was read from a chain or signed");
             Ok(())
         }
-        DeployMode::Testnet => testnet(&plan).await,
+        DeployMode::Testnet(limits) => testnet(&plan, &limits).await,
     }
 }
 
@@ -80,7 +84,7 @@ fn coin_code(mode: DeployMode) -> Result<(Vec<u8>, String)> {
                     build.cargo_near_sha256_base58
                 );
             }
-            if mode == DeployMode::Testnet {
+            if matches!(mode, DeployMode::Testnet(_)) {
                 let head = git(&["rev-parse", "HEAD"])?;
                 if head != build.commit {
                     bail!("the reproducible wasm is from {}, HEAD is {head}; build again", build.commit);
@@ -91,7 +95,7 @@ fn coin_code(mode: DeployMode) -> Result<(Vec<u8>, String)> {
             }
             Ok((build.wasm, format!("{REPRODUCIBLE_COIN_DIR} (commit {})", build.commit)))
         }
-        (Err(e), DeployMode::Testnet) => Err(e),
+        (Err(e), DeployMode::Testnet(_)) => Err(e),
         (Err(_), DeployMode::DryRun) => Ok((
             wasm("fair_chance_coin")?,
             "target/near/fair_chance_coin (local non-reproducible build: the reproducible build has not run, so its size can differ)".to_string(),
@@ -108,7 +112,10 @@ fn git(args: &[&str]) -> Result<String> {
 }
 
 #[cfg(feature = "testnet-keychain")]
-async fn testnet(plan: &DeployPlan) -> Result<()> {
+async fn testnet(
+    plan: &DeployPlan,
+    limits: &fair_chance_sandbox_tests::spend_guard::SpendLimits,
+) -> Result<()> {
     use fair_chance_sandbox_tests::factory_deploy::{check_deployed, deploy};
     use fair_chance_sandbox_tests::option_t::funder_signer_from_keychain;
     let rpc_url = std::env::var("FC_TESTNET_RPC_URL").context("set FC_TESTNET_RPC_URL")?;
@@ -121,7 +128,7 @@ async fn testnet(plan: &DeployPlan) -> Result<()> {
         id: plan.funder.clone(),
         signer,
     };
-    let report = deploy(plan, &network, &funder).await?;
+    let report = deploy(plan, &network, &funder, Some(limits)).await?;
     match report.global_deploy_tx {
         Some(tx) => println!("deploy-factory: global deploy tx {tx}"),
         None => println!("deploy-factory: global code was already on chain; no global deploy tx"),
@@ -134,7 +141,10 @@ async fn testnet(plan: &DeployPlan) -> Result<()> {
 }
 
 #[cfg(not(feature = "testnet-keychain"))]
-async fn testnet(_plan: &DeployPlan) -> Result<()> {
+async fn testnet(
+    _plan: &DeployPlan,
+    _limits: &fair_chance_sandbox_tests::spend_guard::SpendLimits,
+) -> Result<()> {
     bail!(
         "the testnet path loads the funder key from the keychain; build with --features testnet-keychain (scripts/deploy-factory.sh does this for --network testnet). Nothing was signed"
     )

@@ -24,13 +24,10 @@ env_file="${FC_TELEGRAM_ENV:-$HOME/.config/fair-chance/telegram.env}"
 
 (cd watcher && go build -o ../target/watcher ./cmd/watcher)
 
-# fc_rules answers with a result array once the coin exists.
-request="{\"jsonrpc\":\"2.0\",\"id\":\"fc\",\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"$coin\",\"method_name\":\"fc_rules\",\"args_base64\":\"e30=\"}}"
 echo "option-t-watcher: waiting for $coin"
-until curl -s -m 10 "$rpc" -H 'Content-Type: application/json' -d "$request" | grep -q '"result":\['; do
-  sleep 1
-done
-echo "option-t-watcher: $coin exists; alerts go to the private chat"
+# Stops on a 403 or an unknown answer; backs off on 429 and 5xx with a limit on tries.
+scripts/wait-for-coin.sh "$rpc" "$coin"
+echo "option-t-watcher: alerts for $coin go to the private chat"
 
 set -a
 # shellcheck disable=SC1090

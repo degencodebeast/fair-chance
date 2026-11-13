@@ -10,6 +10,7 @@ pub mod option_t;
 pub mod page_and_watcher_reads;
 pub mod pass_list;
 pub mod refusal_texts;
+pub mod spend_guard;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

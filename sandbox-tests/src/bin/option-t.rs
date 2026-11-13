@@ -17,6 +17,12 @@
 //!                                     in lowercase (default optiont)
 //!   --name <name>                     coin name (default "Option T")
 //!   --description <text>              coin description (default "Option T demo coin.")
+//!   --start-balance <NEAR>            funder balance before the session's first signing
+//!   --spend-cap <NEAR>                the most the session may spend from the start balance
+//!   --keep <NEAR>                     the funder balance never goes below this
+//!                                     (the last three are required on testnet; before each
+//!                                     step that signs, the run reads the funder balance and
+//!                                     refuses the step that would break them)
 //!
 //! Testnet reads FC_TESTNET_RPC_URL, FC_TESTNET_FACTORY and FC_TESTNET_FUNDER, and loads the
 //! funder's key from the system keychain (build with `--features testnet-keychain`;
@@ -54,6 +60,7 @@ async fn start(list: &mut PassList) -> Result<()> {
             std::env::var(DELETE_BUYERS_YES_FLAG).ok().as_deref(),
         )?;
     }
+    let limits = fair_chance_sandbox_tests::option_t::choose_spend_limits(&args, network)?;
     let ticker = args.ticker.clone().unwrap_or_else(|| "optiont".to_string());
     let tune = |setup: &mut OptionTSetup| {
         setup.buy_near = NearToken::from_millinear(args.buy_millinear.unwrap_or(1000).into());
@@ -79,6 +86,7 @@ async fn start(list: &mut PassList) -> Result<()> {
         DemoNetwork::Testnet => testnet_setup(&ticker).await?,
     };
     tune(&mut setup);
+    setup.limits = limits;
     if delete {
         if network == DemoNetwork::Sandbox {
             // A fresh sandbox has no buyers yet; make them so the step has something to delete.
@@ -129,6 +137,7 @@ async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
         buyer_extra: NearToken::from_millinear(500),
         buyer_gas: NearGas::from_tgas(300),
         launch_deposit: fair_chance_sandbox_tests::LAUNCH_DEPOSIT,
+        limits: None,
     })
 }
 
