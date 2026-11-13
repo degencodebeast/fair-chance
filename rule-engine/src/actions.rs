@@ -569,8 +569,16 @@ fn sell_outcome(
         near_before_fee,
     )
     .min(near_out);
-    let (cap_net, cap_used) =
-        real_near_cap::after_sell(state, holder, near_out - uncounted_out, bought_sold, at);
+    let marked_out = payout_of_first_tokens_rounded_up(state, parts.marked, near_before_fee)
+        .min(near_out - uncounted_out);
+    let (cap_net, cap_used) = real_near_cap::after_sell(
+        state,
+        holder,
+        marked_out,
+        near_out - uncounted_out - marked_out,
+        bought_sold,
+        at,
+    );
     SellOutcome {
         near_out,
         fee_near,
@@ -580,6 +588,27 @@ fn sell_outcome(
         cap_used,
         real_near_left: state.real_near - near_out - creator_fee_near,
     }
+}
+
+/// The NEAR out after the swap fee of the first `tokens` of a sell that pays `near_before_fee` in
+/// all, before the fee: the NEAR rounds up and the fee rounds down, so the part never comes out
+/// smaller than it is. Used for the marked part, which counts gross, so a larger marked part
+/// favors the pool.
+fn payout_of_first_tokens_rounded_up(
+    state: &CoinState,
+    tokens: u128,
+    near_before_fee: u128,
+) -> u128 {
+    if tokens == 0 {
+        return 0;
+    }
+    let before_fee = pool_math::near_out_before_fee_rounded_up(
+        state.token_reserve,
+        state.near_reserve(),
+        tokens,
+    )
+    .min(near_before_fee);
+    before_fee - before_fee * state.fixed.swap_fee_bps as u128 / 10_000
 }
 
 /// The NEAR out after the swap fee of the `tokens` that go into the pool right after the first
