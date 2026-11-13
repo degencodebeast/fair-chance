@@ -13,6 +13,7 @@ mod fixed_values;
 mod holder_class;
 mod pool_math;
 mod refusals;
+mod storage_registration;
 mod views;
 mod wide_integer_math;
 
@@ -24,6 +25,7 @@ pub use coin_state::{
 pub use events::{Event, FcBecameLarge, FcBuy, FcSell, FcSend, FtMint, FtTransfer};
 pub use fixed_values::FixedValues;
 pub use refusals::{Refusal, RefusalCode};
+pub use storage_registration::{unregister, Unregistered};
 pub use views::{
     quote_buy, quote_sell, view_account, view_cap, view_creator_fees, view_early_window, view_pool,
     view_rules, AccountView, BuyQuote, CapView, CreatorFeesView, EarlyWindowView, PoolView,

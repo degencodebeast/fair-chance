@@ -21,9 +21,12 @@ impl Event {
             Self::FcBuy(e) => ("fair_chance", INTERFACE_VERSION, "fc_buy", json!([e])),
             Self::FcSell(e) => ("fair_chance", INTERFACE_VERSION, "fc_sell", json!([e])),
             Self::FcSend(e) => ("fair_chance", INTERFACE_VERSION, "fc_send", json!([e])),
-            Self::FcBecameLarge(e) => {
-                ("fair_chance", INTERFACE_VERSION, "fc_became_large", json!([e]))
-            }
+            Self::FcBecameLarge(e) => (
+                "fair_chance",
+                INTERFACE_VERSION,
+                "fc_became_large",
+                json!([e]),
+            ),
             Self::FtMint(e) => ("nep141", "1.0.0", "ft_mint", json!([e])),
             Self::FtTransfer(e) => ("nep141", "1.0.0", "ft_transfer", json!([e])),
         };

@@ -54,9 +54,7 @@ pub fn class_of(state: &CoinState, holder: Option<&Holder>, at: At) -> Class {
 pub fn max_receive(state: &CoinState, holder: Option<&Holder>) -> Option<u128> {
     match holder {
         Some(h) if h.is_large => None,
-        _ => Some(
-            (large_threshold(state) - 1).saturating_sub(holder.map_or(0, |h| h.balance)),
-        ),
+        _ => Some((large_threshold(state) - 1).saturating_sub(holder.map_or(0, |h| h.balance))),
     }
 }
 
