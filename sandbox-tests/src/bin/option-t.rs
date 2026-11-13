@@ -3,21 +3,30 @@
 //! run ends with one `PASS <check>: <detail>` line per check and exits 0; the first failed check
 //! prints `FAIL <check>: <reason>` and exits 1.
 //!
-//!   option-t                         a fresh sandbox (the default)
-//!   option-t --network testnet       testnet; refused unless the builder sets
-//!                                    FC_BUILDER_SAID_YES_TO_TESTNET_SIGNING=yes for that run
-//!   --buy-millinear <n>              NEAR per buy, in milliNEAR (default 1000)
-//!   --ticker <ticker>                coin ticker (default optiont)
+//!   option-t                          a fresh sandbox (the default)
+//!   option-t --network testnet        testnet; refused unless the builder sets
+//!                                     FC_BUILDER_SAID_YES_TO_TESTNET_SIGNING=yes for that run
+//!   option-t --delete-buyers          the separate delete step: deletes the 20 buyer accounts
+//!                                     (never the creator, coin or factory); on testnet it also
+//!                                     needs FC_BUILDER_SAID_YES_TO_DELETING_OPTION_T_BUYERS=yes
+//!   --buy-millinear <n>               NEAR per buy, in milliNEAR (default 1000)
+//!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
+//!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
+//!   --launch-deposit-millinear <n>    NEAR the creator attaches to launch (default 5000)
+//!   --ticker <ticker>                 coin ticker (default optiont)
 //!
-//! Testnet also reads FC_TESTNET_RPC_URL, FC_TESTNET_FACTORY and FC_TESTNET_FUNDER.
+//! Testnet reads FC_TESTNET_RPC_URL, FC_TESTNET_FACTORY and FC_TESTNET_FUNDER, and loads the
+//! funder's key from the system keychain (build with `--features testnet-keychain`;
+//! scripts/option-t.sh does this for `--network testnet`).
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use fair_chance_sandbox_tests::option_t::{
-    choose_network, run, DemoNetwork, OptionTSetup, TESTNET_YES_FLAG,
+    choose_buyer_deletion, choose_network, delete_buyers, run, DemoNetwork, OptionTSetup,
+    DELETE_BUYERS_YES_FLAG, TESTNET_YES_FLAG,
 };
 use fair_chance_sandbox_tests::pass_list::{print_and_exit, PassList};
 use fair_chance_sandbox_tests::World;
-use near_api::types::NearToken;
+use near_api::types::{NearGas, NearToken};
 
 const BUYERS: usize = 20;
 
@@ -35,45 +44,99 @@ fn argument(name: &str) -> Option<String> {
         .and_then(|i| args.get(i + 1).cloned())
 }
 
+fn number_argument(name: &str, default: u64) -> Result<u64> {
+    argument(name)
+        .map(|n| n.parse::<u64>())
+        .transpose()
+        .with_context(|| format!("{name} takes a whole number"))
+        .map(|n| n.unwrap_or(default))
+}
+
 async fn start(list: &mut PassList) -> Result<()> {
     let network = choose_network(
         argument("--network").as_deref(),
         std::env::var(TESTNET_YES_FLAG).ok().as_deref(),
     )?;
-    let buy_near = NearToken::from_millinear(
-        argument("--buy-millinear")
-            .map(|n| n.parse::<u128>())
-            .transpose()
-            .context("--buy-millinear takes a whole number")?
-            .unwrap_or(1000),
-    );
+    let delete = std::env::args().any(|a| a == "--delete-buyers");
+    if delete {
+        choose_buyer_deletion(
+            network,
+            std::env::var(DELETE_BUYERS_YES_FLAG).ok().as_deref(),
+        )?;
+    }
     let ticker = argument("--ticker").unwrap_or_else(|| "optiont".to_string());
-    match network {
+    let tune = |setup: &mut OptionTSetup| -> Result<()> {
+        setup.buy_near =
+            NearToken::from_millinear(number_argument("--buy-millinear", 1000)?.into());
+        setup.buyer_extra =
+            NearToken::from_millinear(number_argument("--buyer-extra-millinear", 500)?.into());
+        setup.buyer_gas = NearGas::from_tgas(number_argument("--buyer-tgas", 300)?);
+        setup.launch_deposit =
+            NearToken::from_millinear(number_argument("--launch-deposit-millinear", 5000)?.into());
+        Ok(())
+    };
+    let world;
+    let mut setup = match network {
         DemoNetwork::Sandbox => {
             println!("option-t: start a fresh sandbox with the factory");
-            let world = World::launch().await?;
-            let setup = OptionTSetup {
-                network: world.network.clone(),
-                funder: world.bob.clone(),
-                factory: world.factory.id.clone(),
-                ticker,
-                buyers: BUYERS,
-                buy_near,
-            };
-            run(&setup, list).await?;
-            Ok(())
+            world = World::launch().await?;
+            OptionTSetup::sandbox_defaults(&world, &ticker, BUYERS)
         }
-        DemoNetwork::Testnet => {
-            for name in [
-                "FC_TESTNET_RPC_URL",
-                "FC_TESTNET_FACTORY",
-                "FC_TESTNET_FUNDER",
-            ] {
-                std::env::var(name).with_context(|| format!("set {name}"))?;
-            }
-            // How the funder's signer is loaded on testnet is an open question for the builder;
-            // until it is answered this path signs nothing.
-            bail!("the testnet signer for the funder is not set up yet; nothing was signed")
+        DemoNetwork::Testnet => testnet_setup(&ticker).await?,
+    };
+    tune(&mut setup)?;
+    if delete {
+        if network == DemoNetwork::Sandbox {
+            // A fresh sandbox has no buyers yet; make them so the step has something to delete.
+            fair_chance_sandbox_tests::option_t::make_accounts(&setup).await?;
+        }
+        let deleted = delete_buyers(&setup).await?;
+        return list.check(
+            "buyer accounts deleted",
+            Ok(format!(
+                "{} buyer accounts deleted, their NEAR went to {}",
+                deleted.len(),
+                setup.funder.id
+            )),
+        );
+    }
+    run(&setup, list).await?;
+    Ok(())
+}
+
+#[cfg(feature = "testnet-keychain")]
+async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
+    use fair_chance_sandbox_tests::option_t::funder_signer_from_keychain;
+    let read = |name: &str| std::env::var(name).with_context(|| format!("set {name}"));
+    let rpc_url = read("FC_TESTNET_RPC_URL")?;
+    if rpc_url.contains("mainnet") {
+        anyhow::bail!("FC_TESTNET_RPC_URL names mainnet");
+    }
+    let funder: near_api::types::AccountId = read("FC_TESTNET_FUNDER")?.parse()?;
+    let factory: near_api::types::AccountId = read("FC_TESTNET_FACTORY")?.parse()?;
+    for account in [&funder, &factory] {
+        if !account.as_str().ends_with(".testnet") {
+            anyhow::bail!("{account} is not a .testnet account");
         }
     }
+    let network = near_api::NetworkConfig::from_rpc_url("testnet", rpc_url.parse()?);
+    let signer = funder_signer_from_keychain(&funder, &network).await?;
+    Ok(OptionTSetup {
+        network,
+        funder: fair_chance_sandbox_tests::Account { id: funder, signer },
+        factory,
+        ticker: ticker.to_string(),
+        buyers: BUYERS,
+        buy_near: NearToken::from_near(1),
+        buyer_extra: NearToken::from_millinear(500),
+        buyer_gas: NearGas::from_tgas(300),
+        launch_deposit: fair_chance_sandbox_tests::LAUNCH_DEPOSIT,
+    })
+}
+
+#[cfg(not(feature = "testnet-keychain"))]
+async fn testnet_setup(_ticker: &str) -> Result<OptionTSetup> {
+    anyhow::bail!(
+        "the testnet path loads the funder key from the keychain; build with --features testnet-keychain (scripts/option-t.sh does this for --network testnet). Nothing was signed"
+    )
 }

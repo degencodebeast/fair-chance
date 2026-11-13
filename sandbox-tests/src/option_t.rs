@@ -3,12 +3,16 @@
 //!
 //! The network is a parameter. Sandbox is the default. Testnet signs real transactions, so it
 //! runs only when the builder sets [`TESTNET_YES_FLAG`] to `yes` for that run.
+//!
+//! The creator and the buyers are sub-accounts of a funder, and the funder's public key is their
+//! one full-access key, so the funder's signer signs for all of them and no other key exists. The
+//! separate delete step ([`delete_buyers`]) uses the same key to delete the buyers later.
 
 use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
 use near_api::types::transaction::result::TransactionResult;
-use near_api::types::{AccountId, NearToken};
+use near_api::types::{AccountId, NearGas, NearToken};
 use near_api::NetworkConfig;
 use serde_json::json;
 use tokio::task::JoinSet;
@@ -16,12 +20,15 @@ use tokio::task::JoinSet;
 use crate::amount_text::{amount, near, tokens};
 use crate::pass_list::PassList;
 use crate::{
-    batch_on, events, launch_args, transact, view_on, wait_for_final_height, Account, FunctionCall,
-    LAUNCH_DEPOSIT,
+    batch_on_with_gas, events, launch_args, transact, transact_with_gas, view_on,
+    wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
 };
 
 /// The environment variable the builder sets to `yes` to let Option T sign on testnet.
 pub const TESTNET_YES_FLAG: &str = "FC_BUILDER_SAID_YES_TO_TESTNET_SIGNING";
+/// The environment variable the builder sets to `yes` to let the delete step remove the testnet
+/// buyer accounts (after the evidence file and the video).
+pub const DELETE_BUYERS_YES_FLAG: &str = "FC_BUILDER_SAID_YES_TO_DELETING_OPTION_T_BUYERS";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DemoNetwork {
@@ -45,11 +52,23 @@ pub fn choose_network(
     }
 }
 
+/// Whether the delete step may run: on testnet only with [`DELETE_BUYERS_YES_FLAG`] exactly
+/// `yes`; on sandbox always (its accounts vanish with the sandbox).
+pub fn choose_buyer_deletion(network: DemoNetwork, delete_yes_flag: Option<&str>) -> Result<()> {
+    match network {
+        DemoNetwork::Sandbox => Ok(()),
+        DemoNetwork::Testnet if delete_yes_flag == Some("yes") => Ok(()),
+        DemoNetwork::Testnet => bail!(
+            "the delete step removes the testnet buyer accounts; it runs only when the builder sets {DELETE_BUYERS_YES_FLAG}=yes, after the evidence file and the video"
+        ),
+    }
+}
+
 /// What one Option T run needs. The same values work on sandbox and on testnet.
 pub struct OptionTSetup {
     pub network: NetworkConfig,
-    /// Pays for the creator and the buyers; their accounts are its sub-accounts, so they are
-    /// siblings of the creator and not in its creator group.
+    /// Pays for the creator and the buyers and signs for all of them; their accounts are its
+    /// sub-accounts, so the buyers are siblings of the creator and not in its creator group.
     pub funder: Account,
     /// The factory that launches the coin.
     pub factory: AccountId,
@@ -58,6 +77,50 @@ pub struct OptionTSetup {
     pub buyers: usize,
     /// NEAR each buyer pays in its one buy.
     pub buy_near: NearToken,
+    /// NEAR each buyer gets on top of its buy: the storage deposit and the prepaid gas, which the
+    /// chain holds before each call and refunds when unused.
+    pub buyer_extra: NearToken,
+    /// Prepaid gas of each buyer transaction (storage deposit and buy; sell).
+    pub buyer_gas: NearGas,
+    /// NEAR the creator attaches to `launch` for the coin's storage.
+    pub launch_deposit: NearToken,
+}
+
+/// NEAR the creator gets on top of the launch deposit, for the gas of `launch` (300 TGas).
+const CREATOR_EXTRA: NearToken = NearToken::from_millinear(500);
+
+impl OptionTSetup {
+    /// The default run on a sandbox World: funder bob, the World's factory, 1 NEAR buys.
+    pub fn sandbox_defaults(world: &World, ticker: &str, buyers: usize) -> Self {
+        Self {
+            network: world.network.clone(),
+            funder: world.bob.clone(),
+            factory: world.factory.id.clone(),
+            ticker: ticker.to_string(),
+            buyers,
+            buy_near: NearToken::from_near(1),
+            buyer_extra: NearToken::from_millinear(500),
+            buyer_gas: NearGas::from_tgas(300),
+            launch_deposit: LAUNCH_DEPOSIT,
+        }
+    }
+
+    fn coin(&self) -> Result<AccountId> {
+        sub_account(&self.ticker, &self.factory)
+    }
+}
+
+/// The Option T report: early-buy timing and what the run cost the funder.
+#[derive(Debug, Clone, Copy)]
+pub struct OptionTReport {
+    pub timing: EarlyBuyTiming,
+    /// The funder's NEAR before the run minus after it: everything the run moved or burnt.
+    pub funder_paid: NearToken,
+    /// NEAR still held by the creator and buyer accounts at the end (the delete step returns the
+    /// buyers' part to the funder).
+    pub left_in_new_accounts: NearToken,
+    /// The NEAR the coin locks for its storage (`storage_usage` x 10^19 yoctoNEAR per byte).
+    pub coin_storage_lock: NearToken,
 }
 
 /// The timing of the early buys, for the testnet plan: the early window is blocks 0 to N.
@@ -69,23 +132,51 @@ pub struct EarlyBuyTiming {
     pub last_block: u64,
 }
 
-/// NEAR each buyer gets on top of its buy: the storage deposit and the prepaid gas of 300 TGas,
-/// which the chain holds before the call and refunds when unused.
-const BUYER_EXTRA: NearToken = NearToken::from_millinear(500);
-/// NEAR the creator gets on top of the launch deposit, for gas.
-const CREATOR_EXTRA: NearToken = NearToken::from_millinear(500);
-
 fn sub_account(name: &str, parent: &AccountId) -> Result<AccountId> {
     Ok(format!("{name}.{parent}").parse()?)
 }
 
-/// Makes `<name>.<funder>` with a new key held in memory only, funded with `amount`.
-async fn new_sub_account(setup: &OptionTSetup, name: &str, amount: NearToken) -> Result<Account> {
-    let id = sub_account(name, &setup.funder.id)?;
-    let secret = near_api::signer::generate_secret_key()?;
+/// The creator account: `<ticker>-creator.<funder>`.
+pub fn creator_account_id(ticker: &str, funder: &AccountId) -> Result<AccountId> {
+    sub_account(&format!("{ticker}-creator"), funder)
+}
+
+/// The buyer accounts: `<ticker>-buyer-01.<funder>` to `<ticker>-buyer-<n>.<funder>`.
+pub fn buyer_account_ids(ticker: &str, funder: &AccountId, n: usize) -> Result<Vec<AccountId>> {
+    (1..=n)
+        .map(|i| sub_account(&format!("{ticker}-buyer-{i:02}"), funder))
+        .collect()
+}
+
+/// Loads the funder's signer from the system keychain (the near CLI keychain entry for the
+/// account on `network`), then signs in memory, so it can sign for the funder's sub-accounts that
+/// hold the funder's public key. No key file is read or written. Only the testnet path calls it.
+/// Built only with the `testnet-keychain` feature.
+#[cfg(feature = "testnet-keychain")]
+pub async fn funder_signer_from_keychain(
+    funder: &AccountId,
+    network: &NetworkConfig,
+) -> Result<std::sync::Arc<near_api::Signer>> {
+    use near_api::signer::SignerTrait;
+    let keychain =
+        near_api::signer::keystore::KeystoreSigner::search_for_keys(funder.clone(), network)
+            .await
+            .with_context(|| format!("no full-access key of {funder} in the keychain"))?;
+    let public_key = keychain.get_public_key()?;
+    let secret = SignerTrait::get_secret_key(&keychain, funder, public_key).await?;
+    Ok(near_api::Signer::from_secret_key(secret)?)
+}
+
+/// Makes `<id>` with the funder's public key as its one full-access key, funded with `amount`.
+async fn new_sub_account(
+    setup: &OptionTSetup,
+    id: AccountId,
+    amount: NearToken,
+) -> Result<Account> {
+    let public_key = setup.funder.signer.get_public_key().await?;
     let made = near_api::Account::create_account(id.clone())
         .fund_myself(setup.funder.id.clone(), amount)
-        .with_public_key(secret.public_key())
+        .with_public_key(public_key)
         .with_signer(setup.funder.signer.clone())
         .send_to(&setup.network)
         .await?;
@@ -94,44 +185,86 @@ async fn new_sub_account(setup: &OptionTSetup, name: &str, amount: NearToken) ->
     }
     Ok(Account {
         id,
-        signer: near_api::Signer::from_secret_key(secret)?,
+        signer: setup.funder.signer.clone(),
     })
 }
 
-/// Option T, start to end. Prints one line per buy and per sell, adds one PASS line per check
-/// to `list`, and returns the early-buy timing.
-pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTiming> {
-    let say = |text: &str| println!("option-t: {text}");
-    let coin = sub_account(&setup.ticker, &setup.factory)?;
-
-    say(&format!(
-        "make the creator and {} buyer accounts under {}",
-        setup.buyers, setup.funder.id
-    ));
+/// Makes the creator and the buyer accounts, and waits until they are final (the signer reads
+/// each key at the final block).
+pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account>)> {
     let creator = new_sub_account(
         setup,
-        &format!("{}-creator", setup.ticker),
-        LAUNCH_DEPOSIT.saturating_add(CREATOR_EXTRA),
+        creator_account_id(&setup.ticker, &setup.funder.id)?,
+        setup.launch_deposit.saturating_add(CREATOR_EXTRA),
     )
     .await?;
     let mut buyers = Vec::new();
-    for i in 1..=setup.buyers {
+    for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
         buyers.push(
-            new_sub_account(
-                setup,
-                &format!("{}-buyer-{i:02}", setup.ticker),
-                setup.buy_near.saturating_add(BUYER_EXTRA),
-            )
-            .await?,
+            new_sub_account(setup, id, setup.buy_near.saturating_add(setup.buyer_extra)).await?,
         );
     }
-
-    // The signer reads each new key at the final block, so wait until the accounts are final.
     let head = near_api::Chain::block_number()
         .at(near_api::Reference::Optimistic)
         .fetch_from(&setup.network)
         .await?;
     wait_for_final_height(&setup.network, head).await?;
+    Ok((creator, buyers))
+}
+
+/// The delete step: deletes each buyer account that exists, with its NEAR going to the funder,
+/// and returns the deleted accounts. It never touches the creator, the coin or the factory: it
+/// builds only the buyer names from [`buyer_account_ids`]. Check [`choose_buyer_deletion`] first.
+pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
+    let mut deleted = Vec::new();
+    for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
+        let exists = near_api::Account(id.clone())
+            .view()
+            .fetch_from(&setup.network)
+            .await
+            .is_ok();
+        if !exists {
+            println!("option-t: {id} does not exist; nothing to delete");
+            continue;
+        }
+        let result = near_api::Account(id.clone())
+            .delete_account_with_beneficiary(setup.funder.id.clone())
+            .with_signer(setup.funder.signer.clone())
+            .send_to(&setup.network)
+            .await?;
+        if !result.is_success() {
+            bail!("deleting {id} failed: {result:?}");
+        }
+        println!(
+            "option-t: deleted {id}, its NEAR went to {}",
+            setup.funder.id
+        );
+        deleted.push(id);
+    }
+    Ok(deleted)
+}
+
+async fn balance(network: &NetworkConfig, account: &AccountId) -> Result<NearToken> {
+    Ok(near_api::Account(account.clone())
+        .view()
+        .fetch_from(network)
+        .await?
+        .data
+        .amount)
+}
+
+/// Option T, start to end. Prints one line per buy and per sell, adds one PASS line per check
+/// to `list`, and returns the early-buy timing and the funder's cost.
+pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTReport> {
+    let say = |text: &str| println!("option-t: {text}");
+    let coin = setup.coin()?;
+    let funder_before = balance(&setup.network, &setup.funder.id).await?;
+
+    say(&format!(
+        "make the creator and {} buyer accounts under {}",
+        setup.buyers, setup.funder.id
+    ));
+    let (creator, buyers) = make_accounts(setup).await?;
 
     say(&format!("{} launches {coin}", creator.id));
     let launched = transact(
@@ -146,7 +279,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
             Some("Option T demo coin."),
             None,
         ),
-        LAUNCH_DEPOSIT,
+        setup.launch_deposit,
     )
     .await?;
     if events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
@@ -157,7 +290,8 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
 
     say(&format!(
         "{} buyers each pay storage and buy {} at once",
-        setup.buyers, setup.buy_near
+        setup.buyers,
+        near(setup.buy_near.as_yoctonear())
     ));
     let started = Instant::now();
     let mut tasks = JoinSet::new();
@@ -165,6 +299,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
         let network = setup.network.clone();
         let coin = coin.clone();
         let buy_near = setup.buy_near;
+        let gas = setup.buyer_gas;
         tasks.spawn(async move {
             let calls = vec![
                 FunctionCall::new(
@@ -174,7 +309,10 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
                 ),
                 FunctionCall::new("buy", json!({ "min_tokens_out": "0" }), buy_near),
             ];
-            (index, batch_on(&network, &buyer, &coin, calls).await)
+            (
+                index,
+                batch_on_with_gas(&network, &buyer, &coin, calls, gas).await,
+            )
         });
     }
     let mut bought: Vec<Option<TransactionResult>> = vec![None; buyers.len()];
@@ -284,14 +422,16 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
             .as_str()
             .context("tokens_out")?
             .to_string();
+        let gas = setup.buyer_gas;
         tasks.spawn(async move {
-            let sold = transact(
+            let sold = transact_with_gas(
                 &network,
                 &buyer,
                 &coin,
                 "sell",
                 json!({ "amount": tokens, "min_near_out": "0" }),
                 NearToken::from_yoctonear(1),
+                gas,
             )
             .await;
             (index, sold)
@@ -369,7 +509,31 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<EarlyBuyTi
             ))
         })(),
     )?;
-    Ok(timing)
+    let funder_after = balance(&setup.network, &setup.funder.id).await?;
+    let mut left = NearToken::from_yoctonear(0);
+    for account in std::iter::once(&creator).chain(&buyers) {
+        left = left.saturating_add(balance(&setup.network, &account.id).await?);
+    }
+    let coin_state = near_api::Account(coin.clone())
+        .view()
+        .fetch_from(&setup.network)
+        .await?
+        .data;
+    let report = OptionTReport {
+        timing,
+        funder_paid: funder_before.saturating_sub(funder_after),
+        left_in_new_accounts: left,
+        coin_storage_lock: NearToken::from_yoctonear(
+            u128::from(coin_state.storage_usage) * 10_000_000_000_000_000_000,
+        ),
+    };
+    say(&format!(
+        "the funder paid {}; {} is still in the creator and buyer accounts; the coin locks {} for its storage",
+        near(report.funder_paid.as_yoctonear()),
+        near(report.left_in_new_accounts.as_yoctonear()),
+        near(report.coin_storage_lock.as_yoctonear())
+    ));
+    Ok(report)
 }
 
 fn number_word(n: usize) -> String {

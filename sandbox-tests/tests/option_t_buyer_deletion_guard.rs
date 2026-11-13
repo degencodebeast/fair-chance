@@ -34,7 +34,10 @@ fn the_buyer_accounts_never_hold_the_creator_the_coin_or_the_factory() {
 #[test]
 fn deleting_testnet_buyers_needs_its_own_yes_flag() {
     let error = choose_buyer_deletion(DemoNetwork::Testnet, None).unwrap_err();
-    assert!(error.to_string().contains(DELETE_BUYERS_YES_FLAG), "{error}");
+    assert!(
+        error.to_string().contains(DELETE_BUYERS_YES_FLAG),
+        "{error}"
+    );
     for value in ["", "1", "YES", "yes "] {
         assert!(choose_buyer_deletion(DemoNetwork::Testnet, Some(value)).is_err());
     }

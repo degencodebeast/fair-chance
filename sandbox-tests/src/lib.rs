@@ -523,11 +523,34 @@ pub async fn transact(
     args: Value,
     deposit: NearToken,
 ) -> Result<TransactionResult> {
+    transact_with_gas(
+        network,
+        who,
+        contract,
+        method,
+        args,
+        deposit,
+        TRANSACTION_GAS,
+    )
+    .await
+}
+
+/// As [`transact`], with the given prepaid gas. The chain holds gas x gas price of the signer's
+/// NEAR until the call ends, so an account with little NEAR needs a smaller value.
+pub async fn transact_with_gas(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+    deposit: NearToken,
+    gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
     Ok(Contract(contract.clone())
         .call_function(method, args)
         .transaction()
         .deposit(deposit)
-        .gas(TRANSACTION_GAS)
+        .gas(gas)
         .with_signer(who.id.clone(), who.signer.clone())
         .send_to(network)
         .await?)
@@ -629,8 +652,18 @@ pub async fn batch_on(
     contract: &AccountId,
     calls: Vec<FunctionCall>,
 ) -> Result<TransactionResult> {
-    let gas =
-        near_api::types::NearGas::from_gas(TRANSACTION_GAS.as_gas() / calls.len().max(1) as u64);
+    batch_on_with_gas(network, who, contract, calls, TRANSACTION_GAS).await
+}
+
+/// As [`batch_on`], with the given prepaid gas for the whole transaction, split evenly.
+pub async fn batch_on_with_gas(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    calls: Vec<FunctionCall>,
+    total_gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
+    let gas = near_api::types::NearGas::from_gas(total_gas.as_gas() / calls.len().max(1) as u64);
     let actions = calls
         .into_iter()
         .map(|call| {
