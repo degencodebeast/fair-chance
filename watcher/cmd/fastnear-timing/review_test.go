@@ -170,3 +170,37 @@ func TestTheCoinWaitHonoursRetryAfter(t *testing.T) {
 		t.Fatalf("rate limited reads %d, want 1", r.RateLimited)
 	}
 }
+
+// The builder's 429 rule: obey Retry-After at most twice and at most 15 minutes in all, then stop.
+func TestTheCoinWaitStopsAtTheThird429(t *testing.T) {
+	calls := 0
+	rpc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Retry-After", "0")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	t.Cleanup(rpc.Close)
+	r := report{Coin: coin, RPCURL: rpc.URL, FastNearURL: rpc.URL}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	err := runWithCoinWaitAndBackOff(ctx, &r, 10*time.Millisecond, time.Second, 0, 10*time.Millisecond, time.Millisecond)
+	if err == nil || calls != 3 {
+		t.Fatalf("err %v after %d calls; want a stop at the third 429", err, calls)
+	}
+}
+
+func TestA429WaitOverFifteenMinutesStopsAtOnce(t *testing.T) {
+	calls := 0
+	rpc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.Header().Set("Retry-After", "901")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	t.Cleanup(rpc.Close)
+	r := report{Coin: coin, RPCURL: rpc.URL, FastNearURL: rpc.URL}
+	start := time.Now()
+	err := runWithCoinWaitAndBackOff(context.Background(), &r, 10*time.Millisecond, time.Second, 0, 10*time.Millisecond, time.Millisecond)
+	if err == nil || calls != 1 || time.Since(start) > 5*time.Second {
+		t.Fatalf("err %v after %d calls in %s", err, calls, time.Since(start))
+	}
+}

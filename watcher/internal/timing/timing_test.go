@@ -71,3 +71,20 @@ func TestTheBackOffDoublesUpToTheLimitAndTakesALongerRetryAfter(t *testing.T) {
 		t.Fatalf("after reset %d", w)
 	}
 }
+
+func TestTheLimitedBackOffGivesAtMostTwoWaitsWithinTheTotal(t *testing.T) {
+	b := timing.LimitedBackOff{BackOff: timing.BackOff{Start: 2, Max: 60}, MaxWaits: 2, Total: 900}
+	if w, ok := b.Next(0); !ok || w != 2 {
+		t.Fatalf("first %d %v", w, ok)
+	}
+	if w, ok := b.Next(561); !ok || w != 561 {
+		t.Fatalf("second %d %v", w, ok)
+	}
+	if _, ok := b.Next(0); ok {
+		t.Fatal("a third wait")
+	}
+	long := timing.LimitedBackOff{BackOff: timing.BackOff{Start: 2, Max: 60}, MaxWaits: 2, Total: 900}
+	if _, ok := long.Next(901); ok {
+		t.Fatal("a wait past the total")
+	}
+}

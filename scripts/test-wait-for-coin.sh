@@ -18,7 +18,7 @@ check() { # check <mode> <want exit 0|1> <text the output must hold> <max reques
   for _ in $(seq 50); do [ -s "$tmp/port" ] && break; sleep 0.1; done
   port="$(cat "$tmp/port")"
   local started=$SECONDS
-  out="$(FC_WAIT_POLL_S=0 FC_WAIT_FIRST_BACKOFF_S=1 FC_WAIT_BUSY_LIMIT_S=6 timeout 30 scripts/wait-for-coin.sh "http://127.0.0.1:$port" coin.testnet 2>&1)" || code=$?
+  out="$(FC_WAIT_POLL_S=0 FC_WAIT_FIRST_BACKOFF_S=1 FC_WAIT_BUSY_LIMIT_S="${busy_limit:-900}" timeout 30 scripts/wait-for-coin.sh "http://127.0.0.1:$port" coin.testnet 2>&1)" || code=$?
   elapsed=$((SECONDS - started))
   kill "$pid" 2>/dev/null
   count="$(cat "$tmp/count-$mode" 2>/dev/null || echo 0)"
@@ -32,9 +32,11 @@ check() { # check <mode> <want exit 0|1> <text the output must hold> <max reques
 
 check 403 1 "403" 1
 check unknown 1 "unknown answer" 1
-# Busy waits of 1, 2 and 4 s pass the 6 s limit at the third: three requests, then stop.
+# The 429 rule: at most two waits in all, then stop at the third busy answer.
 check 429 1 "429" 3
 check 500 1 "HTTP 500" 3
+# And at most the total wait limit: a 2 s Retry-After does not fit in a 1 s limit.
+busy_limit=1 check retryafter 1 "wait limit" 1
 check launch 0 "exists" 3
 check retryafter 0 "exists" 2
 if [ "${elapsed:-0}" -lt 2 ]; then

@@ -36,20 +36,31 @@ fn a_403_an_unknown_account_or_a_timeout_is_not_a_rate_limit() {
 }
 
 #[test]
-fn the_waits_double_take_a_longer_retry_after_and_end_at_the_total_limit() {
-    let mut w = Waits::new(
-        Duration::from_secs(2),
-        Duration::from_secs(60),
-        Duration::from_secs(15 * 60),
-    );
+fn the_waits_obey_retry_after_at_most_twice_and_within_fifteen_minutes() {
+    // The builder's 429 rule: at most two waits, at most 15 minutes of waiting in all.
+    let mut w = Waits::for_reads();
     assert_eq!(w.next(None), Some(Duration::from_secs(2)));
-    assert_eq!(w.next(None), Some(Duration::from_secs(4)));
     assert_eq!(
         w.next(Some(Duration::from_secs(561))),
         Some(Duration::from_secs(561))
     );
-    // 567 s waited; 561 more would pass 900 s.
-    assert_eq!(w.next(Some(Duration::from_secs(561))), None);
+    assert_eq!(w.next(Some(Duration::from_secs(1))), None, "a third wait");
+    let mut long = Waits::for_reads();
+    assert_eq!(
+        long.next(Some(Duration::from_secs(901))),
+        None,
+        "past 15 minutes"
+    );
+    let mut sum = Waits::for_reads();
+    assert_eq!(
+        sum.next(Some(Duration::from_secs(600))),
+        Some(Duration::from_secs(600))
+    );
+    assert_eq!(
+        sum.next(Some(Duration::from_secs(301))),
+        None,
+        "601 + 301 s pass 900 s"
+    );
 }
 
 #[tokio::test]
