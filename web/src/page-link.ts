@@ -71,3 +71,41 @@ export function sourceLabel(href: string): string {
     return "the chain";
   }
 }
+
+/** What the coin list reads: nothing (sample data), or the factory's launch events. */
+export type ListLink =
+  | { kind: "sample" }
+  | { kind: "no-factory"; source: string }
+  | { kind: "chain"; rpcUrl: string; rpcHost: string; fastNearUrl?: string; factory: string; fromBlock: number; source: string };
+
+/** The coin list follows the coin page rules: a link picks only the network, except a local sandbox. */
+export function resolveListLink(href: string): ListLink {
+  const params = new URL(href).searchParams;
+  const network = params.get("network");
+  if (network !== null) {
+    if (!isNetworkName(network)) throw new Error(`the page does not know the network "${network}"; use ?network=testnet`);
+    const fixed = KNOWN_NETWORKS[network];
+    const source = `NEAR ${network}`;
+    if (fixed.factory === null) return { kind: "no-factory", source };
+    return { kind: "chain", rpcUrl: fixed.rpcUrl, rpcHost: new URL(fixed.rpcUrl).host, fastNearUrl: fixed.fastNearUrl, factory: fixed.factory, fromBlock: fixed.factoryFromBlock, source };
+  }
+  if (params.get("rpc") === null) return { kind: "sample" };
+  const local = localSandboxUrl(params.get("rpc"));
+  if (local === null) {
+    throw new Error("the page URL needs &network=testnet (a link may give &rpc=<URL> only for a local sandbox)");
+  }
+  const source = "the local sandbox";
+  const factory = params.get("factory");
+  if (!factory) return { kind: "no-factory", source };
+  const fastNear = params.get("fastnear");
+  const from = Number(params.get("from_block") ?? "0");
+  return {
+    kind: "chain",
+    rpcUrl: params.get("rpc")!,
+    rpcHost: local.host,
+    ...(localSandboxUrl(fastNear) !== null && fastNear ? { fastNearUrl: fastNear } : {}),
+    factory,
+    fromBlock: Number.isSafeInteger(from) && from >= 0 ? from : 0,
+    source,
+  };
+}
