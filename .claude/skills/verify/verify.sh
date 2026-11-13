@@ -71,6 +71,8 @@ case "$mode" in
     doctor || finish FAIL "doctor found problems"
     install_web_packages || finish FAIL "npm ci in web/ failed"
     private_string_scan || finish FAIL "the private-string scan found private names or paths"
+    # Option T refuses a mistyped argument before it builds or starts a sandbox.
+    scripts/test-option-t-arguments.sh | tail -1 || finish FAIL "option-t.sh accepted an unknown or incomplete argument"
     # A ?network=testnet link in Chrome, every outside host stubbed: no request leaves the machine.
     node web/scripts/check-testnet-link-in-browser.ts \
       || finish FAIL "the testnet link does not load in the browser (see target/verify-evidence/$run_id/verify.log)"
