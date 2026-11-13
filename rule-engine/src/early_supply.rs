@@ -12,10 +12,12 @@
 //! the window start. A marked balance changes only at a touch of that account, so the balance
 //! at the first touch is the balance at the window start, and each marked token counts once per
 //! window. The marked allowance counts gross: a buy gives no room back. One floor is shared in
-//! the same way.
+//! the same way; an account's part of it also loses the unmarked tokens it sold in the current
+//! 1 h window, so it gets one floor per 1 h window, marked and unmarked together.
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::allowance::unmarked_sold_in_window;
 use crate::coin_state::{At, CoinState, Holder};
 use crate::wide_integer_math::{mul_div, tokens_for_price_drop};
 
@@ -55,7 +57,8 @@ pub struct MarkedAllowance {
     pub allowance: u128,
     pub used: u128,
     pub left: u128,
-    /// The account's part of the shared floor, less `used`, at least 0.
+    /// The account's part of the shared floor, less `used` and less the unmarked tokens it sold
+    /// in the current 1 h window, at least 0: one floor per account per 1 h window.
     pub floor_left: u128,
     pub window_end_ns: u64,
 }
@@ -190,7 +193,9 @@ pub fn marked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) -> M
         allowance,
         used,
         left: allowance.saturating_sub(used),
-        floor_left: floor.saturating_sub(used),
+        floor_left: floor
+            .saturating_sub(used)
+            .saturating_sub(unmarked_sold_in_window(state, holder, at)),
         window_end_ns,
     }
 }

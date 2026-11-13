@@ -117,6 +117,12 @@ pub fn unmarked_allowance(state: &CoinState, holder: Option<&Holder>, at: At) ->
     }
 }
 
+/// The unmarked tokens the holder sold in the 1 h window that holds `at`. The marked floor
+/// subtracts them, so an account gets one floor per window in either order.
+pub fn unmarked_sold_in_window(state: &CoinState, holder: Option<&Holder>, at: At) -> u128 {
+    totals_now(state, holder, at).sold
+}
+
 /// Adds unmarked tokens sold to the holder's totals for the window that holds `at`.
 pub fn count_sold(state: &CoinState, holder: &mut Holder, tokens: u128, at: At) {
     let mut totals = totals_now(state, Some(holder), at);
