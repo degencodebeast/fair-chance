@@ -188,7 +188,8 @@ fn buy(
     // Only the unmarked part gives unmarked allowance room back; the marked allowance is gross.
     count_bought(state, holder, tokens_out - marked_tokens, at);
     // The cap counts each buy as the full NEAR paid, fee included.
-    let (cap_net, cap_used) = real_near_cap::after_buy(state, holder, near_in, at);
+    let (cap_net, cap_used) =
+        real_near_cap::after_buy(state, holder, near_in, tokens_out - marked_tokens, at);
     holder.cap_net = cap_net;
     next.cap_window.used = cap_used;
     let crossed = mark_large_after_buy(state, holder);
@@ -385,9 +386,17 @@ impl SoldParts {
 ///   always fills with no penalty. The part above pays the penalty and fills only as far as the
 ///   cap allows. The part that never counts toward the cap is the allowance less the tokens
 ///   sold in the window, with no room back for buys (ADR 0005: the bought part counts).
-/// - Unmarked part, small: everything fills, and nothing counts.
+/// - Unmarked part, small: the tokens held from before the window fill and never count. The
+///   tokens bought in the window count, so a small sell fills as far as it passes the cap check
+///   or adds nothing to the cap used.
+///
+/// For the cap count only, the unmarked part sells the tokens bought in the current window first
+/// (up to `bought_not_sold`); they always count. `never_counted` applies to the tokens after them.
 pub(crate) struct SellFillPlan {
     amount: u128,
+    class: Class,
+    /// Unmarked tokens the account bought in the current cap window and has not sold yet.
+    bought_not_sold: u128,
     /// Marked tokens that fill whatever the cap says.
     marked_always_fills: u128,
     /// The most marked tokens that can fill.
@@ -398,7 +407,8 @@ pub(crate) struct SellFillPlan {
     most: u128,
     /// The first unmarked tokens of the sell that pay no penalty.
     penalty_free: u128,
-    /// The first unmarked tokens of the sell that never count toward the cap.
+    /// The unmarked tokens held from before the window that never count toward the cap, first
+    /// after the bought tokens.
     never_counted: u128,
 }
 
@@ -414,6 +424,7 @@ impl SellFillPlan {
         let marked_most = amount.min(holder.marked_balance).min(marked.left);
         let unmarked_asked = (amount - marked_most).min(holder.balance - holder.marked_balance);
         let allowance = unmarked_allowance(state, Some(holder), at);
+        let bought_not_sold = real_near_cap::cap_net_now(state, Some(holder), at).bought_not_sold;
         let (always_fills, most, penalty_free, never_counted) = match class {
             Class::Large => {
                 let most = unmarked_asked.min(allowance.sell_room);
@@ -425,10 +436,16 @@ impl SellFillPlan {
                 allowance.sell_room,
                 allowance.first_allowance_left,
             ),
-            Class::Small => (unmarked_asked, unmarked_asked, u128::MAX, u128::MAX),
+            // With no bought tokens left, nothing of a small sell counts, so all of it fills.
+            Class::Small if bought_not_sold == 0 => {
+                (unmarked_asked, unmarked_asked, u128::MAX, u128::MAX)
+            }
+            Class::Small => (0, unmarked_asked, u128::MAX, u128::MAX),
         };
         Self {
             amount,
+            class,
+            bought_not_sold,
             marked_always_fills: marked_most.min(marked.floor_left),
             marked_most,
             always_fills,
@@ -442,20 +459,28 @@ impl SellFillPlan {
     /// c x the real NEAR left. The check runs for every limited sell, also when the seller's own
     /// net adds zero. First the largest marked part from `marked_always_fills` to `marked_most`,
     /// with the unmarked part that always fills; then the largest unmarked part from
-    /// `always_fills` to `most` on top of that marked part.
+    /// `always_fills` to `most` on top of that marked part. A small account's unmarked part also
+    /// fits when it adds nothing to the cap used (small sells were never held by the check).
     pub(crate) fn tokens_sold(&self, state: &CoinState, holder: &Holder, at: At) -> SoldParts {
         let fits = |parts| {
             let outcome = sell_outcome(state, holder, self, parts, at);
             real_near_cap::within_cap(state, outcome.cap_used, outcome.real_near_left)
         };
+        let cap_used_with = |parts| sell_outcome(state, holder, self, parts, at).cap_used;
         let marked = largest_that_fits(self.marked_always_fills, self.marked_most, |marked| {
             fits(SoldParts {
                 marked,
                 unmarked: self.always_fills,
             })
         });
+        let used_by_marked_part = cap_used_with(SoldParts {
+            marked,
+            unmarked: 0,
+        });
         let unmarked = largest_that_fits(self.always_fills, self.most, |unmarked| {
-            fits(SoldParts { marked, unmarked })
+            let parts = SoldParts { marked, unmarked };
+            fits(parts)
+                || (self.class == Class::Small && cap_used_with(parts) <= used_by_marked_part)
         });
         SoldParts { marked, unmarked }
     }
@@ -532,15 +557,19 @@ fn sell_outcome(
     );
     let near_out = near_before_fee - fee_near - penalty_near;
     let creator_fee_near = pool_math::creator_fee(fee_near);
+    // Cap count order: the marked part, then the tokens bought in the window (both count), then
+    // the tokens held from before the window, whose first `never_counted` do not count.
+    let bought_sold = parts.unmarked.min(plan.bought_not_sold);
+    let held_sold = parts.unmarked - bought_sold;
     let uncounted_out = payout_of_tokens_after(
         state,
-        parts.marked,
-        parts.unmarked.min(plan.never_counted),
+        parts.marked + bought_sold,
+        held_sold.min(plan.never_counted),
         near_before_fee,
     )
     .min(near_out);
     let (cap_net, cap_used) =
-        real_near_cap::after_sell(state, holder, uncounted_out, near_out - uncounted_out, at);
+        real_near_cap::after_sell(state, holder, near_out - uncounted_out, bought_sold, at);
     SellOutcome {
         near_out,
         fee_near,

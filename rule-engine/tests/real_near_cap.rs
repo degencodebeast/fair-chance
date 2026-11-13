@@ -412,8 +412,10 @@ fn coin_with_a_deep_band_holder() -> Coin {
     coin
 }
 
+/// One net per account per window: counted sells minus buys. An uncounted sell takes no buy NEAR,
+/// and the tokens bought in the window count first when they are sold.
 #[test]
-fn an_account_s_buys_offset_its_uncounted_sells_first_and_only_the_rest_offsets_counted_sells() {
+fn a_buy_after_an_uncounted_sell_offsets_the_resale_of_the_bought_tokens() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
@@ -422,17 +424,17 @@ fn an_account_s_buys_offset_its_uncounted_sells_first_and_only_the_rest_offsets_
     let first = coin.sell(BAND, allowance, at);
     assert_eq!(first.penalty_near, 0);
     assert_eq!(coin.cap(at).cap_used, 0);
-    // A buy of half that NEAR offsets the uncounted sell, so it leaves nothing to offset later.
     let held = coin.balance(BAND);
-    coin.buy(BAND, first.near_out / 2, at);
+    let near_in = first.near_out / 2;
+    coin.buy(BAND, near_in, at);
     let bought = coin.balance(BAND) - held;
     assert_eq!(coin.cap(at).cap_used, 0);
-    // The next sell is all above the first allowance (the bought tokens and more): it counts in
-    // full, with no offset by the buy.
+    // The next sell is the bought tokens and more, all above the first allowance: it counts in
+    // full, and the buy NEAR offsets it once.
     let counted = coin.sell(BAND, bought + allowance / 4, at);
     assert_eq!(counted.fill, "full");
     assert!(counted.penalty_near > 0);
-    assert_eq!(coin.cap(at).cap_used, counted.near_out);
+    assert_eq!(coin.cap(at).cap_used, counted.near_out - near_in);
 }
 
 #[test]
@@ -452,7 +454,7 @@ fn a_buy_after_a_counted_sell_offsets_it() {
 }
 
 #[test]
-fn a_buy_after_a_band_sell_offsets_the_sell_s_uncounted_first_allowance_part_first() {
+fn a_buy_after_a_band_sell_offsets_only_its_counted_part() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
@@ -461,25 +463,32 @@ fn a_buy_after_a_band_sell_offsets_the_sell_s_uncounted_first_allowance_part_fir
     let uncounted = sell.near_out - used;
     assert!(used > 0 && uncounted > used);
 
-    // NEAR up to the uncounted part offsets it and leaves the counted part as it is.
-    coin.buy(BAND, uncounted, at);
-    assert_eq!(coin.cap(at).cap_used, used);
+    // The buy offsets the counted part; the uncounted part takes none of it.
+    coin.buy(BAND, used / 2, at);
+    assert_eq!(coin.cap(at).cap_used, used - used / 2);
     coin.buy(BAND, used, at);
     assert_eq!(coin.cap(at).cap_used, 0);
 }
 
 /// Paper case 5 (wash trading): ten first-allowance round trips by a band account, then a sell
-/// above the first allowance from the same account. The round trips add nothing to the cap, and
-/// the later sell counts in full: the part of it outside the first allowance left.
+/// above the first allowance from the same account. The round trips add nothing to the cap.
+/// Each buy offsets once: the tokens it bought count when they are sold, so the later sell keeps
+/// as offset only the last buy (its tokens are in that sell) and the fees the round trips left
+/// in the pool.
 #[test]
-fn paper_case_5_first_allowance_round_trips_give_no_offset_to_a_later_counted_sell() {
+fn paper_case_5_first_allowance_round_trips_leave_only_their_fees_as_offset_for_a_later_sell() {
     let mut coin = coin_with_a_deep_band_holder();
     let at = window_1(1);
     let allowance = coin.account(BAND, at).unmarked.allowance;
     let round_trip = allowance / 50;
+    let mut last_buy = 0;
+    let mut fees = 0;
     for _ in 0..10 {
         let sold = coin.sell(BAND, round_trip, at);
-        coin.buy(BAND, sold.near_out, at);
+        last_buy = sold.near_out;
+        coin.buy(BAND, last_buy, at);
+        // The sell fee and the buy fee (1%, rounded up).
+        fees += sold.fee_near + last_buy.div_ceil(100);
         assert_eq!(coin.cap(at).cap_used, 0);
     }
 
@@ -488,8 +497,14 @@ fn paper_case_5_first_allowance_round_trips_give_no_offset_to_a_later_counted_se
     let before = coin.clone();
     let sell = coin.sell(BAND, allowance + allowance / 4, at);
     let uncounted = payout_for(&before, first_allowance_left, at);
+    let counted_with_no_offset = sell.near_out - uncounted;
     assert!(sell.penalty_near > 0);
-    assert_eq!(coin.cap(at).cap_used, sell.near_out - uncounted);
+    let used = coin.cap(at).cap_used;
+    assert!(used <= counted_with_no_offset, "{used}");
+    assert!(
+        used + last_buy + fees >= counted_with_no_offset,
+        "{used} {last_buy} {fees} {counted_with_no_offset}"
+    );
 }
 
 #[test]

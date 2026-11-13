@@ -192,8 +192,15 @@ fn a_band_account_that_drops_below_one_allowance_by_a_sell_stays_band_for_the_re
     let rest = coin.sell_all(BAND, window_1(2));
 
     assert_eq!(rest.class, "band");
-    assert_eq!(rest.tokens_sold, 0);
+    assert_eq!(rest.fill, "partial");
     assert_eq!(rest.limit_reason, Some("cap_full"));
+    // The buy NEAR offsets once: only the part of it the first sell did not use (less than the
+    // buy's two fees) is left for the rest.
+    assert!(
+        rest.near_out <= ONE_NEAR / 100 * 2 / 100,
+        "{}",
+        rest.near_out
+    );
 }
 
 /// The same escape with cap room: the rest pays the band penalty.

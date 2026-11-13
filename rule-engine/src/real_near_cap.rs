@@ -2,13 +2,16 @@
 //! and marked sells together take at most c (`real_cap_c_bps`) of the real NEAR left after each
 //! sell, per 1 h window on the same grid as the unmarked allowance.
 //!
-//! The cap counts each account's net NEAR out in the window. Each account keeps a signed running
+//! The cap counts each account's net NEAR out in the window. Each account keeps one signed running
 //! value: counted sell payouts add to it, buys (the full NEAR paid, fee included) take from it.
 //! It is clamped at zero only when it is read, so one account's buys never offset another
-//! account's sells. A buy first offsets the account's sells that do not count (small sells and a
-//! band account's first allowance) that came before it; a sell that does not count first uses up
-//! buy NEAR that no sell used yet. Only the rest of the buys offsets counted sells. The pool's
-//! `used` is the sum of the clamped values.
+//! account's sells, and each buy offsets once. The pool's `used` is the sum of the clamped values.
+//!
+//! Which tokens of a sell count: the marked part first (it always counts), then the unmarked
+//! tokens the account bought in the current window and has not sold yet (they always count, for
+//! every class), then the tokens it held from before the window (by class: large counts; a band
+//! account's first allowance and a small account's tokens do not). This order is for the cap
+//! count only; the penalty-free part, the allowances and the class rules do not follow it.
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use ethnum::U256;
@@ -32,11 +35,12 @@ pub struct CapWindow {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct CapNet {
     pub window: u64,
-    /// Counted sell payouts minus the buy NEAR left after the uncounted sells took theirs.
-    /// Negative while buy NEAR is not used yet. Read through [`CapNet::counted`].
+    /// Counted sell payouts minus the NEAR of all buys in the window. Negative while buy NEAR is
+    /// not used yet. Read through [`CapNet::counted`].
     pub net_out: i128,
-    /// Payouts of uncounted sells that no buy offset yet.
-    pub uncounted_not_offset: u128,
+    /// Unmarked tokens bought in the window and not sold yet. The next sells count them first,
+    /// after their marked part.
+    pub bought_not_sold: u128,
 }
 
 impl CapNet {
@@ -47,22 +51,18 @@ impl CapNet {
 
     /// True when the account bought or sold in this window (the record is not empty).
     pub fn is_open(self) -> bool {
-        self.net_out != 0 || self.uncounted_not_offset != 0
+        self.net_out != 0 || self.bought_not_sold != 0
     }
 
-    fn after_buy(mut self, near_in: u128) -> Self {
-        let offsets_uncounted = near_in.min(self.uncounted_not_offset);
-        self.uncounted_not_offset -= offsets_uncounted;
-        self.net_out -= (near_in - offsets_uncounted) as i128;
+    fn after_buy(mut self, near_in: u128, unmarked_tokens: u128) -> Self {
+        self.net_out -= near_in as i128;
+        self.bought_not_sold += unmarked_tokens;
         self
     }
 
-    fn after_sell(mut self, uncounted_out: u128, counted_out: u128) -> Self {
-        let buy_near_not_used = self.net_out.min(0).unsigned_abs();
-        let offset = uncounted_out.min(buy_near_not_used);
-        self.net_out += offset as i128;
-        self.uncounted_not_offset += uncounted_out - offset;
+    fn after_sell(mut self, counted_out: u128, bought_tokens_sold: u128) -> Self {
         self.net_out += counted_out as i128;
+        self.bought_not_sold -= bought_tokens_sold;
         self
     }
 }
@@ -108,27 +108,34 @@ pub fn cap_net_now(state: &CoinState, holder: Option<&Holder>, at: At) -> CapNet
     }
 }
 
-/// The holder's record and the pool's cap used after a buy of `near_in`.
-pub fn after_buy(state: &CoinState, holder: &Holder, near_in: u128, at: At) -> (CapNet, u128) {
+/// The holder's record and the pool's cap used after a buy of `near_in` that gives
+/// `unmarked_tokens` unmarked tokens.
+pub fn after_buy(
+    state: &CoinState,
+    holder: &Holder,
+    near_in: u128,
+    unmarked_tokens: u128,
+    at: At,
+) -> (CapNet, u128) {
     let before = cap_net_now(state, Some(holder), at);
-    let after = before.after_buy(near_in);
+    let after = before.after_buy(near_in, unmarked_tokens);
     (
         after,
         cap_used(state, at) - before.counted() + after.counted(),
     )
 }
 
-/// The holder's record and the pool's cap used after a sell that pays `uncounted_out` from its
-/// part that does not count and `counted_out` from its part that counts.
+/// The holder's record and the pool's cap used after a sell that pays `counted_out` from its
+/// part that counts and sells `bought_tokens_sold` of the tokens bought in the window.
 pub fn after_sell(
     state: &CoinState,
     holder: &Holder,
-    uncounted_out: u128,
     counted_out: u128,
+    bought_tokens_sold: u128,
     at: At,
 ) -> (CapNet, u128) {
     let before = cap_net_now(state, Some(holder), at);
-    let after = before.after_sell(uncounted_out, counted_out);
+    let after = before.after_sell(counted_out, bought_tokens_sold);
     (
         after,
         cap_used(state, at) - before.counted() + after.counted(),

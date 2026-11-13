@@ -14,8 +14,10 @@
 //! - The total supply never changes.
 //! - `fc_quote_sell` equals the real sell.
 //! - For a band account, `penalty_applies_above` equals `max_full_fill_now`.
-//! - Small sells never count, sends never count, and no account's buys lower another
-//!   account's counted sells: the cap used falls by at most the buyer's own part.
+//! - A small sell by an account that bought no unmarked tokens in the window never counts. A
+//!   small sell of tokens bought in the window counts; it fills as far as it passes the cap
+//!   check or adds nothing to the cap used. Sends never count, and no account's buys lower
+//!   another account's counted sells: the cap used falls by at most the buyer's own part.
 //! - Every holder record has the size of an empty record, so the storage deposit for a record
 //!   pays for it whatever the account does.
 //! - Marked tokens: the early supply total equals the marked balances held; the creator group
@@ -42,13 +44,13 @@
 //! tokens and 24 h waits. A failing sequence is saved in
 //! `proptest-regressions/real_near_cap_properties.txt` (committed), and runs first next time.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 use rule_engine::{
     apply, launch, quote_sell, view_account, view_cap, view_early_window, view_pool, Action, At,
-    CoinState, Event, FcSell, FcSend, FixedValues, Holder, Holders, LaunchRequest,
+    CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders, LaunchRequest,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -126,6 +128,8 @@ struct Coin {
     /// `fc_cap.cap_used` that its own actions made.
     cap_part: BTreeMap<String, i128>,
     cap_window_start_ns: u64,
+    /// Accounts that bought unmarked tokens in the current window.
+    bought_in_window: BTreeSet<String>,
     /// Check, after every step, that each marked token counts once per 24 h window.
     check_marked_shares: bool,
 }
@@ -160,6 +164,7 @@ impl Coin {
             near_out: 0,
             cap_part: BTreeMap::new(),
             cap_window_start_ns: LAUNCH_NS,
+            bought_in_window: BTreeSet::new(),
             check_marked_shares: false,
         }
     }
@@ -189,6 +194,7 @@ impl Coin {
         if window_start != self.cap_window_start_ns {
             self.cap_window_start_ns = window_start;
             self.cap_part.clear();
+            self.bought_in_window.clear();
         }
         match *step {
             Step::Wait { seconds } => {
@@ -198,7 +204,7 @@ impl Coin {
             }
             Step::Buy { account, near_in } => {
                 let account = account_name(account);
-                self.act(
+                let events = self.act_applied(
                     &account,
                     Action::Buy {
                         account: account.clone(),
@@ -206,6 +212,22 @@ impl Coin {
                         min_tokens_out: 0,
                     },
                 )?;
+                let bought = events.and_then(|events| {
+                    events.into_iter().find_map(|e| match e {
+                        Event::FcBuy(b) => Some(b),
+                        _ => None,
+                    })
+                });
+                if let Some(FcBuy {
+                    tokens_out,
+                    marked_tokens,
+                    ..
+                }) = bought
+                {
+                    if tokens_out > marked_tokens {
+                        self.bought_in_window.insert(account);
+                    }
+                }
                 Ok(())
             }
             Step::Sell { account, share_bps } => self.sell(&account_name(account), share_bps),
@@ -265,6 +287,8 @@ impl Coin {
             self.at,
         );
         let used_before = self.cap_used();
+        let (state_before, holders_before) =
+            (self.state.clone(), self.holders(&[account.to_string()]));
         let Some(sell) = self.act(
             account,
             Action::Sell {
@@ -291,16 +315,40 @@ impl Coin {
         prop_assert_eq!(sell.cap_left, cap.cap_left);
         // What fills whatever the cap says, at most: the marked part up to its part of the
         // shared floor, then the unmarked part up to its floor (large), its first allowance
-        // room (band) or in full (small).
+        // room (band) or in full (small with no buy in the window).
+        let bought_in_window = self.bought_in_window.contains(account);
         let marked_always = before.marked_balance.min(before.marked.floor_left);
         let marked_most = before.marked_balance.min(before.marked.left);
         let unmarked_always = match sell.class {
             "large" => before.unmarked_balance.min(before.unmarked.floor_left),
             "band" => before.penalty_applies_above.expect("band") - marked_most,
+            _ if bought_in_window => 0,
             _ => before.unmarked_balance,
         };
         let above_what_always_fills = sell.tokens_sold > marked_always + unmarked_always;
-        if above_what_always_fills {
+        // A small sell of bought tokens also fills while its unmarked part adds nothing to the
+        // cap used: compare with a sell of its marked part alone.
+        let small_added_nothing = sell.class == "small" && bought_in_window && {
+            let used_by_marked_part = if sell.marked_sold == 0 {
+                used_before
+            } else {
+                let marked_only = apply(
+                    &state_before,
+                    holders_before,
+                    &Action::Sell {
+                        account: account.to_string(),
+                        amount: sell.marked_sold,
+                        min_near_out: 0,
+                        attached: 1,
+                    },
+                    self.at,
+                )
+                .expect("the marked part alone sells");
+                view_cap(&marked_only.state, self.at).cap_used
+            };
+            cap.cap_used <= used_by_marked_part
+        };
+        if above_what_always_fills && !small_added_nothing {
             prop_assert!(
                 cap.cap_used * BPS <= cap.real_near_now * self.state.fixed.real_cap_c_bps as u128,
                 "cap used {} above c x real NEAR left {} after a {} sell",
@@ -309,7 +357,7 @@ impl Coin {
                 sell.class
             );
         }
-        if sell.class == "small" && sell.marked_sold == 0 {
+        if sell.class == "small" && sell.marked_sold == 0 && !bought_in_window {
             prop_assert_eq!(cap.cap_used, used_before, "a small sell counted");
         }
         Ok(())
@@ -750,9 +798,9 @@ fn the_twin_bound_holds_for_a_buy_then_two_sells_that_round_on_different_bases()
 
 /// A saved case from the random runs, with a larger buy: a marked holder sells (the cap counts
 /// it), buys unmarked tokens (the buy offsets that counted sell) and sells all again. The marked
-/// part goes first and takes the room the buy freed for tokens held at the window start, while
-/// the bought tokens sell as a part that does not count. This fails under the rules as written;
-/// the builder decides the rule.
+/// part goes first and takes the room the buy freed for tokens held at the window start. The
+/// bought tokens count too when they are sold in the same window, so the resale uses that room
+/// again.
 #[test]
 fn an_unmarked_round_trip_gains_a_marked_holder_no_cap_room_for_tokens_it_held_before() {
     let history = [
@@ -773,4 +821,47 @@ fn an_unmarked_round_trip_gains_a_marked_holder_no_cap_room_for_tokens_it_held_b
         WindowTrade::Sell { share_bps: 10_000 },
     ];
     twin_bound_holds(&history, 4, &trades).expect("twin bound");
+}
+
+/// A saved case from the random runs: a band holder of marked tokens only buys X and becomes
+/// large, then sells all twice. The buy NEAR offsets the marked part, so marked tokens fill into
+/// the cap room, and the bought tokens left then fill through the account's own unmarked floor.
+/// The twin run gets only the marked floor. This fails under the rules as written; the builder
+/// decides the rule.
+#[test]
+fn a_buy_gives_a_marked_holder_no_second_floor_for_tokens_it_held_before() {
+    let history = [
+        Step::Buy {
+            account: 2,
+            near_in: 10_054_969_190_151_614_964_507,
+        },
+        Step::Buy {
+            account: 3,
+            near_in: 2 * ONE_NEAR,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 6,
+            near_in: 6_482_066_110_376_778_936_034_148,
+        },
+    ];
+    let trades = [
+        WindowTrade::Buy {
+            near_in: 949_958_024_007_415_573_715_582,
+        },
+        WindowTrade::Sell { share_bps: 10_000 },
+        WindowTrade::Sell { share_bps: 10_000 },
+    ];
+    twin_bound_holds(&history, 3, &trades).expect("twin bound");
 }
