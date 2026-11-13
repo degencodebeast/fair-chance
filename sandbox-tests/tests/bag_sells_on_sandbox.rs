@@ -1,0 +1,136 @@
+//! On sandbox: the sells-only step sells the full balance of buyers 01 to 18, one after another in
+//! that order, writes the plan file before the first signature, and leaves buyers 19 and 20 alone.
+
+use anyhow::Result;
+use fair_chance_sandbox_tests::option_t::{make_accounts, OptionTSetup};
+use fair_chance_sandbox_tests::pass_list::PassList;
+use fair_chance_sandbox_tests::sells_only::run_sells;
+use fair_chance_sandbox_tests::{batch_once, launch_args, view_on, FunctionCall, World};
+use near_api::types::{NearGas, NearToken};
+use serde_json::json;
+
+fn plan_path(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("fc-sells-{}-{name}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("plan.json");
+    let _ = std::fs::remove_file(&path);
+    path
+}
+
+async fn balance_of(
+    setup: &OptionTSetup,
+    coin: &near_api::types::AccountId,
+    who: &near_api::types::AccountId,
+) -> Result<u128> {
+    let v = view_on(
+        &setup.network,
+        coin,
+        "ft_balance_of",
+        json!({ "account_id": who }),
+    )
+    .await?;
+    Ok(v.as_str().unwrap().parse()?)
+}
+
+/// Launch BAG and let all 20 buyers buy 1 NEAR, then wait for the end of the early window.
+async fn launched_bag(world: &World) -> Result<(OptionTSetup, near_api::types::AccountId)> {
+    let setup = OptionTSetup::sandbox_defaults(world, "BAG", 20);
+    let (creator, buyers) = make_accounts(&setup).await?;
+    let launch = world
+        .try_launch(
+            &creator,
+            launch_args("Bag Holder", "BAG", None, Some("sandbox"), None),
+            setup.launch_deposit,
+        )
+        .await?;
+    assert!(launch.is_success(), "{launch:?}");
+    let coin = world.coin_for("bag")?;
+    let bounds = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
+    let storage: u128 = bounds["min"].as_str().unwrap().parse()?;
+    for buyer in &buyers {
+        let calls = vec![
+            FunctionCall::new(
+                "storage_deposit",
+                json!({}),
+                NearToken::from_yoctonear(storage),
+            ),
+            FunctionCall::new(
+                "buy",
+                json!({ "min_tokens_out": "0" }),
+                NearToken::from_near(1),
+            ),
+        ];
+        let bought = batch_once(
+            &setup.network,
+            &setup.send_network,
+            buyer,
+            &coin,
+            calls,
+            NearGas::from_tgas(300),
+        )
+        .await?;
+        assert!(bought.is_success(), "{bought:?}");
+    }
+    world.wait_until_after_the_early_window(&coin).await?;
+    Ok((setup, coin))
+}
+
+#[tokio::test]
+async fn buyers_01_to_18_sell_their_full_balance_in_order_and_19_and_20_keep() -> Result<()> {
+    let world = World::launch().await?;
+    let (setup, coin) = launched_bag(&world).await?;
+    let (sellers, keepers) =
+        fair_chance_sandbox_tests::sells_only::fixed_accounts("BAG", &setup.funder.id)?;
+    let mut before = Vec::new();
+    for a in sellers.iter().chain(&keepers) {
+        before.push(balance_of(&setup, &coin, a).await?);
+    }
+    let path = plan_path("run");
+
+    let sells = run_sells(&setup, &path, &mut PassList::default()).await?;
+
+    let plan: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&path)?)?;
+    assert_eq!(plan["sells"].as_array().unwrap().len(), 18);
+    assert_eq!(sells.len(), 18);
+    for (i, sell) in sells.iter().enumerate() {
+        assert_eq!(sell.account, sellers[i], "sell {} out of order", i + 1);
+        assert_eq!(
+            sell.tokens_asked,
+            before[i],
+            "sell {} was not the full balance",
+            i + 1
+        );
+        assert_eq!(plan["sells"][i]["amount"], before[i].to_string());
+        let after = balance_of(&setup, &coin, &sellers[i]).await?;
+        assert_eq!(after, before[i] - sell.tokens_sold, "{}", sellers[i]);
+    }
+    for (k, a) in keepers.iter().enumerate() {
+        assert_eq!(
+            balance_of(&setup, &coin, a).await?,
+            before[18 + k],
+            "{a} sold"
+        );
+        assert!(before[18 + k] > 0);
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_existing_plan_file_stops_the_step_before_any_signature() -> Result<()> {
+    let world = World::launch().await?;
+    let (setup, coin) = launched_bag(&world).await?;
+    let path = plan_path("exists");
+    std::fs::write(&path, "{}")?;
+    let first =
+        &fair_chance_sandbox_tests::sells_only::fixed_accounts("BAG", &setup.funder.id)?.0[0];
+    let before = balance_of(&setup, &coin, first).await?;
+
+    let error = run_sells(&setup, &path, &mut PassList::default())
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("nothing was signed"), "{error}");
+    assert_eq!(balance_of(&setup, &coin, first).await?, before);
+    assert_eq!(std::fs::read_to_string(&path)?, "{}");
+    Ok(())
+}
