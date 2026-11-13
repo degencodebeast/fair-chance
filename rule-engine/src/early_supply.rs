@@ -69,6 +69,8 @@ pub struct SharedAllowance {
     pub floor: u128,
     /// The marked supply that is the base of every share in the window.
     pub marked_supply_at_start: u128,
+    /// Marked tokens sold in the window, all accounts together; 0 before its first action.
+    pub sold: u128,
 }
 
 /// True in blocks 0 to N of the coin.
@@ -135,19 +137,25 @@ pub fn shared_allowance(state: &CoinState, at: At) -> SharedAllowance {
             allowance: 0,
             floor: 0,
             marked_supply_at_start: state.marked_supply,
+            sold: 0,
         };
     }
     let recorded = state.early_supply_window;
-    let (reserve, marked_supply_at_start) =
+    let (reserve, marked_supply_at_start, sold) =
         if recorded.recorded && recorded.window == early_supply_window(state, at) {
-            (recorded.token_reserve, recorded.marked_supply_at_start)
+            (
+                recorded.token_reserve,
+                recorded.marked_supply_at_start,
+                recorded.sold,
+            )
         } else {
-            (state.token_reserve, state.marked_supply)
+            (state.token_reserve, state.marked_supply, 0)
         };
     SharedAllowance {
         allowance: tokens_for_price_drop(reserve, state.fixed.p_bps),
         floor: mul_div(reserve, state.fixed.floor_bps as u128, BPS),
         marked_supply_at_start,
+        sold,
     }
 }
 

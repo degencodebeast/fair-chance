@@ -468,6 +468,7 @@ impl Coin {
             let (mut shares, mut sold) = (0u128, 0u128);
             for account in self.ledger.keys() {
                 let view = view_account(&self.state, account, self.ledger.get(account), self.at);
+                prop_assert_eq!(view.marked.window_end_ns, early.window_end_ns);
                 prop_assert!(
                     view.marked.used <= view.marked.allowance,
                     "{} sold above its share",
@@ -485,6 +486,12 @@ impl Coin {
                 sold <= early.shared_allowance,
                 "marked sold {sold} above the shared allowance {}",
                 early.shared_allowance
+            );
+            // The shared figures are the sum of the accounts' marked sells in the window.
+            prop_assert_eq!(early.shared_allowance_used, sold);
+            prop_assert_eq!(
+                early.shared_allowance_left,
+                early.shared_allowance.saturating_sub(sold)
             );
         }
         Ok(())
@@ -864,4 +871,111 @@ fn a_buy_gives_a_marked_holder_no_second_floor_for_tokens_it_held_before() {
         WindowTrade::Sell { share_bps: 10_000 },
     ];
     twin_bound_holds(&history, 3, &trades).expect("twin bound");
+}
+
+/// Two marked accounts in the window after their early buys. A sells its marked tokens to zero,
+/// buys X and sells the bought tokens back; then B sells all. A's resale counts, net of its
+/// buy, so A's round trip frees no room for B: the cap used is exactly A's net (clamped at 0)
+/// after A's trades, and B's sell above its part of the shared floor leaves the cap used at
+/// most c x the real NEAR left.
+fn freed_room_holds(
+    early_buys: (u128, u128),
+    depth: [u128; 3],
+    buy_back: u128,
+) -> Result<(), TestCaseError> {
+    const A: usize = 4;
+    const B: usize = 5;
+    let (a, b) = (account_name(A), account_name(B));
+    let mut coin = Coin::launched();
+    coin.run(&Step::Buy {
+        account: A,
+        near_in: early_buys.0,
+    })?;
+    coin.run(&Step::Buy {
+        account: B,
+        near_in: early_buys.1,
+    })?;
+    coin.run(&Step::Wait { seconds: 20 })?;
+    for (account, near_in) in [1, 2, 3].into_iter().zip(depth) {
+        coin.run(&Step::Buy { account, near_in })?;
+    }
+    coin.run(&Step::Wait { seconds: 3_600 })?;
+    let marked =
+        |coin: &Coin, account: &str| coin.ledger.get(account).map_or(0, |h| h.marked_balance);
+    prop_assume!(marked(&coin, &a) > 0 && marked(&coin, &b) > 0);
+
+    coin.run(&Step::Sell {
+        account: A,
+        share_bps: 10_000,
+    })?;
+    prop_assume!(marked(&coin, &a) == 0 && coin.balance(&a) == 0);
+    let first_out = coin.near_out;
+    let used_after_first = coin.cap_used();
+    prop_assert_eq!(used_after_first, first_out);
+
+    let near_out_before = coin.near_out;
+    coin.run(&Step::Buy {
+        account: A,
+        near_in: buy_back,
+    })?;
+    prop_assume!(coin.balance(&a) > 0);
+    coin.run(&Step::Sell {
+        account: A,
+        share_bps: 10_000,
+    })?;
+    let resale_out = coin.near_out - near_out_before;
+    let a_net = first_out as i128 - buy_back as i128 + resale_out as i128;
+    prop_assert_eq!(
+        coin.cap_used(),
+        a_net.max(0) as u128,
+        "A's resale did not count"
+    );
+
+    let before = view_account(&coin.state, &b, coin.ledger.get(&b), coin.at);
+    let used_before_b = coin.cap_used();
+    let Some(sell) = coin.act(
+        &b,
+        Action::Sell {
+            account: b.clone(),
+            amount: coin.balance(&b),
+            min_near_out: 0,
+            attached: 1,
+        },
+    )?
+    else {
+        return Ok(());
+    };
+    let cap = view_cap(&coin.state, coin.at);
+    prop_assert!(
+        cap.cap_used >= used_before_b,
+        "B's sell lowered A's counted NEAR"
+    );
+    if sell.tokens_sold > before.marked.floor_left.min(before.marked_balance) {
+        prop_assert!(
+            cap.cap_used * BPS <= cap.real_near_now * coin.state.fixed.real_cap_c_bps as u128,
+            "cap used {} above c x real NEAR left {} after B's sell",
+            cap.cap_used,
+            cap.real_near_now
+        );
+    }
+    Ok(())
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig {
+        cases: 1_000,
+        failure_persistence: Some(Box::new(FileFailurePersistence::Direct(
+            "proptest-regressions/real_near_cap_properties.txt",
+        ))),
+        ..ProptestConfig::default()
+    })]
+
+    #[test]
+    fn a_marked_round_trip_frees_no_cap_room_for_another_marked_seller(
+        early_buys in (ONE_NEAR / 100..ONE_NEAR, ONE_NEAR / 100..2 * ONE_NEAR),
+        depth in [0..20 * ONE_NEAR, 0..20 * ONE_NEAR, 0..20 * ONE_NEAR],
+        buy_back in prop_oneof![1..1_000u128, ONE_NEAR / 1_000..3 * ONE_NEAR],
+    ) {
+        freed_room_holds(early_buys, depth, buy_back)?;
+    }
 }

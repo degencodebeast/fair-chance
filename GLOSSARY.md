@@ -19,7 +19,7 @@ _Avoid_: sniper supply, insider supply.
 
 **Band account**: an account that is not large and whose balance, marked and unmarked, is between one allowance and the large threshold. An account that was large stays large. The band rules apply only to the unmarked part; marked tokens always follow the early-supply share. Public docs and the design call it a mid-size account; the contract and the interface say band (`class` = `band`). Its first allowance in each window always fills. It may sell above that and pay a penalty while the real NEAR cap has room. In each 1 h window, an account's class is never below its class just before its first action (buy, sell, send or receive) in that window. A buy or a receive can raise it; a sell or a send cannot drop it until the window ends. So a band account that sells or sends below one allowance stays band for the rest of the window, and an account that was large and sells to zero is band for the rest of the window.
 
-**First allowance**: the part of a band account's sells in one window, up to one allowance, that always fills and never counts toward the real NEAR cap.
+**First allowance**: the part of a band account's sells in one window, up to one allowance, that always fills. Of the tokens it held from before the window, that part never counts toward the real NEAR cap; tokens bought in the window always count.
 _Avoid_: small account (a small account's bag fits inside one allowance).
 
 **Early window**: blocks 0 to N of a coin. A buy in the early window is early supply. Marked tokens cannot be sold in the early window. Early-supply shares are first recorded at the first action after block N.

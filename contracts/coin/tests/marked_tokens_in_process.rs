@@ -92,8 +92,14 @@ fn the_opening_buy_is_marked_pays_the_early_fee_and_shows_in_the_creator_s_accou
     assert_eq!(amount(&creator["marked_balance"]), tokens);
     assert_eq!(creator["unmarked_balance"], "0");
     assert_eq!(creator["marked"]["allowance"], "0");
-    assert_eq!(view(coin.fc_account(account(SUB_ACCOUNT)))["in_creator_group"], true);
-    assert_eq!(view(coin.fc_account(account("ecreator.test")))["in_creator_group"], false);
+    assert_eq!(
+        view(coin.fc_account(account(SUB_ACCOUNT)))["in_creator_group"],
+        true
+    );
+    assert_eq!(
+        view(coin.fc_account(account("ecreator.test")))["in_creator_group"],
+        false
+    );
 
     let pool = view(coin.fc_pool());
     let supply = 1_000_000_000u128 * 10u128.pow(18);

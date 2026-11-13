@@ -530,6 +530,10 @@ fn paper_case_e_a_three_percent_buy_in_block_2_sells_only_at_its_pro_rata_share_
     assert_eq!(sold.fill, "partial");
     assert_eq!(sold.limit_reason, Some("allowance"));
     assert_eq!(sold.penalty_near, 0);
+    let early = view_early_window(&coin.state, at);
+    assert_eq!(early.shared_allowance_used, sold.marked_sold);
+    assert_eq!(early.shared_allowance_left, shared - sold.marked_sold);
+    assert_eq!(early.window_end_ns, LAUNCH_NS + DAY_S * SECOND_NS);
     // The share is used for this 24 h window, also in the next 1 h windows.
     let again = coin.sell(EARLY, coin.balance(EARLY), after(5 * HOUR_S));
     assert_eq!(again.tokens_sold, 0);
@@ -539,6 +543,10 @@ fn paper_case_e_a_three_percent_buy_in_block_2_sells_only_at_its_pro_rata_share_
     let next = coin.sell(EARLY, coin.balance(EARLY), after(DAY_S));
     assert!(next.tokens_sold > 0);
     assert_eq!(next.marked_sold, next.tokens_sold);
+    // The next window's shared figures start again.
+    let early = view_early_window(&coin.state, after(DAY_S));
+    assert_eq!(early.shared_allowance_used, next.marked_sold);
+    assert_eq!(early.window_end_ns, LAUNCH_NS + 2 * DAY_S * SECOND_NS);
 }
 
 #[test]

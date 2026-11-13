@@ -119,6 +119,15 @@ pub struct EarlyWindowView {
     pub rate_per_token: u128,
     pub buy_fee_bps_now: u32,
     pub fee_end_block: u64,
+    /// Marked tokens sold in the current 24 h window, all accounts together.
+    #[serde(with = "crate::decimal_string")]
+    pub shared_allowance_used: u128,
+    /// `shared_allowance` less `shared_allowance_used`, at least 0.
+    #[serde(with = "crate::decimal_string")]
+    pub shared_allowance_left: u128,
+    /// End of the current 24 h window, when the shared allowance refills.
+    #[serde(with = "crate::decimal_string")]
+    pub window_end_ns: u64,
 }
 
 pub fn view_early_window(state: &CoinState, at: At) -> EarlyWindowView {
@@ -138,6 +147,9 @@ pub fn view_early_window(state: &CoinState, at: At) -> EarlyWindowView {
         },
         buy_fee_bps_now: early_buy_fee::buy_fee_bps_now(state, at),
         fee_end_block: end + 1,
+        shared_allowance_used: shared.sold,
+        shared_allowance_left: shared.allowance.saturating_sub(shared.sold),
+        window_end_ns: early_supply::early_supply_window_end_ns(state, at),
     }
 }
 
