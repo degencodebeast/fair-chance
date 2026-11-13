@@ -5,6 +5,7 @@
 //! stores and logs what comes back. Views are pure functions of the same inputs.
 
 mod actions;
+mod allowance;
 mod coin_state;
 pub mod decimal_string;
 mod events;
@@ -15,6 +16,7 @@ mod views;
 mod wide_integer_math;
 
 pub use actions::{Action, Applied, Fill, Payout};
+pub use allowance::{WindowReserve, WindowTotals};
 pub use coin_state::{
     launch, At, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
 };

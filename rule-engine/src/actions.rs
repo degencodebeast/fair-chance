@@ -1,5 +1,6 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
+use crate::allowance::{self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holders};
 use crate::events::{Event, FcBuy, FcSell, FtTransfer};
 use crate::pool_math;
@@ -72,6 +73,10 @@ pub fn apply(
     action: &Action,
     at: At,
 ) -> Result<Applied, Refusal> {
+    // The first action of a window records the token reserve before it changes the pool.
+    let mut state = state.clone();
+    allowance::record_window_reserve(&mut state, at);
+    let state = &state;
     match action {
         Action::Buy {
             account,
@@ -115,7 +120,9 @@ fn buy(
     let mut next = state.clone();
     next.token_reserve -= tokens_out;
     next.real_near += near_in;
-    holders.entry(account.to_string()).or_default().balance += tokens_out;
+    let holder = holders.entry(account.to_string()).or_default();
+    holder.balance += tokens_out;
+    count_bought(state, holder, tokens_out, at);
 
     let events = vec![
         Event::FtTransfer(FtTransfer {
@@ -170,6 +177,8 @@ fn sell(
         return Err(Refusal::new(RefusalCode::Slippage));
     }
     holder.balance -= tokens_sold;
+    count_sold(state, holder, tokens_sold, at);
+    let after_sell = unmarked_allowance(state, Some(holder), at);
     let mut next = state.clone();
     next.token_reserve += tokens_sold;
     next.real_near -= near_out;
@@ -192,11 +201,11 @@ fn sell(
             penalty_near: 0,
             fill: Fill::Full.as_str(),
             limit_reason: None,
-            allowance_used: 0,
-            allowance_left: 0,
+            allowance_used: after_sell.used,
+            allowance_left: after_sell.left,
             cap_used: 0,
             cap_left: 0,
-            window_end_ns: state.unmarked_window_end_ns(at),
+            window_end_ns: unmarked_window_end_ns(state, at),
         }),
     ];
     let payout = Some(Payout {

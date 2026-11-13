@@ -3,6 +3,7 @@
 use serde::Serialize;
 
 use crate::actions::{apply, Action};
+use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::events::Event;
 
@@ -140,7 +141,7 @@ pub struct CapView {
 }
 
 pub fn view_cap(state: &CoinState, at: At) -> CapView {
-    let end = state.unmarked_window_end_ns(at);
+    let end = unmarked_window_end_ns(state, at);
     CapView {
         window_start_ns: end - state.fixed.window_unmarked_s * 1_000_000_000,
         window_end_ns: end,
@@ -193,7 +194,8 @@ pub struct AccountView {
 
 pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> AccountView {
     let balance = holder.map_or(0, |h| h.balance);
-    let window_end_ns = state.unmarked_window_end_ns(at);
+    let unmarked = unmarked_allowance(state, holder, at);
+    let window_end_ns = unmarked.window_end_ns;
     let empty = |share_bps| AllowanceView {
         share_bps,
         allowance: 0,
@@ -211,7 +213,14 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
         can_send: true,
         in_creator_group: false,
         max_receive: Some(0),
-        unmarked: empty(None),
+        unmarked: AllowanceView {
+            share_bps: None,
+            allowance: unmarked.allowance,
+            used: unmarked.used,
+            left: unmarked.left,
+            floor_left: 0,
+            window_end_ns,
+        },
         marked: empty(Some(0)),
         max_full_fill_now: balance,
         penalty_applies_above: None,
