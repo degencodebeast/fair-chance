@@ -20,7 +20,7 @@ describe("the alerts screen", () => {
 
   it("uses the alert sentences from the watcher templates and does not write its own", () => {
     const m = watcherScreenModel(bare);
-    expect(m.plain.map((p) => p.text.split("\n").slice(1, 2)[0])).toEqual(expect.arrayContaining([file.alerts[0].text]));
+    expect(m.plain.map((p) => p.text)).toEqual([file.watch_reply, ...file.alerts.map((a: { text: string }) => a.text), file.check_reply]);
     expect(m.checkCard).toBe(file.check_reply);
   });
 
