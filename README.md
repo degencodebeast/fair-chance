@@ -197,7 +197,7 @@ flowchart LR
 
 ## Network
 
-The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. Its length in seconds is the measured testnet block time times 18. <!-- waits on: evidence/testnet-run.json (the recorded run that this paragraph describes) --> <!-- waits on: the measured testnet block time (the number of seconds goes here, as "about X seconds at the measured testnet block time") -->
+The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. It lasts about 10.5 seconds at the measured testnet block time: 0.5812 seconds per block, from 1,000 final blocks in 581.165 seconds. <!-- waits on: evidence/testnet-run.json (the recorded run that this paragraph describes) -->
 
 <!-- waits on: the testnet deploy (factory account, coin code hash, deployed commit, explorer links) -->
 
