@@ -3,7 +3,7 @@ As of 14:24.
 
 Creator group: not available from this coin
 Early supply: 5.0% of supply
-Shared allowance left today: 3.4M MOTH
+Shared allowance for this 24 h window: 3.4M MOTH
 Refills 13:02 tomorrow, in 22 h 38 min
 
 Large holders: not available from this coin
