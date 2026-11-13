@@ -245,7 +245,9 @@ pub fn view_account(state: &CoinState, holder: Option<&Holder>, at: At) -> Accou
             Class::Band => balance.min(unmarked.sell_room),
             Class::Small => balance,
         },
-        penalty_applies_above: (class == Class::Band).then_some(unmarked.sell_room),
+        // A band sell above this pays the penalty; no sell can go above the balance, so it is
+        // the same value as `max_full_fill_now`.
+        penalty_applies_above: (class == Class::Band).then_some(balance.min(unmarked.sell_room)),
     }
 }
 
