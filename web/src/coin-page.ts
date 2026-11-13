@@ -1,6 +1,6 @@
 // Loads everything the coin page shows, through the chain-read module only. The result is either
 // all of it or an error: when any read fails, no number from an earlier or partial read is kept.
-import { chainReader, configFromUrl, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
+import { chainReader, configFromUrl, eventsFromLaunch, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
 import { parseCreatorFees, type CreatorFees } from "./creator-fees.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
 import { resolvePageLink, sourceLabel } from "./page-link.ts";
@@ -76,7 +76,7 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
       optional(() => reader.view("ft_total_supply"), parseTotalSupply),
       optional(() => reader.view("ft_metadata"), parseMetadata),
       runCoinChecks(reader, cfg.coin, link.known),
-      reader.events(rules.launchBlock),
+      eventsFromLaunch(reader, rules.launchBlock),
     ]);
     const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };

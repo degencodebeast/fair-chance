@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 use fair_chance_sandbox_tests::{
-    events, launch_args, ContractState, World, COIN_DESCRIPTION, COIN_ICON, COIN_TICKER,
-    LAUNCH_DEPOSIT,
+    events, launch_args, transaction_block_hash, ContractState, World, COIN_DESCRIPTION, COIN_ICON,
+    COIN_TICKER, LAUNCH_DEPOSIT, LAUNCH_SCAN_MARGIN_BLOCKS,
 };
 use near_api::types::NearToken;
 use serde_json::json;
@@ -457,5 +457,95 @@ async fn an_opening_buy_that_leaves_too_little_for_storage_makes_no_coin() -> Re
     assert_eq!(world.contract_state(&coin).await?, None);
     let spent = before.saturating_sub(world.balance(&world.alice.id).await?);
     assert!(spent < NearToken::from_millinear(100), "spent {spent}");
+    Ok(())
+}
+
+/// 4% of the 1,000,000,000-token supply, in base units (18 decimals): the creator-group cap.
+const CREATOR_CAP_TOKENS: u128 = 40_000_000 * 10u128.pow(18);
+
+#[tokio::test]
+async fn an_opening_buy_is_marked_and_inside_the_creator_group_cap() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("marked")?;
+    // At block 0 the buy fee is 50%, so 8 NEAR buys about 3.85% of supply.
+    let opening_buy = NearToken::from_near(8);
+    let result = world
+        .try_launch(
+            &world.bob,
+            launch_args("Marked", "marked", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
+    let buy = &events(&result, "fair_chance", "fc_buy")[0].event["data"][0];
+    assert_eq!(buy["marked_tokens"], buy["tokens_out"]);
+    let tokens_out: u128 = buy["tokens_out"].as_str().unwrap().parse()?;
+    assert!(
+        tokens_out > 0 && tokens_out <= CREATOR_CAP_TOKENS,
+        "{tokens_out}"
+    );
+
+    let account = world
+        .view(&coin, "fc_account", json!({ "account_id": world.bob.id }))
+        .await?;
+    assert_eq!(account["in_creator_group"], true);
+    assert_eq!(account["marked_balance"], buy["tokens_out"]);
+    assert_eq!(account["unmarked_balance"], "0");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_opening_buy_above_the_creator_group_cap_is_refused_and_makes_no_coin() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("toolarge")?;
+    // At block 0 the buy fee is 50%, so 10 NEAR would buy about 4.76% of supply.
+    let opening_buy = NearToken::from_near(10);
+    let result = world
+        .try_launch(
+            &world.bob,
+            launch_args("Too Large", "toolarge", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert!(events(&result, "fair_chance_factory", "fc_launch").is_empty());
+    assert!(
+        format!("{result:?}").contains("FC_CREATOR_CAP"),
+        "the launch did not fail with FC_CREATOR_CAP: {result:?}"
+    );
+    assert_eq!(world.contract_state(&coin).await?, None);
+    Ok(())
+}
+
+/// The watcher and the page scan blocks from `LAUNCH_SCAN_MARGIN_BLOCKS` before `launch_block`,
+/// because the launch transaction sits in an earlier block than the coin's `new`. Fails when the
+/// launch transaction lands further back than that margin, so the scans would miss the opening buy.
+#[tokio::test]
+async fn the_launch_transaction_is_inside_the_scan_margin_before_the_launch_block() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("margin")?;
+    let opening_buy = NearToken::from_near(1);
+    let result = world
+        .try_launch(
+            &world.bob,
+            launch_args("Margin", "margin", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
+    let launch_block = world.view(&coin, "fc_rules", json!({})).await?["launch_block"]
+        .as_u64()
+        .unwrap();
+    let transaction_block = world
+        .block_height_of(transaction_block_hash(&result)?)
+        .await?;
+    assert!(
+        transaction_block < launch_block,
+        "the launch transaction is in block {transaction_block}, launch block {launch_block}"
+    );
+    assert!(
+        launch_block - transaction_block <= LAUNCH_SCAN_MARGIN_BLOCKS,
+        "the launch transaction is {} blocks before the launch block, more than the scan margin {LAUNCH_SCAN_MARGIN_BLOCKS}",
+        launch_block - transaction_block
+    );
     Ok(())
 }
