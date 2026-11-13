@@ -24,7 +24,14 @@ export async function checkHostedPage(page: Page, url: string): Promise<HostedPa
     if (msg.type() === "error" && new URL(msg.location().url || url).host === own) errors.push(msg.text());
   });
 
-  await page.goto(url);
+  try {
+    await page.goto(url);
+  } catch (err) {
+    // The message of a failed goto holds the full URL with its query, which may hold a key. Name only the reason.
+    const reason = /net::[A-Z_]+/.exec(err instanceof Error ? err.message : "")?.[0] ?? "navigation failed";
+    throw new Error(`could not open the page (${reason})`);
+  }
+  if (new URL(page.url()).host !== own) throw new Error(`the page moved to another host (${new URL(page.url()).host})`);
   await page
     .waitForFunction(() => /sell receipts|Values cannot load/.test(document.querySelector("#status")?.textContent ?? ""), null, { timeout: loadWaitMs })
     .catch(() => undefined);
