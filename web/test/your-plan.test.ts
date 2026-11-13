@@ -250,6 +250,7 @@ describe("an early-supply holder", () => {
 });
 
 describe("early supply held back by the pool cap", () => {
+  const NOTHING_FILLS = { tokens_filled: "0", near_out: "0", penalty_near: "0", fill: "none", limit_reason: "cap_full", cap_left_after: "0" };
   const withN = (n: string) =>
     `Early-supply tokens sell before your other tokens. While the pool cap holds them, a sell of about ${n} MOTH or less fills nothing, and a larger sell can fill part of the amount above that from your other tokens.`;
   const WITH_N = withN("6.0M");
@@ -281,6 +282,29 @@ describe("early supply held back by the pool cap", () => {
     const copy = preview?.kind === "preview" ? preview.copy : null;
     expect(copy).toContain(withN("6.1M"));
     expect(copy).not.toContain("6.0M MOTH or less");
+  });
+
+  it("rounds N up: 6.09M shows as about 6.1M, never 6.0M, so an ask below N is not shown as larger", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      const marked = (s.views.fc_account as { marked: Record<string, unknown> }).marked;
+      marked.left = "6090000000000000000000000";
+      s.asked = "6050000000000000000000000";
+      s.quotes_by_amount = { "6050000000000000000000000": NOTHING_FILLS };
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(withN("6.1M"));
+    expect(copy).not.toContain("about 6.0M");
+  });
+
+  it("shows the fallback, not N, when the other tokens cannot fill now (unmarked floor left 0)", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      (s.views.fc_account as { unmarked: Record<string, unknown> }).unmarked.floor_left = "0";
+      s.asked = "7000000000000000000000000";
+      s.quotes_by_amount = { "7000000000000000000000000": NOTHING_FILLS };
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(WITHOUT_N);
+    expect(copy).not.toContain("a larger sell");
   });
 
   it("checks N with fc_quote_sell", async () => {
