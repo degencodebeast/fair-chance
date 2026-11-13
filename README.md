@@ -207,7 +207,7 @@ These are recorded runs. They do not predict results.
 | What | Result | Conditions |
 | --- | --- | --- |
 | Rule tests | <!-- waits on: the final test count --> | `cargo test --workspace --locked` |
-| Property tests | <!-- waits on: the marked-token cap rule --> | |
+| Property tests | Three random-sequence properties in `real_near_cap_properties.rs`, with 10,000, 1,000 and 1,000 cases. Failing cases are kept in `rule-engine/proptest-regressions/`. | `cargo test --locked -p fair-chance-rule-engine --test real_near_cap_properties` |
 | NEAR launch replay and 60-day simulation | See [analysis/FINDINGS.md](analysis/FINDINGS.md). | Public-chain replay and synthetic activity. Not a forecast. |
 | SMDD replay | With the limits off, the creator sold 4.7% of all tokens sold in that run and took 10.2% of all NEAR paid out in that run in the first hour. With all rules together (early fee, allowance, class and cap), the creator sold 0.02% of all tokens sold in that run and took 0.02% of all NEAR paid out in that run. See [the chart and table](analysis/smdd-replay/results/). | SMDD's first-hour trades on Solana, replayed in order on one Fair Chance pool, limits on in the same coin code, in the near-sdk in-process runner, with exact blocks and times. Groups only, minutes from launch. The difference comes from all the rules together. Sizing in [the replay method](analysis/smdd-replay/METHOD.md). |
 
@@ -246,7 +246,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 - Watcher: Go. Page: TypeScript, Vite, Vitest, Playwright core for browser checks.
 - Prior curve designs: the constant-product pool with a virtual reserve comes from earlier launchpad curves ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md), [ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md#decision)). No code is copied from other launchpads.
 - The launch replay and the simulation come from Kalu ([analysis/FINDINGS.md](analysis/FINDINGS.md)).
-- Code written before 1 November 2026: <!-- waits on: the baseline tag list -->
+- Code written before 1 November 2026: none. All code in this repo was written during the event.
 
 ## Layout
 
