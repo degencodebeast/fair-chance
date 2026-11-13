@@ -10,7 +10,9 @@
 //!   allowance, leave the cap used at most c x the real NEAR left. Floors and band first
 //!   allowances fill whatever the cap says (ADR 0005), so they are outside this check.
 //! - No sell pays out NEAR that buyers did not put in: NEAR in = NEAR out + real NEAR + creator
-//!   balance, and the NEAR reserve never falls below virtual P.
+//!   fee balance + claimed creator fees, and the NEAR reserve never falls below virtual P.
+//! - Random creator claims go through exactly when `fc_creator_fees.claimable_now` says so. A
+//!   claim never changes real NEAR or the cap; a failed payout transfer restores the balance.
 //! - The total supply never changes.
 //! - `fc_quote_sell` equals the real sell, and `max_full_fill_now` is the largest sell that fills
 //!   in full with no penalty: a sell of it does, one more token unit does not.
@@ -54,8 +56,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use proptest::prelude::*;
 use proptest::test_runner::FileFailurePersistence;
 use rule_engine::{
-    apply, launch, quote_sell, view_account, view_cap, view_early_window, view_pool, Action, At,
-    CoinState, Event, FcBuy, FcSell, FcSend, FixedValues, Holder, Holders, LaunchRequest,
+    apply, launch, quote_sell, settle_creator_claim, view_account, view_cap, view_creator_fees,
+    view_early_window, view_pool, Action, At, CoinState, Event, FcBuy, FcSell, FcSend, FixedValues,
+    Holder, Holders, LaunchRequest,
 };
 
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
@@ -88,6 +91,10 @@ enum Step {
     Wait {
         seconds: u64,
     },
+    /// The creator claims its fees; the payout transfer then succeeds or fails.
+    Claim {
+        transfer_succeeds: bool,
+    },
 }
 
 fn near_in() -> impl Strategy<Value = u128> {
@@ -107,7 +114,8 @@ fn step() -> impl Strategy<Value = Step> {
         3 => (0..ACCOUNTS, near_in()).prop_map(|(account, near_in)| Step::Buy { account, near_in }),
         4 => (0..ACCOUNTS, share_bps()).prop_map(|(account, share_bps)| Step::Sell { account, share_bps }),
         1 => (0..ACCOUNTS, 0..ACCOUNTS, share_bps()).prop_map(|(from, to, share_bps)| Step::Send { from, to, share_bps }),
-        1 => prop_oneof![1..600u64, 3_000..7_300u64].prop_map(|seconds| Step::Wait { seconds }),
+        1 => prop_oneof![1..600u64, 3_000..7_300u64, 80_000..90_000u64].prop_map(|seconds| Step::Wait { seconds }),
+        1 => any::<bool>().prop_map(|transfer_succeeds| Step::Claim { transfer_succeeds }),
     ]
 }
 
@@ -135,6 +143,8 @@ struct Coin {
     cap_window_start_ns: u64,
     /// Accounts that bought unmarked tokens in the current window.
     bought_in_window: BTreeSet<String>,
+    /// A claimed amount whose payout transfer has not settled yet.
+    claim_in_flight: u128,
     /// Check, after every step, that each marked token counts once per 24 h window.
     check_marked_shares: bool,
 }
@@ -170,6 +180,7 @@ impl Coin {
             cap_part: BTreeMap::new(),
             cap_window_start_ns: LAUNCH_NS,
             bought_in_window: BTreeSet::new(),
+            claim_in_flight: 0,
             check_marked_shares: false,
         }
     }
@@ -236,6 +247,7 @@ impl Coin {
                 Ok(())
             }
             Step::Sell { account, share_bps } => self.sell(&account_name(account), share_bps),
+            Step::Claim { transfer_succeeds } => self.claim(transfer_succeeds),
             Step::Send {
                 from,
                 to,
@@ -412,6 +424,72 @@ impl Coin {
         Ok(())
     }
 
+    /// The money check, on the rule engine's values (storage deposits, gas and the 1 yoctoNEAR
+    /// on each sell and claim are outside it): NEAR in from buys = NEAR out to sellers + real
+    /// NEAR + creator fee balance + claimed creator fees (+ a claim whose transfer is not back).
+    fn check_money(&self) -> Result<(), TestCaseError> {
+        let pool = view_pool(&self.state, self.at);
+        let fees = view_creator_fees(&self.state, self.at);
+        prop_assert_eq!(pool.creator_fee_balance, fees.balance);
+        prop_assert_eq!(
+            self.near_in,
+            self.near_out
+                + pool.real_near
+                + pool.creator_fee_balance
+                + fees.claimed_total
+                + self.claim_in_flight
+        );
+        Ok(())
+    }
+
+    /// The creator claims. It goes through exactly when `fc_creator_fees` says it is claimable
+    /// now; it pays the whole balance and never changes real NEAR or the cap. The transfer then
+    /// settles: a success counts the amount as claimed, a failure puts it back in the balance.
+    fn claim(&mut self, transfer_succeeds: bool) -> Result<(), TestCaseError> {
+        let before = view_creator_fees(&self.state, self.at);
+        let pool_before = view_pool(&self.state, self.at);
+        let cap_before = view_cap(&self.state, self.at);
+        let went_through = self
+            .act_applied(
+                CREATOR,
+                Action::Claim {
+                    account: CREATOR.to_string(),
+                    attached: 1,
+                },
+            )?
+            .is_some();
+        prop_assert_eq!(went_through, before.claimable_now);
+        if !went_through {
+            return Ok(());
+        }
+        prop_assert_eq!(self.claim_in_flight, before.balance);
+        prop_assert_eq!(
+            view_pool(&self.state, self.at).real_near,
+            pool_before.real_near
+        );
+        prop_assert_eq!(view_cap(&self.state, self.at), cap_before);
+        let since = before.depth_ok_since_ns.expect("claimable");
+        let settled = settle_creator_claim(
+            &self.state,
+            self.claim_in_flight,
+            since,
+            transfer_succeeds,
+            self.at,
+        );
+        prop_assert_eq!(settled.events.len(), usize::from(transfer_succeeds));
+        self.state = settled.state;
+        self.claim_in_flight = 0;
+        let after = view_creator_fees(&self.state, self.at);
+        if transfer_succeeds {
+            prop_assert_eq!(after.balance, 0);
+            prop_assert_eq!(after.claimed_total, before.claimed_total + before.balance);
+        } else {
+            prop_assert_eq!(after.balance, before.balance);
+            prop_assert_eq!(after.claimed_total, before.claimed_total);
+        }
+        self.check_money()
+    }
+
     /// Applies one action and checks the properties every action keeps. A refused action
     /// changes nothing. Returns the `fc_sell` of a sell.
     fn act(&mut self, by: &str, action: Action) -> Result<Option<FcSell>, TestCaseError> {
@@ -442,8 +520,10 @@ impl Coin {
         if let Action::Buy { near_in, .. } = action {
             self.near_in += near_in;
         }
-        if let Some(payout) = &applied.payout {
-            self.near_out += payout.amount;
+        match (&action, &applied.payout) {
+            (Action::Claim { .. }, Some(payout)) => self.claim_in_flight += payout.amount,
+            (_, Some(payout)) => self.near_out += payout.amount,
+            (_, None) => {}
         }
         self.state = applied.state.clone();
         self.ledger.extend(applied.holders.clone());
@@ -455,10 +535,7 @@ impl Coin {
             self.near_out <= self.near_in,
             "paid out more than buyers put in"
         );
-        prop_assert_eq!(
-            self.near_in,
-            self.near_out + pool.real_near + pool.creator_fee_balance
-        );
+        self.check_money()?;
         prop_assert!(pool.near_reserve >= self.state.fixed.virtual_near);
 
         let used_after = self.cap_used();
@@ -737,6 +814,7 @@ fn marked_step() -> impl Strategy<Value = Step> {
         3 => (account.clone(), share_bps()).prop_map(|(account, share_bps)| Step::Sell { account, share_bps }),
         3 => (account.clone(), account, share_bps()).prop_map(|(from, to, share_bps)| Step::Send { from, to, share_bps }),
         1 => prop_oneof![1..5u64, 3_000..7_300u64, 80_000..90_000u64].prop_map(|seconds| Step::Wait { seconds }),
+        1 => any::<bool>().prop_map(|transfer_succeeds| Step::Claim { transfer_succeeds }),
     ]
 }
 

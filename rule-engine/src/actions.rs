@@ -1,9 +1,10 @@
-//! The actions the rule engine applies (buy, sell) and what one action returns.
+//! The actions the rule engine applies (buy, sell, send, claim) and what one action returns.
 
 use crate::allowance::{
     self, count_bought, count_marked_sold, count_sold, unmarked_allowance, unmarked_window_end_ns,
 };
 use crate::coin_state::{At, CoinState, Holder, Holders};
+use crate::creator_fee_claim;
 use crate::creator_group::{creator_cap, in_creator_group};
 use crate::early_buy_fee;
 use crate::early_supply::{self, marked_allowance, record_first_touch};
@@ -40,6 +41,8 @@ pub enum Action {
         amount: u128,
         memo: Option<String>,
     },
+    /// `claim_creator_fees`: the creator takes the whole creator fee balance (ADR 0010).
+    Claim { account: String, attached: u128 },
 }
 
 impl Action {
@@ -48,6 +51,7 @@ impl Action {
         match self {
             Self::Buy { account, .. } | Self::Sell { account, .. } => vec![account.clone()],
             Self::Send { from, to, .. } => vec![from.clone(), to.clone()],
+            Self::Claim { .. } => vec![],
         }
     }
 }
@@ -96,6 +100,7 @@ pub fn apply(
     allowance::record_window_reserve(&mut state, at);
     real_near_cap::record_cap_window(&mut state, at);
     early_supply::record_early_supply_window(&mut state, at);
+    creator_fee_claim::record_claim_depth_window(&mut state, at);
     let state = &state;
     let touched = touched_accounts(action);
     let mut holders = holders;
@@ -131,7 +136,9 @@ pub fn apply(
             amount,
             memo,
         } => send(state, holders, from, to, *amount, memo.clone(), at),
+        Action::Claim { account, attached } => claim(state, holders, account, *attached, at),
     }?;
+    creator_fee_claim::record_real_near_after_action(&mut applied.state);
     for account in &touched {
         if let Some(holder) = applied.holders.get_mut(*account) {
             raise_class_floor(&applied.state, holder, at);
@@ -146,7 +153,29 @@ fn touched_accounts(action: &Action) -> Vec<&str> {
     match action {
         Action::Buy { account, .. } | Action::Sell { account, .. } => vec![account.as_str()],
         Action::Send { from, to, .. } => vec![from.as_str(), to.as_str()],
+        Action::Claim { .. } => vec![],
     }
+}
+
+fn claim(
+    state: &CoinState,
+    holders: Holders,
+    account: &str,
+    attached: u128,
+    at: At,
+) -> Result<Applied, Refusal> {
+    let (next, amount) = creator_fee_claim::claim(state, account, attached, at)?;
+    Ok(Applied {
+        state: next,
+        holders,
+        fill: Fill::Full,
+        // `fc_creator_claim` is logged only after the transfer succeeds.
+        events: vec![],
+        payout: Some(Payout {
+            account: account.to_string(),
+            amount,
+        }),
+    })
 }
 
 fn buy(

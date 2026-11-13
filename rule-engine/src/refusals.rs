@@ -21,6 +21,10 @@ pub enum RefusalCode {
     CreatorCap,
     /// A sell of marked tokens in blocks 0 to N.
     EarlyWindow,
+    /// `claim_creator_fees` from any account but the creator.
+    NotCreator,
+    /// `claim_creator_fees` before the pool held X real NEAR for 24 h, or with a zero balance.
+    ClaimNotReady,
     /// Not an `FC_` code: the standard NEP-141 error for a send to yourself.
     SendToSelf,
     /// Not an `FC_` code: the standard NEP-141 error for a send of 0 tokens.
@@ -56,6 +60,8 @@ impl RefusalCode {
             Self::UnregisterWindowOpen => "FC_UNREGISTER_WINDOW_OPEN",
             Self::CreatorCap => "FC_CREATOR_CAP",
             Self::EarlyWindow => "FC_EARLY_WINDOW",
+            Self::NotCreator => "FC_NOT_CREATOR",
+            Self::ClaimNotReady => "FC_CLAIM_NOT_READY",
             Self::SendToSelf => "Sender and receiver should be different",
             Self::AmountNotPositive => "The amount should be a positive number",
             Self::NotRegistered => "The account is not registered",
@@ -136,6 +142,8 @@ mod every_refusal_message_fixture {
             | RefusalCode::UnregisterWindowOpen
             | RefusalCode::CreatorCap
             | RefusalCode::EarlyWindow
+            | RefusalCode::NotCreator
+            | RefusalCode::ClaimNotReady
             | RefusalCode::SendToSelf
             | RefusalCode::AmountNotPositive
             | RefusalCode::NotEnoughBalance

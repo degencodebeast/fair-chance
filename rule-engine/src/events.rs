@@ -11,6 +11,7 @@ pub enum Event {
     FcSend(FcSend),
     FcBecameLarge(FcBecameLarge),
     FcCapFilled(FcCapFilled),
+    FcCreatorClaim(FcCreatorClaim),
     FtMint(FtMint),
     FtTransfer(FtTransfer),
 }
@@ -32,6 +33,12 @@ impl Event {
                 "fair_chance",
                 INTERFACE_VERSION,
                 "fc_cap_filled",
+                json!([e]),
+            ),
+            Self::FcCreatorClaim(e) => (
+                "fair_chance",
+                INTERFACE_VERSION,
+                "fc_creator_claim",
                 json!([e]),
             ),
             Self::FtMint(e) => ("nep141", "1.0.0", "ft_mint", json!([e])),
@@ -150,4 +157,15 @@ pub struct FcCapFilled {
     pub by_account: String,
     /// 1, 2, ... in the window.
     pub fill_index: u32,
+}
+
+/// A creator fee claim whose payout transfer succeeded. Logged in the claim callback.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FcCreatorClaim {
+    pub creator: String,
+    #[serde(with = "crate::decimal_string")]
+    pub amount: u128,
+    #[serde(with = "crate::decimal_string")]
+    pub depth_ok_since_ns: u64,
+    pub block: u64,
 }

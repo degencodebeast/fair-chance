@@ -7,6 +7,7 @@
 mod actions;
 mod allowance;
 mod coin_state;
+mod creator_fee_claim;
 mod creator_group;
 pub mod decimal_string;
 mod early_buy_fee;
@@ -26,7 +27,10 @@ pub use allowance::{WindowReserve, WindowTotals};
 pub use coin_state::{
     launch, At, ClassFloor, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
 };
-pub use events::{Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtMint, FtTransfer};
+pub use creator_fee_claim::{settle_creator_claim, ClaimDepth, ClaimSettled};
+pub use events::{
+    Event, FcBecameLarge, FcBuy, FcCapFilled, FcCreatorClaim, FcSell, FcSend, FtMint, FtTransfer,
+};
 pub use fixed_values::FixedValues;
 pub use real_near_cap::{CapNet, CapWindow};
 pub use refusals::{storage_withdraw_not_registered, Refusal, RefusalCode};

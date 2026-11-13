@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::actions::{apply, largest_full_fill, Action};
 use crate::allowance::{unmarked_allowance, unmarked_window_end_ns};
 use crate::coin_state::{At, CoinState, Holder, Holders};
+use crate::creator_fee_claim;
 use crate::creator_group::in_creator_group;
 use crate::early_buy_fee;
 use crate::early_supply::{self, marked_allowance};
@@ -394,13 +395,13 @@ pub struct CreatorFeesView {
     pub claimable_at_ns: Option<u64>,
 }
 
-pub fn view_creator_fees(state: &CoinState) -> CreatorFeesView {
+pub fn view_creator_fees(state: &CoinState, at: At) -> CreatorFeesView {
     CreatorFeesView {
         creator: state.creator.clone(),
         balance: state.creator_fee_balance,
-        claimed_total: 0,
-        depth_ok_since_ns: None,
-        claimable_now: false,
-        claimable_at_ns: None,
+        claimed_total: state.creator_fees_claimed,
+        depth_ok_since_ns: creator_fee_claim::depth_ok_since_ns(state, at),
+        claimable_now: creator_fee_claim::claimable_now(state, at),
+        claimable_at_ns: creator_fee_claim::claimable_at_ns(state, at),
     }
 }

@@ -1,14 +1,15 @@
 //! Fair Chance coin contract. Thin wrappers: every rule is in `fc_rules`.
 
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{U128, U64};
 use near_sdk::store::LookupMap;
 use near_sdk::{
-    assert_one_yocto, env, log, near, AccountId, NearToken, PanicOnDefault, Promise, PromiseOrValue,
+    assert_one_yocto, env, log, near, AccountId, Gas, NearToken, PanicOnDefault, Promise,
+    PromiseOrValue,
 };
 use rule_engine::{
     AccountView, Action, Applied, At, BuyQuote, CapView, CoinState, CreatorFeesView,
-    EarlyWindowView, FixedValues, Holder, Holders, LaunchRequest, PoolView, Refusal, RefusalCode,
-    RulesView, SellQuote, Unregistered,
+    EarlyWindowView, FixedValues, Holder, Holders, LaunchRequest, Payout, PoolView, Refusal,
+    RefusalCode, RulesView, SellQuote, Unregistered,
 };
 
 /// Storage key prefix of the holder records.
@@ -17,6 +18,8 @@ const HOLDERS_PREFIX: &[u8] = b"h";
 const RECORD_OVERHEAD_BYTES: u64 = 40;
 /// The longest NEAR account ID.
 const LONGEST_ACCOUNT_ID_BYTES: u64 = 64;
+/// Gas for `on_creator_claim`, the claim payout callback.
+const ON_CREATOR_CLAIM_GAS: Gas = Gas::from_tgas(10);
 
 #[derive(Clone)]
 #[near(serializers = [json])]
@@ -156,6 +159,52 @@ impl Coin {
             attached: env::attached_deposit().as_yoctonear(),
         };
         self.commit(&action)
+    }
+
+    /// The creator claims its whole fee balance (ADR 0010). Needs exactly 1 yoctoNEAR. Refused
+    /// with `FC_NOT_CREATOR` for any other account and with `FC_CLAIM_NOT_READY` before 24 h of
+    /// pool depth or with a zero balance. The balance is 0 from now on; `on_creator_claim` settles
+    /// the transfer.
+    #[payable]
+    pub fn claim_creator_fees(&mut self) -> Promise {
+        let creator = env::predecessor_account_id();
+        let action = Action::Claim {
+            account: creator.to_string(),
+            attached: env::attached_deposit().as_yoctonear(),
+        };
+        let payout = self
+            .run(&action)
+            .unwrap_or_else(|| env::panic_str("the claim has no payout"));
+        let depth_ok_since_ns = rule_engine::view_creator_fees(&self.state, now())
+            .depth_ok_since_ns
+            .unwrap_or_else(|| env::panic_str("the claim has no depth_ok_since"));
+        Promise::new(creator)
+            .transfer(NearToken::from_yoctonear(payout.amount))
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(ON_CREATOR_CLAIM_GAS)
+                    .on_creator_claim(U128(payout.amount), U64(depth_ok_since_ns)),
+            )
+    }
+
+    /// The claim payout callback. On success it logs `fc_creator_claim`; on failure (for example,
+    /// the creator account no longer exists) it puts the amount back in the creator balance.
+    /// Returns true when the transfer succeeded.
+    #[private]
+    pub fn on_creator_claim(&mut self, amount: U128, depth_ok_since_ns: U64) -> bool {
+        let succeeded = env::promise_result_checked(0, 0).is_ok();
+        let settled = rule_engine::settle_creator_claim(
+            &self.state,
+            amount.0,
+            depth_ok_since_ns.0,
+            succeeded,
+            now(),
+        );
+        self.state = settled.state;
+        for event in &settled.events {
+            env::log_str(&event.log_line());
+        }
+        succeeded
     }
 
     /// NEP-141 send. Needs exactly 1 yoctoNEAR and a receiver with a storage record.
@@ -352,7 +401,7 @@ impl Coin {
     }
 
     pub fn fc_creator_fees(&self) -> CreatorFeesView {
-        rule_engine::view_creator_fees(&self.state)
+        rule_engine::view_creator_fees(&self.state, now())
     }
 }
 
@@ -366,6 +415,17 @@ impl Coin {
 
     /// Run one rule step: panic on refusal, else store, log and pay.
     fn commit(&mut self, action: &Action) -> Option<Promise> {
+        self.run(action).map(|p| {
+            let to: AccountId = p
+                .account
+                .parse()
+                .unwrap_or_else(|_| env::panic_str("bad payout account"));
+            Promise::new(to).transfer(NearToken::from_yoctonear(p.amount))
+        })
+    }
+
+    /// Run one rule step: panic on refusal, else store and log. Returns the NEAR to send.
+    fn run(&mut self, action: &Action) -> Option<Payout> {
         let holders = self.load(&action.accounts());
         let Applied {
             state,
@@ -382,12 +442,6 @@ impl Coin {
         for event in &events {
             env::log_str(&event.log_line());
         }
-        payout.map(|p| {
-            let to: AccountId = p
-                .account
-                .parse()
-                .unwrap_or_else(|_| env::panic_str("bad payout account"));
-            Promise::new(to).transfer(NearToken::from_yoctonear(p.amount))
-        })
+        payout
     }
 }

@@ -40,6 +40,14 @@
     "message": "FC_EARLY_WINDOW"
   },
   {
+    "refusal": "NotCreator",
+    "message": "FC_NOT_CREATOR"
+  },
+  {
+    "refusal": "ClaimNotReady",
+    "message": "FC_CLAIM_NOT_READY"
+  },
+  {
     "refusal": "SendToSelf",
     "message": "Sender and receiver should be different"
   },

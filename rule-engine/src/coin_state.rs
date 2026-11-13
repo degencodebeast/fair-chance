@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::allowance::{WindowReserve, WindowTotals};
+use crate::creator_fee_claim::ClaimDepth;
 use crate::early_supply::{EarlySupplyWindow, MarkedShare};
 use crate::events::{Event, FtMint};
 use crate::fixed_values::FixedValues;
@@ -46,7 +47,12 @@ pub struct CoinState {
     pub launch_ns: u64,
     pub token_reserve: u128,
     pub real_near: u128,
+    /// The creator's share of the normal swap fee, not claimed yet. Never part of `real_near`.
     pub creator_fee_balance: u128,
+    /// Creator fees paid out by claims whose transfer succeeded.
+    pub creator_fees_claimed: u128,
+    /// The lowest real NEAR per 1 h window and `depth_ok_since`, for the creator fee claim.
+    pub claim_depth: ClaimDepth,
     /// The token reserve recorded at the first action of the current or last 1 h window.
     pub unmarked_window_reserve: WindowReserve,
     /// Number of accounts whose class is `large` now.
@@ -173,6 +179,9 @@ pub fn launch(fixed: FixedValues, request: LaunchRequest<'_>, at: At) -> Result<
         token_reserve: supply,
         real_near: 0,
         creator_fee_balance: 0,
+        creator_fees_claimed: 0,
+        // Window 0 starts its lowest real NEAR at 0.
+        claim_depth: ClaimDepth::default(),
         unmarked_window_reserve: WindowReserve {
             window: 0,
             token_reserve: supply,
