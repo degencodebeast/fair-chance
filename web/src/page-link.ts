@@ -1,9 +1,10 @@
 // Turns the page link into what the page reads and trusts. The link picks a network by name
 // (`?network=testnet`). The RPC URL, the FastNEAR URL, the factory and the coin code hash then come
 // from the fixed list in known-deployments.ts. The one exception is a local sandbox: when the link's
-// RPC host is exactly `localhost` or `127.0.0.1` (exact match, no suffix or label match), the link
+// RPC host is the visitor's own machine (see local-host.ts; no suffix or label match on a public name), the link
 // may give the RPC URL, the factory and the code hash. A hostile RPC could otherwise answer every
 // chain check with false facts.
+import { isLocalHostName } from "./local-host.ts";
 import { isNetworkName, KNOWN_NETWORKS, type KnownDeployment } from "./known-deployments.ts";
 
 export interface PageLink {
@@ -24,7 +25,7 @@ function localSandboxUrl(text: string | null): URL | null {
     return null;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  return url.hostname === "localhost" || url.hostname === "127.0.0.1" ? url : null;
+  return isLocalHostName(url.hostname) ? url : null;
 }
 
 export function resolvePageLink(href: string): PageLink {

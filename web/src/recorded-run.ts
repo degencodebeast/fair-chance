@@ -48,21 +48,27 @@ function row(tx: unknown, explorerTxUrl: string): RecordedRow | string {
   if (outcome !== "partial_fill" && outcome !== "full_fill") return "an outcome is not known";
   const [asked, sold, out] = [text("tokens_asked"), text("tokens_sold"), text("near_out")];
   if (![asked, sold, out].every((n) => UNITS.test(n))) return "an amount is not a whole number";
+  const [askedUnits, soldUnits] = [BigInt(asked), BigInt(sold)];
+  if (outcome === "full_fill" ? soldUnits !== askedUnits : soldUnits <= 0n || soldUnits >= askedUnits) return "the sold amount does not fit the outcome";
   const [soldText, askedText] = tokensPair(sold, asked);
   const words = outcome === "full_fill" ? "It filled in full." : "It filled in part.";
   return { txHash: hash, link, text: `${account} sold ${soldText} of ${askedText} tokens for ${nearShort(out)} NEAR. ${words}` };
 }
 
 /** Checks the file and makes the rows. Any bad entry fails the whole file: a run is shown whole or not at all. */
-export function parseRecordedRun(file: unknown, expect: { coin: string; explorerTxUrl: string }): RecordedRun {
+export function parseRecordedRun(file: unknown, expect: { network: string; coin: string; explorerTxUrl: string }): RecordedRun {
   if (typeof file !== "object" || file === null) return fail("the file is not a run");
   const f = file as Record<string, unknown>;
+  if (f.network !== expect.network) return fail("the file is for another network");
   if (f.coin !== expect.coin) return fail("the file is for another coin");
   if (!Array.isArray(f.transactions) || f.transactions.length === 0) return fail("the file has no transactions");
   const rows: RecordedRow[] = [];
+  const seen = new Set<string>();
   for (const tx of f.transactions) {
     const made = row(tx, expect.explorerTxUrl);
     if (typeof made === "string") return fail(made);
+    if (seen.has(made.txHash)) return fail("a transaction hash is repeated");
+    seen.add(made.txHash);
     rows.push(made);
   }
   return { ok: true, rows };
@@ -76,11 +82,12 @@ export function parseRecordedRun(file: unknown, expect: { coin: string; explorer
 export async function loadRecordedRun(href: string, network: KnownNetwork | null = networkFor(href), fetchFn: typeof fetch = fetch): Promise<RecordedRun | null> {
   const url = new URL(href);
   const coin = url.searchParams.get("coin");
-  if (network === null || network.recordedRunFile === null || !coin) return null;
+  const networkName = url.searchParams.get("network");
+  if (network === null || networkName === null || network.recordedRunFile === null || !coin) return null;
   try {
     const response = await fetchFn(new URL(network.recordedRunFile, url.origin + "/").href);
     if (!response.ok) return fail(`the file did not load (HTTP ${response.status})`);
-    return parseRecordedRun(await response.json(), { coin, explorerTxUrl: network.explorerTxUrl });
+    return parseRecordedRun(await response.json(), { network: networkName, coin, explorerTxUrl: network.explorerTxUrl });
   } catch {
     return fail("the file did not load");
   }
