@@ -54,25 +54,31 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     buySlot.replaceChildren(turnedOffButton("trade-buy-button", m.buy.button.label, m.buy.button.reason));
   };
 
+  let latest = 0;
   listen(buyForm, "submit", (event) => {
     event.preventDefault();
+    const mine = ++latest;
     void (async () => {
       const accountId = account.value.trim();
       if (accountId === "") {
+        show({ kind: "none" });
         status.textContent = "Type an account name, for example you.testnet.";
         return;
       }
       const nearIn = parseTokenAmount(amount.value, NEAR_DECIMALS);
       if (nearIn === null) {
+        show({ kind: "none" });
         status.textContent = "Type the amount of NEAR as a number, for example 1.5.";
         return;
       }
       status.textContent = "Reading the chain.";
       try {
         const quote = await deps.loadQuote(accountId, nearIn);
+        if (mine !== latest) return;
         show({ kind: "quote", accountId, nearIn, quote });
         status.textContent = quote.kind === "value" ? `Preview for ${accountId}.` : "No preview from this coin.";
       } catch (e) {
+        if (mine !== latest) return;
         show({ kind: "none" });
         status.textContent = `Values cannot load from the chain. ${e instanceof Error ? e.message : String(e)}`;
       }
