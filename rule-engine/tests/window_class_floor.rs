@@ -306,3 +306,33 @@ fn the_class_floor_resets_in_the_next_window() {
     assert_eq!(view.penalty_applies_above, None);
     assert_eq!(coin.sell_all(BAND, next).class, "small");
 }
+
+const LARGE: &str = "large.test";
+
+/// A large account that sells down to a bag inside one allowance stays large: it is large until
+/// its balance is zero (ADR 0001), so its sells keep the large rules.
+#[test]
+fn an_account_that_was_large_and_holds_a_bag_inside_one_allowance_is_still_limited_as_large() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(1));
+    assert_eq!(coin.account(LARGE, window_1(0)).class, "large");
+    let mut window = 1;
+    loop {
+        let at = after(window * HOUR_S);
+        let view = coin.account(LARGE, at);
+        if view.balance <= view.unmarked.allowance {
+            break;
+        }
+        assert_eq!(coin.sell(LARGE, view.unmarked.allowance, at).class, "large");
+        window += 1;
+        assert!(window < 200);
+    }
+
+    let at = after(window * HOUR_S);
+    let view = coin.account(LARGE, at);
+    assert!(view.balance > 0 && view.balance <= view.unmarked.allowance);
+    assert_eq!(view.class, "large");
+    assert_eq!(view.penalty_applies_above, None);
+    let sell = coin.sell(LARGE, view.balance / 2, at);
+    assert_eq!(sell.class, "large");
+}
