@@ -64,3 +64,27 @@ describe("scan start", () => {
     expect(seen).toEqual([scanStartBlock(launchBlock), scanStartBlock(launchBlock)]);
   });
 });
+
+describe("scan start on a node that dropped old blocks", () => {
+  it("starts at the node's earliest block when that is inside the margin", async () => {
+    // launch_block 15, earliest block 12: blocks 5 to 11 are gone, the launch block is not.
+    const base = recordedFetch(RECORDED, 27, 12);
+    const asked: number[] = [];
+    const fetchFn: typeof fetch = async (input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string; params?: { block_id?: unknown } };
+      if (body.method === "block" && typeof body.params?.block_id === "number") asked.push(body.params.block_id);
+      return base(input, init);
+    };
+    const { events } = await chainReader({ rpcUrl, coin: walkCoin }, fetchFn).events();
+    expect(Math.min(...asked)).toBe(12);
+    expect(events.map((e) => e.name)).toEqual(["fc_buy", "fc_sell"]);
+    const href = `http://localhost/?coin=${walkCoin}&rpc=${encodeURIComponent(rpcUrl)}`;
+    const page = await loadReceiptsPage(href, recordedFetch(RECORDED, 27, 12));
+    expect(page.events.map((e) => e.name)).toEqual(["fc_buy", "fc_sell"]);
+  });
+
+  it("fails when the node dropped the launch block itself", async () => {
+    const reader = chainReader({ rpcUrl, coin: walkCoin }, recordedFetch(RECORDED, 27, 16));
+    await expect(reader.events()).rejects.toThrow(/no longer has the blocks.*15.*16/);
+  });
+});

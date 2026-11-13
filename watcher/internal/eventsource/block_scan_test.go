@@ -98,3 +98,33 @@ func TestBlockScanFailsWhenTheCursorIsBelowTheNodesEarliestBlock(t *testing.T) {
 		t.Fatalf("got %v next %d; want no events and the same cursor", got, next)
 	}
 }
+
+// A node that dropped blocks inside the margin but still has the launch block: the scan starts at
+// the node's earliest block and still finds the coin events.
+func TestLaunchCursorStartsAtTheEarliestBlockWhenTheMarginIsGone(t *testing.T) {
+	rpc := recordedrpc.ServeWithEarliest(t, "../../../testdata/recorded-rpc-walking-path", 27, 12)
+	cursor, err := eventsource.LaunchCursor(context.Background(), rpc.URL, coin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cursor != 12 {
+		t.Fatalf("cursor %d, want 12 (the earliest block; launch block 15)", cursor)
+	}
+	got, _, err := eventsource.NewRPCScan(rpc.URL).Events(context.Background(), []string{coin}, cursor)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("got %+v err %v", got, err)
+	}
+}
+
+// A node that dropped the launch block itself: the scan fails with ErrBlocksGone.
+func TestBlockScanFailsWhenTheNodeDroppedTheLaunchBlock(t *testing.T) {
+	rpc := recordedrpc.ServeWithEarliest(t, "../../../testdata/recorded-rpc-walking-path", 27, 16)
+	cursor, err := eventsource.LaunchCursor(context.Background(), rpc.URL, coin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = eventsource.NewRPCScan(rpc.URL).Events(context.Background(), []string{coin}, cursor)
+	if !errors.Is(err, eventsource.ErrBlocksGone) {
+		t.Fatalf("err %v, want ErrBlocksGone", err)
+	}
+}
