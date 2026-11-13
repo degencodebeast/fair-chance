@@ -73,6 +73,14 @@ describe("normal", () => {
     expect(cap!.lines.map((l) => l.text)).toContain("Resets 15:02, in 38 min");
   });
 
+  it("tells a trader that selling tokens bought this hour counts toward the cap", async () => {
+    const view = await ready(recordedCoin("normal"));
+    const cap = view.who[2]!;
+    expect(cap.lines.map((l) => l.text)).toContain(
+      "Selling tokens you bought this hour counts toward the cap. At a full cap, profit from them is held back until the next hour.",
+    );
+  });
+
   it("lists the receipts newest first with local time and a relative hint", async () => {
     const view = await ready(recordedCoin("normal"));
     expect(view.receipts.map((r) => [r.kind, r.time])).toEqual([

@@ -13,6 +13,11 @@ describe("landing copy", () => {
     expect(landingCopy.intro).toMatch(/^Every coin launched here has sell limits built into its contract\./);
   });
 
+  it("says small bags are not limited, with the one exception at a full cap", () => {
+    const item = landingCopy.buyers.items.find((i) => i.b === "Small bags are not limited.");
+    expect(item?.t).toBe("One exception: when the pool cap is full, profit on tokens bought in the same hour is held back.");
+  });
+
   it("follows the copy rules in every string", () => {
     for (const text of allText(landingCopy)) expect(copyViolations(text), text).toEqual([]);
   });
