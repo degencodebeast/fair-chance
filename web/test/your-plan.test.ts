@@ -250,9 +250,11 @@ describe("an early-supply holder", () => {
 });
 
 describe("early supply held back by the pool cap", () => {
-  const WITH_N =
-    "Early-supply tokens sell before your other tokens. While the pool cap holds them, a sell of 6.0M MOTH or less fills nothing, and a larger sell fills from your other tokens.";
-  const WITHOUT_N = "Early-supply tokens sell before your other tokens. While the pool cap holds them, a sell fills from your other tokens alone.";
+  const withN = (n: string) =>
+    `Early-supply tokens sell before your other tokens. While the pool cap holds them, a sell of about ${n} MOTH or less fills nothing, and a larger sell can fill part of the amount above that from your other tokens.`;
+  const WITH_N = withN("6.0M");
+  const WITHOUT_N =
+    "Early-supply tokens sell before your other tokens. While the pool cap holds them, a small sell can fill nothing. The quote shows what this sell fills.";
 
   it("names N, the early supply the account can sell now, when a quote of N fills nothing", async () => {
     const { preview } = await show("early-supply-held-by-cap");
@@ -268,6 +270,17 @@ describe("early supply held back by the pool cap", () => {
       lines: expect.arrayContaining([{ label: "Filled now", value: "50K MOTH (under 0.01%)", tone: "plain" }]),
     });
     expect(preview?.kind === "preview" && preview.copy).toContain(WITH_N);
+  });
+
+  it("rounds N up at the shown precision, never to nearest or down: 6.04M shows as about 6.1M", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      const marked = (s.views.fc_account as { marked: Record<string, unknown> }).marked;
+      marked.left = "6040000000000000000000000";
+      s.asked = "6040000000000000000000000";
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(withN("6.1M"));
+    expect(copy).not.toContain("6.0M MOTH or less");
   });
 
   it("checks N with fc_quote_sell", async () => {
