@@ -1,5 +1,6 @@
-// Builds the receipts page, serves it on a free local port, opens it in headless Google Chrome and
-// waits until the page shows one receipt. Prints that receipt row as JSON.
+// Builds the coin page, serves it on a free local port, opens it in headless Google Chrome and
+// waits until the page shows one sell receipt. Prints that receipt row and the page facts
+// (stats, code hash, coin account checks) as JSON.
 //   node scripts/read-receipt-in-browser.ts "?coin=<coin>&rpc=<url-encoded RPC URL>" <receipt id | any> [screenshot.png]
 // "any" waits for the first receipt row. Each run builds into its own temporary folder and the
 // browser uses a fresh profile, so runs at the same time share nothing. Set FC_BROWSER_PATH to use
@@ -95,15 +96,43 @@ try {
     { timeout: waitMs },
   );
   const status = (await page.textContent("#status")) ?? "";
+  const loadFailed = status.startsWith("Values cannot load");
   if (screenshotPath) await page.screenshot({ path: screenshotPath, fullPage: true });
   const row = await page.$(rowSelector);
   if (row === null) throw new Error(`the page shows no receipt row: ${status} ${consoleErrors.join(" | ")}`);
+  if (loadFailed) throw new Error(`the page shows an error: ${status}`);
+
+  // The coin page facts the run must see: four stats with values, the rules with the code hash,
+  // and the three coin account checks. A link that names the known factory and hash must pass.
+  const stats = await page.$$eval("#stats .stat", (nodes) =>
+    nodes.map((n) => ({
+      label: n.querySelector(".stat-label")?.textContent ?? "",
+      value: n.querySelector(".stat-value")?.textContent ?? "",
+    })),
+  );
+  const checks = await page.$$eval("#chain-checks li", (nodes) =>
+    nodes.map((n) => ({ id: n.getAttribute("data-check") ?? "", status: n.getAttribute("data-status") ?? "" })),
+  );
+  const codeHash = (await page.textContent("#code-hash")) ?? "";
+  const warning = await page.$("#chain-warning");
+  if (stats.length !== 4 || stats.some((s) => s.value === "")) throw new Error(`the stats row is incomplete: ${JSON.stringify(stats)}`);
+  if (codeHash === "") throw new Error("the rules show no code hash");
+  if (checks.length !== 3) throw new Error(`expected 3 coin account checks, got ${JSON.stringify(checks)}`);
+  if (query.includes("factory=") && query.includes("code_hash=") && (warning !== null || checks.some((c) => c.status !== "pass"))) {
+    throw new Error(`the coin account checks did not pass: ${JSON.stringify(checks)}`);
+  }
+  // The text of a row is "Block <n>: <sentence>", the same as the command-line read.
+  const text = await row.evaluate((li) => `Block ${li.getAttribute("data-block")}: ${li.querySelector(".receipt-sentence")?.textContent ?? ""}`);
   console.log(
     JSON.stringify({
       coin: await page.textContent("#coin"),
+      coin_account: await page.textContent("#coin-account"),
       receipt_id: await row.getAttribute("data-receipt-id"),
-      text: await row.textContent(),
+      text,
       status,
+      stats,
+      code_hash: codeHash,
+      checks,
       browser: browser.version(),
     }),
   );

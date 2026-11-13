@@ -3,14 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fair Chance receipts</title>
+    <title>Fair Chance coin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Figtree:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/coin-page.css" />
   </head>
   <body>
-    <main>
+    <main id="app">
       <h1 id="coin">Fair Chance</h1>
-      <p id="status">Reading the chain.</p>
-      <ol id="receipts"></ol>
+      <p id="status" class="status">Reading the chain.</p>
     </main>
-    <script type="module" src="/src/render-receipts-page.ts"></script>
+    <script type="module" src="/src/render-coin-page.ts"></script>
   </body>
 </html>

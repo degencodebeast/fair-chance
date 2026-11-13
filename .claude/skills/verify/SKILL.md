@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Drive Fair Chance (NEAR coin factory, coin contract, Go sell watcher, receipts web page) end to end on a fresh near-sandbox and prove it works. Runs the walking path (launch, buy, limited sell, fc_sell receipt, watcher alert), opens the receipts page in headless Chrome to read one receipt, and scans the repo for private strings. Use it before every merge, after any change to contracts, watcher or page, and whenever a done line needs proof.
+description: Drive Fair Chance (NEAR coin factory, coin contract, Go sell watcher, coin page) end to end on a fresh near-sandbox and prove it works. Runs the walking path (launch, buy, limited sell, fc_sell receipt, watcher alert), opens the coin page in headless Chrome to read one receipt, the stats, the code hash and the account checks, and scans the repo for private strings. Use it before every merge, after any change to contracts, watcher or page, and whenever a done line needs proof.
 ---
 
 # Verify Fair Chance
@@ -48,10 +48,10 @@ The runner drives the real user path through the contracts' public methods, then
 - **Buy**: `alice.sandbox` calls `buy` with 1 NEAR.
 - **Limited sell**: `alice.sandbox` sells half with `sell` and 1 yoctoNEAR; checks one `fc_sell` event with the interface field names.
 - **Receipt by block scan**: `node web/scripts/read-receipts.ts` reads the page model from the URL alone and must find the sell receipt.
-- **Receipt in the browser**: `node web/scripts/read-receipt-in-browser.ts "?coin=<coin>&rpc=<url-encoded RPC URL>" <receipt id> [screenshot.png]`. It builds the page with Vite into a new temporary folder, serves it on a free `127.0.0.1` port, opens it in headless Google Chrome (`playwright-core` 1.64.1, branded Chrome channel, fresh profile) and waits for `#receipts li[data-receipt-id="<receipt id>"]`. The row text must equal `Block <n>: <page row text>`. If the page shows `Values cannot load: ...` in `#status`, the step fails with that text.
+- **Receipt in the browser**: `node web/scripts/read-receipt-in-browser.ts "?coin=<coin>&rpc=<url-encoded RPC URL>&factory=<factory>&code_hash=<hash>" <receipt id> [screenshot.png]`. It builds the page with Vite into a new temporary folder, serves it on a free `127.0.0.1` port, opens it in headless Google Chrome (`playwright-core` 1.64.1, branded Chrome channel, fresh profile) and waits for `#receipts li[data-receipt-id="<receipt id>"]`. The row text (`Block <n>: ` plus `.receipt-sentence`) must equal `Block <n>: <page row text>`. The step also fails when the stats row is incomplete, the rules show no code hash, or a coin account check does not pass. If the page shows `Values cannot load: ...` in `#status`, the step fails with that text.
 - **Alert**: `target/watcher -once -want 1` with `FC_SENDER=fake` reads the event through its adapter; the alert must name the seller.
 
-Stable handles in the page: `#coin` (coin name), `#status` (load state), `#receipts li[data-receipt-id]` (one row per sell receipt).
+Stable handles in the page: `#coin` (coin name), `#status` (load state), `#stats`, `#code-hash`, `#chain-checks li[data-check]`, `#receipts li[data-receipt-id]` (one row per sell receipt).
 
 Set `FC_BROWSER_PATH` to a Chrome binary when Chrome is not at its standard install place.
 
@@ -60,7 +60,7 @@ Set `FC_BROWSER_PATH` to a Chrome binary when Chrome is not at its standard inst
 Each run writes to `target/verify-evidence/<UTC time>-<pid>/`:
 
 - `verify.log`: the full run output, including the doctor lines, the scan result, every walking-path step, the receipt id, the browser version and row, and the alert text.
-- `receipts-page.png`: the receipts page as headless Chrome showed it, with the sell receipt row.
+- `receipts-page.png`: the coin page as headless Chrome showed it, with the stats, who can sell, the sell receipt row and the rules.
 
 Proof standard: a done line quotes the command and the last lines of `verify.log`, ending in `verify: PASS (sandbox)`. "Tests pass" alone is not proof.
 
