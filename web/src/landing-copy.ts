@@ -23,7 +23,7 @@ export const landingCopy = {
     kicker: "For buyers",
     title: "The same rules on every coin. Read them before you buy.",
     items: [
-      { b: "The creator and the snipers can't sell at launch.", t: "Anyone who buys in blocks 0 to 17 (about 10 seconds) can't sell in that time. After that, they all share one small daily limit. Splitting into many wallets doesn't give them more." },
+      { b: "The creator and the snipers can't sell at launch.", t: "Anyone who buys in blocks 0 to 17 (about 10 seconds at the measured mainnet block time) can't sell in that time. After that, they all share one small daily limit. Splitting into many wallets doesn't give them more." },
       { b: "Big wallets sell a bit at a time.", t: "A wallet with 2% of the supply or more can sell a set amount each hour. It can't move its tokens to fresh wallets to get around that." },
       { b: "You see every big sell.", t: "When someone tries to sell over the limit, part of it goes through and the rest stays in their wallet. You get a receipt that says how much sold, and when more can follow." },
       { b: "Nobody can change the rules later.", t: "The coin has no owner, no pause button and no upgrade. What you read at launch is what runs." },
