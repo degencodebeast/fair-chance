@@ -12,6 +12,37 @@ Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-r
 
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
+## Contents
+
+- [The problem](#the-problem)
+- [What it does](#what-it-does)
+- [Try it in 90 seconds](#try-it-in-90-seconds)
+- [For judges](#for-judges)
+- [How it works](#how-it-works)
+- [Architecture](#architecture)
+- [The rules](#the-rules)
+- [How this differs from a per-sell cap](#how-this-differs-from-a-per-sell-cap)
+- [What the contract enforces, and what the page merely shows](#what-the-contract-enforces-and-what-the-page-merely-shows)
+- [Network](#network)
+- [Check it yourself](#check-it-yourself)
+- [Check it from a terminal](#check-it-from-a-terminal)
+- [Measured results](#measured-results)
+- [Known limits](#known-limits)
+- [Not in this release](#not-in-this-release)
+- [Libraries, templates and AI tools](#libraries-templates-and-ai-tools)
+- [Layout](#layout)
+- [License](#license)
+
+Deeper pages: [evidence](docs/evidence.md), [TLA+ model](docs/model/README.md), [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), [GLOSSARY](GLOSSARY.md), [ADRs](docs/adr/).
+
+## The problem
+
+A new memecoin launches, and in the first minutes the creator and a few large wallets sell into the pool. Later buyers take the loss. Tools that warn a buyer act after the damage. A high fee on early buys is paid once, and it does not limit the later sells. [OVERVIEW](docs/OVERVIEW.md) has the full case.
+
+## What it does
+
+The sell limits live in the coin contract, so no off-chain part can lift them. Each coin has its own pool and the same fixed rules. A sell above a limit fills in part, and the rest stays in the wallet. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
+
 ## Try it in 90 seconds
 
 You need the tools below. `verify.sh doctor` checks every pin and starts nothing.
@@ -199,6 +230,26 @@ The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_h
 <!-- waits on: the deployed commit and its code hash (the expected hash goes next to this command) -->
 
 Open `docs/evidence.md` for what each test proves. Sandbox tests need `NEAR_SANDBOX_BIN_PATH` and a built wasm (`scripts/build-contracts.sh`).
+
+## Check it from a terminal
+
+These calls only read. They need no wallet and no key. Replace `<COIN ACCOUNT>` and `<FACTORY ACCOUNT>` with the accounts in [Network](#network).
+
+```sh
+# The coin and the factory have no access keys: "keys" must be an empty list.
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"<COIN ACCOUNT>"}}'
+
+# The coin's fixed rules (the reply holds the bytes of a JSON text).
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"fc_rules","args_base64":"e30="}}'
+
+# Where the code comes from: repository link and commit.
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"contract_source_metadata","args_base64":"e30="}}'
+```
+
+<!-- waits on: the testnet deploy (the real accounts, and the real output pasted under each call, and one transaction that shows a partial fill) -->
 
 ## Measured results
 
