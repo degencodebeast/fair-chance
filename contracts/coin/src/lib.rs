@@ -2,11 +2,21 @@
 
 use near_sdk::json_types::U128;
 use near_sdk::store::LookupMap;
-use near_sdk::{env, near, AccountId, NearToken, PanicOnDefault, Promise};
+use near_sdk::{
+    assert_one_yocto, env, log, near, AccountId, NearToken, PanicOnDefault, Promise, PromiseOrValue,
+};
 use rule_engine::{
     AccountView, Action, Applied, At, BuyQuote, CapView, CoinState, CreatorFeesView,
-    EarlyWindowView, FixedValues, Holder, Holders, LaunchRequest, PoolView, RulesView, SellQuote,
+    EarlyWindowView, FixedValues, Holder, Holders, LaunchRequest, PoolView, Refusal, RefusalCode,
+    RulesView, SellQuote, Unregistered,
 };
+
+/// Storage key prefix of the holder records.
+const HOLDERS_PREFIX: &[u8] = b"h";
+/// Bytes the chain counts for each stored record on top of its key and value.
+const RECORD_OVERHEAD_BYTES: u64 = 40;
+/// The longest NEAR account ID.
+const LONGEST_ACCOUNT_ID_BYTES: u64 = 64;
 
 #[derive(Clone)]
 #[near(serializers = [json])]
@@ -18,6 +28,20 @@ pub struct FungibleTokenMetadata {
     pub reference: Option<String>,
     pub reference_hash: Option<String>,
     pub decimals: u8,
+}
+
+/// NEP-145 storage balance of one account, in yoctoNEAR.
+#[near(serializers = [json])]
+pub struct StorageBalance {
+    pub total: NearToken,
+    pub available: NearToken,
+}
+
+/// NEP-145 storage bounds: one record costs `min`, and `max` equals `min`.
+#[near(serializers = [json])]
+pub struct StorageBalanceBounds {
+    pub min: NearToken,
+    pub max: Option<NearToken>,
 }
 
 #[near(
@@ -74,7 +98,7 @@ impl Coin {
         }
         Self {
             state: launched.state,
-            holders: LookupMap::new(b"h"),
+            holders: LookupMap::new(HOLDERS_PREFIX),
         }
     }
 
@@ -100,6 +124,136 @@ impl Coin {
             attached: env::attached_deposit().as_yoctonear(),
         };
         self.commit(&action)
+    }
+
+    /// NEP-141 send. Needs exactly 1 yoctoNEAR and a receiver with a storage record.
+    #[payable]
+    pub fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
+        assert_one_yocto();
+        let action = Action::Send {
+            from: env::predecessor_account_id().to_string(),
+            to: receiver_id.to_string(),
+            amount: amount.0,
+            memo,
+        };
+        self.commit(&action);
+    }
+
+    /// Refused for every receiver with `FC_TRANSFER_CALL` (ADR 0001: no outside liquidity).
+    #[payable]
+    pub fn ft_transfer_call(
+        &mut self,
+        receiver_id: AccountId,
+        amount: U128,
+        memo: Option<String>,
+        msg: String,
+    ) -> PromiseOrValue<U128> {
+        let _ = (receiver_id, amount, memo, msg);
+        env::panic_str(&Refusal::new(RefusalCode::TransferCall).to_string())
+    }
+
+    /// NEP-145: makes an empty record for `account_id` (default: the caller) for the storage
+    /// minimum and refunds the rest. An account that has a record gets the whole deposit back.
+    #[payable]
+    pub fn storage_deposit(
+        &mut self,
+        account_id: Option<AccountId>,
+        registration_only: Option<bool>,
+    ) -> StorageBalance {
+        // One record has one fixed size, so `registration_only` changes nothing.
+        let _ = registration_only;
+        let amount = env::attached_deposit();
+        let account_id = account_id.unwrap_or_else(env::predecessor_account_id);
+        let refund = if self.holders.contains_key(account_id.as_str()) {
+            log!("The account is already registered, refunding the deposit");
+            amount
+        } else {
+            let min = self.storage_balance_bounds().min;
+            if amount < min {
+                env::panic_str("The attached deposit is less than the minimum storage balance");
+            }
+            self.holders.insert(
+                account_id.to_string(),
+                Holder::registered(min.as_yoctonear()),
+            );
+            amount.saturating_sub(min)
+        };
+        if !refund.is_zero() {
+            Promise::new(env::predecessor_account_id())
+                .transfer(refund)
+                .detach();
+        }
+        self.storage_balance_of(account_id)
+            .unwrap_or_else(|| env::panic_str("storage record missing"))
+    }
+
+    /// NEP-145: nothing is ever available to withdraw (`max` equals `min`).
+    #[payable]
+    pub fn storage_withdraw(&mut self, amount: Option<NearToken>) -> StorageBalance {
+        assert_one_yocto();
+        let account_id = env::predecessor_account_id();
+        let balance = self
+            .storage_balance_of(account_id.clone())
+            .unwrap_or_else(|| {
+                env::panic_str(&format!("The account {account_id} is not registered"))
+            });
+        if amount.is_some_and(|a| !a.is_zero()) {
+            env::panic_str("The amount is greater than the available storage balance");
+        }
+        balance
+    }
+
+    /// NEP-145: removes the caller's record and refunds its storage deposit. Refused with
+    /// `FC_UNREGISTER_WITH_BALANCE` for a force-unregister while the account holds tokens or has
+    /// used allowance. Returns false when the caller has no record.
+    #[payable]
+    pub fn storage_unregister(&mut self, force: Option<bool>) -> bool {
+        assert_one_yocto();
+        let account_id = env::predecessor_account_id();
+        let holder = self.holders.get(account_id.as_str());
+        let unregistered =
+            rule_engine::unregister(&self.state, holder, force.unwrap_or(false), now())
+                .unwrap_or_else(|r| env::panic_str(&r.to_string()));
+        match unregistered {
+            Unregistered::NotRegistered => {
+                log!("The account {} is not registered", account_id);
+                false
+            }
+            Unregistered::Removed { refund } => {
+                self.holders.remove(account_id.as_str());
+                if refund > 0 {
+                    Promise::new(account_id)
+                        .transfer(NearToken::from_yoctonear(refund))
+                        .detach();
+                }
+                true
+            }
+        }
+    }
+
+    pub fn storage_balance_bounds(&self) -> StorageBalanceBounds {
+        let record_bytes = RECORD_OVERHEAD_BYTES
+            + HOLDERS_PREFIX.len() as u64
+            + 4
+            + LONGEST_ACCOUNT_ID_BYTES
+            + near_sdk::borsh::to_vec(&Holder::default())
+                .unwrap_or_default()
+                .len() as u64;
+        let min = env::storage_byte_cost().saturating_mul(record_bytes.into());
+        StorageBalanceBounds {
+            min,
+            max: Some(min),
+        }
+    }
+
+    /// NEP-145: `total` is the storage deposit the record holds (0 for a record a buy made).
+    pub fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
+        self.holders
+            .get(account_id.as_str())
+            .map(|h| StorageBalance {
+                total: NearToken::from_yoctonear(h.storage_deposit),
+                available: NearToken::from_yoctonear(0),
+            })
     }
 
     pub fn ft_total_supply(&self) -> U128 {

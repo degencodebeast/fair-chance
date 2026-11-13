@@ -155,3 +155,69 @@ async fn a_buy_below_min_tokens_out_is_refused_with_fc_slippage_and_a_quote_matc
     assert!(events(&bought, "nep141", "ft_mint").is_empty());
     Ok(())
 }
+
+#[tokio::test]
+async fn a_send_to_a_registered_account_logs_fc_send_and_ft_transfer_call_is_refused() -> Result<()>
+{
+    let world = World::launch().await?;
+    let _bought = world
+        .call(
+            &world.alice,
+            &world.coin,
+            "buy",
+            json!({ "min_tokens_out": "0" }),
+            NearToken::from_near(1),
+        )
+        .await?;
+    let bounds = world
+        .view(&world.coin, "storage_balance_bounds", json!({}))
+        .await?;
+    let min: u128 = bounds["min"].as_str().unwrap().parse()?;
+    let receiver = world.factory.id.clone();
+    let _registered = world
+        .call(
+            &world.factory,
+            &world.coin,
+            "storage_deposit",
+            json!({}),
+            NearToken::from_yoctonear(min),
+        )
+        .await?;
+
+    let sent = world
+        .call(
+            &world.alice,
+            &world.coin,
+            "ft_transfer",
+            json!({ "receiver_id": receiver, "amount": "1000" }),
+            NearToken::from_yoctonear(1),
+        )
+        .await?;
+    let sends = events(&sent, "fair_chance", "fc_send");
+    assert_eq!(sends.len(), 1);
+    assert_eq!(
+        field_names(&sends[0].event),
+        ["amount", "from", "marked_amount", "to", "to_marked_amount"]
+    );
+    assert_eq!(sends[0].event["data"][0]["amount"], "1000");
+    let balance = world
+        .view(
+            &world.coin,
+            "ft_balance_of",
+            json!({ "account_id": receiver }),
+        )
+        .await?;
+    assert_eq!(balance, "1000");
+
+    let failure = world
+        .call_refused(
+            &world.alice,
+            &world.coin,
+            "ft_transfer_call",
+            json!({ "receiver_id": receiver, "amount": "1", "msg": "" }),
+            NearToken::from_yoctonear(1),
+        )
+        .await?;
+    assert!(failure.contains("FC_TRANSFER_CALL"), "{failure}");
+    Ok(())
+}
