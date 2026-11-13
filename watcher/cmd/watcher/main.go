@@ -1,8 +1,8 @@
 // Command watcher reads coin events and sends one alert per limited-sell event.
 //
 // Environment: FC_RPC_URL (NEAR RPC endpoint), FC_COINS (comma-separated coin accounts),
-// FC_SENDER (only "fake" in this build: alerts go to an in-memory sender and are printed as
-// JSON), FC_CHAT_ID (optional chat ID, default 0). It holds no NEAR keys and signs nothing.
+// FC_SENDER ("fake": alerts go to an in-memory sender and are printed as
+// JSON, with FC_CHAT_ID optional; or "telegram": see runTelegram). It holds no NEAR keys and signs nothing.
 //
 // With -once it stops after -want alerts or after -timeout, prints {"alerts": [...]}, and
 // exits 0 only when it got the alerts it wanted.
@@ -33,13 +33,20 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("watcher: ")
 
+	if os.Getenv("FC_SENDER") == "telegram" {
+		if err := runTelegram(*poll); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	rpcURL := os.Getenv("FC_RPC_URL")
 	coins := strings.Split(os.Getenv("FC_COINS"), ",")
 	if rpcURL == "" || os.Getenv("FC_COINS") == "" {
 		log.Fatal("set FC_RPC_URL and FC_COINS")
 	}
 	if s := os.Getenv("FC_SENDER"); s != "fake" {
-		log.Fatalf("FC_SENDER=%q: only the fake sender is in this build", s)
+		log.Fatalf("FC_SENDER=%q: use fake or telegram", s)
 	}
 	chatID, _ := strconv.ParseInt(os.Getenv("FC_CHAT_ID"), 10, 64)
 

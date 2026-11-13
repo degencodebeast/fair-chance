@@ -60,3 +60,40 @@ func LaunchCursor(ctx context.Context, rpcURL, coin string) (Cursor, error) {
 	}
 	return Cursor(rules.LaunchBlock), nil
 }
+
+// CoinFacts are the fixed facts about one coin that alert sentences need.
+type CoinFacts struct {
+	Creator     string
+	LaunchBlock uint64
+	EarlyBlocks uint64
+	Symbol      string // from ft_metadata
+}
+
+// ReadCoinFacts reads fc_rules and ft_metadata of the coin.
+func ReadCoinFacts(ctx context.Context, rpcURL, coin string) (CoinFacts, error) {
+	var rules struct {
+		Creator     string `json:"creator"`
+		LaunchBlock uint64 `json:"launch_block"`
+		EarlyBlocks uint64 `json:"early_blocks"`
+	}
+	rpc := newRPC(rpcURL)
+	if err := rpc.view(ctx, coin, "fc_rules", &rules); err != nil {
+		return CoinFacts{}, fmt.Errorf("fc_rules of %s: %w", coin, err)
+	}
+	var metadata struct {
+		Symbol string `json:"symbol"`
+	}
+	if err := rpc.view(ctx, coin, "ft_metadata", &metadata); err != nil {
+		return CoinFacts{}, fmt.Errorf("ft_metadata of %s: %w", coin, err)
+	}
+	return CoinFacts{Creator: rules.Creator, LaunchBlock: rules.LaunchBlock, EarlyBlocks: rules.EarlyBlocks, Symbol: metadata.Symbol}, nil
+}
+
+// HeadCursor is the block after the final head: a watcher that starts here sees only new events.
+func HeadCursor(ctx context.Context, rpcURL string) (Cursor, error) {
+	var head blockView
+	if err := newRPC(rpcURL).call(ctx, "block", map[string]any{"finality": "final"}, &head); err != nil {
+		return 0, fmt.Errorf("final head: %w", err)
+	}
+	return Cursor(head.Header.Height + 1), nil
+}

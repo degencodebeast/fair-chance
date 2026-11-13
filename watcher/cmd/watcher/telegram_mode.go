@@ -1,0 +1,86 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"strconv"
+	"strings"
+	"time"
+
+	"fairchance/watcher/internal/commands"
+	"fairchance/watcher/internal/eventsource"
+	"fairchance/watcher/internal/telegram"
+	"fairchance/watcher/internal/watchedcoins"
+)
+
+const defaultFastNearTestnet = "https://tx.test.fastnear.com"
+
+// runTelegram runs the bot: long polling for /watch, and a read pass for alerts.
+// Environment: FC_RPC_URL, FC_TELEGRAM_CHAT_ID (the one chat the bot answers), TELEGRAM_BOT_TOKEN
+// (read here and nowhere else), FC_EVENT_SOURCE ("block-scan" by default, or "fastnear" with
+// FC_FASTNEAR_URL), FC_COINS (optional coins to watch from the start).
+func runTelegram(poll time.Duration) error {
+	rpcURL := os.Getenv("FC_RPC_URL")
+	chatID, err := strconv.ParseInt(os.Getenv("FC_TELEGRAM_CHAT_ID"), 10, 64)
+	if rpcURL == "" || err != nil || chatID == 0 {
+		return fmt.Errorf("set FC_RPC_URL and FC_TELEGRAM_CHAT_ID")
+	}
+	api, err := telegram.NewBotAPIFromEnvironment()
+	if err != nil {
+		return err
+	}
+	var src eventsource.Source
+	switch kind := os.Getenv("FC_EVENT_SOURCE"); kind {
+	case "", "block-scan":
+		src = eventsource.NewRPCScan(rpcURL)
+	case "fastnear":
+		url := os.Getenv("FC_FASTNEAR_URL")
+		if url == "" {
+			url = defaultFastNearTestnet
+		}
+		src = eventsource.NewFastNear(url)
+	default:
+		return fmt.Errorf("FC_EVENT_SOURCE=%q: use block-scan or fastnear", kind)
+	}
+
+	set := &watchedcoins.Set{
+		Source: src,
+		Head:   func(ctx context.Context) (eventsource.Cursor, error) { return eventsource.HeadCursor(ctx, rpcURL) },
+		Facts: func(ctx context.Context, coin string) (eventsource.CoinFacts, error) {
+			return eventsource.ReadCoinFacts(ctx, rpcURL, coin)
+		},
+		Sender:   api,
+		ChatID:   chatID,
+		Location: time.Local,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	for _, coin := range strings.Split(os.Getenv("FC_COINS"), ",") {
+		if coin = strings.TrimSpace(coin); coin != "" {
+			if err := set.Watch(ctx, coin); err != nil {
+				return err
+			}
+		}
+	}
+
+	go func() {
+		for {
+			if err := set.Poll(ctx); err != nil && ctx.Err() == nil {
+				log.Printf("read pass: %v", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(poll):
+			}
+		}
+	}()
+	bot := commands.Bot{ChatID: chatID, Reply: api, Watcher: set}
+	if err := bot.Serve(ctx, api); err != nil && ctx.Err() == nil {
+		return err
+	}
+	return nil
+}
