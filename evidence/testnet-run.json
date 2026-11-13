@@ -9,6 +9,16 @@
     "deposit": "5000000000000000000000000",
     "launch_block": 277565791
   },
+  "block_time": {
+    "finality": "final",
+    "start_block": 277571692,
+    "start_timestamp_ns": "1794609034123296368",
+    "end_block": 277572692,
+    "end_timestamp_ns": "1794609615288461031",
+    "blocks": 1000,
+    "seconds": 581.165,
+    "seconds_per_block": 0.5812
+  },
   "buys": [
     {
       "tx_hash": "EU7f9gmEmNdWGLjxnAHU3UTCxnZofAehN3jHUhebcJvD",
