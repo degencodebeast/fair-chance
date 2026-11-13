@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
+pub use near_api::types::account::ContractState;
 use near_api::types::transaction::result::TransactionResult;
 use near_api::types::{AccountId, CryptoHash, Data, NearToken};
 use near_api::{Contract, NetworkConfig, Signer};
@@ -18,6 +19,25 @@ pub const COIN_TICKER: &str = "walk";
 /// The walking-path coin's icon: a 96 x 96 WebP data URL under 8 KB.
 pub const COIN_ICON: &str = include_str!("../../testdata/coin-icon-96px-webp-data-url.txt");
 pub const COIN_DESCRIPTION: &str = "The walking-path coin.";
+/// The NEAR a creator attaches to `launch` for the coin's storage (no opening buy).
+pub const LAUNCH_DEPOSIT: NearToken = NearToken::from_near(5);
+
+/// The JSON arguments of the factory `launch` call. `opening_buy` is yoctoNEAR.
+pub fn launch_args(
+    name: &str,
+    ticker: &str,
+    icon: Option<&str>,
+    description: Option<&str>,
+    opening_buy: Option<NearToken>,
+) -> Value {
+    json!({
+        "name": name,
+        "ticker": ticker,
+        "icon": icon,
+        "description": description,
+        "opening_buy": opening_buy.map(|n| n.as_yoctonear().to_string()),
+    })
+}
 
 /// The near-sandbox (neard) release these tests run on. `NEAR_SANDBOX_BIN_PATH` must point to it.
 pub const SANDBOX_RELEASE: &str = "2.13.4";
@@ -67,6 +87,8 @@ pub struct World {
 pub struct LoggedEvent {
     pub receipt_id: String,
     pub executor: String,
+    /// The block that holds the receipt outcome.
+    pub block_hash: CryptoHash,
     pub event: Value,
 }
 
@@ -185,14 +207,14 @@ impl World {
             &creator,
             &factory.id,
             "launch",
-            json!({
-                "name": "Walk Coin",
-                "ticker": COIN_TICKER,
-                "icon": COIN_ICON,
-                "description": COIN_DESCRIPTION,
-                "opening_buy": null,
-            }),
-            NearToken::from_near(5),
+            launch_args(
+                "Walk Coin",
+                COIN_TICKER,
+                Some(COIN_ICON),
+                Some(COIN_DESCRIPTION),
+                None,
+            ),
+            LAUNCH_DEPOSIT,
         )
         .await?;
         Ok(Self {
@@ -209,6 +231,91 @@ impl World {
 
     pub fn rpc_url(&self) -> &str {
         &self.sandbox.rpc_addr
+    }
+
+    /// The coin account the factory makes for a ticker: `<ticker>.<factory>`.
+    pub fn coin_for(&self, ticker: &str) -> Result<AccountId> {
+        Ok(format!("{ticker}.{}", self.factory.id).parse()?)
+    }
+
+    /// Send one `launch` call to the factory and return the result, success or not.
+    pub async fn try_launch(
+        &self,
+        creator: &Account,
+        args: Value,
+        deposit: NearToken,
+    ) -> Result<TransactionResult> {
+        transact(
+            &self.network,
+            creator,
+            &self.factory.id,
+            "launch",
+            args,
+            deposit,
+        )
+        .await
+    }
+
+    /// The account's contract state as the chain reports it (`view_account`), or `None` when
+    /// no account exists.
+    pub async fn contract_state(&self, account: &AccountId) -> Result<Option<ContractState>> {
+        match near_api::Account(account.clone())
+            .view()
+            .fetch_from(&self.network)
+            .await
+        {
+            Ok(data) => Ok(Some(data.data.contract_state)),
+            Err(e) if format!("{e:?}").contains("UnknownAccount") => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    /// The account's NEAR balance (`view_account` amount).
+    pub async fn balance(&self, account: &AccountId) -> Result<NearToken> {
+        Ok(near_api::Account(account.clone())
+            .view()
+            .fetch_from(&self.network)
+            .await?
+            .data
+            .amount)
+    }
+
+    /// Number of access keys on the account (`view_access_key_list`).
+    pub async fn access_key_count(&self, account: &AccountId) -> Result<usize> {
+        Ok(near_api::Account(account.clone())
+            .list_keys()
+            .fetch_from(&self.network)
+            .await?
+            .data
+            .len())
+    }
+
+    /// Height of the block that holds a receipt outcome's block hash.
+    pub async fn block_height_of(&self, block_hash: CryptoHash) -> Result<u64> {
+        Ok(near_api::Chain::block()
+            .at(near_api::Reference::AtBlockHash(block_hash))
+            .fetch_from(&self.network)
+            .await?
+            .header
+            .height)
+    }
+
+    /// Waits until the final head is at `height` or above.
+    pub async fn wait_for_height(&self, height: u64) -> Result<()> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        loop {
+            let head = near_api::Chain::block_number()
+                .at(near_api::Reference::Final)
+                .fetch_from(&self.network)
+                .await?;
+            if head >= height {
+                return Ok(());
+            }
+            if std::time::Instant::now() > deadline {
+                bail!("final head {head} did not reach block {height} in 60 s");
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
     }
 
     /// Sign and send one function call; fails if any receipt failed.
@@ -232,14 +339,7 @@ impl World {
         args: Value,
         deposit: NearToken,
     ) -> Result<String> {
-        let result = Contract(contract.clone())
-            .call_function(method, args)
-            .transaction()
-            .deposit(deposit)
-            .with_signer(who.id.clone(), who.signer.clone())
-            .send_to(&self.network)
-            .await;
-        match result {
+        match transact(&self.network, who, contract, method, args, deposit).await {
             Ok(r) if r.is_success() => {
                 bail!("{method} on {contract} succeeded; a refusal was expected")
             }
@@ -272,6 +372,7 @@ pub fn events(result: &TransactionResult, standard: &str, name: &str) -> Vec<Log
                 (event["standard"] == standard && event["event"] == name).then(|| LoggedEvent {
                     receipt_id: o.transaction_hash.to_string(),
                     executor: o.executor_id.to_string(),
+                    block_hash: o.block_hash,
                     event,
                 })
             })
@@ -318,17 +419,34 @@ async fn send(
     args: Value,
     deposit: NearToken,
 ) -> Result<TransactionResult> {
-    let result = Contract(contract.clone())
-        .call_function(method, args)
-        .transaction()
-        .deposit(deposit)
-        .with_signer(who.id.clone(), who.signer.clone())
-        .send_to(network)
-        .await?;
+    let result = transact(network, who, contract, method, args, deposit).await?;
     if !result.is_success() {
         bail!("{method} on {contract} failed: {result:?}");
     }
     Ok(result)
+}
+
+/// The gas every test transaction attaches. The factory `launch` chain needs more than the
+/// 100 TGas default; unused gas is refunded.
+const TRANSACTION_GAS: near_api::types::NearGas = near_api::types::NearGas::from_tgas(300);
+
+/// Sign and send one function call and return its result, success or not.
+async fn transact(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+    deposit: NearToken,
+) -> Result<TransactionResult> {
+    Ok(Contract(contract.clone())
+        .call_function(method, args)
+        .transaction()
+        .deposit(deposit)
+        .gas(TRANSACTION_GAS)
+        .with_signer(who.id.clone(), who.signer.clone())
+        .send_to(network)
+        .await?)
 }
 
 impl World {
