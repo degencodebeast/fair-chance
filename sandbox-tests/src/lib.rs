@@ -154,6 +154,47 @@ pub fn newer_sources(artifact: &Path, sources: &[PathBuf]) -> Result<Vec<PathBuf
     Ok(newer)
 }
 
+/// The coin wasm from the reproducible Docker build, with the commit it was built from and the
+/// sha256 checksum cargo-near printed for it (`scripts/build-coin-reproducible.sh` writes all three).
+pub struct ReproducibleCoinBuild {
+    pub wasm: Vec<u8>,
+    pub commit: String,
+    pub cargo_near_sha256_base58: String,
+}
+
+/// The folder where `scripts/build-coin-reproducible.sh` puts its output.
+pub const REPRODUCIBLE_COIN_DIR: &str = "target/near-reproducible/fair_chance_coin";
+
+/// Reads the reproducible coin build output. An error when the build script has not run.
+pub fn reproducible_coin_build() -> Result<ReproducibleCoinBuild> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(REPRODUCIBLE_COIN_DIR);
+    let read = |file: &str| -> Result<String> {
+        let path = dir.join(file);
+        Ok(std::fs::read_to_string(&path)
+            .with_context(|| {
+                format!(
+                    "read {}; run scripts/build-coin-reproducible.sh first",
+                    path.display()
+                )
+            })?
+            .trim()
+            .to_string())
+    };
+    let wasm_path = dir.join("fair_chance_coin.wasm");
+    Ok(ReproducibleCoinBuild {
+        wasm: std::fs::read(&wasm_path).with_context(|| {
+            format!(
+                "read {}; run scripts/build-coin-reproducible.sh first",
+                wasm_path.display()
+            )
+        })?,
+        commit: read("built-commit.txt")?,
+        cargo_near_sha256_base58: read("cargo-near-sha256-base58.txt")?,
+    })
+}
+
 fn genesis(name: &str) -> Result<(GenesisAccount, Account)> {
     let account = GenesisAccount::generate_with_name(name.parse()?);
     let signer = Signer::from_secret_key(account.private_key.parse()?)?;
@@ -168,8 +209,13 @@ impl World {
     /// Start a fresh sandbox, put the coin code in global storage by hash, deploy the factory
     /// and launch one coin from the creator account.
     pub async fn launch() -> Result<Self> {
+        Self::launch_with_coin_code(wasm("fair_chance_coin")?).await
+    }
+
+    /// As [`World::launch`], with the given coin wasm as the global code (for example the
+    /// reproducible build from [`reproducible_coin_build`]).
+    pub async fn launch_with_coin_code(coin_code: Vec<u8>) -> Result<Self> {
         check_sandbox_binary()?;
-        let coin_code = wasm("fair_chance_coin")?;
         let factory_code = wasm("fair_chance_factory")?;
         let (factory_g, factory) = genesis("factory.sandbox")?;
         let (creator_g, creator) = genesis("creator.sandbox")?;
