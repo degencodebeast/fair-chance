@@ -87,6 +87,18 @@ impl Coin {
                 min_tokens_out: 0,
             });
         }
+        // Write the state now so storage_usage counts all of it. The pool's real NEAR must stay
+        // payable, so the storage lock must come from the rest of the balance.
+        started.holders.flush();
+        env::state_write(&started);
+        let storage_lock =
+            env::storage_byte_cost().as_yoctonear() * u128::from(env::storage_usage());
+        let free = env::account_balance()
+            .as_yoctonear()
+            .saturating_sub(started.state.real_near);
+        if free < storage_lock {
+            env::panic_str("the launch deposit does not cover the coin's storage");
+        }
         started
     }
 
