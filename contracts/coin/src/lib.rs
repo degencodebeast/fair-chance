@@ -52,7 +52,7 @@ pub struct StorageBalanceBounds {
     contract_metadata(
         standard(standard = "nep141", version = "1.0.0"),
         standard(standard = "nep148", version = "1.0.0"),
-        standard(standard = "fair_chance", version = "1.0.0-rc.6")
+        standard(standard = "fair_chance", version = "1.0.0-rc.7")
     )
 )]
 #[derive(PanicOnDefault)]

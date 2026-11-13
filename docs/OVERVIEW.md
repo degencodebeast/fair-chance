@@ -75,7 +75,7 @@ Public claims say "most wallets", never "most selling". They do not use "safe", 
 | Coin contract | Token, pool and every rule above | Builder |
 | Frontend | Launch form, coin list, coin page with limits and receipts | Builder |
 | Watcher and Telegram bot | Reads coin events, sends plain-language alerts, answers `/watch` and `/check` | Builder |
-| Events and view methods | An NEP-297 event for every sell, including limited sells; hard refusals return a fixed error code; a view method for the early window and allowances | Builder (names frozen as 1.0.0-rc.6, additions only since rc.3; 1.0.0 when every coin rule passes its sandbox tests) |
+| Events and view methods | An NEP-297 event for every sell, including limited sells; hard refusals return a fixed error code; a view method for the early window and allowances | Builder (names frozen as 1.0.0-rc.7, additions only since rc.3; 1.0.0 when every coin rule passes its sandbox tests) |
 | NEAR launch replay | Measures early and insider selling on real NEAR launches | Kalu, issue #1 |
 | Rule simulation | Tests the parameters and attacks over 60 days | Kalu, issue #2 |
 

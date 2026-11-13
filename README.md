@@ -4,7 +4,7 @@
 
 Fair Chance is a memecoin launchpad on NEAR where that story needs a different ending. Every coin it launches has sell limits written into the coin contract. The creator, early buyers and large holders can sell into the pool at the pace the pool's depth allows, and no faster. A large holder cannot split a bag by sending it to other wallets.
 
-Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-rc.6 (the version becomes 1.0.0 when every rule passes its sandbox tests).
+Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-rc.7 (the version becomes 1.0.0 when every rule passes its sandbox tests).
 
 <!-- waits on: the testnet deploy (links row: live page, demo video with its length, "no login, no key") -->
 
