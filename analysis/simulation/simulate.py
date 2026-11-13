@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse, csv, json, random
 from collections import defaultdict
 from dataclasses import dataclass, field
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -194,7 +195,7 @@ def rows(p,only=None):
 def write(name,rows,directory=None):
     cols=list(dict.fromkeys(k for r in rows for k in r));path=(directory or ROOT/'results')/name;path.parent.mkdir(parents=True,exist_ok=True)
     with path.open('w',newline='') as f:o=csv.DictWriter(f,fieldnames=cols,lineterminator='\n');o.writeheader();o.writerows(rows)
-def unit(value, scale): return str(int(round(value*scale)))
+def unit(value, scale): return str(int((Decimal(str(value))*Decimal(str(scale))).quantize(Decimal('1'),rounding=ROUND_HALF_UP)))
 def cap_cases():
     """Small deterministic vectors for a contract implementation (decimal math)."""
     cases=[]
@@ -210,9 +211,31 @@ def cap_cases():
         bought=e.buy('same',100,0); actions.append({'account':'same','kind':'buy','amount_near_yocto':unit(100,1e24),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(bought,1e18),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}})
         sell('same',e.wallet('same').tokens,1)
         cases.append({'name':f'same-account-round-trip-s-{int(share*100)}','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':int(share*10000)},'actions':actions})
+    # Same-account buy/sell ordering must not change another account's cap debit.
+    for order in ('buy-first','sell-first'):
+        e=Engine(Policy(17,.02,None,.1),Pool(token=SUPPLY,near=110.,real=10.));e.wallet('large').tokens=50_000_000.;e.wallet('large').ever_large=True
+        actions=[]
+        sequence=[('large','sell',10_000_000.),('buyer','buy',1.)]
+        if order=='buy-first':sequence.reverse()
+        for account,kind,amount in sequence:
+            if kind=='buy': result=e.buy(account,amount,0); fill={'tokens_filled_base':unit(result,1e18),'near_out_yocto':'0','refusal_code':None}
+            else: result=e.sell(account,amount,0); fill={'tokens_filled_base':unit(result[0],1e18),'near_out_yocto':unit(result[1],1e24),'refusal_code':None}
+            fill['cap_used_yocto']=unit(e.cap_used(0),1e24)
+            actions.append({'account':account,'kind':kind,'amount_near_yocto' if kind=='buy' else 'amount_token_base':unit(amount,1e24 if kind=='buy' else 1e18),'time_s':0,'block':100,'result':fill})
+        cases.append({'name':f'order-independence-{order}','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':0},'actions':actions})
+    # Ten within-allowance round trips create no cap credit for the later band exit.
+    e=Engine(Policy(17,.02,None,.1),Pool(token=SUPPLY,near=110.,real=10.));e.wallet('band').tokens=20_000_000.;actions=[]
+    for _ in range(10):
+        bought=e.buy('band',.01,0);sold=e.sell('band',bought,0)
+        actions.extend([{'account':'band','kind':'buy','amount_near_yocto':unit(.01,1e24),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(bought,1e18),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}}, {'account':'band','kind':'sell','amount_token_base':unit(bought,1e18),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(sold[0],1e18),'near_out_yocto':unit(sold[1],1e24),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}}])
+    e.wallet('band').ever_large=True
+    sold=e.sell('band',e.wallet('band').tokens,1)
+    actions.append({'account':'band','kind':'sell','amount_token_base':unit(20_000_000,1e18),'time_s':3600,'block':100,'result':{'tokens_filled_base':unit(sold[0],1e18),'near_out_yocto':unit(sold[1],1e24),'cap_used_yocto':unit(e.cap_used(1),1e24),'refusal_code':None}})
+    cases.append({'name':'band-round-trip-credit','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':0},'actions':actions})
     (ROOT/'results'/'cap-cases.json').write_text(json.dumps({'version':'1.0.0-rc.4','math':'decimal floating-point simulation; amounts are serialized as integer base units','cases':cases},indent=2)+'\n')
 def main():
-    a=argparse.ArgumentParser();a.add_argument('--checkpoint',action='store_true');a.add_argument('--shard',type=int);a.add_argument('--shards',type=int);a.add_argument('--merge',action='store_true');args=a.parse_args()
+    a=argparse.ArgumentParser();a.add_argument('--checkpoint',action='store_true');a.add_argument('--shard',type=int);a.add_argument('--shards',type=int);a.add_argument('--merge',action='store_true');a.add_argument('--cap-cases',action='store_true');args=a.parse_args()
+    if args.cap_cases: cap_cases();return
     if args.merge:
         for i in range(1,12):
             records=[]

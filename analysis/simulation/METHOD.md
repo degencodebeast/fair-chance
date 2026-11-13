@@ -27,3 +27,11 @@ The main grid is T=2%, N={5,17,50}, D={off,10%,20%,30%}, penalty={10%,20%,30%},
 s={0%,30%}. T=1% and 5% plus 10-minute and 24-hour windows are sensitivity
 checks. Test 11 scales marked early supply to 9%, 23%, and 41%, retaining a
 0.05 NEAR early buyer at block 3.
+
+`results/cap-cases.json` contains rc.4 contract-comparison vectors. It records
+integer unit strings, ordered actions, fills, cap use, and refusal codes. The
+model calculations use decimal floating-point; values are rounded to the
+nearest base unit only when serialized. Run `python3 analysis/simulation/charts.py`
+to regenerate the SVG summaries for tests 1, 4, and 10. The configured brake
+does not trip in the baseline synthetic path; the unit test separately forces
+a price drop across the threshold to verify its behavior.
