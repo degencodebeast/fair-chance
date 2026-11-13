@@ -10,7 +10,7 @@ use near_api::{NetworkConfig, RPCEndpoint};
 fn endpoint(url: &str, role: &str) -> Result<RPCEndpoint> {
     let refuse = || {
         anyhow::anyhow!(
-            "the {role} RPC URL is refused: use https with no user, password, query or fragment, on testnet"
+            "the {role} RPC URL is refused: use https on a testnet host with no path, user, password, query or fragment"
         )
     };
     let mut endpoint = RPCEndpoint::new(url.parse().map_err(|_| refuse())?);
@@ -21,6 +21,8 @@ fn endpoint(url: &str, role: &str) -> Result<RPCEndpoint> {
         || u.password().is_some()
         || u.query().is_some()
         || u.fragment().is_some()
+        // A path could hold a key (for example /v3/<key>): only a bare host is taken.
+        || !matches!(u.path(), "" | "/")
         || host.contains("mainnet")
         || !host.contains("testnet")
     {

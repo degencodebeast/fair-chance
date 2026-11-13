@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use fair_chance_sandbox_tests::option_t::{decide_account, AccountPlan, ExistingAccount};
-use fair_chance_sandbox_tests::rate_limit::{rate_limit_wait, with_rate_limit_backoff, Waits};
+use fair_chance_sandbox_tests::rate_limit::{
+    rate_limit_wait, with_rate_limit_backoff, Budget, Waits,
+};
 use near_api::types::NearToken;
 
 /// The error text the first testnet run printed (headers trimmed).
@@ -68,11 +70,11 @@ async fn a_read_waits_on_429s_and_then_gives_its_answer() {
     let mut calls = 0;
     let got = with_rate_limit_backoff(
         "a read",
-        Waits::new(
+        &Budget::new(Waits::new(
             Duration::from_millis(1),
             Duration::from_millis(4),
             Duration::from_secs(5),
-        ),
+        )),
         || {
             calls += 1;
             let n = calls;
@@ -101,11 +103,11 @@ async fn a_403_or_an_unknown_error_stops_the_read_at_once() {
         let mut calls = 0;
         let error = with_rate_limit_backoff(
             "a read",
-            Waits::new(
+            &Budget::new(Waits::new(
                 Duration::from_millis(1),
                 Duration::from_millis(4),
                 Duration::from_secs(5),
-            ),
+            )),
             || {
                 calls += 1;
                 async move { Err::<(), _>(anyhow!("{text}")) }
@@ -124,11 +126,11 @@ async fn a_read_that_stays_rate_limited_past_the_total_limit_stops() {
     let mut calls = 0;
     let error = with_rate_limit_backoff(
         "the balance read",
-        Waits::new(
+        &Budget::new(Waits::new(
             Duration::from_millis(5),
             Duration::from_millis(5),
             Duration::from_millis(12),
-        ),
+        )),
         || {
             calls += 1;
             async move { Err::<(), _>(anyhow!("Response {{ status: 429, headers: {{}} }}")) }

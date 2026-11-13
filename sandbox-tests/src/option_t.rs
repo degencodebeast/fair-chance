@@ -19,7 +19,7 @@ use tokio::task::JoinSet;
 
 use crate::amount_text::{amount, near, tokens};
 use crate::pass_list::PassList;
-use crate::rate_limit::{with_rate_limit_backoff, Waits};
+use crate::rate_limit::{run_budget, with_rate_limit_backoff};
 use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{
     account_view, batch_once, events, launch_args, send_once, transact_once, transaction_hash,
@@ -359,13 +359,12 @@ async fn existing_account(setup: &OptionTSetup, id: &AccountId) -> Result<Option
         return Ok(None);
     };
     let funder_key = setup.funder.signer.get_public_key().await?;
-    let keys =
-        with_rate_limit_backoff(&format!("the key list of {id}"), Waits::for_reads(), || {
-            near_api::Account(id.clone())
-                .list_keys()
-                .fetch_from(&setup.network)
-        })
-        .await?;
+    let keys = with_rate_limit_backoff(&format!("the key list of {id}"), run_budget(), || {
+        near_api::Account(id.clone())
+            .list_keys()
+            .fetch_from(&setup.network)
+    })
+    .await?;
     let funder_key_full_access = keys.data.iter().any(|(key, access)| {
         *key == funder_key && access.permission == near_api::types::AccessKeyPermission::FullAccess
     });
@@ -500,7 +499,7 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
             signer: setup.funder.signer.clone(),
         });
     }
-    let head = with_rate_limit_backoff("the head block", Waits::for_reads(), || {
+    let head = with_rate_limit_backoff("the head block", run_budget(), || {
         near_api::Chain::block_number()
             .at(near_api::Reference::Optimistic)
             .fetch_from(&setup.network)
@@ -517,25 +516,27 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
 pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
     let mut deleted = Vec::new();
     for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
-        match near_api::Account(id.clone())
-            .view()
-            .fetch_from(&setup.network)
+        // Only the node's own answer that the account does not exist counts as absent; any other
+        // error stops the step.
+        if account_view(&setup.network, &id)
             .await
+            .with_context(|| format!("unknown result reading {id}; nothing more deleted"))?
+            .is_none()
         {
-            Ok(_) => {}
-            // Only the node's own answer that the account does not exist counts as absent.
-            Err(e) if format!("{e:?}").contains("UnknownAccount") => {
-                println!("option-t: {id} does not exist; nothing to delete");
-                continue;
-            }
-            Err(e) => bail!("unknown result reading {id}: {e}; nothing more deleted"),
+            println!("option-t: {id} does not exist; nothing to delete");
+            continue;
         }
-        let result = near_api::Account(id.clone())
+        let transaction = near_api::Account(id.clone())
             .delete_account_with_beneficiary(setup.funder.id.clone())
-            .with_signer(setup.funder.signer.clone())
-            .send_to(&setup.network)
-            .await
-            .with_context(|| format!("unknown result deleting {id}; nothing more deleted"))?;
+            .with_signer(setup.funder.signer.clone());
+        let result = send_once(
+            transaction,
+            &setup.funder.id,
+            &setup.network,
+            &setup.send_network,
+        )
+        .await
+        .with_context(|| format!("deleting {id}; nothing more deleted"))?;
         if !result.is_success() {
             bail!("deleting {id} failed: {result:?}");
         }

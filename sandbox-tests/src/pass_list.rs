@@ -35,7 +35,8 @@ pub fn print_and_exit(list: &PassList, outcome: Result<()>) -> ! {
     match outcome {
         Ok(()) => std::process::exit(0),
         Err(failure) => {
-            let text = format!("{failure:#}");
+            // A last guard: no RPC URL (it could hold a key) reaches the output.
+            let text = crate::rate_limit::without_urls(&format!("{failure:#}"));
             if text.starts_with("FAIL ") {
                 println!("{text}");
             } else {

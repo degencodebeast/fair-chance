@@ -3,15 +3,20 @@
 //! module reads that text: a 429 waits (the Retry-After when it is longer) and reads again, up to
 //! a total wait limit. A 403 or any other error is not waited on: the caller stops and reports.
 //! Only reads go through here; a transaction is never sent twice.
+//!
+//! The waits are one budget for the whole run ([`run_budget`]): every read shares it, so the run
+//! obeys at most two 429 waits and 15 minutes of waiting in all. No error text carries an RPC URL
+//! ([`without_urls`]): a URL could hold a key.
 
 use std::future::Future;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use anyhow::{bail, Result};
 
-/// The total time one read may spend waiting on 429s before it stops (the builder's rule).
+/// The total time the run may spend waiting on 429s before it stops (the builder's rule).
 pub const READ_WAIT_LIMIT: Duration = Duration::from_secs(15 * 60);
-/// The most waits one read may make on 429s before it stops (the builder's rule: obey
+/// The most waits the run may make on 429s before it stops (the builder's rule: obey
 /// Retry-After at most twice).
 pub const READ_MAX_WAITS: u32 = 2;
 
@@ -62,6 +67,51 @@ impl Waits {
     }
 }
 
+/// One wait budget, shared by every read that is given it.
+#[derive(Debug)]
+pub struct Budget(Mutex<Waits>);
+
+impl Budget {
+    pub const fn new(waits: Waits) -> Self {
+        Self(Mutex::new(waits))
+    }
+
+    fn next(&self, retry_after: Option<Duration>) -> Option<Duration> {
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .next(retry_after)
+    }
+}
+
+/// The budget of this run (one process is one run): [`Waits::for_reads`], shared by every read.
+pub fn run_budget() -> &'static Budget {
+    static BUDGET: OnceLock<Budget> = OnceLock::new();
+    BUDGET.get_or_init(|| Budget::new(Waits::for_reads()))
+}
+
+/// The text with every http:// or https:// URL replaced by `<rpc url>`. A URL ends at a quote,
+/// a space, a closing bracket or a comma.
+pub fn without_urls(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = ["http://", "https://"]
+        .iter()
+        .filter_map(|scheme| rest.find(scheme))
+        .min()
+    {
+        out.push_str(&rest[..at]);
+        out.push_str("<rpc url>");
+        let tail = &rest[at..];
+        let end = tail
+            .find(|c: char| c.is_whitespace() || "\"'`)]},;<>".contains(c))
+            .unwrap_or(tail.len());
+        rest = &tail[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// `Some(retry_after)` when the error text is an HTTP 429, with its Retry-After in seconds when
 /// the text has one; `None` for anything else.
 pub fn rate_limit_wait(error: &str) -> Option<Option<Duration>> {
@@ -78,11 +128,11 @@ pub fn rate_limit_wait(error: &str) -> Option<Option<Duration>> {
     Some(retry_after)
 }
 
-/// Runs `read` until it answers, waiting on each 429 as [`Waits`] says. A 403, any other error,
-/// or a 429 past the total limit stops it with `what` in the error.
+/// Runs `read` until it answers, waiting on each 429 as `budget` allows. A 403, any other error,
+/// or a 429 past the budget stops it with `what` in the error and no URL in it.
 pub async fn with_rate_limit_backoff<T, E, F, Fut>(
     what: &str,
-    mut waits: Waits,
+    budget: &Budget,
     mut read: F,
 ) -> Result<T>
 where
@@ -96,10 +146,17 @@ where
             Err(e) => format!("{e:?}"),
         };
         let Some(retry_after) = rate_limit_wait(&error) else {
-            bail!("unknown result of {what}: {error}; stopped, no retry");
+            bail!(
+                "unknown result of {what}: {}; stopped, no retry",
+                without_urls(&error)
+            );
         };
-        let Some(wait) = waits.next(retry_after) else {
-            bail!("{what} stayed rate limited (HTTP 429) past the wait limit; stopped: {error}");
+        let Some(wait) = budget.next(retry_after) else {
+            bail!(
+                "{what} got HTTP 429 past the run's wait limit ({READ_MAX_WAITS} waits, {} s in all); stopped: {}",
+                READ_WAIT_LIMIT.as_secs(),
+                without_urls(&error)
+            );
         };
         println!(
             "rate limit: {what} got HTTP 429; waiting {} s",

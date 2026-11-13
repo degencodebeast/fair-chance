@@ -37,6 +37,7 @@ type report struct {
 	Summary         timing.Summary  `json:"latency_summary"`
 	SecondsPerBlock *blocksMeasured `json:"seconds_per_block,omitempty"`
 	RateLimited     int             `json:"rate_limited_reads"`
+	RateLimitWaits  int             `json:"rate_limit_waits"` // waits obeyed; at most 2 in one run
 	StoppedBy       string          `json:"stopped_by"`
 	Note            string          `json:"note"`
 }
@@ -155,6 +156,7 @@ func runLimited(ctx context.Context, r *report, poll, idle time.Duration, want i
 			if !ok {
 				return rateLimitStop("the RPC")
 			}
+			r.RateLimitWaits++
 			log.Printf("429 from the RPC; waiting %s", wait)
 			sleep(ctx, wait)
 		case errors.Is(err, eventsource.ErrRateLimited):
@@ -163,6 +165,7 @@ func runLimited(ctx context.Context, r *report, poll, idle time.Duration, want i
 			if !ok {
 				return rateLimitStop("the RPC")
 			}
+			r.RateLimitWaits++
 			sleep(ctx, wait)
 		case strings.Contains(err.Error(), "UNKNOWN_ACCOUNT"):
 			sleep(ctx, coinPoll) // not launched yet
@@ -196,6 +199,7 @@ func runLimited(ctx context.Context, r *report, poll, idle time.Duration, want i
 			if !ok {
 				return rateLimitStop("FastNEAR")
 			}
+			r.RateLimitWaits++
 			log.Printf("429 from FastNEAR; waiting %s", wait)
 			sleep(ctx, wait)
 			continue
@@ -276,6 +280,7 @@ func finishLimited(parent context.Context, r *report, back *timing.LimitedBackOf
 			if !ok {
 				return fmt.Errorf("%w; %w", err, rateLimitStop("the RPC"))
 			}
+			r.RateLimitWaits++
 			sleep(ctx, wait)
 		}
 	}

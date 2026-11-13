@@ -663,7 +663,7 @@ pub async fn view_on(
 ) -> Result<Value> {
     let data: Data<Value> = rate_limit::with_rate_limit_backoff(
         &format!("the view {method} on {contract}"),
-        rate_limit::Waits::for_reads(),
+        rate_limit::run_budget(),
         || {
             Contract(contract.clone())
                 .call_function(method, args.clone())
@@ -760,20 +760,23 @@ pub async fn transact_once(
     send_once(transaction, &who.id, read, send).await
 }
 
-/// Signs `transaction` (reading the nonce from `read`), sends it once to `send`, and returns its
+/// Signs `transaction` (reading the nonce from `send`), sends it once to `send`, and returns its
 /// result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
 /// try ([`rpcs::testnet_rpcs`]). When the send gives no answer or an unknown result, it looks up the
 /// transaction by its hash on `read` and returns what the chain holds; it never sends it again, on
 /// either RPC. A hash the chain does not know stops the run. A failure before the send (signing,
-/// the nonce read) means nothing went out.
+/// the nonce read) means nothing went out. No error text carries an RPC URL.
 pub async fn send_once(
     transaction: near_api::advanced::ExecuteSignedTransaction,
     signer_id: &AccountId,
     read: &NetworkConfig,
     send: &NetworkConfig,
 ) -> Result<TransactionResult> {
-    let signed = transaction.presign_with(read).await.map_err(|e| {
-        anyhow::anyhow!("signing for {signer_id} failed before any send: {e}; nothing was sent")
+    let signed = transaction.presign_with(send).await.map_err(|e| {
+        anyhow::anyhow!(
+            "signing for {signer_id} failed before any send: {}; nothing was sent",
+            rate_limit::without_urls(&format!("{e}"))
+        )
     })?;
     let hash = match &signed.transaction {
         near_api::advanced::TransactionableOrSigned::Signed((tx, _)) => tx.get_hash(),
@@ -784,7 +787,7 @@ pub async fn send_once(
     let sent = signed.send_to(send).await;
     let error = match sent {
         Ok(result) => return Ok(result),
-        Err(e) => format!("{e:?}"),
+        Err(e) => rate_limit::without_urls(&format!("{e:?}")),
     };
     println!("send: tx {hash} of {signer_id} gave no clear answer; looking it up by hash, not sending it again");
     // First a lookup that does not wait: a node answers UNKNOWN_TRANSACTION at once for a hash it
@@ -792,7 +795,7 @@ pub async fn send_once(
     // which is an unknown result, not "not found".
     let seen = rate_limit::with_rate_limit_backoff(
         &format!("the status of tx {hash}"),
-        rate_limit::Waits::for_reads(),
+        rate_limit::run_budget(),
         || async {
             match near_api::Transaction::status_with_options(
                 signer_id.clone(),
@@ -827,7 +830,7 @@ pub async fn send_once(
             println!("send: tx {hash} is on chain but not done; waiting for its final outcome");
             rate_limit::with_rate_limit_backoff(
                 &format!("the final status of tx {hash}"),
-                rate_limit::Waits::for_reads(),
+                rate_limit::run_budget(),
                 || {
                     near_api::Transaction::status_with_options(
                         signer_id.clone(),
@@ -859,7 +862,7 @@ pub async fn account_view(
 ) -> Result<Option<near_api::types::account::Account>> {
     rate_limit::with_rate_limit_backoff(
         &format!("the account {id}"),
-        rate_limit::Waits::for_reads(),
+        rate_limit::run_budget(),
         || async {
             match near_api::Account(id.clone())
                 .view()
@@ -880,16 +883,13 @@ pub async fn account_view(
 pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Result<()> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
-        let head = rate_limit::with_rate_limit_backoff(
-            "the final head",
-            rate_limit::Waits::for_reads(),
-            || {
+        let head =
+            rate_limit::with_rate_limit_backoff("the final head", rate_limit::run_budget(), || {
                 near_api::Chain::block_number()
                     .at(near_api::Reference::Final)
                     .fetch_from(network)
-            },
-        )
-        .await?;
+            })
+            .await?;
         if head >= height {
             return Ok(());
         }
