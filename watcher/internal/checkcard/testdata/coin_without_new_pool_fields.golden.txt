@@ -1,14 +1,14 @@
 Moth Lamp (MOTH)
-As of 14:24.
+As of 14:24 UTC.
 
 Creator group: not available from this coin
 Early supply: 5.0% of supply
 Shared allowance for this 24 h window: 3.4M MOTH
-Refills 13:02 tomorrow, in 22 h 38 min
+Refills 13:02 UTC tomorrow, in 22 h 38 min
 
 Large holders: not available from this coin
 
 Pool cap this hour: has room, 0.90 NEAR left of 2.13
-Resets 15:02, in 38 min.
+Resets 15:02 UTC, in 38 min.
 
 Nobody can change these rules.

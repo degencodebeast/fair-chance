@@ -49,7 +49,7 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return withoutURL(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusTooManyRequests {

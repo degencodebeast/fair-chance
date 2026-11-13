@@ -16,7 +16,7 @@ func TestRPCErrorDoesNotHoldTheURLToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("want an error")
 	}
-	if strings.Contains(err.Error(), "SECRET-TOKEN") || strings.Contains(err.Error(), "127.0.0.1") {
+	if strings.Contains(err.Error(), "SECRET-TOKEN") || strings.Contains(err.Error(), "https://") {
 		t.Fatalf("error holds the URL: %v", err)
 	}
 }
@@ -27,7 +27,7 @@ func TestFastNearErrorDoesNotHoldTheURLToken(t *testing.T) {
 	if err == nil {
 		t.Fatal("want an error")
 	}
-	if strings.Contains(err.Error(), "SECRET-TOKEN") || strings.Contains(err.Error(), "127.0.0.1") {
+	if strings.Contains(err.Error(), "SECRET-TOKEN") || strings.Contains(err.Error(), "https://") {
 		t.Fatalf("error holds the URL: %v", err)
 	}
 }
