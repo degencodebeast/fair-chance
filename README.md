@@ -1,6 +1,7 @@
 # Fair Chance
 
 **You buy. The creator dumps on you. You hold the bag.**
+
 Fair Chance slows the dump at launch, inside the coin contract.
 
 Fair Chance is a memecoin launchpad on NEAR where that story needs a different ending. Every coin it launches has sell limits written into the coin contract. The creator, early buyers and large holders can sell into the pool at the pace the pool's depth allows, and no faster. A large holder cannot split a bag by sending it to other wallets.
