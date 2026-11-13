@@ -49,6 +49,7 @@ fn window_1() -> At {
 }
 
 /// One coin and its whole ledger, driven only through `apply` and the views.
+#[derive(Clone)]
 struct Coin {
     state: CoinState,
     ledger: BTreeMap<String, Holder>,
@@ -216,4 +217,194 @@ fn a_band_sell_above_its_first_allowance_fills_in_full_and_pays_ten_percent_of_t
     );
     assert_eq!(coin.state.real_near, real_near_before - sold.near_out);
     assert_eq!(coin.balance(BAND), 0);
+}
+
+/// LARGE buys 100 NEAR first (about half the supply leaves the pool, so one allowance is about
+/// 0.5% of supply), then BAND buys 6 NEAR (about 1.45%: band, and still band after one
+/// allowance).
+fn coin_with_a_deep_band_holder() -> Coin {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 100 * ONE_NEAR, after(5));
+    coin.buy(BAND, 6 * ONE_NEAR, after(10));
+    let view = coin.account(BAND, window_1());
+    assert_eq!(view.class, "band");
+    assert!(view.balance > 2 * view.unmarked.allowance);
+    coin
+}
+
+#[test]
+fn a_band_account_s_first_allowance_counts_over_all_its_sells_in_the_window() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let allowance = coin.account(BAND, window_1()).unmarked.allowance;
+
+    let first = coin.sell(BAND, allowance / 2, window_1());
+    let rest_of_first_allowance = allowance - allowance / 2;
+    let view = coin.account(BAND, after(HOUR_S + 1));
+    assert_eq!(first.penalty_near, 0);
+    assert_eq!(view.penalty_applies_above, Some(rest_of_first_allowance));
+
+    // The second sell's first-allowance part is only what the first sell left.
+    let mut inside = coin.clone();
+    let inside_sell = inside.sell(BAND, rest_of_first_allowance, after(HOUR_S + 1));
+    assert_eq!(inside_sell.penalty_near, 0);
+    assert_eq!(inside_sell.fill, "full");
+    let above = coin.sell(
+        BAND,
+        rest_of_first_allowance + ONE_TOKEN * 1_000_000,
+        after(HOUR_S + 1),
+    );
+    assert_eq!(above.class, "band");
+    assert_eq!(above.fill, "full");
+    assert_eq!(above.limit_reason, None);
+    assert!(above.penalty_near > 0);
+    assert_eq!(
+        coin.account(BAND, after(HOUR_S + 2)).penalty_applies_above,
+        Some(0)
+    );
+}
+
+#[test]
+fn a_band_account_gets_a_new_first_allowance_with_no_penalty_in_each_window() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let allowance_1 = coin.account(BAND, window_1()).unmarked.allowance;
+    let sold_1 = coin.sell(BAND, allowance_1 + ONE_TOKEN * 1_000_000, window_1());
+    assert!(sold_1.penalty_near > 0);
+
+    let window_2 = after(2 * HOUR_S);
+    let view = coin.account(BAND, window_2);
+    assert_eq!(view.class, "band");
+    assert_eq!(view.penalty_applies_above, Some(view.unmarked.allowance));
+    let sold_2 = coin.sell(BAND, view.unmarked.allowance, window_2);
+    assert_eq!(sold_2.fill, "full");
+    assert_eq!(sold_2.penalty_near, 0);
+}
+
+#[test]
+fn band_max_full_fill_now_and_penalty_applies_above_match_the_next_real_sell() {
+    let coin = coin_with_a_deep_band_holder();
+    let view = coin.account(BAND, window_1());
+    let allowance = view.unmarked.allowance;
+    assert_eq!(view.max_full_fill_now, allowance);
+    assert_eq!(view.penalty_applies_above, Some(allowance));
+
+    let at_the_limit = coin.clone().sell(BAND, view.max_full_fill_now, window_1());
+    assert_eq!(at_the_limit.fill, "full");
+    assert_eq!(at_the_limit.tokens_sold, allowance);
+    assert_eq!(at_the_limit.penalty_near, 0);
+
+    let above_the_limit = coin.clone().sell(BAND, allowance + ONE_TOKEN, window_1());
+    assert_eq!(above_the_limit.fill, "full");
+    assert!(above_the_limit.penalty_near > 0);
+}
+
+#[test]
+fn penalty_applies_above_is_null_for_small_and_large_accounts() {
+    let mut coin = coin_with_a_deep_band_holder();
+    coin.buy(SMALL, ONE_NEAR / 10, after(20));
+    let small = coin.account(SMALL, window_1());
+    assert_eq!(small.class, "small");
+    assert_eq!(small.penalty_applies_above, None);
+    assert_eq!(small.max_full_fill_now, small.balance);
+    let large = coin.account(LARGE, window_1());
+    assert_eq!(large.class, "large");
+    assert_eq!(large.penalty_applies_above, None);
+    assert_eq!(large.max_full_fill_now, large.unmarked.allowance);
+}
+
+#[test]
+fn floor_left_is_ten_bps_of_the_window_token_reserve_less_the_tokens_used() {
+    let mut coin = coin_with_a_band_holder();
+    let view = coin.account(BAND, window_1());
+    assert_eq!(view.unmarked.floor_left, FLOOR_WINDOW_1);
+
+    let sold = coin.sell(BAND, view.unmarked.floor_left, window_1());
+    assert_eq!(sold.fill, "full");
+    assert_eq!(sold.tokens_sold, FLOOR_WINDOW_1);
+    assert_eq!(sold.penalty_near, 0);
+    let after_floor = coin.account(BAND, after(HOUR_S + 1));
+    assert_eq!(after_floor.unmarked.floor_left, 0);
+    assert_eq!(
+        after_floor.unmarked.left,
+        ALLOWANCE_WINDOW_1 - FLOOR_WINDOW_1
+    );
+}
+
+#[test]
+fn a_large_account_s_floor_left_fills_in_full_and_is_zero_once_the_allowance_is_used() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 5 * ONE_NEAR, after(10));
+    let view = coin.account(LARGE, window_1());
+    assert!(view.unmarked.floor_left > 0);
+    let sold = coin.sell(LARGE, view.unmarked.floor_left, window_1());
+    assert_eq!(sold.fill, "full");
+    assert_eq!(sold.tokens_sold, view.unmarked.floor_left);
+
+    let rest = coin.account(LARGE, after(HOUR_S + 1)).unmarked.left;
+    coin.sell(LARGE, rest, after(HOUR_S + 1));
+    let used_up = coin.account(LARGE, after(HOUR_S + 2));
+    assert_eq!(used_up.unmarked.floor_left, 0);
+    assert_eq!(used_up.max_full_fill_now, 0);
+    let none = coin.sell(LARGE, ONE_TOKEN, after(HOUR_S + 2));
+    assert_eq!(none.tokens_sold, 0);
+    assert_eq!(none.fill, "none");
+}
+
+#[test]
+fn a_large_sell_above_its_allowance_fills_the_allowance_left_and_the_rest_stays_in_the_wallet() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 5 * ONE_NEAR, after(10));
+    let allowance = coin.account(LARGE, window_1()).unmarked.allowance;
+    coin.sell(LARGE, allowance / 3, window_1());
+    let view = coin.account(LARGE, after(HOUR_S + 1));
+    let balance_before = view.balance;
+    assert_eq!(view.unmarked.left, allowance - allowance / 3);
+
+    let applied = coin.sell_applied(LARGE, 2 * allowance, after(HOUR_S + 1));
+    let sold = sell_event(&applied);
+
+    assert_eq!(sold.tokens_asked, 2 * allowance);
+    assert_eq!(sold.tokens_sold, view.unmarked.left);
+    assert_eq!(sold.fill, "partial");
+    assert_eq!(sold.limit_reason, Some("allowance"));
+    assert_eq!(sold.penalty_near, 0);
+    assert_eq!(sold.allowance_left, 0);
+    assert_eq!(coin.balance(LARGE), balance_before - view.unmarked.left);
+    assert_eq!(
+        applied.payout,
+        Some(Payout {
+            account: LARGE.to_string(),
+            amount: sold.near_out
+        })
+    );
+}
+
+fn assert_quote_equals_sell(coin: &mut Coin, account: &str, amount: u128, at: At) {
+    let quote = coin.quote(account, amount, at);
+    let sold = coin.sell(account, amount, at);
+    assert_eq!(quote.tokens_filled, sold.tokens_sold);
+    assert_eq!(quote.near_out, sold.near_out);
+    assert_eq!(quote.penalty_near, sold.penalty_near);
+    assert_eq!(quote.fill, sold.fill);
+    assert_eq!(quote.limit_reason, sold.limit_reason);
+    assert_eq!(quote.cap_left_after, sold.cap_left);
+}
+
+#[test]
+fn fc_quote_sell_equals_the_real_band_sell_inside_and_above_the_first_allowance() {
+    let mut coin = coin_with_a_deep_band_holder();
+    let allowance = coin.account(BAND, window_1()).unmarked.allowance;
+    assert_quote_equals_sell(&mut coin, BAND, allowance / 2, window_1());
+    assert_quote_equals_sell(&mut coin, BAND, allowance, after(HOUR_S + 1));
+    let quote = coin.quote(BAND, ONE_TOKEN * 1_000, after(HOUR_S + 2));
+    assert!(quote.penalty_near > 0);
+    assert_quote_equals_sell(&mut coin, BAND, ONE_TOKEN * 1_000, after(HOUR_S + 2));
+}
+
+#[test]
+fn a_sent_bag_tops_up_a_band_account_without_using_its_first_allowance() {
+    let mut coin = coin_with_a_band_holder();
+    coin.buy(OTHER, ONE_NEAR / 2, after(20));
+    let before = coin.account(BAND, window_1()).penalty_applies_above;
+    coin.send(OTHER, BAND, ONE_TOKEN * 1_000_000, window_1());
+    assert_eq!(coin.account(BAND, window_1()).penalty_applies_above, before);
 }
