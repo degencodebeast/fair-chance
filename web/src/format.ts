@@ -22,6 +22,30 @@ export function compactTokens(base: string, decimals: number): string {
   return `${tenths / 10n}.${tenths % 10n}`;
 }
 
+function ceilDiv(a: bigint, b: bigint): bigint {
+  return (a + b - 1n) / b;
+}
+
+/**
+ * Token base units to a short text like compactTokens, but rounded up at the shown precision
+ * (never to nearest or down), so the text is at or above the amount: 6.04M shows as 6.1M.
+ */
+export function compactTokensRoundedUp(base: string, decimals: number): string {
+  const units = BigInt(base);
+  if (units === 0n) return "0";
+  const one = 10n ** BigInt(decimals);
+  // Smallest to largest: the first scale whose rounded-up text stays below 1000 of it.
+  const scales: readonly [bigint, string][] = [[1n, ""], ...[...SCALE].reverse()];
+  for (const [i, [size, suffix]] of scales.entries()) {
+    const tenths = ceilDiv(units * 10n, one * size);
+    if (tenths < 10_000n || i === scales.length - 1) {
+      if (suffix === "K" && tenths % 10n === 0n) return `${tenths / 10n}${suffix}`;
+      return `${tenths / 10n}.${tenths % 10n}${suffix}`;
+    }
+  }
+  throw new Error("unreachable");
+}
+
 /** yoctoNEAR to NEAR, cut to `places` decimals. */
 export function nearAmount(yocto: string, places = 2): string {
   const units = BigInt(yocto);

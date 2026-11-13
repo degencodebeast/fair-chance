@@ -479,3 +479,51 @@ fn an_unmarked_floor_then_a_marked_floor_is_one_floor_in_one_window() {
         second.tokens_sold
     );
 }
+
+/// Marked tokens held back by the cap never fill through the account's unmarked floor (ADR
+/// 0005). A large account whose marked floor is used, at a full cap: a sell of N, the marked
+/// part it can sell (the smaller of its marked balance and marked left), fills 0 with
+/// `cap_full`; a sell of N + k fills k from its unmarked tokens, up to its unmarked floor.
+#[test]
+fn held_back_marked_tokens_never_fill_through_the_unmarked_floor() {
+    let mut coin = coin_with_a_large_marked_holder();
+    let marked_floor = coin.account(EARLY, after(20)).marked.floor_left;
+    coin.sell(EARLY, marked_floor + marked_floor / 2, after(20));
+    coin.sell(LARGE, coin.balance(LARGE), window_1(1));
+    coin.sell(SMALL, coin.balance(SMALL), window_1(2));
+    let at = window_1(3);
+    let view = coin.account(EARLY, at);
+    assert_eq!(view.class, "large");
+    assert_eq!(view.marked.floor_left, 0);
+    let n = view.marked_balance.min(view.marked.left);
+    let floor = view.unmarked.floor_left;
+    assert!(n > 0 && floor > 0 && view.unmarked_balance > floor);
+    println!(
+        "N {n}, unmarked floor {floor}, max_full_fill_now {}",
+        view.max_full_fill_now
+    );
+
+    let sell = |amount: u128| coin.clone().sell(EARLY, amount, at);
+    let only_marked = sell(n);
+    assert_eq!(
+        (
+            only_marked.tokens_sold,
+            only_marked.fill,
+            only_marked.limit_reason
+        ),
+        (0, "none", Some("cap_full"))
+    );
+    for (k, filled, reason) in [
+        (1, 1, "cap_full"),
+        (floor / 2, floor / 2, "cap_full"),
+        (floor, floor, "floor"),
+        (floor + 1, floor, "floor"),
+    ] {
+        let s = sell(n + k);
+        assert_eq!(s.marked_sold, 0, "N + {k}");
+        assert_eq!(s.tokens_sold, filled, "N + {k}");
+        assert_eq!(s.limit_reason, Some(reason), "N + {k}");
+    }
+    // No sell fills in full now: a sell of N or less fills 0.
+    assert_eq!(view.max_full_fill_now, 0);
+}

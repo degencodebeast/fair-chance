@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { age, compactTokens, nearAmount, percentOfBps, timeWithHint } from "../src/format.ts";
+import { age, compactTokens, compactTokensRoundedUp, nearAmount, percentOfBps, timeWithHint } from "../src/format.ts";
 
 const MIN = 60n * 1_000_000_000n;
 const HOUR = 60n * MIN;
@@ -13,6 +13,15 @@ describe("amounts", () => {
     expect(compactTokens("1000000000000000000000000000", 18)).toBe("1.0B");
     expect(compactTokens("0", 18)).toBe("0");
     expect(compactTokens("1500000000000000000", 18)).toBe("1.5");
+  });
+  it("writes tokens rounded up at the shown precision, so the text is at or above the amount", () => {
+    expect(compactTokensRoundedUp("6040000000000000000000000", 18)).toBe("6.1M");
+    expect(compactTokensRoundedUp("6000000000000000000000000", 18)).toBe("6.0M");
+    expect(compactTokensRoundedUp("100000000000000000000001", 18)).toBe("100.1K");
+    expect(compactTokensRoundedUp("100000000000000000000000", 18)).toBe("100K");
+    expect(compactTokensRoundedUp("999950000000000000000000", 18)).toBe("1.0M");
+    expect(compactTokensRoundedUp("1", 18)).toBe("0.1");
+    expect(compactTokensRoundedUp("0", 18)).toBe("0");
   });
   it("writes NEAR cut to two places, or more for small amounts", () => {
     expect(nearAmount("40470000000000000000000000")).toBe("40.47");
