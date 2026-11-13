@@ -10,7 +10,11 @@ pub enum RefusalCode {
     /// The detail is the largest amount the sender can send to this receiver.
     ReceiverWouldBeLarge,
     SendToCoin,
+    /// `storage_unregister` while the account holds tokens, with or without force.
     UnregisterWithBalance,
+    /// `storage_unregister` with no tokens, but with used allowance or a real NEAR cap record
+    /// in the current window, with or without force.
+    UnregisterWindowOpen,
     /// Not an `FC_` code: the standard NEP-141 error for a send to yourself.
     SendToSelf,
     /// Not an `FC_` code: the standard NEP-141 error for a send of 0 tokens.
@@ -18,9 +22,6 @@ pub enum RefusalCode {
     /// Not an `FC_` code: the NEP-145 error for a send to an account with no storage record. The
     /// detail is the account.
     NotRegistered,
-    /// Not an `FC_` code: the NEP-145 error for `storage_unregister` without force while the
-    /// account holds tokens.
-    UnregisterWithoutForce,
     /// Not an `FC_` code: the standard NEP-141 balance error.
     NotEnoughBalance,
     /// Not an `FC_` code: `new` called by an account that is not the coin's parent (ADR 0006:
@@ -40,12 +41,10 @@ impl RefusalCode {
             Self::ReceiverWouldBeLarge => "FC_RECEIVER_WOULD_BE_LARGE",
             Self::SendToCoin => "FC_SEND_TO_COIN",
             Self::UnregisterWithBalance => "FC_UNREGISTER_WITH_BALANCE",
+            Self::UnregisterWindowOpen => "FC_UNREGISTER_WINDOW_OPEN",
             Self::SendToSelf => "Sender and receiver should be different",
             Self::AmountNotPositive => "The amount should be a positive number",
             Self::NotRegistered => "The account is not registered",
-            Self::UnregisterWithoutForce => {
-                "Can't unregister the account with the positive balance without force"
-            }
             Self::NotEnoughBalance => "The account doesn't have enough balance",
             Self::NotParentAccount => "new must be called by the parent account of the coin",
             Self::IconNotSmallWebp => {

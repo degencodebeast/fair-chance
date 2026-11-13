@@ -16,7 +16,7 @@ A per-account sell limit fails if a holder can split its bag across fresh accoun
 - Class uses the live balance at each action. A large account cannot send tokens. An account stays large until its balance is zero.
 - Accounts below the large threshold send freely, except that a send that would take a receiver that is not large to the large threshold or more is refused. Only a buy can make an account large.
 - `ft_transfer_call` is refused for every receiver. A plain `ft_transfer` to the coin account is refused. Sells use only the sell method. A send to yourself is refused, as in NEP-141. Outside liquidity is refused.
-- Force-unregister is refused while an account holds tokens or has used allowance.
+- Unregister (NEP-145 `storage_unregister`), with or without force, is refused while an account holds tokens. At zero tokens it is refused while the account has used allowance or a real NEAR cap record in the current 1 h window, so a new record cannot give a fresh allowance or a clean cap net in that window. It is allowed again when the window ends, so the storage deposit is never locked.
 
 Claim: no large holder, creator-group account or early-supply account can sell into our pool faster than its depth allows, and no transfer by a large holder, and no transfer of early supply, gives a fresh allowance.
 

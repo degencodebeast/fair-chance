@@ -235,9 +235,10 @@ impl Coin {
         balance
     }
 
-    /// NEP-145: removes the caller's record and refunds its storage deposit. Refused with
-    /// `FC_UNREGISTER_WITH_BALANCE` for a force-unregister while the account holds tokens or has
-    /// used allowance. Returns false when the caller has no record.
+    /// NEP-145: removes the caller's record and refunds its storage deposit. With or without
+    /// force, refused with `FC_UNREGISTER_WITH_BALANCE` while the account holds tokens, and with
+    /// `FC_UNREGISTER_WINDOW_OPEN` at zero tokens while it has used allowance or a real NEAR cap
+    /// record in the current window. Returns false when the caller has no record.
     #[payable]
     pub fn storage_unregister(&mut self, force: Option<bool>) -> bool {
         assert_one_yocto();

@@ -9,5 +9,6 @@
   "FC_SEND_TO_COIN": "Do not send tokens to the coin account, and use the sell button to sell.",
   "FC_SLIPPAGE": "The price moved below your minimum, so try again or lower your minimum.",
   "FC_TRANSFER_CALL": "This coin does not allow transfer and call, so use a plain send.",
-  "FC_UNREGISTER_WITH_BALANCE": "This account holds tokens or has used allowance, so it cannot unregister now."
+  "FC_UNREGISTER_WINDOW_OPEN": "This account bought or sold in the current 1 hour window, so it can unregister when that window ends.",
+  "FC_UNREGISTER_WITH_BALANCE": "This account holds tokens, so it cannot unregister now."
 }

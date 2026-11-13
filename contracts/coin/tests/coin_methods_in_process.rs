@@ -189,12 +189,59 @@ fn fc_quote_buy_equals_the_buy_that_follows() {
     assert_eq!(pool["real_near"], (2 * ONE_NEAR).to_string());
 }
 
+/// Forty accounts buy 1 NEAR each at block 3_610, the first block of the second 1 h window
+/// (launch at block 10), so the real NEAR cap has room for the sell a test checks. The window's
+/// token reserve is recorded before them, so the window's allowances do not change.
+fn deepen_the_pool_at_the_start_of_window_1(coin: &mut Coin) {
+    for i in 0..40 {
+        let who = format!("depth-{i}.test");
+        register(coin, &who, 3_610);
+        testing_env!(context(&who, ONE_NEAR, 3_610).build());
+        coin.buy(U128(0));
+    }
+}
+
+#[test]
+fn a_large_sell_held_by_the_real_near_cap_logs_fc_cap_filled_and_fc_cap_reports_it_full() {
+    let mut coin = launched();
+    register(&mut coin, "large.test", 11);
+    testing_env!(context("large.test", 10 * ONE_NEAR, 11).build());
+    coin.buy(U128(0));
+
+    testing_env!(context("large.test", 1, 3_620).build());
+    let balance = coin.ft_balance_of(account("large.test"));
+    let quote = serde_json::to_value(coin.fc_quote_sell(account("large.test"), balance)).unwrap();
+    let _ = coin.sell(balance, U128(0));
+    let sold = &events("fair_chance", "fc_sell")[0]["data"][0];
+    assert_eq!(sold["limit_reason"], "cap_full");
+    assert_eq!(quote["tokens_filled"], sold["tokens_sold"]);
+    assert_eq!(quote["cap_left_after"], sold["cap_left"]);
+    let near_out: u128 = sold["near_out"].as_str().unwrap().parse().unwrap();
+    // c x 10 NEAR / (1 + c), rounded down: about 0.476 NEAR.
+    assert!(near_out <= 476_190_476_190_476_190_476_190);
+    assert!(near_out > 476_100_000_000_000_000_000_000);
+
+    let filled = events("fair_chance", "fc_cap_filled");
+    assert_eq!(filled.len(), 1);
+    let filled = &filled[0]["data"][0];
+    assert_eq!(filled["by_account"], "large.test");
+    assert_eq!(filled["fill_index"], 1);
+    assert_eq!(filled["cap_used"], near_out.to_string());
+    let cap = serde_json::to_value(coin.fc_cap()).unwrap();
+    assert_eq!(cap["is_full"], true);
+    assert_eq!(cap["cap_left"], "0");
+    assert_eq!(cap["cap_used"], near_out.to_string());
+    assert_eq!(cap["fills_this_window"], 1);
+    assert_eq!(cap["real_near_now"], (10 * ONE_NEAR - near_out).to_string());
+}
+
 #[test]
 fn fc_account_unmarked_and_fc_quote_sell_match_a_large_sell_held_to_its_allowance() {
     let mut coin = launched();
     register(&mut coin, "large.test", 11);
     testing_env!(context("large.test", 5 * ONE_NEAR, 11).build());
     coin.buy(U128(0));
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
 
     // Block 3_620 is in the second 1 h window after the launch at block 10.
     let window_1 = 3_620;
@@ -237,6 +284,7 @@ fn a_band_sell_above_the_first_allowance_pays_the_penalty_into_the_pool_and_matc
     register(&mut coin, "band.test", 11);
     testing_env!(context("band.test", 3 * ONE_NEAR / 2, 11).build());
     coin.buy(U128(0));
+    deepen_the_pool_at_the_start_of_window_1(&mut coin);
 
     let window_1 = 3_620;
     testing_env!(context("band.test", 1, window_1).build());

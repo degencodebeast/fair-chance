@@ -241,6 +241,60 @@ fn storage_unregister_with_force_while_holding_tokens_panics_with_fc_unregister_
 }
 
 #[test]
+#[should_panic(expected = "FC_UNREGISTER_WITH_BALANCE")]
+fn storage_unregister_without_force_while_holding_tokens_panics_with_fc_unregister_with_balance() {
+    let mut coin = launched();
+    buy(&mut coin, "alice.test", ONE_NEAR, 11);
+    at("alice.test", 1, 12);
+    coin.storage_unregister(None);
+}
+
+/// alice buys at block 11 and sells everything at block 12, in the coin's first 1 h window
+/// (launch at block 10, one block per second).
+fn coin_where_alice_sold_to_zero() -> Coin {
+    let mut coin = launched();
+    buy(&mut coin, "alice.test", ONE_NEAR, 11);
+    let balance = coin.ft_balance_of(account("alice.test"));
+    at("alice.test", 1, 12);
+    coin.sell(balance, U128(0));
+    assert_eq!(coin.ft_balance_of(account("alice.test")).0, 0);
+    coin
+}
+
+#[test]
+#[should_panic(expected = "FC_UNREGISTER_WINDOW_OPEN")]
+fn storage_unregister_at_zero_tokens_in_the_window_of_a_sell_panics_with_fc_unregister_window_open() {
+    let mut coin = coin_where_alice_sold_to_zero();
+    at("alice.test", 1, 13);
+    coin.storage_unregister(None);
+}
+
+#[test]
+#[should_panic(expected = "FC_UNREGISTER_WINDOW_OPEN")]
+fn storage_unregister_with_force_at_zero_tokens_in_the_window_of_a_sell_panics_with_fc_unregister_window_open(
+) {
+    let mut coin = coin_where_alice_sold_to_zero();
+    at("alice.test", 1, 13);
+    coin.storage_unregister(Some(true));
+}
+
+#[test]
+fn storage_unregister_at_zero_tokens_works_again_in_the_next_window_with_or_without_force() {
+    for force in [None, Some(true)] {
+        let mut coin = coin_where_alice_sold_to_zero();
+        at("alice.test", 1, 10 + 3_600);
+        assert!(coin.storage_unregister(force), "force {force:?}");
+        assert_eq!(
+            json(coin.storage_balance_of(account("alice.test"))),
+            Value::Null
+        );
+        let refunds = get_created_receipts();
+        assert_eq!(refunds.len(), 1);
+        assert_eq!(refunds[0].receiver_id, account("alice.test"));
+    }
+}
+
+#[test]
 fn storage_unregister_removes_an_empty_record_and_refunds_its_deposit() {
     let mut coin = launched();
     register(&mut coin, "bob.test", 11);
