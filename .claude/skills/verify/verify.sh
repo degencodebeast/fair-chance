@@ -80,6 +80,9 @@ case "$mode" in
     # Landing, coin list, alerts, price chart and holders table at 1440 and 390; every outside host blocked.
     node web/scripts/check-screens-in-browser.ts \
       || finish FAIL "a screen is missing a sample label, shows a live-looking dead control or is too wide (see target/verify-evidence/$run_id/verify.log)"
+    # Every screen loads at 1440 and 390 with no console error and the main element shown.
+    node web/scripts/check-screens-load-in-browser.ts \
+      || finish FAIL "a screen does not load, shows a console error or has no main element (see target/verify-evidence/$run_id/verify.log)"
     # Coin page grid, phone order, trade box, claim panel and launch form with their turned-off buttons.
     node web/scripts/check-turned-off-screens-in-browser.ts \
       || finish FAIL "a turned-off screen has an enabled control without a handler, no reason, the wrong layout or too much width (see target/verify-evidence/$run_id/verify.log)"
