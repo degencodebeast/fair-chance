@@ -18,11 +18,12 @@ const options: ScanOptions = {
   allowedHosts: {
     "rpc.fake-public.example": { path: /^\/?$/ },
     "tx.fake-public.example": { path: /^\/?$/ },
-    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, query: true },
+    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, queryKeys: ["family", "display"] },
     "www.w3.org": { path: /^\/2000\/svg$/ },
   },
   providerHosts: [],
   sampleAccounts: ["sample-one.testnet"],
+  allowedValues: ["Rv9TbK4pWz8NcH3sYd6FgJ1aUeQ7xLm2"],
 };
 
 function plant(name: string, text: string): void {
@@ -136,10 +137,21 @@ describe("the pre-deploy scan of the build", () => {
     expect(await rules()).toEqual([]);
   });
 
-  it("does not call a build file name with a hash tail a key, in the name or in an import path", async () => {
+  it("does not call the exact name of a build file a key, in the name or in an import path", async () => {
     plant("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js", 'import("./render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");import("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");');
     plant("assets/index-B--492ndAbCdEfGhIjKlMnOpQrStUvWxYz.js", "x");
     expect(await rules()).toEqual([]);
+  });
+
+  it.each([
+    ["words then a key", "my-api-"],
+    ["a path then a key", "x/y/"],
+    ["live-key then a key", "live-key-"],
+    ["two words then a key", "app-core-"],
+    ["an assets path then a key that is not a build file", "assets/render-coin-page-"],
+  ])("still flags %s", async (_name, front) => {
+    plant("assets/a.js", `const s="${front}${"Q7xLm2Rv9TbK4pWz8NcH3sYd6FgJ1aUe"}";`);
+    expect(await rules()).toEqual(["key"]);
   });
 
   it("fails on a short wallet name inside a string, and on 0x accounts", async () => {
@@ -158,5 +170,58 @@ describe("the pre-deploy scan of the build", () => {
     expect(found.map((f) => f.rule)).toEqual(["wallet"]);
     expect(found[0]!.file).toBe("fak... (23 characters)");
     expect(JSON.stringify(found)).not.toContain("fake-alice");
+  });
+
+  it.each([
+    ["a 32-character hex key", `const s="${"9f3a7c2e5b8d1f4a".repeat(2)}";`],
+    ["a 40-character hex key", `const s="${"9f3a7c2e5b".repeat(4)}";`],
+    ["a UUID", 'const s="9f3a7c2e-5b8d-4f4a-8c0e-2b7d9a3f5c8e";'],
+    ["a 24-character mixed key", 'const s="Q7xLm2Rv9TbK4pWz8NcH3sYd";'],
+    ["an all-uppercase key", 'const s="QXLMRVTBKPWZNCHSYDFGJAUEQXLMRVTB";'],
+    ["a sk_live key", `const s="${"sk"}_live_${"a1B2c3D4"}";`],
+    ["an AWS key id", `const s="${"AKIA"}${"ABCDEFGHIJKLMNOP"}";`],
+    ["an rpcKey field", 'const c={rpcKey:"fakefakefakefakefake"};'],
+    ["a field that ends in token", 'const c={sessionToken:"fakefakefakefakefake"};'],
+    ["a field that ends in secret", 'const c={clientSecret:"fakefakefakefakefake"};'],
+  ])("fails on %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toEqual(["key"]);
+  });
+
+  it("allows the exact known values and nothing near them", async () => {
+    plant("assets/a.js", 'const a="Rv9TbK4pWz8NcH3sYd6FgJ1aUeQ7xLm2";');
+    expect(await rules()).toEqual([]);
+    plant("assets/b.js", 'const a="Rv9TbK4pWz8NcH3sYd6FgJ1aUeQ7xLm2X";');
+    expect(await rules()).toEqual(["key"]);
+  });
+
+  it.each([
+    ["a query key the page does not use on the font host", 'fetch("https://fonts.googleapis.com/css2?k=FAKE")'],
+    ["a port on an allowed host", 'fetch("https://rpc.fake-public.example:8443/")'],
+    ["a protocol-relative host with no dot", 'fetch("//intranet/x")'],
+    ["a protocol-relative localhost with a port", 'fetch("//localhost:8080/x")'],
+  ])("fails on a private endpoint written as %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toEqual(["private-endpoint"]);
+  });
+
+  it("allows the font style sheet with only the keys the page uses", async () => {
+    plant("index.html", '<link href="https://fonts.googleapis.com/css2?family=A+B&family=C:wght@400&display=swap">');
+    expect(await rules()).toEqual([]);
+  });
+
+  it.each([
+    ["in parentheses", 'const s="paid to (me.testnet)";'],
+    ["after a colon", 'const s="by:jo.near,";'],
+    ["in a template", "const s=`to ${x} me.testnet`;"],
+    ["in a single-quoted string after a bracket", "const s='[me.near]';"],
+  ])("fails on a short wallet name inside a string, %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toEqual(["wallet"]);
+  });
+
+  it("still reads a short property in code, also inside a template expression", async () => {
+    plant("assets/a.js", "const s=`rpc ${t.testnet.rpcUrl}`;const q=(n.testnet);");
+    expect(await rules()).toEqual([]);
   });
 });

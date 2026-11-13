@@ -13,6 +13,8 @@ import { KNOWN_NETWORKS, type KnownNetwork } from "../src/known-deployments.ts";
 export interface ScanOptions {
   /** Accounts the page may name. A sub-account of one of them is allowed too. */
   allowedAccounts: string[];
+  /** Exact values the page may hold although they look like a key: the code hash and the accounts of the fixed config. */
+  allowedValues: string[];
   /** Made-up account names the page shows as examples. Exact names only, no sub-accounts. */
   sampleAccounts: string[];
   /** The hosts a URL in the build may use, each with the one path shape it may have. Exact host names. */
@@ -24,8 +26,8 @@ export interface ScanOptions {
 export interface HostRule {
   /** Matched against the whole path of the URL. */
   path: RegExp;
-  /** True when the URL may carry a query (the font style sheet does). */
-  query?: boolean;
+  /** The only query keys the URL may carry. No list means no query. */
+  queryKeys?: string[];
 }
 
 export interface Finding {
@@ -57,7 +59,8 @@ const WORKSPACE_PATHS = [
   /[.][c]onfig[/]fair-chance/g,
 ];
 const KEY_PARAMETER = /(?<![A-Za-z0-9])(?:x-api-key|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|token|secret|password|passwd|key|auth|sig|signature)=[^&\s]+/i;
-const KEY_FIELD = /(?<![A-Za-z0-9])(?:x-api-key|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?key|private[_-]?key|password)["']?\s*[:=]\s*["'`]?[A-Za-z0-9_\-./+=]{16,}/gi;
+// A field or header whose name ends in key, token, secret or password, with a value of 16 or more characters.
+const KEY_FIELD = /(?<![A-Za-z0-9])[A-Za-z0-9_-]*(?:key|token|secret|passwd|password)["']?\s*[:=]\s*["'`]?[A-Za-z0-9_\-./+=]{16,}/gi;
 const KEYS = [
   /[e]d25519:[1-9A-HJ-NP-Za-km-z]{40,}/g,
   /[s]ecp256k1:[1-9A-HJ-NP-Za-km-z]{40,}/g,
@@ -67,8 +70,12 @@ const KEYS = [
   /[e]yJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}/g,
   /[g]h[pousr]_[A-Za-z0-9]{36,}/g,
   /[g]ithub_pat_[A-Za-z0-9_]{20,}/g,
+  /[s]k_(?:live|test)_[A-Za-z0-9]{8,}/g,
+  /(?<![A-Za-z0-9])(?:AKIA|ASIA)[0-9A-Z]{16}(?![A-Za-z0-9])/g,
+  /(?<![A-Za-z0-9])[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?![A-Za-z0-9])/g,
   KEY_FIELD,
 ];
+const HEX_KEY = /(?<![A-Za-z0-9])[0-9a-fA-F]{32,}(?![A-Za-z0-9])/g;
 
 /** Shannon entropy in bits per character. */
 function entropy(text: string): number {
@@ -79,17 +86,15 @@ function entropy(text: string): number {
   return bits;
 }
 
-/** A long bare string with lower case, upper case and digits and a spread of characters: it reads as a secret. */
+/** A long bare string with a spread of characters reads as a secret. */
 function looksLikeSecret(token: string): boolean {
-  // A built file name or import path is words joined by "-" or "/" with a hash at the end. Not a secret.
-  const parts = token.split(/[-/]/);
-  if (parts.length > 2 && parts.slice(0, -1).every((p) => /^[A-Za-z]*$/.test(p))) return false;
-  return /[a-z]/.test(token) && /[A-Z]/.test(token) && /[0-9]/.test(token) && entropy(token) >= 4.2;
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/].filter((r) => r.test(token)).length;
+  const bits = entropy(token);
+  return (token.length >= 24 && classes === 3 && bits >= 4.2) || (token.length >= 32 && bits >= 4.0);
 }
 
-const KEYWORDS_BEFORE_VALUE = /(?:^|[^A-Za-z0-9_$])(?:return|typeof|in|of|case|void|new|await|yield|delete|else|do|throw|instanceof)$/;
-const URL_PATTERN = /(?:\b(?:https?|wss?|ftp):\/\/|(?<![A-Za-z0-9:/\\.])\/\/(?=[A-Za-z0-9-]+\.))[^\s"'`<>)\\]+/gi;
-const BARE_TOKEN = /(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{32,}(?![A-Za-z0-9_+/=-])/g;
+const URL_PATTERN = /(?:\b(?:https?|wss?|ftp):\/\/|(?<![A-Za-z0-9:/\\.])\/\/(?=[A-Za-z0-9-]{2,}))[^\s"'`<>)\\]+/gi;
+const BARE_TOKEN = /(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{24,}(?![A-Za-z0-9_+/=-])/g;
 const ETH_ACCOUNT = /(?<![A-Za-z0-9])0x[a-fA-F0-9]{40}(?![A-Za-z0-9])/g;
 
 function hint(match: string): string {
@@ -118,7 +123,8 @@ function isAllowedUrl(text: string, hosts: Record<string, HostRule>): boolean {
   const rule = Object.hasOwn(hosts, url.hostname) ? hosts[url.hostname] : undefined;
   if (rule === undefined || (url.protocol !== "https:" && url.protocol !== "http:")) return false;
   if (url.username !== "" || url.password !== "" || KEY_PARAMETER.test(text)) return false;
-  if ((url.search !== "" && rule.query !== true) || url.hash !== "") return false;
+  if (url.port !== "" || url.hash !== "") return false;
+  if (url.search !== "" && [...url.searchParams.keys()].some((k) => !(rule.queryKeys ?? []).includes(k))) return false;
   return rule.path.test(url.pathname);
 }
 
@@ -128,32 +134,80 @@ function unescaped(text: string): string {
 }
 
 /**
- * A minified script reads `t.testnet` for the property `testnet` of a variable. That is code: the
- * name has one or two characters, no quote comes before it, and what comes before and after it fits a
- * property read. A name inside a string ("owner me.testnet") is never code.
+ * For each character of a script: 1 when it is inside a string, a template text or a comment.
+ * A name there is text the visitor can read, never code. The lexer does not know regex literals;
+ * a quote inside one can shift the mask until the next line ends a string.
  */
-function isScriptProperty(text: string, match: RegExpMatchArray, file: string): boolean {
-  if (!/\.(?:js|mjs)$/.test(file) || !/^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(match[0])) return false;
-  const start = match.index!;
-  const before = text[start - 1] ?? "";
-  const after = text[start + match[0].length] ?? "";
-  const beforeFits = /[=(,;{}[!&|?:+*/<>-]/.test(before) || (/\s/.test(before) && KEYWORDS_BEFORE_VALUE.test(text.slice(Math.max(0, start - 12), start).trimEnd()));
-  return beforeFits && /[.[\])},;:=?&|!<>+*/-]|^$/.test(after);
+function textMask(text: string): Uint8Array {
+  const mask = new Uint8Array(text.length);
+  const stack: { kind: "code" | "tpl"; braces: number; expr: boolean }[] = [{ kind: "code", braces: 0, expr: false }];
+  let i = 0;
+  while (i < text.length) {
+    const top = stack[stack.length - 1]!;
+    const c = text[i]!;
+    if (top.kind === "tpl") {
+      mask[i] = 1;
+      if (c === "\\") {
+        mask[i + 1] = 1;
+        i += 2;
+      } else if (c === "`") {
+        stack.pop();
+        i++;
+      } else if (c === "$" && text[i + 1] === "{") {
+        mask[i + 1] = 1;
+        stack.push({ kind: "code", braces: 0, expr: true });
+        i += 2;
+      } else i++;
+    } else if (c === '"' || c === "'") {
+      mask[i] = 1;
+      i++;
+      while (i < text.length && text[i] !== c && text[i] !== "\n") {
+        mask[i] = 1;
+        i += text[i] === "\\" ? 2 : 1;
+      }
+      if (i < text.length) mask[i] = 1;
+      i++;
+    } else if (c === "/" && (text[i + 1] === "/" || text[i + 1] === "*")) {
+      const end = text[i + 1] === "/" ? text.indexOf("\n", i) : text.indexOf("*/", i + 2);
+      const stop = end === -1 ? text.length : end + (text[i + 1] === "*" ? 2 : 0);
+      mask.fill(1, i, stop);
+      i = Math.max(stop, i + 1);
+    } else if (c === "`") {
+      mask[i] = 1;
+      stack.push({ kind: "tpl", braces: 0, expr: false });
+      i++;
+    } else {
+      if (c === "{") top.braces++;
+      else if (c === "}") {
+        if (top.braces > 0) top.braces--;
+        else if (top.expr) {
+          stack.pop();
+          mask[i] = 1;
+        }
+      }
+      i++;
+    }
+  }
+  return mask;
 }
 
-function scanText(text: string, file: string, options: ScanOptions): Finding[] {
+function scanText(text: string, file: string, options: ScanOptions, buildNames: ReadonlySet<string>): Finding[] {
   const found: Finding[] = [];
   const add = (rule: Finding["rule"], match: string) => found.push({ file, rule, hint: hint(match) });
+  // One or two characters before ".testnet" in code (not in a string or a comment) is a property read of a minified script.
+  const mask = /\.(?:js|mjs)$/.test(file) ? textMask(text) : null;
   for (const m of text.matchAll(WALLET)) {
     if (options.sampleAccounts.includes(m[0]) || isAllowedAccount(m[0], options.allowedAccounts)) continue;
-    if (isScriptProperty(text, m, file)) continue;
+    if (mask !== null && mask[m.index!] === 0 && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(m[0])) continue;
     add("wallet", m[0]);
   }
   for (const m of text.matchAll(IMPLICIT_ACCOUNT)) add("wallet", m[0]);
   for (const pattern of WORKSPACE_PATHS) for (const m of text.matchAll(pattern)) add("workspace-path", m[0]);
   for (const pattern of KEYS) for (const m of text.matchAll(pattern)) add("key", m[0]);
   for (const m of text.matchAll(URL_PATTERN)) if (!isAllowedUrl(m[0], options.allowedHosts)) add("private-endpoint", m[0]);
-  for (const m of text.matchAll(BARE_TOKEN)) if (looksLikeSecret(m[0])) add("key", m[0]);
+  const known = (value: string) => options.allowedValues.includes(value) || buildNames.has(value);
+  for (const m of text.matchAll(HEX_KEY)) if (m[0].length !== 64 && !known(m[0]) && entropy(m[0]) >= 3.0) add("key", m[0]);
+  for (const m of text.matchAll(BARE_TOKEN)) if (!known(m[0]) && looksLikeSecret(m[0])) add("key", m[0]);
   for (const m of text.matchAll(ETH_ACCOUNT)) add("wallet", m[0]);
   const lower = text.toLowerCase();
   for (const host of [...BUILT_IN_PROVIDER_HOSTS, ...options.providerHosts]) {
@@ -171,12 +225,21 @@ function scanText(text: string, file: string, options: ScanOptions): Finding[] {
 export async function scanBuildOutput(dir: string, options: ScanOptions): Promise<Finding[]> {
   const files = walk(dir);
   if (files.length === 0) throw new Error("the build folder has no files");
-  return files.flatMap((path) => {
-    const name = relative(dir, path).split("\\").join("/");
+  const names = files.map((path) => relative(dir, path).split("\\").join("/"));
+  // The exact names of the files of this build, as a script writes them: with or without the folder, the dot and the extension.
+  const buildNames = new Set(
+    names.flatMap((name) => {
+      const noExtension = name.replace(/\.[A-Za-z0-9]+$/, "");
+      const base = noExtension.slice(noExtension.lastIndexOf("/") + 1);
+      return [name, noExtension, base, `/${base}`, `/${noExtension}`];
+    }),
+  );
+  return files.flatMap((path, i) => {
+    const name = names[i]!;
     // A file name is text too. When the name itself is a finding, every finding of the file shows the name masked.
-    const inName = scanText(unescaped(name), "", options);
+    const inName = scanText(unescaped(name), "", options, buildNames);
     const shown = inName.length > 0 ? hint(name) : name;
-    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, options)].map((f) => ({ ...f, file: shown }));
+    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, options, buildNames)].map((f) => ({ ...f, file: shown }));
   });
 }
 
@@ -188,7 +251,7 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
   const networks: KnownNetwork[] = Object.values(KNOWN_NETWORKS);
   const root: HostRule = { path: /^\/?$/ };
   const allowedHosts: Record<string, HostRule> = {
-    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, query: true },
+    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, queryKeys: ["family", "display"] },
     "fonts.gstatic.com": root,
     "www.w3.org": { path: /^\/2000\/svg$/ },
   };
@@ -200,6 +263,7 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
   }
   return {
     allowedAccounts: networks.flatMap((n) => [n.factory, n.demoCoin]).filter((a): a is string => a !== null),
+    allowedValues: networks.flatMap((n) => [n.factory, n.demoCoin, n.codeHash]).filter((v): v is string => v !== null),
     sampleAccounts: SAMPLE_ACCOUNTS,
     allowedHosts,
     providerHosts: (env.FC_PRIVATE_HOSTS ?? "").split(",").map((h) => h.trim()).filter((h) => h !== ""),
