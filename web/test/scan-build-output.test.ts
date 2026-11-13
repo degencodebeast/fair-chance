@@ -15,7 +15,12 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 const options: ScanOptions = {
   allowedAccounts: ["fake-factory.testnet", "demo.fake-factory.testnet"],
-  allowedHosts: ["rpc.fake-public.example", "tx.fake-public.example", "fonts.googleapis.com", "www.w3.org"],
+  allowedHosts: {
+    "rpc.fake-public.example": { path: /^\/?$/ },
+    "tx.fake-public.example": { path: /^\/?$/ },
+    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, query: true },
+    "www.w3.org": { path: /^\/2000\/svg$/ },
+  },
   providerHosts: [],
   sampleAccounts: ["sample-one.testnet"],
 };
@@ -97,5 +102,55 @@ describe("the pre-deploy scan of the build", () => {
 
   it("fails when the folder does not exist, so a missing build is never a pass", async () => {
     await expect(scanBuildOutput(join(dir, "missing"), options)).rejects.toThrow();
+  });
+
+  const host = ["rpc", "private-fake", "example"].join(".");
+  it.each([
+    ["an uppercase scheme", "assets/a.js", `fetch("HTTPS://${host}/rpc")`],
+    ["a protocol-relative URL", "assets/a.js", `fetch("//${host}/rpc")`],
+    ["a wss URL", "assets/a.js", `new WebSocket("wss://${host}/rpc")`],
+    ["a ws URL", "assets/a.js", `new WebSocket("ws://${host}/rpc")`],
+    ["a JSON-escaped URL", "run.json", `{"src":"https:\\/\\/${host}\\/rpc"}`],
+    ["a key in the path of an allowed host", "assets/a.js", `fetch("https://rpc.fake-public.example/v1/${"Ab1".repeat(10)}")`],
+    ["a key in the query of an allowed host with a name after a semicolon", "assets/a.js", 'fetch("https://rpc.fake-public.example/;x-api-key=FAKEFAKEFAKE")'],
+  ])("fails on a private endpoint written as %s", async (_name, file, text) => {
+    plant(file, text);
+    expect(await rules()).toEqual(["private-endpoint"]);
+  });
+
+  it.each([
+    ["an x-api-key header written as a pair", `const h="x-api-key=${"Q".repeat(24)}";`],
+    ["an x-api-key header written as an object field", `const h={"x-api-key":"${"Q".repeat(24)}"};`],
+    ["an apiKey object field", `const c={apiKey:"FAKE${"Z".repeat(30)}"};`],
+    ["a JWT", `const j="${"eyJ"}hbGciOiJIUzI1NiJ9.${"eyJ"}zdWIiOiJmYWtlIn0.c2lnbmF0dXJl";`],
+    ["a GitHub token", `const g="${"ghp"}_${"a1B2".repeat(9)}";`],
+    ["a GitHub fine-grained token", `const g="${"github"}_pat_${"a1B2c3".repeat(5)}";`],
+    ["a long bare high-entropy string", 'const t="aB3dE5gH7jK9mN1pQ3sT5vX7zA9cE1fG3hJ5";'],
+  ])("fails on a key written as %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toEqual(["key"]);
+  });
+
+  it("does not call a long plain word or a repeated pattern a key", async () => {
+    plant("assets/a.js", `const a="${"abc".repeat(14)}",b="internationalization-and-localization-settings",c="${"0".repeat(40)}";`);
+    expect(await rules()).toEqual([]);
+  });
+
+  it("fails on a short wallet name inside a string, and on 0x accounts", async () => {
+    plant("assets/a.js", `const a="x ab.near",b="owner me.testnet",c="0x${"ab".repeat(20)}";`);
+    expect(await rules()).toEqual(["wallet", "wallet", "wallet"]);
+  });
+
+  it("reads real short property reads in a script as code", async () => {
+    plant("assets/a.js", "const r=t.testnet.rpcUrl;f(n.testnet);return o.testnet;");
+    expect(await rules()).toEqual([]);
+  });
+
+  it("scans the file name too and prints a found name only masked", async () => {
+    plant("fake-alice.testnet.json", "{}");
+    const found = await scanBuildOutput(dir, options);
+    expect(found.map((f) => f.rule)).toEqual(["wallet"]);
+    expect(found[0]!.file).toBe("fak... (23 characters)");
+    expect(JSON.stringify(found)).not.toContain("fake-alice");
   });
 });

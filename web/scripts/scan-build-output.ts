@@ -15,10 +15,17 @@ export interface ScanOptions {
   allowedAccounts: string[];
   /** Made-up account names the page shows as examples. Exact names only, no sub-accounts. */
   sampleAccounts: string[];
-  /** Host names a URL in the build may use. */
-  allowedHosts: string[];
+  /** The hosts a URL in the build may use, each with the one path shape it may have. Exact host names. */
+  allowedHosts: Record<string, HostRule>;
   /** Host names of keyed RPC providers, added to the built-in list. */
   providerHosts: string[];
+}
+
+export interface HostRule {
+  /** Matched against the whole path of the URL. */
+  path: RegExp;
+  /** True when the URL may carry a query (the font style sheet does). */
+  query?: boolean;
 }
 
 export interface Finding {
@@ -49,15 +56,38 @@ const WORKSPACE_PATHS = [
   /[p]laybooks[/]/g,
   /[.][c]onfig[/]fair-chance/g,
 ];
+const KEY_PARAMETER = /(?<![A-Za-z0-9])(?:x-api-key|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|token|secret|password|passwd|key|auth|sig|signature)=[^&\s]+/i;
+const KEY_FIELD = /(?<![A-Za-z0-9])(?:x-api-key|api[_-]?key|apikey|access[_-]?token|auth[_-]?token|client[_-]?secret|secret[_-]?key|private[_-]?key|password)["']?\s*[:=]\s*["'`]?[A-Za-z0-9_\-./+=]{16,}/gi;
 const KEYS = [
   /[e]d25519:[1-9A-HJ-NP-Za-km-z]{40,}/g,
   /[s]ecp256k1:[1-9A-HJ-NP-Za-km-z]{40,}/g,
   /[B]earer\s+[A-Za-z0-9._~+/=-]{20,}/g,
   /-----BEGIN [A-Z ]*[P]RIVATE KEY-----/g,
   /[s]k-[A-Za-z0-9]{32,}/g,
+  /[e]yJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}/g,
+  /[g]h[pousr]_[A-Za-z0-9]{36,}/g,
+  /[g]ithub_pat_[A-Za-z0-9_]{20,}/g,
+  KEY_FIELD,
 ];
-const URL_PATTERN = /[h]ttps?:\/\/[^\s"'`<>)\\]+/g;
-const KEY_PARAMETER = /[?&;](?:api[_-]?key|apikey|key|token|access[_-]?token|auth)=[^&\s]+/i;
+
+/** Shannon entropy in bits per character. */
+function entropy(text: string): number {
+  const counts = new Map<string, number>();
+  for (const c of text) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let bits = 0;
+  for (const n of counts.values()) bits -= (n / text.length) * Math.log2(n / text.length);
+  return bits;
+}
+
+/** A long bare string with lower case, upper case and digits and a spread of characters: it reads as a secret. */
+function looksLikeSecret(token: string): boolean {
+  return /[a-z]/.test(token) && /[A-Z]/.test(token) && /[0-9]/.test(token) && entropy(token) >= 4.2;
+}
+
+const KEYWORDS_BEFORE_VALUE = /(?:^|[^A-Za-z0-9_$])(?:return|typeof|in|of|case|void|new|await|yield|delete|else|do|throw|instanceof)$/;
+const URL_PATTERN = /(?:\b(?:https?|wss?|ftp):\/\/|(?<![A-Za-z0-9:/\\.])\/\/(?=[A-Za-z0-9-]+\.))[^\s"'`<>)\\]+/gi;
+const BARE_TOKEN = /(?<![A-Za-z0-9_+/=-])[A-Za-z0-9_+/=-]{32,}(?![A-Za-z0-9_+/=-])/g;
+const ETH_ACCOUNT = /(?<![A-Za-z0-9])0x[a-fA-F0-9]{40}(?![A-Za-z0-9])/g;
 
 function hint(match: string): string {
   return `${match.slice(0, 3)}... (${match.length} characters)`;
@@ -74,15 +104,38 @@ function isAllowedAccount(account: string, allowed: string[]): boolean {
   return allowed.some((a) => account === a || account.endsWith(`.${a}`));
 }
 
-function hostMatches(host: string, names: string[]): boolean {
-  return names.some((n) => host === n || host.endsWith(`.${n}`));
+/** A URL is allowed when its host is listed and its scheme, path, query and login all fit that host's rule. */
+function isAllowedUrl(text: string, hosts: Record<string, HostRule>): boolean {
+  let url: URL;
+  try {
+    url = new URL(text.startsWith("//") ? `https:${text}` : text);
+  } catch {
+    return false;
+  }
+  const rule = Object.hasOwn(hosts, url.hostname) ? hosts[url.hostname] : undefined;
+  if (rule === undefined || (url.protocol !== "https:" && url.protocol !== "http:")) return false;
+  if (url.username !== "" || url.password !== "" || KEY_PARAMETER.test(text)) return false;
+  if ((url.search !== "" && rule.query !== true) || url.hash !== "") return false;
+  return rule.path.test(url.pathname);
 }
 
-/** A minified script reads `t.testnet` for the property `testnet` of a variable. A quoted name is never that. */
+/** The text with the escapes that hide a URL ("https:\\/\\/host") undone. */
+function unescaped(text: string): string {
+  return text.replace(/\\\//g, "/").replace(/\\u002[fF]/g, "/");
+}
+
+/**
+ * A minified script reads `t.testnet` for the property `testnet` of a variable. That is code: the
+ * name has one or two characters, no quote comes before it, and what comes before and after it fits a
+ * property read. A name inside a string ("owner me.testnet") is never code.
+ */
 function isScriptProperty(text: string, match: RegExpMatchArray, file: string): boolean {
-  if (!/\.(?:js|mjs)$/.test(file)) return false;
-  const before = text[match.index! - 1] ?? "";
-  return !/["'`]/.test(before) && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(match[0]);
+  if (!/\.(?:js|mjs)$/.test(file) || !/^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(match[0])) return false;
+  const start = match.index!;
+  const before = text[start - 1] ?? "";
+  const after = text[start + match[0].length] ?? "";
+  const beforeFits = /[=(,;{}[!&|?:+*/<>-]/.test(before) || (/\s/.test(before) && KEYWORDS_BEFORE_VALUE.test(text.slice(Math.max(0, start - 12), start).trimEnd()));
+  return beforeFits && /[.[\])},;:=?&|!<>+*/-]|^$/.test(after);
 }
 
 function scanText(text: string, file: string, options: ScanOptions): Finding[] {
@@ -96,16 +149,9 @@ function scanText(text: string, file: string, options: ScanOptions): Finding[] {
   for (const m of text.matchAll(IMPLICIT_ACCOUNT)) add("wallet", m[0]);
   for (const pattern of WORKSPACE_PATHS) for (const m of text.matchAll(pattern)) add("workspace-path", m[0]);
   for (const pattern of KEYS) for (const m of text.matchAll(pattern)) add("key", m[0]);
-  for (const m of text.matchAll(URL_PATTERN)) {
-    let url: URL | null = null;
-    try {
-      url = new URL(m[0]);
-    } catch {
-      add("private-endpoint", m[0]);
-      continue;
-    }
-    if (url.username !== "" || url.password !== "" || KEY_PARAMETER.test(m[0]) || !hostMatches(url.hostname, options.allowedHosts)) add("private-endpoint", m[0]);
-  }
+  for (const m of text.matchAll(URL_PATTERN)) if (!isAllowedUrl(m[0], options.allowedHosts)) add("private-endpoint", m[0]);
+  for (const m of text.matchAll(BARE_TOKEN)) if (looksLikeSecret(m[0])) add("key", m[0]);
+  for (const m of text.matchAll(ETH_ACCOUNT)) add("wallet", m[0]);
   const lower = text.toLowerCase();
   for (const host of [...BUILT_IN_PROVIDER_HOSTS, ...options.providerHosts]) {
     if (host === "") continue;
@@ -122,7 +168,13 @@ function scanText(text: string, file: string, options: ScanOptions): Finding[] {
 export async function scanBuildOutput(dir: string, options: ScanOptions): Promise<Finding[]> {
   const files = walk(dir);
   if (files.length === 0) throw new Error("the build folder has no files");
-  return files.flatMap((path) => scanText(readFileSync(path, "latin1"), relative(dir, path).split("\\").join("/"), options));
+  return files.flatMap((path) => {
+    const name = relative(dir, path).split("\\").join("/");
+    // A file name is text too. When the name itself is a finding, every finding of the file shows the name masked.
+    const inName = scanText(unescaped(name), "", options);
+    const shown = inName.length > 0 ? hint(name) : name;
+    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, options)].map((f) => ({ ...f, file: shown }));
+  });
 }
 
 // The made-up names in the sample data and the input hints of the page.
@@ -131,14 +183,22 @@ const SAMPLE_ACCOUNTS = ["moth.factory.testnet", "you.testnet", "bigfish.testnet
 /** The accounts and hosts the page may name, from the fixed config. */
 export function optionsFromConfig(env: Record<string, string | undefined> = process.env): ScanOptions {
   const networks: KnownNetwork[] = Object.values(KNOWN_NETWORKS);
-  const hostOf = (url: string) => new URL(url).hostname;
+  const root: HostRule = { path: /^\/?$/ };
+  const allowedHosts: Record<string, HostRule> = {
+    "fonts.googleapis.com": { path: /^\/(?:css2)?$/, query: true },
+    "fonts.gstatic.com": root,
+    "www.w3.org": { path: /^\/2000\/svg$/ },
+  };
+  for (const n of networks) {
+    allowedHosts[new URL(n.rpcUrl).hostname] = root;
+    allowedHosts[new URL(n.fastNearUrl).hostname] = root;
+    const explorer = new URL(n.explorerTxUrl);
+    allowedHosts[explorer.hostname] = { path: new RegExp(`^${explorer.pathname.replace(/\/$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`) };
+  }
   return {
     allowedAccounts: networks.flatMap((n) => [n.factory, n.demoCoin]).filter((a): a is string => a !== null),
-    allowedHosts: [
-      ...networks.flatMap((n) => [hostOf(n.rpcUrl), hostOf(n.fastNearUrl), hostOf(n.explorerTxUrl)]),
-      "fonts.googleapis.com", "fonts.gstatic.com", "www.w3.org",
-    ],
     sampleAccounts: SAMPLE_ACCOUNTS,
+    allowedHosts,
     providerHosts: (env.FC_PRIVATE_HOSTS ?? "").split(",").map((h) => h.trim()).filter((h) => h !== ""),
   };
 }
