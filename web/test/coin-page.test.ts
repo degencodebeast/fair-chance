@@ -346,3 +346,12 @@ describe("storage bounds", () => {
     expect(data.reads.storageMin).toEqual({ kind: "unavailable" });
   });
 });
+
+describe("a coin name made only of removed characters", () => {
+  it("shows the coin account as the page heading", async () => {
+    const rec = recordedCoin("normal");
+    rec.views.ft_metadata = { ...(rec.views.ft_metadata as object), name: "‮", symbol: "‏" };
+    const view = await ready(rec);
+    expect(view.header.name).toBe(coin);
+  });
+});
