@@ -230,3 +230,46 @@ fn fc_account_unmarked_and_fc_quote_sell_match_a_large_sell_held_to_its_allowanc
     assert_eq!(after["unmarked"]["used"], allowance.to_string());
     assert_eq!(after["unmarked"]["left"], "0");
 }
+
+#[test]
+fn a_band_sell_above_the_first_allowance_pays_the_penalty_into_the_pool_and_matches_its_quote() {
+    let mut coin = launched();
+    register(&mut coin, "band.test", 11);
+    testing_env!(context("band.test", 3 * ONE_NEAR / 2, 11).build());
+    coin.buy(U128(0));
+
+    let window_1 = 3_620;
+    testing_env!(context("band.test", 1, window_1).build());
+    let view = serde_json::to_value(coin.fc_account(account("band.test"))).unwrap();
+    assert_eq!(view["class"], "band");
+    let allowance = &view["unmarked"]["allowance"];
+    assert_eq!(&view["penalty_applies_above"], allowance);
+    assert_eq!(&view["max_full_fill_now"], allowance);
+    let balance: u128 = view["balance"].as_str().unwrap().parse().unwrap();
+    let real_near_before: u128 = serde_json::to_value(coin.fc_pool()).unwrap()["real_near"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let quote =
+        serde_json::to_value(coin.fc_quote_sell(account("band.test"), U128(balance))).unwrap();
+    let _ = coin.sell(U128(balance), U128(0));
+    let sells = events("fair_chance", "fc_sell");
+    let sold = &sells[0]["data"][0];
+    assert_eq!(sold["class"], "band");
+    assert_eq!(sold["tokens_sold"], balance.to_string());
+    assert_eq!(sold["fill"], "full");
+    assert_eq!(sold["limit_reason"], serde_json::Value::Null);
+    assert_ne!(sold["penalty_near"], "0");
+    assert_eq!(quote["penalty_near"], sold["penalty_near"]);
+    assert_eq!(quote["near_out"], sold["near_out"]);
+    assert_eq!(quote["fill"], sold["fill"]);
+    let near_out: u128 = sold["near_out"].as_str().unwrap().parse().unwrap();
+    let real_near_after: u128 = serde_json::to_value(coin.fc_pool()).unwrap()["real_near"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert_eq!(real_near_after, real_near_before - near_out);
+}
