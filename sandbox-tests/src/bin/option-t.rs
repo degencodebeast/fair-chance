@@ -24,7 +24,9 @@
 //!                                     step that signs, the run reads the funder balance and
 //!                                     refuses the step that would break them)
 //!
-//! Testnet reads FC_TESTNET_RPC_URL, FC_TESTNET_FACTORY and FC_TESTNET_FUNDER, and loads the
+//! Testnet reads FC_TESTNET_READ_RPC_URL (reads first; FastNEAR by default), FC_TESTNET_RPC_URL
+//! (the public RPC: read fallback and the one RPC that takes each signed transaction, once),
+//! FC_TESTNET_FACTORY and FC_TESTNET_FUNDER, and loads the
 //! funder's key from the system keychain (build with `--features testnet-keychain`;
 //! scripts/option-t.sh does this for `--network testnet`).
 
@@ -112,10 +114,11 @@ async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
     use anyhow::Context;
     use fair_chance_sandbox_tests::option_t::funder_signer_from_keychain;
     let read = |name: &str| std::env::var(name).with_context(|| format!("set {name}"));
-    let rpc_url = read("FC_TESTNET_RPC_URL")?;
-    if rpc_url.contains("mainnet") {
-        anyhow::bail!("FC_TESTNET_RPC_URL names mainnet");
-    }
+    let public_rpc = read("FC_TESTNET_RPC_URL")?;
+    let read_rpc = std::env::var("FC_TESTNET_READ_RPC_URL")
+        .unwrap_or_else(|_| "https://rpc.testnet.fastnear.com".to_string());
+    let (network, send_network) =
+        fair_chance_sandbox_tests::rpcs::testnet_rpcs(&read_rpc, &public_rpc)?;
     let funder: near_api::types::AccountId = read("FC_TESTNET_FUNDER")?.parse()?;
     let factory: near_api::types::AccountId = read("FC_TESTNET_FACTORY")?.parse()?;
     for account in [&funder, &factory] {
@@ -123,10 +126,10 @@ async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
             anyhow::bail!("{account} is not a .testnet account");
         }
     }
-    let network = near_api::NetworkConfig::from_rpc_url("testnet", rpc_url.parse()?);
     let signer = funder_signer_from_keychain(&funder, &network).await?;
     Ok(OptionTSetup {
         network,
+        send_network,
         funder: fair_chance_sandbox_tests::Account { id: funder, signer },
         factory,
         ticker: ticker.to_string(),

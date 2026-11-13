@@ -22,8 +22,8 @@ use crate::pass_list::PassList;
 use crate::rate_limit::{with_rate_limit_backoff, Waits};
 use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{
-    account_view, batch_on_with_gas, events, launch_args, transact, transact_with_gas,
-    transaction_hash, view_on, wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
+    account_view, batch_once, events, launch_args, send_once, transact_once, transaction_hash,
+    view_on, wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
 };
 
 /// The environment variable the builder sets to `yes` to let Option T sign on testnet.
@@ -162,7 +162,10 @@ pub fn choose_buyer_deletion(network: DemoNetwork, delete_yes_flag: Option<&str>
 
 /// What one Option T run needs. The same values work on sandbox and on testnet.
 pub struct OptionTSetup {
+    /// Reads: FastNEAR then the public RPC on testnet ([`crate::rpcs::testnet_rpcs`]).
     pub network: NetworkConfig,
+    /// Signed transactions: one RPC with one try; each goes out once ([`crate::send_once`]).
+    pub send_network: NetworkConfig,
     /// Pays for the creator and the buyers and signs for all of them; their accounts are its
     /// sub-accounts, so the buyers are siblings of the creator and not in its creator group.
     pub funder: Account,
@@ -215,6 +218,7 @@ impl OptionTSetup {
     pub fn sandbox_defaults(world: &World, ticker: &str, buyers: usize) -> Self {
         Self {
             network: world.network.clone(),
+            send_network: world.network.clone(),
             funder: world.bob.clone(),
             factory: world.factory.id.clone(),
             ticker: ticker.to_string(),
@@ -371,28 +375,8 @@ async fn existing_account(setup: &OptionTSetup, id: &AccountId) -> Result<Option
     }))
 }
 
-async fn new_sub_account(
-    setup: &OptionTSetup,
-    id: AccountId,
-    amount: NearToken,
-) -> Result<Account> {
-    let account = Account {
-        id: id.clone(),
-        signer: setup.funder.signer.clone(),
-    };
-    let existing = existing_account(setup, &id).await?;
-    match decide_account(existing, amount).with_context(|| format!("{id}"))? {
-        AccountPlan::Reuse => {
-            let held = existing.map(|e| e.balance).unwrap_or_default();
-            println!(
-                "option-t: reused {id}: it holds {}, planned {}, funder key with full access; not funded again",
-                held.exact_amount_display(),
-                amount.exact_amount_display()
-            );
-            return Ok(account);
-        }
-        AccountPlan::Create => {}
-    }
+/// Creates and funds one account the survey planned to create, with a spend check first.
+async fn create_sub_account(setup: &OptionTSetup, id: &AccountId, amount: NearToken) -> Result<()> {
     check_funder(
         setup.limits.as_ref(),
         &setup.network,
@@ -402,32 +386,119 @@ async fn new_sub_account(
     )
     .await?;
     let public_key = setup.funder.signer.get_public_key().await?;
-    let made = near_api::Account::create_account(id.clone())
+    let transaction = near_api::Account::create_account(id.clone())
         .fund_myself(setup.funder.id.clone(), amount)
         .with_public_key(public_key)
-        .with_signer(setup.funder.signer.clone())
-        .send_to(&setup.network)
-        .await?;
+        .with_signer(setup.funder.signer.clone());
+    let made = send_once(
+        transaction,
+        &setup.funder.id,
+        &setup.network,
+        &setup.send_network,
+    )
+    .await?;
     if !made.is_success() {
         bail!("creating {id} failed: {made:?}");
     }
-    Ok(account)
+    println!(
+        "option-t: created {id} with {}",
+        amount.exact_amount_display()
+    );
+    Ok(())
 }
 
-/// Makes the creator and the buyer accounts, and waits until they are final (the signer reads
-/// each key at the final block).
-pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account>)> {
-    let creator = new_sub_account(
-        setup,
+/// One account the run needs: its name, the NEAR it is planned to hold, and what the survey found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SurveyEntry {
+    pub id: AccountId,
+    pub planned: NearToken,
+    pub existing: Option<ExistingAccount>,
+}
+
+/// Decides every account at once: create the missing ones, reuse the good existing ones. Any bad
+/// existing account stops the whole run, with every bad account named, before anything is signed.
+pub fn plan_accounts(entries: Vec<SurveyEntry>) -> Result<Vec<(SurveyEntry, AccountPlan)>> {
+    let mut planned = Vec::new();
+    let mut refused = Vec::new();
+    for entry in entries {
+        match decide_account(entry.existing, entry.planned) {
+            Ok(plan) => planned.push((entry, plan)),
+            Err(e) => refused.push(format!("{}: {e}", entry.id)),
+        }
+    }
+    if !refused.is_empty() {
+        bail!(
+            "the account survey stopped the run before anything was signed: {}",
+            refused.join("; ")
+        );
+    }
+    Ok(planned)
+}
+
+/// Time between the survey's reads, so one pass over 21 accounts stays well under a rate limit.
+const SURVEY_SPACING: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// Reads the creator and every buyer once, spaced, and prints one line per account.
+async fn survey(setup: &OptionTSetup) -> Result<Vec<(SurveyEntry, AccountPlan)>> {
+    let mut names = vec![(
         creator_account_id(&setup.ticker, &setup.funder.id)?,
         setup.launch_deposit.saturating_add(CREATOR_EXTRA),
-    )
-    .await?;
-    let mut buyers = Vec::new();
+    )];
     for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
-        buyers.push(
-            new_sub_account(setup, id, setup.buy_near.saturating_add(setup.buyer_extra)).await?,
-        );
+        names.push((id, setup.buy_near.saturating_add(setup.buyer_extra)));
+    }
+    let mut entries = Vec::new();
+    for (i, (id, planned)) in names.into_iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(SURVEY_SPACING).await;
+        }
+        let existing = existing_account(setup, &id).await?;
+        match existing {
+            None => println!(
+                "option-t: survey {id}: missing; plan: create with {}",
+                planned.exact_amount_display()
+            ),
+            Some(e) => println!(
+                "option-t: survey {id}: exists with {}, funder full-access key {}; planned {}",
+                e.balance.exact_amount_display(),
+                if e.funder_key_full_access {
+                    "yes"
+                } else {
+                    "no"
+                },
+                planned.exact_amount_display()
+            ),
+        }
+        entries.push(SurveyEntry {
+            id,
+            planned,
+            existing,
+        });
+    }
+    plan_accounts(entries)
+}
+
+/// Makes the creator and the buyer accounts after one survey of all of them: a good existing
+/// account is reused and never funded again, a missing one is created, and any bad one stops the
+/// run before anything is signed. Then it waits until the accounts are final (the signer reads
+/// each key at the final block).
+pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account>)> {
+    let plan = survey(setup).await?;
+    let mut accounts = Vec::new();
+    for (entry, decision) in &plan {
+        match decision {
+            AccountPlan::Reuse => println!(
+                "option-t: reused {}: it holds {}, planned {}, funder key with full access; not funded again",
+                entry.id,
+                entry.existing.map(|e| e.balance).unwrap_or_default().exact_amount_display(),
+                entry.planned.exact_amount_display()
+            ),
+            AccountPlan::Create => create_sub_account(setup, &entry.id, entry.planned).await?,
+        }
+        accounts.push(Account {
+            id: entry.id.clone(),
+            signer: setup.funder.signer.clone(),
+        });
     }
     let head = with_rate_limit_backoff("the head block", Waits::for_reads(), || {
         near_api::Chain::block_number()
@@ -436,7 +507,8 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
     })
     .await?;
     wait_for_final_height(&setup.network, head).await?;
-    Ok((creator, buyers))
+    let creator = accounts.remove(0);
+    Ok((creator, accounts))
 }
 
 /// The delete step: deletes each buyer account that exists, with its NEAR going to the funder,
@@ -508,8 +580,9 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         "the launch",
     )
     .await?;
-    let launched = transact(
+    let launched = transact_once(
         &setup.network,
+        &setup.send_network,
         &creator,
         &setup.factory,
         "launch",
@@ -521,6 +594,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             None,
         ),
         setup.launch_deposit,
+        near_api::types::NearGas::from_tgas(300),
     )
     .await?;
     if events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
@@ -549,6 +623,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     let mut tasks = JoinSet::new();
     for (index, buyer) in buyers.iter().cloned().enumerate() {
         let network = setup.network.clone();
+        let send_network = setup.send_network.clone();
         let coin = coin.clone();
         let buy_near = setup.buy_near;
         let gas = setup.buyer_gas;
@@ -563,7 +638,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             ];
             (
                 index,
-                batch_on_with_gas(&network, &buyer, &coin, calls, gas).await,
+                batch_once(&network, &send_network, &buyer, &coin, calls, gas).await,
             )
         });
     }
@@ -678,6 +753,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     let mut tasks = JoinSet::new();
     for (index, (buyer, data)) in buyers.iter().cloned().zip(&buy_events).enumerate() {
         let network = setup.network.clone();
+        let send_network = setup.send_network.clone();
         let coin = coin.clone();
         let tokens = data["tokens_out"]
             .as_str()
@@ -685,8 +761,9 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             .to_string();
         let gas = setup.buyer_gas;
         tasks.spawn(async move {
-            let sold = transact_with_gas(
+            let sold = transact_once(
                 &network,
+                &send_network,
                 &buyer,
                 &coin,
                 "sell",

@@ -11,6 +11,7 @@ pub mod page_and_watcher_reads;
 pub mod pass_list;
 pub mod rate_limit;
 pub mod refusal_texts;
+pub mod rpcs;
 pub mod spend_guard;
 
 use std::path::{Path, PathBuf};
@@ -693,8 +694,22 @@ pub async fn batch_on_with_gas(
     calls: Vec<FunctionCall>,
     total_gas: near_api::types::NearGas,
 ) -> Result<TransactionResult> {
+    Ok(
+        near_api::Transaction::construct(who.id.clone(), contract.clone())
+            .add_actions(function_call_actions(calls, total_gas)?)
+            .with_signer(who.signer.clone())
+            .send_to(network)
+            .await?,
+    )
+}
+
+/// One function-call action per call, with `total_gas` split evenly.
+fn function_call_actions(
+    calls: Vec<FunctionCall>,
+    total_gas: near_api::types::NearGas,
+) -> Result<Vec<near_api::types::Action>> {
     let gas = near_api::types::NearGas::from_gas(total_gas.as_gas() / calls.len().max(1) as u64);
-    let actions = calls
+    calls
         .into_iter()
         .map(|call| {
             Ok(near_api::types::Action::FunctionCall(Box::new(
@@ -706,14 +721,106 @@ pub async fn batch_on_with_gas(
                 },
             )))
         })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(
-        near_api::Transaction::construct(who.id.clone(), contract.clone())
-            .add_actions(actions)
-            .with_signer(who.signer.clone())
-            .send_to(network)
-            .await?,
+        .collect()
+}
+
+/// As [`batch_on_with_gas`], sent once through [`send_once`].
+pub async fn batch_once(
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    calls: Vec<FunctionCall>,
+    total_gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
+    let transaction = near_api::Transaction::construct(who.id.clone(), contract.clone())
+        .add_actions(function_call_actions(calls, total_gas)?)
+        .with_signer(who.signer.clone());
+    send_once(transaction, &who.id, read, send).await
+}
+
+/// As [`transact_with_gas`], sent once through [`send_once`].
+#[allow(clippy::too_many_arguments)]
+pub async fn transact_once(
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+    deposit: NearToken,
+    gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
+    let transaction = Contract(contract.clone())
+        .call_function(method, args)
+        .transaction()
+        .deposit(deposit)
+        .gas(gas)
+        .with_signer(who.id.clone(), who.signer.clone());
+    send_once(transaction, &who.id, read, send).await
+}
+
+/// Signs `transaction` (reading the nonce from `read`), sends it once to `send`, and returns its
+/// result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
+/// try ([`rpcs::testnet_rpcs`]). When the send gives no answer or an unknown result, it looks up the
+/// transaction by its hash on `read` and returns what the chain holds; it never sends it again, on
+/// either RPC. A hash the chain does not know stops the run. A failure before the send (signing,
+/// the nonce read) means nothing went out.
+pub async fn send_once(
+    transaction: near_api::advanced::ExecuteSignedTransaction,
+    signer_id: &AccountId,
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+) -> Result<TransactionResult> {
+    let signed = transaction.presign_with(read).await.map_err(|e| {
+        anyhow::anyhow!("signing for {signer_id} failed before any send: {e}; nothing was sent")
+    })?;
+    let hash = match &signed.transaction {
+        near_api::advanced::TransactionableOrSigned::Signed((tx, _)) => tx.get_hash(),
+        near_api::advanced::TransactionableOrSigned::Transactionable(_) => {
+            bail!("the transaction of {signer_id} is not signed; nothing was sent")
+        }
+    };
+    let sent = signed.send_to(send).await;
+    let error = match sent {
+        Ok(result) => return Ok(result),
+        Err(e) => format!("{e:?}"),
+    };
+    println!("send: tx {hash} of {signer_id} gave no clear answer; looking it up by hash, not sending it again");
+    let found = rate_limit::with_rate_limit_backoff(
+        &format!("the status of tx {hash}"),
+        rate_limit::Waits::for_reads(),
+        || async {
+            match near_api::Transaction::status_with_options(
+                signer_id.clone(),
+                hash,
+                near_api::types::TxExecutionStatus::Final,
+            )
+            .fetch_from(read)
+            .await
+            {
+                Ok(result) => Ok(Some(result)),
+                Err(e) => {
+                    let text = format!("{e:?}");
+                    if text.contains("UnknownTransaction") || text.contains("UNKNOWN_TRANSACTION") {
+                        Ok(None)
+                    } else {
+                        Err(e)
+                    }
+                }
+            }
+        },
     )
+    .await?;
+    match found {
+        Some(result) => {
+            println!("send: tx {hash} found on chain by its hash");
+            Ok(TransactionResult::Full(Box::new(result)))
+        }
+        None => bail!(
+            "tx {hash} of {signer_id} was not found on chain after a send with no clear answer ({error}); stopped, not sent again"
+        ),
+    }
 }
 
 /// The account view, or `None` when the node answers that the account does not exist. Reads back

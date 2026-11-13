@@ -9,17 +9,22 @@ use std::time::Duration;
 
 use anyhow::{bail, Result};
 
-/// The total time one read may spend waiting on 429s before it stops.
+/// The total time one read may spend waiting on 429s before it stops (the builder's rule).
 pub const READ_WAIT_LIMIT: Duration = Duration::from_secs(15 * 60);
+/// The most waits one read may make on 429s before it stops (the builder's rule: obey
+/// Retry-After at most twice).
+pub const READ_MAX_WAITS: u32 = 2;
 
-/// The waits of one read: `start`, then double up to `max`, a longer Retry-After wins, and no
-/// wait that would pass `total` in all.
+/// The waits of one read: `start`, then double up to `max`, a longer Retry-After wins, no wait
+/// that would pass `total` in all, and no more than `max_waits` waits.
 #[derive(Debug, Clone, Copy)]
 pub struct Waits {
     next: Duration,
     max: Duration,
     total: Duration,
     waited: Duration,
+    max_waits: u32,
+    waits: u32,
 }
 
 impl Waits {
@@ -29,10 +34,13 @@ impl Waits {
             max,
             total,
             waited: Duration::ZERO,
+            max_waits: READ_MAX_WAITS,
+            waits: 0,
         }
     }
 
-    /// The default for testnet reads: 2 s, doubling to 60 s, [`READ_WAIT_LIMIT`] in all.
+    /// The default for testnet reads: 2 s, doubling to 60 s, at most [`READ_MAX_WAITS`] waits and
+    /// [`READ_WAIT_LIMIT`] in all.
     pub fn for_reads() -> Self {
         Self::new(
             Duration::from_secs(2),
@@ -44,9 +52,10 @@ impl Waits {
     /// The next wait, or `None` when it would pass the total limit.
     pub fn next(&mut self, retry_after: Option<Duration>) -> Option<Duration> {
         let wait = retry_after.map_or(self.next, |r| r.max(self.next));
-        if self.waited + wait > self.total {
+        if self.waits >= self.max_waits || self.waited + wait > self.total {
             return None;
         }
+        self.waits += 1;
         self.waited += wait;
         self.next = (self.next * 2).min(self.max);
         Some(wait)

@@ -13,6 +13,10 @@ async fn an_unreachable_rpc_is_an_unknown_result_not_a_missing_account() {
     let secret = near_api::signer::generate_secret_key().unwrap();
     let setup = OptionTSetup {
         network: NetworkConfig::from_rpc_url("unreachable", "http://127.0.0.1:1".parse().unwrap()),
+        send_network: NetworkConfig::from_rpc_url(
+            "unreachable",
+            "http://127.0.0.1:1".parse().unwrap(),
+        ),
         funder: Account {
             id: "funder.sandbox".parse().unwrap(),
             signer: Signer::from_secret_key(secret).unwrap(),
