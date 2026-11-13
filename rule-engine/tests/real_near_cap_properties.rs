@@ -979,3 +979,130 @@ proptest! {
         freed_room_holds(early_buys, depth, buy_back)?;
     }
 }
+
+/// Runs `history`, then the account's trades in the next 1 h window, one per second, and
+/// returns its `fc_sell` events in order.
+fn window_sells(history: &[Step], who: usize, trades: &[WindowTrade]) -> Vec<FcSell> {
+    let mut coin = Coin::launched();
+    for step in history {
+        coin.run(step).expect("history");
+    }
+    let account = account_name(who);
+    let window_end = view_cap(&coin.state, coin.at).window_end_ns;
+    let first_block_after_the_early_window =
+        coin.state.launch_block + coin.state.fixed.early_blocks + 1;
+    let mut at = At {
+        block: (coin.at.block + 10).max(first_block_after_the_early_window),
+        ns: window_end,
+    };
+    let mut sells = Vec::new();
+    for trade in trades {
+        let action = match *trade {
+            WindowTrade::Buy { near_in } => Action::Buy {
+                account: account.clone(),
+                near_in,
+                min_tokens_out: 0,
+            },
+            WindowTrade::Sell { share_bps } => Action::Sell {
+                account: account.clone(),
+                amount: coin.balance(&account) * share_bps / BPS,
+                min_near_out: 0,
+                attached: 1,
+            },
+        };
+        let applied = apply(&coin.state, coin.holders(&[account.clone()]), &action, at)
+            .expect("window trade");
+        coin.state = applied.state.clone();
+        coin.ledger.extend(applied.holders.clone());
+        sells.extend(applied.events.into_iter().filter_map(|e| match e {
+            Event::FcSell(s) => Some(s),
+            _ => None,
+        }));
+        at = At {
+            block: at.block + 1,
+            ns: at.ns + 1_000_000_000,
+        };
+    }
+    sells
+}
+
+/// The Q20 seed: the first sell fills marked tokens into the cap room, and the bought tokens
+/// fill through the unmarked floor. Marked tokens sold in the 1 h window count against the
+/// unmarked floor, so the account gets one floor per window and the second sell fills 0.
+#[test]
+fn marked_tokens_sold_in_the_window_use_up_the_unmarked_floor_so_a_second_sell_fills_zero() {
+    let history = [
+        Step::Buy {
+            account: 2,
+            near_in: 10_054_969_190_151_614_964_507,
+        },
+        Step::Buy {
+            account: 3,
+            near_in: 2 * ONE_NEAR,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 0,
+        },
+        Step::Buy {
+            account: 6,
+            near_in: 6_482_066_110_376_778_936_034_148,
+        },
+    ];
+    let trades = [
+        WindowTrade::Buy {
+            near_in: 949_958_024_007_415_573_715_582,
+        },
+        WindowTrade::Sell { share_bps: 10_000 },
+        WindowTrade::Sell { share_bps: 10_000 },
+    ];
+    let sells = window_sells(&history, 3, &trades);
+    assert!(sells[0].marked_sold > 0);
+    assert_eq!(sells[1].tokens_sold, 0);
+    assert_eq!(sells[1].fill, "none");
+}
+
+/// An account with no marked tokens keeps its full unmarked floor, also after other accounts
+/// sold marked tokens in the window.
+#[test]
+fn an_account_with_no_marked_tokens_keeps_its_full_unmarked_floor() {
+    let mut coin = Coin::launched();
+    for step in [
+        Step::Buy {
+            account: 4,
+            near_in: ONE_NEAR,
+        },
+        Step::Wait { seconds: 20 },
+        Step::Buy {
+            account: 1,
+            near_in: 30 * ONE_NEAR,
+        },
+        Step::Wait { seconds: 3_600 },
+        Step::Sell {
+            account: 4,
+            share_bps: 10_000,
+        },
+    ] {
+        coin.run(&step).expect("step");
+    }
+    let marked_seller = view_account(
+        &coin.state,
+        &account_name(4),
+        coin.ledger.get(&account_name(4)),
+        coin.at,
+    );
+    assert!(marked_seller.marked.used > 0);
+    let plain = account_name(1);
+    let view = view_account(&coin.state, &plain, coin.ledger.get(&plain), coin.at);
+    assert_eq!(view.marked_balance, 0);
+    let floor = coin.state.unmarked_window_reserve.token_reserve * 10 / 10_000;
+    assert_eq!(view.unmarked.floor_left, floor);
+}
