@@ -1,0 +1,92 @@
+// The checks for a hosted coin page: it loads, the early banner shows, the receipt list renders,
+// the stats are complete and the three coin account checks pass. It reads only. It stops at the
+// first 403 or 429 answer and never retries.
+import type { Page } from "playwright-core";
+
+const loadWaitMs = 90_000;
+
+export interface HostedPageReport {
+  coin: string;
+  status: string;
+  receiptRows: number;
+  checks: { id: string; status: string }[];
+}
+
+/** The text with the full link, its query and fragment values (decoded, encoded and raw) removed, so a page error cannot print a key from the link. */
+export function withoutLinkValues(text: string, url: string): string {
+  const link = new URL(url);
+  const secrets = new Set<string>();
+  const addValues = (params: URLSearchParams) => {
+    for (const value of params.values()) {
+      secrets.add(value);
+      secrets.add(encodeURIComponent(value));
+    }
+  };
+  addValues(link.searchParams);
+  addValues(new URLSearchParams(link.hash.slice(1)));
+  // The raw text after each "=" as written in the link.
+  for (const part of `${link.search.slice(1)}&${link.hash.slice(1)}`.split("&")) {
+    const raw = part.includes("=") ? part.slice(part.indexOf("=") + 1) : "";
+    if (raw !== "") secrets.add(raw);
+  }
+  let clean = text.split(link.href).join("[link]");
+  if (link.hash !== "") clean = clean.split(link.hash).join("[fragment]");
+  // Longest first, so a value that holds a shorter one is removed whole. Matching ignores case for percent codes.
+  for (const secret of [...secrets].sort((x, y) => y.length - x.length)) {
+    clean = clean.replace(new RegExp(secret.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "[value]");
+  }
+  return clean;
+}
+
+export async function checkHostedPage(page: Page, url: string): Promise<HostedPageReport> {
+  const errors: string[] = [];
+  let refused = "";
+  page.on("pageerror", (e) => errors.push(`uncaught: ${e.message}`));
+  page.on("response", (response) => {
+    if ((response.status() === 403 || response.status() === 429) && refused === "") refused = `HTTP ${response.status()} from ${new URL(response.url()).host}`;
+  });
+  const own = new URL(url).host;
+  let movedTo = "";
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame() && new URL(frame.url()).host !== own && movedTo === "") movedTo = new URL(frame.url()).host;
+  });
+  page.on("console", (msg) => {
+    if (msg.type() === "error" && new URL(msg.location().url || url).host === own) errors.push(msg.text());
+  });
+
+  try {
+    await page.goto(url);
+  } catch (err) {
+    // The message of a failed goto holds the full URL with its query, which may hold a key. Name only the reason.
+    const reason = /net::[A-Z_]+/.exec(err instanceof Error ? err.message : "")?.[0] ?? "navigation failed";
+    throw new Error(`could not open the page (${reason})`);
+  }
+  const stayedOnHost = () => {
+    if (movedTo !== "" || new URL(page.url()).host !== own) throw new Error(`the page moved to another host (${movedTo || new URL(page.url()).host})`);
+  };
+  stayedOnHost();
+  await page
+    .waitForFunction(() => /sell receipts|Values cannot load/.test(document.querySelector("#status")?.textContent ?? ""), null, { timeout: loadWaitMs })
+    .catch(() => undefined);
+  if (refused !== "") throw new Error(`${refused}. Stop and report; do not retry.`);
+
+  const status = (await page.textContent("#status").catch(() => null)) ?? "";
+  if (status.startsWith("Values cannot load")) throw new Error(`the page shows an error: ${status}`);
+  if (!/sell receipts/.test(status)) throw new Error(`the page did not finish loading (status "${status}")`);
+  if ((await page.$("#early-banner")) === null) throw new Error("the early banner is missing");
+  if ((await page.$("#receipts")) === null) throw new Error("the receipt list is missing");
+  const receiptRows = (await page.$$("#receipts li[data-receipt-id]")).length;
+
+  const stats = await page.$$eval("#stats .stat-value", (nodes) => nodes.map((n) => n.textContent ?? ""));
+  if (stats.length !== 4 || stats.some((s) => s === "")) throw new Error(`the stats row is incomplete: ${JSON.stringify(stats)}`);
+  const checks = await page.$$eval("#chain-checks li", (nodes) =>
+    nodes.map((n) => ({ id: n.getAttribute("data-check") ?? "", status: n.getAttribute("data-status") ?? "" })),
+  );
+  if (checks.length !== 3 || checks.some((c) => c.status !== "pass")) throw new Error(`the coin account checks did not all pass: ${JSON.stringify(checks)}`);
+  if ((await page.$("#chain-warning")) !== null) throw new Error("the page shows the account warning");
+
+  await page.waitForTimeout(1_500);
+  stayedOnHost();
+  if (errors.length > 0) throw new Error(`console errors: ${errors.join(" | ")}`);
+  return { coin: (await page.textContent("#coin")) ?? "", status, receiptRows, checks };
+}

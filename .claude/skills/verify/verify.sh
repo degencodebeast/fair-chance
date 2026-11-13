@@ -4,6 +4,10 @@
 #   .claude/skills/verify/verify.sh doctor     read-only checks of the tools; starts nothing
 #   .claude/skills/verify/verify.sh testnet --builder-starts-testnet
 #                                              read-only page check on a testnet coin; the builder only
+#   .claude/skills/verify/verify.sh screens    the browser screen checks alone (no sandbox, no chain)
+#   .claude/skills/verify/verify.sh hosted <url>
+#                                              read-only page checks on a hosted coin page; no keys, no wallet.
+#                                              The URL may also come from FC_HOSTED_URL. Never write it to a file.
 # Evidence for each run goes to target/verify-evidence/<run id>/ and stays after the run.
 # This script holds no keys, signs nothing and never reads a key file.
 set -uo pipefail
@@ -59,6 +63,25 @@ private_string_scan() {
   scripts/test-scan-private-strings.sh | tail -1 && scripts/scan-private-strings.sh
 }
 
+# The browser screen checks. Every outside host is stubbed or blocked, so no request leaves the machine.
+screen_checks_in_browser() {
+  # A ?network=testnet link in Chrome, every outside host stubbed.
+  node web/scripts/check-testnet-link-in-browser.ts || { echo "the testnet link does not load in the browser"; return 1; }
+  # The loading and error states keep the page frame at 1440 and 390.
+  node web/scripts/check-page-frames-in-browser.ts || { echo "the loading or error frame is missing or too wide"; return 1; }
+  # Landing, coin list, alerts, price chart and holders table at 1440 and 390.
+  node web/scripts/check-screens-in-browser.ts || { echo "a screen is missing a sample label, shows a live-looking dead control or is too wide"; return 1; }
+  # Every screen loads at 1440 and 390 with no console error and the main element shown.
+  node web/scripts/check-screens-load-in-browser.ts || { echo "a screen does not load, shows a console error or has no main element"; return 1; }
+  # Coin page grid, phone order, trade box, claim panel and launch form with their turned-off buttons.
+  node web/scripts/check-turned-off-screens-in-browser.ts || { echo "a turned-off screen has an enabled control without a handler, no reason, the wrong layout or too much width"; return 1; }
+}
+
+# Runs `verify.sh hosted` on a local build with a fake chain: it must pass on a good chain and fail on a bad one.
+hosted_mode_self_test() {
+  node web/scripts/check-hosted-page-on-local-build.ts
+}
+
 case "$mode" in
   doctor)
     doctor && finish PASS "the tools match the pins" || finish FAIL "fix the doctor lines above"
@@ -73,25 +96,36 @@ case "$mode" in
     private_string_scan || finish FAIL "the private-string scan found private names or paths"
     # Option T refuses a mistyped argument before it builds or starts a sandbox.
     scripts/test-option-t-arguments.sh | tail -1 || finish FAIL "option-t.sh accepted an unknown or incomplete argument"
-    # A ?network=testnet link in Chrome, every outside host stubbed: no request leaves the machine.
-    node web/scripts/check-testnet-link-in-browser.ts \
-      || finish FAIL "the testnet link does not load in the browser (see target/verify-evidence/$run_id/verify.log)"
-    # The loading and error states keep the page frame at 1440 and 390, every outside host stubbed.
-    node web/scripts/check-page-frames-in-browser.ts \
-      || finish FAIL "the loading or error frame is missing or too wide (see target/verify-evidence/$run_id/verify.log)"
-    # Landing, coin list, alerts, price chart and holders table at 1440 and 390; every outside host blocked.
-    node web/scripts/check-screens-in-browser.ts \
-      || finish FAIL "a screen is missing a sample label, shows a live-looking dead control or is too wide (see target/verify-evidence/$run_id/verify.log)"
-    # Every screen loads at 1440 and 390 with no console error and the main element shown.
-    node web/scripts/check-screens-load-in-browser.ts \
-      || finish FAIL "a screen does not load, shows a console error or has no main element (see target/verify-evidence/$run_id/verify.log)"
-    # Coin page grid, phone order, trade box, claim panel and launch form with their turned-off buttons.
-    node web/scripts/check-turned-off-screens-in-browser.ts \
-      || finish FAIL "a turned-off screen has an enabled control without a handler, no reason, the wrong layout or too much width (see target/verify-evidence/$run_id/verify.log)"
+    screen_checks_in_browser || finish FAIL "a browser screen check failed (see target/verify-evidence/$run_id/verify.log)"
+    hosted_mode_self_test || finish FAIL "the hosted command does not pass on a good local chain or does not fail on a bad one (see target/verify-evidence/$run_id/verify.log)"
     FC_EVIDENCE_DIR="$evidence" scripts/walking-path.sh --read-in-browser \
       || finish FAIL "the walking path failed (see target/verify-evidence/$run_id/verify.log)"
     [ -s "$evidence/receipts-page.png" ] || finish FAIL "no page screenshot in the evidence folder"
     finish PASS "walking path, headless page receipt and private-string scan (evidence target/verify-evidence/$run_id/)"
+    ;;
+
+  screens)
+    mkdir -p "$evidence"
+    exec > >(tee "$evidence/verify.log") 2>&1
+    echo "verify: run $run_id, evidence in target/verify-evidence/$run_id/"
+    doctor || finish FAIL "doctor found problems"
+    install_web_packages || finish FAIL "npm ci in web/ failed"
+    screen_checks_in_browser || finish FAIL "a browser screen check failed (see target/verify-evidence/$run_id/verify.log)"
+    finish PASS "all screens load and keep their layout (evidence target/verify-evidence/$run_id/)"
+    ;;
+
+  hosted)
+    # Read only: opens one hosted page, signs nothing, holds no keys. Only the host is logged.
+    hosted_url="${2:-${FC_HOSTED_URL:-}}"
+    [ -n "$hosted_url" ] || finish FAIL "give the page URL as the second argument or set FC_HOSTED_URL"
+    mkdir -p "$evidence"
+    exec > >(tee "$evidence/verify.log") 2>&1
+    echo "verify: run $run_id, evidence in target/verify-evidence/$run_id/"
+    doctor || finish FAIL "doctor found problems"
+    install_web_packages || finish FAIL "npm ci in web/ failed"
+    node web/scripts/check-hosted-page-in-browser.ts "$hosted_url" \
+      || finish FAIL "the hosted page failed a check (see target/verify-evidence/$run_id/verify.log)"
+    finish PASS "the hosted page loads, shows the banner and receipt list, and the account checks pass (evidence target/verify-evidence/$run_id/)"
     ;;
 
   testnet)
@@ -115,7 +149,7 @@ case "$mode" in
     ;;
 
   *)
-    echo "usage: .claude/skills/verify/verify.sh [sandbox | doctor | testnet --builder-starts-testnet]" >&2
+    echo "usage: .claude/skills/verify/verify.sh [sandbox | doctor | screens | hosted <url> | testnet --builder-starts-testnet]" >&2
     finish FAIL "unknown mode"
     ;;
 esac

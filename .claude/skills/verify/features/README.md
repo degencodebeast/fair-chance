@@ -28,6 +28,8 @@ This folder is the maintained source for verifying what a Fair Chance user can s
 | Launch, buy and limited sell of a coin | [coin-launch-buy-sell.md](coin-launch-buy-sell.md) | yes |
 | Coin page (receipts, stats, rules, account checks) | [receipts-page.md](receipts-page.md) | yes (headless Chrome) |
 | Sell alert from the watcher | [sell-alert.md](sell-alert.md) | yes (fake sender) |
+| Screens: landing, coin list, alerts, launch form, coin page | [screens.md](screens.md) | yes (headless Chrome, stub chain; also `verify.sh screens`) |
+| Hosted page check | [hosted-page.md](hosted-page.md) | self-test on a local build; the real URL is run by hand with `verify.sh hosted <url>` |
 
 ## Feature entry contract
 
