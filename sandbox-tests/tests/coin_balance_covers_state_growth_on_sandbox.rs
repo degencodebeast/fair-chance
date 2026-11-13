@@ -82,11 +82,13 @@ async fn the_coin_balance_covers_real_near_the_creator_balance_and_storage_after
         .await?
         .data
         .storage_usage;
-    // The smallest deposit `new` accepts, to SEARCH_STEP: the storage cost is enough, and the
-    // gas reward of `new` can make a little less enough too. Each try has its own ticker of the
-    // same length, so every coin uses the same storage; the coin of the last success stays.
-    let mut enough = u128::from(probe_usage) * YOCTO_PER_STORAGE_BYTE;
-    let mut too_little = enough - enough / 10;
+    // The smallest deposit `new` accepts, to SEARCH_STEP, between 90% and 110% of the probe's
+    // storage cost (`new` also holds back the storage the state gains later). Each try has its
+    // own ticker of the same length, so every coin uses the same storage; the coin of the last
+    // success stays.
+    let storage_cost = u128::from(probe_usage) * YOCTO_PER_STORAGE_BYTE;
+    let mut enough = storage_cost + storage_cost / 10;
+    let mut too_little = storage_cost - storage_cost / 10;
     let mut tries = 0;
     let mut ticker = || {
         tries += 1;
@@ -108,10 +110,7 @@ async fn the_coin_balance_covers_real_near_the_creator_balance_and_storage_after
         }
     }
     let coin = world.coin_for(&coin_ticker)?;
-    println!(
-        "smallest deposit found: {enough} (storage cost of the probe {})",
-        u128::from(probe_usage) * YOCTO_PER_STORAGE_BYTE
-    );
+    println!("smallest deposit found: {enough} (storage cost of the probe {storage_cost})");
     check(&world, &coin, "after a launch with the smallest deposit").await?;
 
     world.wait_until_after_the_early_window(&coin).await?;
