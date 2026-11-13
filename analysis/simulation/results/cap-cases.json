@@ -13,19 +13,27 @@
             "account": "band",
             "tokens_base": "20000000000000000000000000",
             "marked_base": "0",
-            "large": false
+            "large": false,
+            "class": "band"
           }
         ],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.05,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 500,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -39,6 +47,8 @@
             "tokens_filled_base": "37329742208541630000000000",
             "large_before": false,
             "large_after": true,
+            "class_before": "band",
+            "class_after": "large",
             "cap_used_yocto": "0"
           }
         },
@@ -54,7 +64,9 @@
             "fill": "partial",
             "limit_reason": "allowance",
             "penalty_near": "0",
-            "cap_used_yocto": "0"
+            "cap_used_yocto": "0",
+            "class_before": "large",
+            "class_after": "large"
           }
         }
       ]
@@ -70,19 +82,27 @@
             "account": "band",
             "tokens_base": "20000000000000000000000000",
             "marked_base": "0",
-            "large": false
+            "large": false,
+            "class": "band"
           }
         ],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.05,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 500,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -96,6 +116,8 @@
             "tokens_filled_base": "923129620643377300000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "band",
+            "class_after": "band",
             "cap_used_yocto": "0"
           }
         },
@@ -106,12 +128,85 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "13882166582149088000000000",
-            "near_out_yocto": "1423478132419622400000000",
+            "tokens_filled_base": "11910132454063237000000000",
+            "near_out_yocto": "1239734479416894700000000",
             "fill": "partial",
-            "limit_reason": "allowance",
-            "penalty_near": "31189680591100912000000",
-            "cap_used_yocto": "280707125319908270000000"
+            "limit_reason": "cap_full",
+            "penalty_near": "10773719146353373000000",
+            "cap_used_yocto": "193013276029149420000000",
+            "class_before": "band",
+            "class_after": "band"
+          }
+        }
+      ]
+    },
+    {
+      "name": "band-class-floor-two-sells",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "970000000000000000000000000",
+        "holders": [
+          {
+            "account": "band",
+            "tokens_base": "30000000000000000000000000",
+            "marked_base": "0",
+            "large": false,
+            "class": "band"
+          }
+        ],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 500,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount_token_base": "5000000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "5000000000000000000000000",
+            "near_out_yocto": "558461538461543600000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "band",
+            "class_after": "band"
+          }
+        },
+        {
+          "account": "band",
+          "kind": "sell",
+          "amount_token_base": "7000000000000000000000000",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "7000000000000000000000000",
+            "near_out_yocto": "748705274373802700000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "23626560186737820000000",
+            "cap_used_yocto": "212639041680640400000000",
+            "class_before": "band",
+            "class_after": "band"
           }
         }
       ]
@@ -124,15 +219,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -146,6 +248,8 @@
             "tokens_filled_base": "4975124378109455000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -159,15 +263,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -181,6 +292,8 @@
             "tokens_filled_base": "5244571674891829500000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -194,15 +307,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -216,6 +336,8 @@
             "tokens_filled_base": "5513873081470489500000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -229,15 +351,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -251,6 +380,8 @@
             "tokens_filled_base": "5783028716300130000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -264,15 +395,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -286,6 +424,8 @@
             "tokens_filled_base": "6052038697707295000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -299,15 +439,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -321,6 +468,8 @@
             "tokens_filled_base": "6320903143890142000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -334,15 +483,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -356,6 +512,8 @@
             "tokens_filled_base": "6589622172919512000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -369,15 +527,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -391,6 +556,8 @@
             "tokens_filled_base": "6858195902738333000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -404,15 +571,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -426,6 +600,8 @@
             "tokens_filled_base": "7126624451161742000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -439,15 +615,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -461,6 +644,8 @@
             "tokens_filled_base": "7394907935877800000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -474,15 +659,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -496,6 +688,8 @@
             "tokens_filled_base": "7663046474447370000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -509,15 +703,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -531,6 +732,8 @@
             "tokens_filled_base": "7931040184304357000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -544,15 +747,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -566,6 +776,8 @@
             "tokens_filled_base": "8198889182755947000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -579,15 +791,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -601,6 +820,8 @@
             "tokens_filled_base": "8466593586982250000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -614,15 +835,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -636,6 +864,8 @@
             "tokens_filled_base": "8734153514037370000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -649,15 +879,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -671,6 +908,8 @@
             "tokens_filled_base": "9001569080848932000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -684,15 +923,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -706,6 +952,8 @@
             "tokens_filled_base": "9268840404218316000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -719,15 +967,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -741,6 +996,8 @@
             "tokens_filled_base": "9535967600820899000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         }
@@ -754,15 +1011,22 @@
         "token_reserve_base": "1000000000000000000000000000",
         "holders": [],
         "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
         "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
           "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
@@ -776,6 +1040,8 @@
             "tokens_filled_base": "4975124378109455000000000",
             "large_before": false,
             "large_after": false,
+            "class_before": "small",
+            "class_after": "small",
             "cap_used_yocto": "0"
           }
         },
@@ -789,6 +1055,8 @@
             "tokens_filled_base": "42441819339322330000000000",
             "large_before": false,
             "large_after": true,
+            "class_before": "small",
+            "class_after": "large",
             "cap_used_yocto": "0"
           }
         },
@@ -804,7 +1072,9 @@
             "fill": "partial",
             "limit_reason": "allowance",
             "penalty_near": "0",
-            "cap_used_yocto": "0"
+            "cap_used_yocto": "0",
+            "class_before": "small",
+            "class_after": "small"
           }
         }
       ]
@@ -812,66 +1082,40 @@
     {
       "name": "full-cap-floor-and-second-sell",
       "start_state": {
-        "real_near_yocto": "13000000000000000000000000",
+        "real_near_yocto": "10000000000000000000000000",
         "virtual_near_yocto": "100000000000000000000000000",
-        "token_reserve_base": "973709834469328165000000000",
+        "token_reserve_base": "960000000000000000000000000",
         "holders": [
           {
             "account": "large",
-            "tokens_base": "26290165530671835000000000",
+            "tokens_base": "40000000000000000000000000",
             "marked_base": "0",
-            "large": true
+            "large": false,
+            "class": "band"
           }
         ],
         "total_supply_base": "1000000000000000000000000000",
-        "rules": {
-          "n": 17,
-          "t": 0.02,
-          "penalty": 0.1,
-          "creator_fee_share_bps": 0,
-          "cap_bps": 500,
-          "floor_bps": 10,
-          "window_s": 3600,
-          "allowance": 0.010152544552210596
-        },
         "cap_used_by_account_yocto": {
-          "other": "650000000000000000000000"
+          "other": "500000000000000000000000"
+        },
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 500,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
         }
       },
       "actions": [
-        {
-          "account": "large",
-          "kind": "sell",
-          "amount_token_base": "26290165530671835000000000",
-          "time_s": 3601,
-          "block": 100,
-          "result": {
-            "tokens_filled_base": "1000000000000059600000000",
-            "near_out_yocto": "114772618520775890000000",
-            "fill": "partial",
-            "limit_reason": "floor",
-            "penalty_near": "0",
-            "cap_used_yocto": "650000000000000000000000"
-          }
-        },
-        {
-          "account": "large",
-          "kind": "sell",
-          "amount_token_base": "25290165530671775000000000",
-          "time_s": 3602,
-          "block": 100,
-          "result": {
-            "tokens_filled_base": "0",
-            "near_out_yocto": "0",
-            "fill": "none",
-            "limit_reason": "floor",
-            "penalty_near": "0",
-            "cap_used_yocto": "650000000000000000000000"
-          }
-        }
-      ],
-      "state_after_setup": true,
-      "setup_actions": [
         {
           "account": "large",
           "kind": "buy",
@@ -879,10 +1123,290 @@
           "time_s": 3600,
           "block": 100,
           "result": {
+            "tokens_filled_base": "25238558909444930000000000",
+            "large_before": false,
+            "large_after": true,
+            "class_before": "band",
+            "class_after": "large",
+            "cap_used_yocto": "500000000000000000000000"
+          }
+        },
+        {
+          "account": "large",
+          "kind": "sell",
+          "amount_token_base": "65238558909444930000000000",
+          "time_s": 3601,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "25758099782048880000000000",
+            "near_out_yocto": "2999999999999986700000000",
+            "fill": "partial",
+            "limit_reason": "cap_full",
+            "penalty_near": "0",
+            "cap_used_yocto": "500000000000000000000000",
+            "class_before": "large",
+            "class_after": "large"
+          }
+        },
+        {
+          "account": "large",
+          "kind": "sell",
+          "amount_token_base": "39480459127396050000000000",
+          "time_s": 3602,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "440459127396047100000000",
+            "near_out_yocto": "49914667596409570000000",
+            "fill": "partial",
+            "limit_reason": "floor",
+            "penalty_near": "0",
+            "cap_used_yocto": "549914667596396200000000",
+            "class_before": "large",
+            "class_after": "large"
+          }
+        }
+      ]
+    },
+    {
+      "name": "post-sell-cap-s-0",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "1000000000000000000000000000",
+        "holders": [],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "large",
+          "kind": "buy",
+          "amount_near_yocto": "3000000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
             "tokens_filled_base": "26290165530671835000000000",
             "large_before": false,
             "large_after": true,
+            "class_before": "small",
+            "class_after": "large",
             "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "large",
+          "kind": "sell",
+          "amount_token_base": "26290165530671835000000000",
+          "time_s": 3600,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "5418135681278883500000000",
+            "near_out_yocto": "619047619047618500000000",
+            "fill": "partial",
+            "limit_reason": "cap_full",
+            "penalty_near": "0",
+            "cap_used_yocto": "619047619047618500000000",
+            "class_before": "large",
+            "class_after": "large"
+          }
+        }
+      ]
+    },
+    {
+      "name": "same-account-round-trip-s-0",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "1000000000000000000000000000",
+        "holders": [],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 0,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "round-trip",
+          "kind": "buy",
+          "amount_near_yocto": "100000000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "473684210526315800000000000",
+            "large_before": false,
+            "large_after": true,
+            "class_before": "small",
+            "class_after": "large",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "round-trip",
+          "kind": "sell",
+          "amount_token_base": "473684210526315800000000000",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "473684210526315800000000000",
+            "near_out_yocto": "98478947368421050000000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "large",
+            "class_after": "band"
+          }
+        }
+      ]
+    },
+    {
+      "name": "post-sell-cap-s-30",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "1000000000000000000000000000",
+        "holders": [],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 3000,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "large",
+          "kind": "buy",
+          "amount_near_yocto": "3000000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "26290165530671835000000000",
+            "large_before": false,
+            "large_after": true,
+            "class_before": "small",
+            "class_after": "large",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "large",
+          "kind": "sell",
+          "amount_token_base": "26290165530671835000000000",
+          "time_s": 3600,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "5414011884498536000000000",
+            "near_out_yocto": "618529793680559300000000",
+            "fill": "partial",
+            "limit_reason": "cap_full",
+            "penalty_near": "0",
+            "cap_used_yocto": "618529793680559300000000",
+            "class_before": "large",
+            "class_after": "large"
+          }
+        }
+      ]
+    },
+    {
+      "name": "same-account-round-trip-s-30",
+      "start_state": {
+        "real_near_yocto": "10000000000000000000000000",
+        "virtual_near_yocto": "100000000000000000000000000",
+        "token_reserve_base": "1000000000000000000000000000",
+        "holders": [],
+        "total_supply_base": "1000000000000000000000000000",
+        "cap_used_by_account_yocto": {},
+        "rules": {
+          "p_bps": 200,
+          "window_unmarked_s": 3600,
+          "window_early_s": 86400,
+          "early_blocks": 17,
+          "large_threshold_bps": 200,
+          "creator_cap_bps": 400,
+          "real_cap_c_bps": 500,
+          "floor_bps": 10,
+          "penalty_bps": 1000,
+          "swap_fee_bps": 100,
+          "early_fee_start_bps": 5000,
+          "brake_drop_bps": null,
+          "creator_fee_share_bps": 3000,
+          "virtual_near": "100000000000000000000000000"
+        }
+      },
+      "actions": [
+        {
+          "account": "round-trip",
+          "kind": "buy",
+          "amount_near_yocto": "100000000000000000000000000",
+          "time_s": 0,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "473684210526315800000000000",
+            "large_before": false,
+            "large_after": true,
+            "class_before": "small",
+            "class_after": "large",
+            "cap_used_yocto": "0"
+          }
+        },
+        {
+          "account": "round-trip",
+          "kind": "sell",
+          "amount_token_base": "473684210526315800000000000",
+          "time_s": 1,
+          "block": 100,
+          "result": {
+            "tokens_filled_base": "473684210526315800000000000",
+            "near_out_yocto": "98338263157894730000000000",
+            "fill": "full",
+            "limit_reason": null,
+            "penalty_near": "0",
+            "cap_used_yocto": "0",
+            "class_before": "large",
+            "class_after": "band"
           }
         }
       ]

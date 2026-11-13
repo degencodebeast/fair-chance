@@ -103,7 +103,7 @@ class SimulationTests(unittest.TestCase):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); w = e.wallet("large")
         w.tokens = sim.SUPPLY / 2; w.ever_large = True
         e.sell("large", w.tokens, 1)
-        self.assertLessEqual(e.cap_used(1), sim.CAP * e.pool.real + sim.FLOOR * sim.SUPPLY * .000001)
+        self.assertLessEqual(e.cap_used(1), sim.CAP * e.pool.real + 1e-9)
 
     def test_buy_does_not_offset_another_accounts_cap(self):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); e.buy("buyer", 100, 1)
@@ -151,6 +151,58 @@ class SimulationTests(unittest.TestCase):
         self.assertAlmostEqual(first,sim.FLOOR*e.reserve_snapshot(1),places=6)
         self.assertEqual(second,0)
 
+    def test_floor_left_nets_bought_tokens(self):
+        e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));w=e.wallet('big');w.tokens=sim.SUPPLY/2;w.ever_large=True
+        e.cap_counted['other',e.cap_bucket(1)]=1e6
+        e.sold['big',e.bucket(1)]=200_000
+        e.bought['big',e.bucket(1)]=100_000
+        self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-100_000,places=6)
+
+    def test_marked_sell_preserves_unmarked_balance(self):
+        e=sim.Engine(self.policy(),sim.Pool(token=sim.SUPPLY,near=200,real=100));w=e.wallet('holder')
+        w.tokens=10_000_000;w.marked=5_000_000
+        e.reserve_snaps[0]=sim.SUPPLY
+        e.snaps[0]=({'holder':5_000_000,'other':495_000_000},500_000_000,sim.SUPPLY)
+        marked_fill=sim.ALLOWANCE*sim.SUPPLY*.01;unmarked_fill=5_000_000
+        e.sell('holder',marked_fill+unmarked_fill,1)
+        actual_marked=e.sold['holder',e.bucket(1,True)]
+        self.assertAlmostEqual(actual_marked,marked_fill,delta=1)
+        self.assertAlmostEqual(w.marked,5_000_000-actual_marked,places=7)
+        self.assertAlmostEqual(w.tokens,10_000_000-actual_marked-unmarked_fill,places=7)
+
+    def test_band_class_floor_survives_first_below_allowance_sell(self):
+        e=sim.Engine(sim.Policy(17,.05,None,.1),sim.Pool(near=110,real=10))
+        e.wallet('band').tokens=12_000_000
+        first,_=e.sell('band',5_000_000,1)
+        self.assertEqual(first,5_000_000)
+        self.assertEqual(e.live_class('band',1),'small')
+        self.assertEqual(e.account_class('band',1),'band')
+        before=e.band_penalties;near=e.pool.near;tokens=e.pool.token
+        second,_=e.sell('band',7_000_000,1)
+        self.assertEqual(second,7_000_000)
+        gross=near-tokens*near/(tokens+second)
+        second_allowance=max(0,sim.ALLOWANCE*e.reserve_snapshot(1)-5_000_000)
+        first_gross=near-tokens*near/(tokens+second_allowance)
+        expected=max(0,gross-first_gross)*(1-sim.FEE)*.1
+        self.assertAlmostEqual(e.band_penalties-before,expected,places=8)
+
+    def test_receive_can_raise_window_class(self):
+        e=sim.Engine(sim.Policy(17,.05,None,.1));e.wallet('sender').tokens=2_000_000;e.wallet('receiver').tokens=9_800_000
+        self.assertTrue(e.transfer('sender','receiver',500_000,100,hour=1))
+        self.assertEqual(e.account_class('receiver',1),'band')
+
+    def test_large_falls_to_band_only_after_its_balance_reaches_zero(self):
+        e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));w=e.wallet('large');w.tokens=sim.SUPPLY/2;w.ever_large=True
+        e.cap_buy['large',e.cap_bucket(1)]=1_000
+        e.bought['large',e.bucket(1)]=sim.SUPPLY
+        first,_=e.sell('large',w.tokens/2,1)
+        self.assertGreater(first,0);self.assertEqual(e.account_class('large',1),'large')
+        e.cap_buy['large',e.cap_bucket(1)]=1e9
+        e.sell('large',w.tokens,1)
+        self.assertEqual(w.tokens,0)
+        self.assertFalse(w.ever_large)
+        self.assertEqual(e.account_class('large',1),'band')
+
     def test_early_buy_fee_schedule_and_first_action_reserve_snapshot(self):
         for block,fee in ((0,.50),(17,.01+.49/18),(18,.01)):
             e=sim.Engine(self.policy()); out=e.buy('holder',1,0,block=block)
@@ -162,6 +214,7 @@ class SimulationTests(unittest.TestCase):
     def test_cap_cases_have_explicit_state_and_no_refusal_code(self):
         sim.cap_cases();data=json.loads((ROOT/'analysis/simulation/results/cap-cases.json').read_text())
         self.assertIn('early-buy-block-17',{c['name'] for c in data['cases']})
+        self.assertEqual(data['version'],'1.0.0-rc.5')
         band=next(c for c in data['cases'] if c['name']=='threshold-cross-at-2-percent')
         self.assertEqual(int(band['start_state']['holders'][0]['tokens_base']),20_000_000*10**18)
         self.assertFalse(band['start_state']['holders'][0]['large'])
@@ -169,10 +222,24 @@ class SimulationTests(unittest.TestCase):
         band_sell=next(c for c in data['cases'] if c['name']=='band-sell-above-allowance')
         self.assertGreater(int(band_sell['actions'][1]['result']['penalty_near']),0)
         full=next(c for c in data['cases'] if c['name']=='full-cap-floor-and-second-sell')
-        self.assertEqual(full['actions'][0]['result']['limit_reason'],'floor')
-        self.assertEqual(full['actions'][1]['result']['fill'],'none')
+        self.assertFalse(full['start_state']['holders'][0]['large'])
+        self.assertTrue(full['actions'][0]['result']['large_after'])
+        self.assertEqual(full['actions'][1]['result']['limit_reason'],'cap_full')
+        self.assertEqual(full['actions'][-1]['result']['limit_reason'],'floor')
+        band_cap=next(c for c in data['cases'] if c['name']=='band-sell-above-allowance')
+        self.assertEqual(band_cap['actions'][-1]['result']['limit_reason'],'cap_full')
+        self.assertAlmostEqual(int(band_cap['actions'][-1]['result']['tokens_filled_base'])/1e18,11_910_132,delta=1)
+        self.assertEqual({c['name'] for c in data['cases'] if c['name'].startswith('post-sell-cap')},{'post-sell-cap-s-0','post-sell-cap-s-30'})
+        self.assertEqual({c['name'] for c in data['cases'] if c['name'].startswith('same-account-round-trip')},{'same-account-round-trip-s-0','same-account-round-trip-s-30'})
+        self.assertEqual(data['cases'][0]['start_state']['rules']['p_bps'],200)
+        self.assertEqual(data['cases'][0]['start_state']['rules']['swap_fee_bps'],100)
+        self.assertEqual(data['cases'][0]['start_state']['rules']['early_fee_start_bps'],5000)
         marked=next(c for c in data['cases'] if c['name']=='marked-allowance-limit')
         self.assertEqual(marked['actions'][-1]['result']['limit_reason'],'allowance')
+        class_floor=next(c for c in data['cases'] if c['name']=='band-class-floor-two-sells')
+        self.assertEqual(class_floor['actions'][0]['result']['class_after'],'band')
+        self.assertEqual(class_floor['actions'][1]['result']['class_before'],'band')
+        self.assertGreater(int(class_floor['actions'][1]['result']['penalty_near']),0)
         for case in data['cases']:
             state=case['start_state'];self.assertIn('holders',state)
             self.assertEqual(int(state['token_reserve_base'])+sum(int(h['tokens_base']) for h in state['holders']),int(state['total_supply_base']))
