@@ -53,7 +53,7 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return fmt.Errorf("%s: HTTP 429: %w", method, ErrRateLimited)
+		return fmt.Errorf("%s: HTTP 429: %w", method, &RateLimitedError{RetryAfter: retryAfter(resp.Header.Get("Retry-After"))})
 	}
 	if resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("%s: HTTP 403: %w", method, ErrRPCForbidden)

@@ -98,8 +98,16 @@ func main() {
 
 var errDone = errors.New("done")
 
-// run waits for the coin, then reads FastNEAR every poll and keeps the first-read time per receipt.
+// defaultCoinWaitPoll is the time between RPC reads while the coin does not exist yet. The public
+// RPC rate limits one address, and the run, the watcher and this tool share it.
+const defaultCoinWaitPoll = 5 * time.Second
+
+// run waits for the coin, then reads FastNEAR every poll and keeps the first-read time per event.
 func run(ctx context.Context, r *report, poll, idle time.Duration, want int) error {
+	return runWithCoinWait(ctx, r, poll, idle, want, defaultCoinWaitPoll)
+}
+
+func runWithCoinWait(ctx context.Context, r *report, poll, idle time.Duration, want int, coinPoll time.Duration) error {
 	back := timing.BackOff{Start: 2 * time.Second, Max: time.Minute}
 	var facts eventsource.CoinFacts
 	for {
@@ -108,12 +116,18 @@ func run(ctx context.Context, r *report, poll, idle time.Duration, want int) err
 			facts = f
 			break
 		}
+		var limited *eventsource.RateLimitedError
 		switch {
+		case errors.As(err, &limited):
+			r.RateLimited++
+			wait := back.Next(limited.RetryAfter)
+			log.Printf("429 from the RPC; waiting %s", wait)
+			sleep(ctx, wait)
 		case errors.Is(err, eventsource.ErrRateLimited):
 			r.RateLimited++
 			sleep(ctx, back.Next(0))
 		case strings.Contains(err.Error(), "UNKNOWN_ACCOUNT"):
-			sleep(ctx, poll) // not launched yet
+			sleep(ctx, coinPoll) // not launched yet
 		default:
 			return fmt.Errorf("reading %s: %w", r.Coin, err)
 		}
@@ -207,7 +221,12 @@ func finishWithBackOff(parent context.Context, r *report, firstWait time.Duratio
 				return err
 			}
 			r.RateLimited++
-			sleep(ctx, back.Next(0))
+			var limited *eventsource.RateLimitedError
+			var after time.Duration
+			if errors.As(err, &limited) {
+				after = limited.RetryAfter
+			}
+			sleep(ctx, back.Next(after))
 		}
 	}
 	stop := func(what string, err error) error {

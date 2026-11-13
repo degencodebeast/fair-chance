@@ -9,6 +9,7 @@ pub mod factory_deploy;
 pub mod option_t;
 pub mod page_and_watcher_reads;
 pub mod pass_list;
+pub mod rate_limit;
 pub mod refusal_texts;
 pub mod spend_guard;
 
@@ -659,11 +660,17 @@ pub async fn view_on(
     method: &str,
     args: Value,
 ) -> Result<Value> {
-    let data: Data<Value> = Contract(contract.clone())
-        .call_function(method, args)
-        .read_only()
-        .fetch_from(network)
-        .await?;
+    let data: Data<Value> = rate_limit::with_rate_limit_backoff(
+        &format!("the view {method} on {contract}"),
+        rate_limit::Waits::for_reads(),
+        || {
+            Contract(contract.clone())
+                .call_function(method, args.clone())
+                .read_only()
+                .fetch_from(network)
+        },
+    )
+    .await?;
     Ok(data.data)
 }
 
@@ -709,21 +716,52 @@ pub async fn batch_on_with_gas(
     )
 }
 
-/// Waits until the final head of any network is at `height` or above (60 s at most).
+/// The account view, or `None` when the node answers that the account does not exist. Reads back
+/// off on a 429; any other error is an unknown result.
+pub async fn account_view(
+    network: &NetworkConfig,
+    id: &AccountId,
+) -> Result<Option<near_api::types::account::Account>> {
+    rate_limit::with_rate_limit_backoff(
+        &format!("the account {id}"),
+        rate_limit::Waits::for_reads(),
+        || async {
+            match near_api::Account(id.clone())
+                .view()
+                .fetch_from(network)
+                .await
+            {
+                Ok(data) => Ok(Some(data.data)),
+                Err(e) if format!("{e:?}").contains("UnknownAccount") => Ok(None),
+                Err(e) => Err(e),
+            }
+        },
+    )
+    .await
+}
+
+/// Waits until the final head of any network is at `height` or above (60 s at most). It reads the
+/// head every 500 ms and backs off on a 429.
 pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Result<()> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     loop {
-        let head = near_api::Chain::block_number()
-            .at(near_api::Reference::Final)
-            .fetch_from(network)
-            .await?;
+        let head = rate_limit::with_rate_limit_backoff(
+            "the final head",
+            rate_limit::Waits::for_reads(),
+            || {
+                near_api::Chain::block_number()
+                    .at(near_api::Reference::Final)
+                    .fetch_from(network)
+            },
+        )
+        .await?;
         if head >= height {
             return Ok(());
         }
         if std::time::Instant::now() > deadline {
             bail!("final head {head} did not reach block {height} in 60 s");
         }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 }
 

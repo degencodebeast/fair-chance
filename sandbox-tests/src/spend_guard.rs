@@ -60,12 +60,14 @@ pub async fn check_funder(
     let Some(limits) = limits else {
         return Ok(());
     };
-    let balance = near_api::Account(funder.clone())
-        .view()
-        .fetch_from(network)
+    let balance = crate::account_view(network, funder)
         .await
-        .map_err(|e| anyhow::anyhow!("unknown result reading the balance of {funder} before {step}: {e}; nothing more was signed"))?
-        .data
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "reading the balance of {funder} before {step}: {e}; nothing more was signed"
+            )
+        })?
+        .ok_or_else(|| anyhow::anyhow!("{funder} does not exist; nothing more was signed"))?
         .amount;
     limits.check(balance, cost, step)?;
     println!(

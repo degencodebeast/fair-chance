@@ -19,10 +19,11 @@ use tokio::task::JoinSet;
 
 use crate::amount_text::{amount, near, tokens};
 use crate::pass_list::PassList;
+use crate::rate_limit::{with_rate_limit_backoff, Waits};
 use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{
-    batch_on_with_gas, events, launch_args, transact, transact_with_gas, transaction_hash, view_on,
-    wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
+    account_view, batch_on_with_gas, events, launch_args, transact, transact_with_gas,
+    transaction_hash, view_on, wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
 };
 
 /// The environment variable the builder sets to `yes` to let Option T sign on testnet.
@@ -308,11 +309,90 @@ pub async fn funder_signer_from_keychain(
 }
 
 /// Makes `<id>` with the funder's public key as its one full-access key, funded with `amount`.
+/// What a run does with one creator or buyer account it needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccountPlan {
+    /// The account does not exist: create and fund it.
+    Create,
+    /// It exists with the funder's key and at least the planned NEAR: use it as it is.
+    Reuse,
+}
+
+/// The facts about an existing account that decide whether a rerun may use it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExistingAccount {
+    pub balance: NearToken,
+    /// The funder's public key is one of its keys, with full access.
+    pub funder_key_full_access: bool,
+}
+
+/// Create a missing account; reuse an existing one only when it holds the funder's key with full
+/// access and at least `planned`; stop otherwise. An existing account is never funded again.
+pub fn decide_account(
+    existing: Option<ExistingAccount>,
+    planned: NearToken,
+) -> Result<AccountPlan> {
+    let Some(account) = existing else {
+        return Ok(AccountPlan::Create);
+    };
+    if !account.funder_key_full_access {
+        bail!("it exists without the funder's public key as a full-access key; stopped, nothing was signed");
+    }
+    if account.balance < planned {
+        bail!(
+            "it exists with {}, less than the planned {}; stopped, nothing was signed",
+            account.balance.exact_amount_display(),
+            planned.exact_amount_display()
+        );
+    }
+    Ok(AccountPlan::Reuse)
+}
+
+/// The facts of an account, or `None` when the node answers that it does not exist. Reads back off
+/// on a 429; any other error stops the run.
+async fn existing_account(setup: &OptionTSetup, id: &AccountId) -> Result<Option<ExistingAccount>> {
+    let Some(view) = account_view(&setup.network, id).await? else {
+        return Ok(None);
+    };
+    let funder_key = setup.funder.signer.get_public_key().await?;
+    let keys =
+        with_rate_limit_backoff(&format!("the key list of {id}"), Waits::for_reads(), || {
+            near_api::Account(id.clone())
+                .list_keys()
+                .fetch_from(&setup.network)
+        })
+        .await?;
+    let funder_key_full_access = keys.data.iter().any(|(key, access)| {
+        *key == funder_key && access.permission == near_api::types::AccessKeyPermission::FullAccess
+    });
+    Ok(Some(ExistingAccount {
+        balance: view.amount,
+        funder_key_full_access,
+    }))
+}
+
 async fn new_sub_account(
     setup: &OptionTSetup,
     id: AccountId,
     amount: NearToken,
 ) -> Result<Account> {
+    let account = Account {
+        id: id.clone(),
+        signer: setup.funder.signer.clone(),
+    };
+    let existing = existing_account(setup, &id).await?;
+    match decide_account(existing, amount).with_context(|| format!("{id}"))? {
+        AccountPlan::Reuse => {
+            let held = existing.map(|e| e.balance).unwrap_or_default();
+            println!(
+                "option-t: reused {id}: it holds {}, planned {}, funder key with full access; not funded again",
+                held.exact_amount_display(),
+                amount.exact_amount_display()
+            );
+            return Ok(account);
+        }
+        AccountPlan::Create => {}
+    }
     check_funder(
         setup.limits.as_ref(),
         &setup.network,
@@ -331,10 +411,7 @@ async fn new_sub_account(
     if !made.is_success() {
         bail!("creating {id} failed: {made:?}");
     }
-    Ok(Account {
-        id,
-        signer: setup.funder.signer.clone(),
-    })
+    Ok(account)
 }
 
 /// Makes the creator and the buyer accounts, and waits until they are final (the signer reads
@@ -352,10 +429,12 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
             new_sub_account(setup, id, setup.buy_near.saturating_add(setup.buyer_extra)).await?,
         );
     }
-    let head = near_api::Chain::block_number()
-        .at(near_api::Reference::Optimistic)
-        .fetch_from(&setup.network)
-        .await?;
+    let head = with_rate_limit_backoff("the head block", Waits::for_reads(), || {
+        near_api::Chain::block_number()
+            .at(near_api::Reference::Optimistic)
+            .fetch_from(&setup.network)
+    })
+    .await?;
     wait_for_final_height(&setup.network, head).await?;
     Ok((creator, buyers))
 }
@@ -398,11 +477,9 @@ pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
 }
 
 async fn balance(network: &NetworkConfig, account: &AccountId) -> Result<NearToken> {
-    Ok(near_api::Account(account.clone())
-        .view()
-        .fetch_from(network)
+    Ok(account_view(network, account)
         .await?
-        .data
+        .with_context(|| format!("{account} does not exist"))?
         .amount)
 }
 
@@ -419,6 +496,9 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     ));
     let (creator, buyers) = make_accounts(setup).await?;
 
+    if account_view(&setup.network, &coin).await?.is_some() {
+        bail!("{coin} exists already; a rerun resumes only before the launch. Nothing more was signed");
+    }
     say(&format!("{} launches {coin}", creator.id));
     check_funder(
         setup.limits.as_ref(),
@@ -455,6 +535,16 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         setup.buyers,
         near(setup.buy_near.as_yoctonear())
     ));
+    // Buyers sign their own buys from NEAR they already hold, so the funder balance cannot change
+    // during the batch: one spend check before it covers every buy, with no reads in the batch.
+    check_funder(
+        setup.limits.as_ref(),
+        &setup.network,
+        &setup.funder.id,
+        NearToken::from_yoctonear(0),
+        &format!("the {} buys", setup.buyers),
+    )
+    .await?;
     let started = Instant::now();
     let mut tasks = JoinSet::new();
     for (index, buyer) in buyers.iter().cloned().enumerate() {
@@ -462,21 +552,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         let coin = coin.clone();
         let buy_near = setup.buy_near;
         let gas = setup.buyer_gas;
-        let limits = setup.limits;
-        let funder = setup.funder.id.clone();
         tasks.spawn(async move {
-            let step = format!("the buy of {}", buyer.id);
-            if let Err(e) = check_funder(
-                limits.as_ref(),
-                &network,
-                &funder,
-                NearToken::from_yoctonear(0),
-                &step,
-            )
-            .await
-            {
-                return (index, Err(e));
-            }
             let calls = vec![
                 FunctionCall::new(
                     "storage_deposit",
@@ -591,6 +667,14 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     wait_for_final_height(&setup.network, launch_block + early_blocks + 1).await?;
 
     say("every buyer tries to sell every token at once");
+    check_funder(
+        setup.limits.as_ref(),
+        &setup.network,
+        &setup.funder.id,
+        NearToken::from_yoctonear(0),
+        &format!("the {} sells", setup.buyers),
+    )
+    .await?;
     let mut tasks = JoinSet::new();
     for (index, (buyer, data)) in buyers.iter().cloned().zip(&buy_events).enumerate() {
         let network = setup.network.clone();
@@ -600,21 +684,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             .context("tokens_out")?
             .to_string();
         let gas = setup.buyer_gas;
-        let limits = setup.limits;
-        let funder = setup.funder.id.clone();
         tasks.spawn(async move {
-            let step = format!("the sell of {}", buyer.id);
-            if let Err(e) = check_funder(
-                limits.as_ref(),
-                &network,
-                &funder,
-                NearToken::from_yoctonear(0),
-                &step,
-            )
-            .await
-            {
-                return (index, Err(e));
-            }
             let sold = transact_with_gas(
                 &network,
                 &buyer,
@@ -706,11 +776,9 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     for account in std::iter::once(&creator).chain(&buyers) {
         left = left.saturating_add(balance(&setup.network, &account.id).await?);
     }
-    let coin_state = near_api::Account(coin.clone())
-        .view()
-        .fetch_from(&setup.network)
+    let coin_state = account_view(&setup.network, &coin)
         .await?
-        .data;
+        .with_context(|| format!("{coin} does not exist"))?;
     let report = OptionTReport {
         timing,
         funder_paid: funder_before.saturating_sub(funder_after),

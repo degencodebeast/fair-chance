@@ -3,7 +3,7 @@
 # receipt to the first public FastNEAR read that shows it, and the testnet seconds per block from
 # the launch block to the final head. Start it in its own terminal before
 # scripts/option-t.sh --network testnet; it waits for the coin to exist and stops 3 minutes after
-# the last new event (or after 30 minutes). Reads only public endpoints, no key; backs off on 429,
+# the last new event (or after 90 minutes, as the run can wait on a Keychain prompt). Reads only public endpoints, no key; backs off on 429,
 # stops on 403. Signs nothing. Needs Go.
 #
 #   scripts/fastnear-timing.sh <coin account> <report file>
@@ -19,4 +19,4 @@ esac
 [ -n "$out" ] || { echo "fastnear-timing: give a report file" >&2; exit 2; }
 
 (cd watcher && go build -o ../target/fastnear-timing ./cmd/fastnear-timing)
-exec target/fastnear-timing -coin "$coin" -out "$out" -poll 1s
+exec target/fastnear-timing -coin "$coin" -out "$out" -poll 1s -timeout 90m
