@@ -45,5 +45,6 @@ python3 analysis/near-replay/replay.py \
   --only cosmicfrog.nearlytrade.near
 ```
 
-The committed coin list is the fixed cohort. The runner renders all five
-required CSV tables and fails closed when the launchpad feed truncates trades.
+The committed coin list is the fixed cohort. The runner pages trade feeds and
+fails closed if their reported count disagrees. `--only` writes a separate
+`results/single/<token>/` set, preserving the committed full-cohort tables.

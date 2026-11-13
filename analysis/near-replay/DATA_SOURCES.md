@@ -9,11 +9,11 @@ Google account, BigQuery, an API key, a wallet, or a paid endpoint.
 
 ## Replay rules
 
-1. Define a launch as the first successful DEX pool-creation receipt for a
-   newly traded FT token. Record the DEX contract(s), pool-creation method(s),
-   and token contract in versioned configuration.
-2. Use that receipt's block timestamp, receipt ID, originating transaction
-   hash, block height/hash, and DEX contract as the immutable launch anchor.
+1. Define a launch as the signed launch transaction for a newly traded FT
+   token. Record its signer, transaction hash, DEX contract(s), and token
+   contract in versioned configuration.
+2. Use that transaction's block timestamp and height as the immutable launch
+   anchor; record the first pool-swap receipt separately for pool provenance.
 3. Decode successful swap/add-liquidity receipt arguments or logs; retain raw
    integer amounts, decimals, and the normalization formula. Never use float
    arithmetic for collection.

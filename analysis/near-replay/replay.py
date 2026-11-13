@@ -200,6 +200,19 @@ def justhoot_coins(as_of_ms: int, count: int = 5) -> list[dict]:
     return coins
 
 
+def nearly_trades(token: str) -> list[dict]:
+    """Page the public feed; a 60-row page is not a complete trade history."""
+    rows = get_json(f"/trades/{quote(token, safe='')}?limit=60")
+    offset = len(rows)
+    while True:
+        if offset < 60:
+            return sorted(rows, key=lambda x: (x["block"], x["receipt"]))
+        page = get_json(f"/trades/{quote(token, safe='')}?limit=60&offset={offset}")
+        rows.extend(page); offset += len(page)
+        if len(page) < 60:
+            return sorted(rows, key=lambda x: (x["block"], x["receipt"]))
+
+
 def principal_from_receipt(trade: dict, token: str) -> tuple[str | None, str]:
     """Use the DEX receipt's declared sender/recipient, never its UI trader field."""
     receipt = rpc("EXPERIMENTAL_receipt", {"receipt_id": trade["receipt"]})
@@ -221,11 +234,11 @@ def principal_from_receipt(trade: dict, token: str) -> tuple[str | None, str]:
     return principal, "VERIFIED"
 
 
-def write_csv(name: str, rows: list[dict[str, object]]) -> None:
+def write_csv(name: str, rows: list[dict[str, object]], directory: Path | None = None) -> None:
     if not rows:
         return
-    path = ROOT / "results" / name
-    path.parent.mkdir(exist_ok=True)
+    path = (directory or ROOT / "results") / name
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
@@ -233,7 +246,7 @@ def write_csv(name: str, rows: list[dict[str, object]]) -> None:
 
 
 def creator_group(account: str, creator: str) -> bool:
-    return bool(account) and (account == creator or account.endswith(f".{creator}") or creator.endswith(f".{account}"))
+    return bool(account) and (account == creator or account.endswith(f".{creator}") or (account.count(".") > 0 and creator.endswith(f".{account}")))
 
 
 def observed_balance(trades: list[dict], account: str, until_block: int | None = None) -> int:
@@ -270,18 +283,19 @@ def measure_1(coin: dict, trades: list[dict], launch_block: int, scale: int, sup
         early = sum(int(t["token_amount"]) for t in trades if t["side"] == "buy" and t["block"] <= launch_block + n)
         unknown_early_buys = sum(int(t["token_amount"]) for t in trades if not t["principal"] and t["side"] == "buy" and t["block"] <= launch_block + n)
         creator_buys = sum(int(t["token_amount"]) for t in trades if t["side"] == "buy" and t["block"] <= launch_block + n and creator_group(t["principal"], creator))
+        owner_unknown = any(not t["principal"] for t in trades if t["side"] == "buy" and t["block"] <= launch_block + n)
         rows.append({
             "token": coin["token"], "n_blocks": n,
             "launch_block": launch_block, "launch_block_status": "SIGNED_LAUNCH_TRANSACTION",
             "early_observed_pool_buy_tokens": Decimal(early) / scale,
             "early_observed_pool_buy_share_supply": Decimal(early) / supply_raw,
-            "creator_group_observed_pool_buy_tokens": Decimal(creator_buys) / scale,
-            "creator_group_observed_pool_buy_share_supply": Decimal(creator_buys) / supply_raw,
+            "creator_group_observed_pool_buy_tokens": "UNKNOWN" if owner_unknown else Decimal(creator_buys) / scale,
+            "creator_group_observed_pool_buy_share_supply": "UNKNOWN" if owner_unknown else Decimal(creator_buys) / supply_raw,
             "creator_group_received_tokens": "UNKNOWN",
             "creator_group_early_supply_tokens": "UNKNOWN",
             "creator_group_early_supply_share_supply": "UNKNOWN",
             "unattributed_early_buy_tokens": Decimal(unknown_early_buys) / scale,
-            "status": "POOL_TRADES_ONLY; creator-group receipts are not indexed, so its early supply is UNKNOWN",
+            "status": "UNKNOWN_OWNER" if owner_unknown else "POOL_TRADES_ONLY; creator-group receipts are not indexed, so its early supply is UNKNOWN",
         })
     return rows
 
@@ -339,9 +353,10 @@ def measure_3(coin: dict, trades: list[dict], launch_block: int, scale: int, sup
                 if trade["side"] == "sell" and trade["ts_ms"] <= cutoff: sold[trade["principal"]] += amount
         fast = [account for account, amount in bought.items() if amount and sold[account] >= .9 * amount]
         fast_buys, early_supply = sum(bought[account] for account in fast), sum(bought.values())
-        rows.append({"token": coin["token"], "n_blocks": n, "fast_early_seller_count": len(fast),
-                     "fast_early_buyer_share_early_supply": Decimal(fast_buys) / early_supply if early_supply else 0,
-                     "status": "POOL_TRADES_ONLY; direct FT transfers can make this a lower bound"})
+        unknown = any(not t["principal"] for t in trades if t["block"] <= launch_block + n)
+        rows.append({"token": coin["token"], "n_blocks": n, "fast_early_seller_count": "UNKNOWN" if unknown else len(fast),
+                     "fast_early_buyer_share_early_supply": "UNKNOWN" if unknown else (Decimal(fast_buys) / early_supply if early_supply else 0),
+                     "status": "UNKNOWN_OWNER" if unknown else "POOL_TRADES_ONLY; direct FT transfers can make this a lower bound"})
     return rows
 
 
@@ -392,7 +407,7 @@ def main() -> None:
             trades, creator, launch_tx, launch_block = coin["trades"], coin["creator"], coin["launch_transaction"], coin["launch_block"]
         else:
             details = get_json(f"/launch/{quote(coin['token'], safe='')}")
-            trades = sorted(get_json(f"/trades/{quote(coin['token'], safe='')}?limit=60"), key=lambda x: (x["block"], x["receipt"]))
+            trades = nearly_trades(coin["token"])
             if details["trades"] != len(trades):
                 raise RuntimeError(f"{coin['token']}: platform returned {len(trades)} of {details['trades']} trades; refusing incomplete precheck")
             for trade in trades:
@@ -417,12 +432,13 @@ def main() -> None:
         three.extend(measure_3(coin, trades, launch_block, scale, total_supply))
         four.extend(measure_4(coin, launch_block, trades[0]["block"]))
         five.append(measure_5(coin))
-    write_csv("coin-list.csv", coin_rows)
-    write_csv("measure-1-early-supply.csv", one)
-    write_csv("measure-2-who-sold.csv", two)
-    write_csv("measure-3-fast-early-sellers.csv", three)
-    write_csv("measure-4-ordinary-sellers.csv", four)
-    write_csv("measure-5-creator-funded-wallets.csv", five)
+    output = ROOT / "results" / "single" / args.only if args.only else ROOT / "results"
+    write_csv("coin-list.csv", coin_rows, output)
+    write_csv("measure-1-early-supply.csv", one, output)
+    write_csv("measure-2-who-sold.csv", two, output)
+    write_csv("measure-3-fast-early-sellers.csv", three, output)
+    write_csv("measure-4-ordinary-sellers.csv", four, output)
+    write_csv("measure-5-creator-funded-wallets.csv", five, output)
 
 
 if __name__ == "__main__":

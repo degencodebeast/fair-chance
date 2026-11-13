@@ -67,7 +67,8 @@ class SimulationTests(unittest.TestCase):
     def test_marked_sellers_share_their_allowance_pro_rata(self):
         engine = sim.Engine(self.policy()); engine.buy("a", 5, 0, True, 0); engine.buy("b", 5, 0, True, 0)
         marked_a, marked_b = engine.wallet("a").marked, engine.wallet("b").marked
-        engine.cap_out[engine.cap_bucket(1)] = -1_000_000  # isolate allowance from the cap
+        engine.cap_counted["a", engine.cap_bucket(1)] = -1_000_000  # isolate allowance from the cap
+        engine.cap_counted["b", engine.cap_bucket(1)] = -1_000_000
         sold_a, _ = engine.sell("a", engine.wallet("a").tokens, 1)
         sold_b, _ = engine.sell("b", engine.wallet("b").tokens, 1)
         self.assertAlmostEqual(sold_a / marked_a, sold_b / marked_b, delta=1e-12)
@@ -79,8 +80,8 @@ class SimulationTests(unittest.TestCase):
 
     def test_cap_uses_one_shared_unmarked_window(self):
         engine = sim.seed(self.policy()); engine.sell("creator", engine.wallet("creator").tokens, 96)
-        self.assertIn(engine.cap_bucket(96), engine.marked_out)
-        self.assertNotIn(engine.bucket(96, True), engine.cap_out)
+        self.assertIn(("creator", engine.cap_bucket(96)), engine.cap_counted)
+        self.assertNotIn(("creator", engine.bucket(96, True)), engine.cap_counted)
 
     def test_unmarked_buy_restores_token_allowance(self):
         e = sim.Engine(self.policy()); e.buy("band", 5, 30)
@@ -97,6 +98,19 @@ class SimulationTests(unittest.TestCase):
     def test_creator_group_cap_refuses_overflow(self):
         e = sim.Engine(self.policy()); e.buy("creator", 4, 0, True, 0, True)
         self.assertEqual(e.buy("creator.child", 1_000, 1, creator=True), 0)
+
+    def test_post_sell_cap_uses_real_near_left(self):
+        e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); w = e.wallet("large")
+        w.tokens = sim.SUPPLY / 2; w.ever_large = True
+        e.sell("large", w.tokens, 1)
+        self.assertLessEqual(e.cap_used(1), sim.CAP * e.pool.real + 1e-9)
+
+    def test_buy_does_not_offset_another_accounts_cap(self):
+        e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); e.buy("buyer", 100, 1)
+        e.wallet("seller").tokens = sim.SUPPLY / 2; e.wallet("seller").ever_large = True
+        e.sell("seller", e.wallet("seller").tokens, 1)
+        self.assertGreater(e.cap_used(1), 0)
+        self.assertEqual(e.account_cap("buyer", 1), 0)
 
     def test_runs_are_deterministic(self):
         a, b = sim.normal(self.policy()), sim.normal(self.policy())
