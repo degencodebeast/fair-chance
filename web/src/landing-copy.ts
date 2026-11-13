@@ -1,6 +1,6 @@
 // The words on the landing screen. The headline is the builder's. The rest follows the v5 design,
 // with "first" replaced where the copy rules ban it. Rules claims match docs/OVERVIEW.md.
-export type LandingAction = { label: string; opens: "coins" | "launch-off" | "rules" };
+export type LandingAction = { label: string; opens: "coins" | "launch" | "rules" };
 
 export const landingCopy = {
   headline: "You buy. The creator dumps on you. You hold the bag.",
@@ -9,10 +9,9 @@ export const landingCopy = {
     "Every coin launched here has sell limits built into its contract. The creator, the snipers and the big wallets can still sell. They just can't sell it all at once.",
   actions: [
     { label: "Open app", opens: "coins" },
-    { label: "Launch a coin", opens: "launch-off" },
+    { label: "Launch a coin", opens: "launch" },
     { label: "See the rules on a live coin", opens: "rules" },
   ] satisfies LandingAction[],
-  launchOffNote: "The launch form is not built yet.",
   proof: {
     label: "Sample data. An example receipt, not a trade on chain.",
     sentence: "A big holder tried to sell 3% of a coin. 0.7% went through. It can sell up to 0.7% more after 15:02.",
