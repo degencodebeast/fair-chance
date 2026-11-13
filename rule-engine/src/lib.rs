@@ -29,7 +29,7 @@ pub use coin_state::{
 pub use events::{Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtMint, FtTransfer};
 pub use fixed_values::FixedValues;
 pub use real_near_cap::{CapNet, CapWindow};
-pub use refusals::{Refusal, RefusalCode};
+pub use refusals::{storage_withdraw_not_registered, Refusal, RefusalCode};
 pub use storage_registration::{unregister, Unregistered};
 pub use views::{
     quote_buy, quote_sell, view_account, view_cap, view_creator_fees, view_early_window, view_pool,

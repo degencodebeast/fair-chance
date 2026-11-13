@@ -39,6 +39,9 @@ func TestEveryRefusalCodeInTheInterfaceHasOneSentence(t *testing.T) {
 		}
 	}
 	for code := range texts {
+		if !strings.HasPrefix(code, "FC_") {
+			continue // a standard NEP message, not an interface code
+		}
 		if retiredCodes[code] || !strings.Contains(string(doc), code) {
 			t.Errorf("%s is in the text file but is not a current code in the interface file", code)
 		}

@@ -1,0 +1,47 @@
+{
+  "description": "A small account whose whole bag is early supply. It has 400K of 600K left in the 24 h early-supply window, which resets at 13:02 tomorrow, not at the next hour.",
+  "now_ns": "1794579840000000000",
+  "symbol": "MOTH",
+  "decimals": 18,
+  "total_supply": "1000000000000000000000000000",
+  "account_id": "early.testnet",
+  "asked": "1000000000000000000000000",
+  "views": {
+    "fc_account": {
+      "class": "small",
+      "balance": "5000000000000000000000000",
+      "marked_balance": "5000000000000000000000000",
+      "unmarked_balance": "0",
+      "is_large": false,
+      "can_send": true,
+      "in_creator_group": false,
+      "max_receive": "15000000000000000000000000",
+      "unmarked": {
+        "allowance": "0",
+        "used": "0",
+        "left": "0",
+        "floor_left": "0",
+        "window_end_ns": "1794582120000000000"
+      },
+      "marked": {
+        "share_bps": 1200,
+        "allowance": "600000000000000000000000",
+        "used": "200000000000000000000000",
+        "left": "400000000000000000000000",
+        "floor_left": "0",
+        "window_end_ns": "1794661320000000000"
+      },
+      "max_full_fill_now": "400000000000000000000000",
+      "penalty_applies_above": null
+    },
+    "fc_quote_sell": {
+      "tokens_filled": "400000000000000000000000",
+      "near_out": "69000000000000000000000",
+      "penalty_near": "0",
+      "fill": "partial",
+      "limit_reason": "allowance",
+      "cap_left_after": "1000000000000000000000000"
+    }
+  },
+  "missing_views": []
+}

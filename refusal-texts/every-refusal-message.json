@@ -1,0 +1,70 @@
+[
+  {
+    "refusal": "OneYocto",
+    "message": "FC_ONE_YOCTO"
+  },
+  {
+    "refusal": "Slippage",
+    "message": "FC_SLIPPAGE"
+  },
+  {
+    "refusal": "TransferCall",
+    "message": "FC_TRANSFER_CALL"
+  },
+  {
+    "refusal": "LargeCannotSend",
+    "message": "FC_LARGE_CANNOT_SEND"
+  },
+  {
+    "refusal": "ReceiverWouldBeLarge",
+    "message": "FC_RECEIVER_WOULD_BE_LARGE: 12500000000000000000000000"
+  },
+  {
+    "refusal": "SendToCoin",
+    "message": "FC_SEND_TO_COIN"
+  },
+  {
+    "refusal": "UnregisterWithBalance",
+    "message": "FC_UNREGISTER_WITH_BALANCE"
+  },
+  {
+    "refusal": "UnregisterWindowOpen",
+    "message": "FC_UNREGISTER_WINDOW_OPEN"
+  },
+  {
+    "refusal": "SendToSelf",
+    "message": "Sender and receiver should be different"
+  },
+  {
+    "refusal": "AmountNotPositive",
+    "message": "The amount should be a positive number"
+  },
+  {
+    "refusal": "NotRegistered",
+    "message": "The account is not registered: sample-buyer.test.near"
+  },
+  {
+    "refusal": "NotEnoughBalance",
+    "message": "The account doesn't have enough balance"
+  },
+  {
+    "refusal": "NotParentAccount",
+    "message": "new must be called by the parent account of the coin"
+  },
+  {
+    "refusal": "IconNotSmallWebp",
+    "message": "icon must be a WebP data URL (data:image/webp;base64,...) under 8192 bytes"
+  },
+  {
+    "refusal": "StorageDepositBelowMinimum",
+    "message": "The attached deposit is less than the minimum storage balance"
+  },
+  {
+    "refusal": "StorageWithdrawAboveAvailable",
+    "message": "The amount is greater than the available storage balance"
+  },
+  {
+    "refusal": "NotRegistered (storage_withdraw form)",
+    "message": "The account sample-buyer.test.near is not registered"
+  }
+]

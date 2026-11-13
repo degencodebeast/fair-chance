@@ -121,6 +121,18 @@ try {
   if (query.includes("factory=") && query.includes("code_hash=") && (warning !== null || checks.some((c) => c.status !== "pass"))) {
     throw new Error(`the coin account checks did not pass: ${JSON.stringify(checks)}`);
   }
+  // Phone width: no sideways scroll at 390 px, and the cards follow the phone order.
+  await page.setViewportSize({ width: 390, height: 844 });
+  const phone = await page.evaluate(() => {
+    const top = (id: string) => document.querySelector(id)?.getBoundingClientRect().top ?? null;
+    return {
+      width: document.documentElement.scrollWidth,
+      order: ["#summary-lines", "#your-plan", "#who-can-sell", "#receipts-section", "#rules"].map(top),
+    };
+  });
+  if (phone.width > 390) throw new Error(`the page is ${phone.width} px wide at 390 px`);
+  const ordered = phone.order.every((t, i) => t !== null && (i === 0 || t > (phone.order[i - 1] as number)));
+  if (!ordered) throw new Error(`the phone card order is wrong: ${JSON.stringify(phone.order)}`);
   // The text of a row is "Block <n>: <sentence>", the same as the command-line read.
   const text = await row.evaluate((li) => `Block ${li.getAttribute("data-block")}: ${li.querySelector(".receipt-sentence")?.textContent ?? ""}`);
   console.log(
@@ -133,6 +145,7 @@ try {
       stats,
       code_hash: codeHash,
       checks,
+      phone_width: phone.width,
       browser: browser.version(),
     }),
   );

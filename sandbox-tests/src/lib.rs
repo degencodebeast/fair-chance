@@ -498,7 +498,70 @@ async fn transact(
         .await?)
 }
 
+/// One function-call action of a [`World::batch`] transaction.
+pub struct FunctionCall {
+    pub method: String,
+    pub args: Value,
+    pub deposit: NearToken,
+}
+
+impl FunctionCall {
+    pub fn new(method: &str, args: Value, deposit: NearToken) -> Self {
+        Self {
+            method: method.to_string(),
+            args,
+            deposit,
+        }
+    }
+}
+
 impl World {
+    /// Sign and send one transaction that holds every call as a function-call action to
+    /// `contract`, as a wallet does; returns its result, success or not. The actions run in one
+    /// receipt, so one failed action rolls back all of them. The gas is split evenly.
+    pub async fn batch(
+        &self,
+        who: &Account,
+        contract: &AccountId,
+        calls: Vec<FunctionCall>,
+    ) -> Result<TransactionResult> {
+        let gas = near_api::types::NearGas::from_gas(
+            TRANSACTION_GAS.as_gas() / calls.len().max(1) as u64,
+        );
+        let actions = calls
+            .into_iter()
+            .map(|call| {
+                Ok(near_api::types::Action::FunctionCall(Box::new(
+                    near_api::types::transaction::actions::FunctionCallAction {
+                        method_name: call.method,
+                        args: serde_json::to_vec(&call.args)?,
+                        gas,
+                        deposit: call.deposit,
+                    },
+                )))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(
+            near_api::Transaction::construct(who.id.clone(), contract.clone())
+                .add_actions(actions)
+                .with_signer(who.signer.clone())
+                .send_to(&self.network)
+                .await?,
+        )
+    }
+
+    /// The NEAR the transaction burnt for gas, over its own outcome and every receipt outcome.
+    pub fn tokens_burnt(result: &TransactionResult) -> Result<u128> {
+        let TransactionResult::Full(full) = result else {
+            bail!("the transaction has no execution result yet")
+        };
+        Ok(full
+            .outcomes()
+            .iter()
+            .map(|o| o.tokens_burnt.as_yoctonear())
+            .sum())
+    }
+
     /// Waits until the final head reaches the last block of the transaction's receipts, so a
     /// reader that scans to the final head sees all of them. Returns that block height.
     pub async fn wait_final(&self, result: &TransactionResult) -> Result<u64> {

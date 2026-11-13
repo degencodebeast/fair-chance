@@ -29,6 +29,7 @@ function drawBanner(b: Banner): HTMLElement {
       el("p", {}, b.text),
     );
   }
+  if (b.kind === "old") return el("div", { role: "status", class: "banner banner-ended", id: "early-banner" }, el("b", {}, b.text));
   return el("div", { role: "status", class: "banner banner-ended", id: "early-banner" }, el("b", {}, `The early window ended at block ${b.end}.`), el("span", {}, ` ${b.text}`));
 }
 
@@ -126,7 +127,11 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
       ...m.summaryLines.map((l) => el("div", { class: "summary-line" }, el("b", {}, l.label), el("span", { class: `num tone-${l.tone}` }, l.value))),
     ),
   );
-  nodes.push(section("Who can sell how fast", "who-can-sell", el("h2", {}, "Who can sell how fast"), el("div", { class: "who-grid" }, ...m.who.map(drawCard))));
+  nodes.push(section(
+      "Who can sell how fast",
+      "who-can-sell",
+      el("div", { class: "section-head" }, el("h2", {}, "Who can sell how fast"), el("span", { class: "as-of num muted", id: "as-of" }, m.asOf)),
+      el("div", { class: "who-grid" }, ...m.who.map(drawCard))));
   nodes.push(plan);
   nodes.push(
     section(
@@ -152,6 +157,7 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
       ),
       m.rulesStatement && el("p", { class: "statement", id: "rules-statement" }, m.rulesStatement),
       el("h3", {}, "Coin account checks"),
+      el("p", { class: "muted", id: "checks-source" }, m.checksSource),
       el(
         "ul",
         { class: "checks", id: "chain-checks" },
@@ -177,7 +183,18 @@ function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement
   ];
 }
 
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Reads the chain again when the cap hour or the early block count ends, so no old number stays as live. */
+function scheduleRefresh(view: CoinPageView, reload: () => void): void {
+  clearTimeout(refreshTimer);
+  if (view.state !== "ready" || view.refreshAtNs === null) return;
+  const waitMs = Number((view.refreshAtNs - BigInt(Date.now()) * 1_000_000n) / 1_000_000n) + 500;
+  refreshTimer = setTimeout(reload, Math.min(Math.max(waitMs, 500), 2_147_483_647));
+}
+
 function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null): void {
+  scheduleRefresh(view, retry);
   const status = el("p", { id: "status", class: "status", role: "status" }, view.status);
   const body = view.state === "ready" ? drawReady(view, data?.kind === "ready" ? drawYourPlan(data.reads) : null) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));

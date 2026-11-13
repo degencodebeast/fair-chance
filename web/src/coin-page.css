@@ -82,6 +82,10 @@ p { margin: 0; }
 .rules-grid dd { font-size: 12px; text-align: right; overflow-wrap: anywhere; padding-left: 12px; }
 .statement { margin-top: 12px; font-weight: 800; }
 .checks, .gaps { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; }
+.checks li, .gaps li, .banner-warning li, .note, .coin-description { overflow-wrap: anywhere; min-width: 0; }
+.as-of { font-size: 12px; }
+#plan-result > .as-of { grid-column: 1 / -1; }
+#app > * { min-width: 0; }
 .legend { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--limit); flex-shrink: 0; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--paper); }
@@ -89,6 +93,12 @@ p { margin: 0; }
   #app { padding: 12px; gap: 12px; }
   h1 { font-size: 28px; }
   .summary-lines { display: block; }
+  /* Phone card order: lines, plan, who, receipts, rules. The trade box, fees, chart and holders go
+     in their places when they exist. Everything else keeps its place in the page order. */
+  #your-plan { order: 1; }
+  #who-can-sell { order: 2; }
+  #receipts-section { order: 4; }
+  #rules { order: 5; }
   .receipt { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .rules-grid { grid-template-columns: minmax(0, 1fr); }
   .rules-grid dd { text-align: left; }

@@ -1,6 +1,6 @@
 // What the "Your plan" card and the sell preview show, as plain text and flags. Pure. Every figure is
 // formatted from fc_account or fc_quote_sell; nothing is computed with the coin's rules here.
-import type { Account, SellQuote } from "./account-views.ts";
+import type { Account, Allowance, SellQuote } from "./account-views.ts";
 import type { Reading } from "./coin-page.ts";
 import { NOT_AVAILABLE, type Tone } from "./coin-page-model.ts";
 import { clockTime, compactTokens, nearAmount, timeWithHint, type TimeContext } from "./format.ts";
@@ -36,6 +36,8 @@ export type PlanView =
       usedPct: number;
       usedLabel: string;
       refill: string;
+      /** The early-supply allowance and reset, when the account also holds other tokens. */
+      earlyLine: string | null;
       notes: { text: string; tone: Tone }[];
     };
 
@@ -69,7 +71,14 @@ function shareText(amount: bigint, supply: bigint): string {
   return `0.${hundredths.toString().padStart(2, "0")}%`;
 }
 
-export function yourPlanView(input: PlanInput, ctx: TimeContext): { plan: PlanView; preview: PreviewView | null } {
+export function yourPlanView(
+  input: PlanInput,
+  ctx: TimeContext,
+): { plan: PlanView; preview: PreviewView | null; asOf: string } {
+  return { ...planAndPreview(input, ctx), asOf: `As of ${clockTime(ctx.nowNs, ctx)}` };
+}
+
+function planAndPreview(input: PlanInput, ctx: TimeContext): { plan: PlanView; preview: PreviewView | null } {
   const tokens = (n: bigint) => compactTokens(n.toString(), input.decimals);
   if (input.account.kind !== "value") {
     return {
@@ -84,19 +93,30 @@ export function yourPlanView(input: PlanInput, ctx: TimeContext): { plan: PlanVi
   };
 }
 
+/** The allowance the card's bar and reset line follow: other tokens, or early supply when that is all the account holds. */
+function primaryAllowance(a: Account): { kind: "unmarked" | "marked"; value: Allowance } | null {
+  const marked = a.marked.kind === "value" ? a.marked.value : null;
+  const unmarked = a.unmarked.kind === "value" ? a.unmarked.value : null;
+  if (marked !== null && a.markedBalance > 0n && (a.unmarkedBalance === 0n || unmarked === null)) return { kind: "marked", value: marked };
+  return unmarked === null ? null : { kind: "unmarked", value: unmarked };
+}
+
 function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bigint) => string): PlanView {
   const symbol = input.symbol;
-  if (a.class === "small") {
+  // Early supply is limited whatever the class says: marked tokens show through marked_balance.
+  if (a.class === "small" && a.markedBalance === 0n) {
     return { kind: "small", accountId: input.accountId, balance: `${tokens(a.balance)} ${symbol}`, text: "No limit applies to your bag." };
   }
-  const tags: Tag[] = [{ label: a.class === "large" ? "Large" : "Mid-size", tone: a.class === "large" ? "dark" : "plain" }];
+  const tags: Tag[] = [];
+  if (a.class !== "small") tags.push({ label: a.class === "large" ? "Large" : "Mid-size", tone: a.class === "large" ? "dark" : "plain" });
   if (a.inCreatorGroup) tags.push({ label: "Creator group", tone: "plain" });
   if (a.markedBalance > 0n) tags.push({ label: "Early supply", tone: "limit" });
   tags.push(a.canSend ? { label: "Can send", tone: "plain" } : { label: "Cannot send", tone: "limit" });
 
   const share = input.totalSupply !== null && input.totalSupply > 0n ? ` (${shareText(a.balance, input.totalSupply)} of supply)` : "";
   const maxFull = a.maxFullFillNow.kind === "value" ? a.maxFullFillNow.value : null;
-  const unmarked = a.unmarked.kind === "value" ? a.unmarked.value : null;
+  const primary = primaryAllowance(a);
+  const marked = a.marked.kind === "value" ? a.marked.value : null;
   const notes: { text: string; tone: Tone }[] = [];
   if (a.isLarge) notes.push({ text: "A large account cannot send tokens until its balance is zero.", tone: "plain" });
   if (a.penaltyAppliesAbove.kind === "value" && a.penaltyAppliesAbove.value !== null) {
@@ -106,6 +126,11 @@ function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bi
   else if (a.maxReceive.value !== null) {
     notes.push({ text: `A send to this account can carry up to ${tokens(a.maxReceive.value)} ${symbol}.`, tone: "plain" });
   }
+  const usedUnit = primary?.kind === "marked" ? " early supply used" : " used";
+  const earlyLine =
+    primary?.kind === "unmarked" && marked !== null && a.markedBalance > 0n
+      ? `Early supply: ${tokens(marked.left)} of ${tokens(marked.allowance)} left. It resets ${timeWithHint(marked.windowEndNs, ctx)}.`
+      : null;
   return {
     kind: "card",
     accountId: input.accountId,
@@ -114,15 +139,34 @@ function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bi
     big: maxFull === null ? NOT_AVAILABLE : tokens(maxFull),
     bigLabel: "can sell now",
     bigSub:
-      maxFull !== null && unmarked !== null && maxFull < unmarked.allowance
-        ? `${tokens(unmarked.allowance)} again after ${timeWithHint(unmarked.windowEndNs, ctx)}`
+      maxFull !== null && primary !== null && maxFull < primary.value.allowance
+        ? `Allowance this window: ${tokens(primary.value.allowance)}. It resets ${timeWithHint(primary.value.windowEndNs, ctx)}.`
         : null,
     bigTone: maxFull !== null && maxFull < a.balance ? "limit" : "plain",
-    usedPct: unmarked === null || unmarked.allowance === 0n ? 0 : Number((unmarked.used * 100n) / unmarked.allowance),
-    usedLabel: unmarked === null ? NOT_AVAILABLE : `${tokens(unmarked.used)} of ${tokens(unmarked.allowance)} used`,
-    refill: unmarked === null ? NOT_AVAILABLE : `Refills ${timeWithHint(unmarked.windowEndNs, ctx)}`,
+    usedPct: primary === null || primary.value.allowance === 0n ? 0 : Number((primary.value.used * 100n) / primary.value.allowance),
+    usedLabel: primary === null ? NOT_AVAILABLE : `${tokens(primary.value.used)} of ${tokens(primary.value.allowance)}${usedUnit}`,
+    refill: primary === null ? NOT_AVAILABLE : `Window resets ${timeWithHint(primary.value.windowEndNs, ctx)}`,
+    earlyLine,
     notes,
   };
+}
+
+/** The window ends from the coin's views after which this account can sell more; null when the coin gives none. */
+function nextSellTimes(a: Account): { label: string; ns: bigint | null }[] {
+  const unmarked = a.unmarked.kind === "value" ? a.unmarked.value : null;
+  const marked = a.marked.kind === "value" ? a.marked.value : null;
+  const early = marked !== null && a.markedBalance > 0n;
+  const other = unmarked !== null && (a.unmarkedBalance > 0n || !early);
+  const label = "can sell more after";
+  if (early && other) {
+    return [
+      { label: `Early supply ${label}`, ns: marked.windowEndNs },
+      { label: `Other tokens ${label}`, ns: unmarked.windowEndNs },
+    ];
+  }
+  if (early) return [{ label: "Can sell more after", ns: marked.windowEndNs }];
+  if (other) return [{ label: "Can sell more after", ns: unmarked.windowEndNs }];
+  return [{ label: "Can sell more after", ns: null }];
 }
 
 function previewView(
@@ -137,7 +181,6 @@ function previewView(
   const q = quote.value;
   const symbol = input.symbol;
   const amount = (n: bigint) => `${tokens(n)} ${symbol}`;
-  const unmarked = a.unmarked.kind === "value" ? a.unmarked.value : null;
   const limited = q.fill !== "full" || q.limitReason !== null;
   const penalty = q.penaltyNear > 0n;
   const lines: PreviewLine[] = [{ label: "Asked", value: amount(asked), tone: "plain" }];
@@ -147,18 +190,16 @@ function previewView(
   lines.push({ label: "NEAR out", value: `${nearAmount(q.nearOut.toString())} NEAR`, tone: "plain" });
   if (penalty) lines.push({ label: "Penalty", value: `${nearAmount(q.penaltyNear.toString())} NEAR`, tone: "limit" });
   if (limited) {
-    lines.push({
-      label: "Can sell more after",
-      value: unmarked === null ? NOT_AVAILABLE : timeWithHint(unmarked.windowEndNs, ctx),
-      tone: "limit",
-    });
+    for (const t of nextSellTimes(a)) {
+      lines.push({ label: t.label, value: t.ns === null ? NOT_AVAILABLE : timeWithHint(t.ns, ctx), tone: "limit" });
+    }
   }
   return {
     kind: "preview",
     title: titleOf(q),
     tone: limited || penalty ? "limit" : "plain",
     lines,
-    copy: limited ? limitedCopy(q, asked, unmarked, ctx, amount, tokens) : penalty ? penaltyCopy(a, amount) : null,
+    copy: limited ? limitedCopy(q, asked, a, ctx, amount, tokens) : penalty ? penaltyCopy(a, amount) : null,
     bar:
       limited && q.tokensFilled < asked
         ? {
@@ -182,7 +223,7 @@ function titleOf(q: SellQuote): string {
 function limitedCopy(
   q: SellQuote,
   asked: bigint,
-  unmarked: { allowance: bigint; windowEndNs: bigint } | null,
+  a: Account,
   ctx: TimeContext,
   amount: (n: bigint) => string,
   tokens: (n: bigint) => string,
@@ -191,11 +232,14 @@ function limitedCopy(
   parts.push(q.tokensFilled === 0n ? "Nothing fills now." : `Fills ${tokens(q.tokensFilled)} of ${amount(asked)} now.`);
   if (q.limitReason !== null) parts.push(REASON_SENTENCE[q.limitReason]);
   if (q.tokensFilled < asked) parts.push(`${amount(asked - q.tokensFilled)} stays in your wallet.`);
-  parts.push(
-    unmarked === null
-      ? `How much more can follow, and when: ${NOT_AVAILABLE}.`
-      : `You can sell up to ${amount(unmarked.allowance)} more after ${clockTime(unmarked.windowEndNs, ctx)}.`,
-  );
+  const times = nextSellTimes(a);
+  if (times.some((t) => t.ns === null)) parts.push(`When you can sell again: ${NOT_AVAILABLE}.`);
+  else if (times.length === 1) parts.push(`You can sell again after ${clockTime(times[0]!.ns!, ctx)}. The new allowance depends on your balance then.`);
+  else {
+    parts.push(
+      `Early supply can sell again after ${clockTime(times[0]!.ns!, ctx)} and other tokens after ${clockTime(times[1]!.ns!, ctx)}. The new allowance depends on your balance then.`,
+    );
+  }
   return parts.join(" ");
 }
 
