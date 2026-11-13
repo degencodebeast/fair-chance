@@ -2,6 +2,7 @@
 // The page reads the chain only through this module, never through the watcher.
 import { fastNearEvents } from "./fastnear-events.ts";
 import { resolvePageLink } from "./page-link.ts";
+import { cleanChainValue } from "./chain-text.ts";
 
 export interface ReaderConfig {
   rpcUrl: string;
@@ -208,7 +209,7 @@ export function parseLog(line: string): Omit<CoinEvent, "coin" | "receiptId" | "
   try {
     const raw = JSON.parse(line.slice("EVENT_JSON:".length));
     if (!WATCHED.has(raw.standard) || !Array.isArray(raw.data) || raw.data.length === 0) return null;
-    return { standard: raw.standard, version: raw.version, name: raw.event, data: raw.data[0] };
+    return { standard: raw.standard, version: raw.version, name: raw.event, data: cleanChainValue(raw.data[0]) };
   } catch {
     return null;
   }
