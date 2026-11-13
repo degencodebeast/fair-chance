@@ -226,6 +226,7 @@ async fn two_coins_have_equal_fixed_rules_and_independent_state() -> Result<()> 
     assert_ne!(first_rules["launch_block"], second_rules["launch_block"]);
 
     let second_pool = world.view(&second, "fc_pool", json!({})).await?;
+    let _ = world.register(&world.creator, &world.coin).await?;
     let _bought = world
         .call(
             &world.creator,
@@ -282,6 +283,7 @@ async fn coin_methods_called_by_the_factory_give_the_same_result_as_for_any_acco
         .await?;
 
     let one_near = NearToken::from_near(1);
+    let _ = world.register(&world.factory, &world.coin).await?;
     let factory_buy = world
         .call(
             &world.factory,
@@ -291,6 +293,7 @@ async fn coin_methods_called_by_the_factory_give_the_same_result_as_for_any_acco
             one_near,
         )
         .await?;
+    let _ = world.register(&world.creator, &other).await?;
     let other_buy = world
         .call(
             &world.creator,

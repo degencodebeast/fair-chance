@@ -57,6 +57,7 @@ async fn main() -> Result<()> {
     );
 
     step("one account buys");
+    let _ = world.register(&world.alice, &world.coin).await?;
     let _bought = world
         .call(
             &world.alice,

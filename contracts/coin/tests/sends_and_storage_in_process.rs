@@ -52,6 +52,9 @@ fn launched() -> Coin {
 }
 
 fn buy(coin: &mut Coin, who: &str, near_in: u128, block: u64) {
+    if coin.storage_balance_of(account(who)).is_none() {
+        register(coin, who, block);
+    }
     at(who, near_in, block);
     coin.buy(U128(0));
 }

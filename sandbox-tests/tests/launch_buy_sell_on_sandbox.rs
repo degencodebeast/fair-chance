@@ -40,6 +40,7 @@ async fn launch_runs_the_batch_and_emits_fc_launch() -> Result<()> {
 #[tokio::test]
 async fn a_sell_receipt_logs_fc_sell_with_the_interface_field_names() -> Result<()> {
     let world = World::launch().await?;
+    let _ = world.register(&world.alice, &world.coin).await?;
     let _bought = world
         .call(
             &world.alice,
@@ -80,6 +81,7 @@ async fn a_sell_receipt_logs_fc_sell_with_the_interface_field_names() -> Result<
 #[tokio::test]
 async fn a_sell_with_no_deposit_is_refused_with_fc_one_yocto() -> Result<()> {
     let world = World::launch().await?;
+    let _ = world.register(&world.alice, &world.coin).await?;
     let _bought = world
         .call(
             &world.alice,
@@ -116,6 +118,7 @@ async fn a_sell_with_no_deposit_is_refused_with_fc_one_yocto() -> Result<()> {
 async fn a_buy_below_min_tokens_out_is_refused_with_fc_slippage_and_a_quote_matches_the_buy(
 ) -> Result<()> {
     let world = World::launch().await?;
+    let _ = world.register(&world.alice, &world.coin).await?;
     let quote = world
         .view(
             &world.coin,
@@ -160,6 +163,7 @@ async fn a_buy_below_min_tokens_out_is_refused_with_fc_slippage_and_a_quote_matc
 async fn a_send_to_a_registered_account_logs_fc_send_and_ft_transfer_call_is_refused() -> Result<()>
 {
     let world = World::launch().await?;
+    let _ = world.register(&world.alice, &world.coin).await?;
     let _bought = world
         .call(
             &world.alice,

@@ -48,6 +48,13 @@ fn launched() -> Coin {
     new_coin("factory.test")
 }
 
+/// NEP-145: the storage minimum for `who`'s holder record (a buy needs one).
+fn register(coin: &mut Coin, who: &str, block: u64) {
+    let min = coin.storage_balance_bounds().min.as_yoctonear();
+    testing_env!(context(who, min, block).build());
+    coin.storage_deposit(None, None);
+}
+
 #[test]
 fn new_mints_the_whole_supply_once_into_the_pool() {
     let coin = launched();
@@ -63,6 +70,7 @@ fn new_mints_the_whole_supply_once_into_the_pool() {
 #[test]
 fn a_sell_logs_fc_sell_with_the_interface_version() {
     let mut coin = launched();
+    register(&mut coin, "alice.test", 11);
     testing_env!(context("alice.test", ONE_NEAR, 11).build());
     coin.buy(U128(0));
     let tokens = coin.ft_balance_of(account("alice.test")).0;
@@ -81,6 +89,7 @@ fn a_sell_logs_fc_sell_with_the_interface_version() {
 #[should_panic(expected = "FC_ONE_YOCTO")]
 fn a_sell_with_no_deposit_panics_with_fc_one_yocto() {
     let mut coin = launched();
+    register(&mut coin, "alice.test", 11);
     testing_env!(context("alice.test", ONE_NEAR, 11).build());
     coin.buy(U128(0));
     testing_env!(context("alice.test", 0, 12).build());
@@ -146,6 +155,7 @@ fn fc_rules_returns_the_launch_description() {
 #[should_panic(expected = "FC_ONE_YOCTO")]
 fn a_sell_with_two_yocto_panics_with_fc_one_yocto() {
     let mut coin = launched();
+    register(&mut coin, "alice.test", 11);
     testing_env!(context("alice.test", ONE_NEAR, 11).build());
     coin.buy(U128(0));
     testing_env!(context("alice.test", 2, 12).build());
@@ -156,6 +166,7 @@ fn a_sell_with_two_yocto_panics_with_fc_one_yocto() {
 #[should_panic(expected = "FC_SLIPPAGE")]
 fn a_buy_below_min_tokens_out_panics_with_fc_slippage() {
     let mut coin = launched();
+    register(&mut coin, "alice.test", 11);
     testing_env!(context("alice.test", ONE_NEAR, 11).build());
     coin.buy(U128(9_802_950_787_206_654_124_170_710));
 }
@@ -163,6 +174,7 @@ fn a_buy_below_min_tokens_out_panics_with_fc_slippage() {
 #[test]
 fn fc_quote_buy_equals_the_buy_that_follows() {
     let mut coin = launched();
+    register(&mut coin, "alice.test", 11);
     testing_env!(context("alice.test", 2 * ONE_NEAR, 11).build());
     let quote =
         serde_json::to_value(coin.fc_quote_buy(account("alice.test"), U128(2 * ONE_NEAR))).unwrap();
@@ -180,6 +192,7 @@ fn fc_quote_buy_equals_the_buy_that_follows() {
 #[test]
 fn fc_account_unmarked_and_fc_quote_sell_match_a_large_sell_held_to_its_allowance() {
     let mut coin = launched();
+    register(&mut coin, "large.test", 11);
     testing_env!(context("large.test", 5 * ONE_NEAR, 11).build());
     coin.buy(U128(0));
 

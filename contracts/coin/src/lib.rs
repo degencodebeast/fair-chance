@@ -127,10 +127,18 @@ impl Coin {
     }
 
     /// Buy tokens with the attached NEAR. Refused with `FC_SLIPPAGE` below `min_tokens_out`.
+    /// The buyer needs a NEP-145 storage record first, so the pool's NEAR never pays for one.
+    /// (The creator's opening buy in `new` is paid by the launch deposit.)
     #[payable]
     pub fn buy(&mut self, min_tokens_out: U128) {
+        let buyer = env::predecessor_account_id();
+        if !self.holders.contains_key(buyer.as_str()) {
+            env::panic_str(
+                &Refusal::with_detail(RefusalCode::NotRegistered, buyer.as_str()).to_string(),
+            );
+        }
         let action = Action::Buy {
-            account: env::predecessor_account_id().to_string(),
+            account: buyer.to_string(),
             near_in: env::attached_deposit().as_yoctonear(),
             min_tokens_out: min_tokens_out.0,
         };
