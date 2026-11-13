@@ -19,6 +19,7 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 | `real_near_cap_properties.rs` | <!-- waits on: the marked-token cap rule --> |
 | `launch_and_rules.rs` | `new` mints the whole supply once, into the pool. The parent account alone can call `new`. `fc_rules` returns every fixed value. |
 | `walking_path.rs` | Launch, buy, sell and receipt in the rule engine alone. |
+| `sell_floor_cap_and_limit_reason.rs` | One floor per account per 1 hour window: a buy gives no floor room back, and marked and unmarked floors do not stack. The marked part of a small sell stays within the cap. A large sell that fills only its unmarked floor reports `floor`. A small sell with a marked part and tokens bought in the window may fill less of the bought part when the cap is tight, and a second sell does not avoid it, because a sell takes its marked part first. |
 
 <!-- waits on: the marked-token cap rule (tests for early supply and the cap, and the property file's final case count) -->
 
@@ -55,6 +56,7 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 | A band holder sends parts to fresh accounts. | Band accounts can send. | [ADR 0001](adr/0001-large-holders-cannot-send-shared-early-allowance.md) |
 | A band account buys, sends the bought tokens to a fresh small account that sells them uncounted, and keeps the buy as an offset for its own counted sells. | Wallet splitting. Each fresh small wallet carries at most one allowance per window. Measured at a full cap: up to 0.31 of one allowance's NEAR per fresh wallet. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
 | A buy raises the cap by c x X, and a band account with marked tokens fills its marked sell into that room, then sells the bought tokens inside its first allowance. | At most c x X and at most one unmarked floor per window. Measured: up to 0.29 of one floor (2,340 swept shapes). | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
+| A small sell that has a marked part and tokens bought in the window may fill less of the bought part when the cap is tight, though that part adds nothing to the cap used. A second sell takes its marked part first, so it does not help while marked tokens are left. | The cap holds. The fix needs a recheck of the marked part after the payout, and is not in this release. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
 | Aggregators and routers cannot buy for users. | The caller holds the tokens. | [OVERVIEW](OVERVIEW.md) |
 | Plain unregister differs from NEP-145. | It refuses with `FC_UNREGISTER_WINDOW_OPEN` while the window is open and with `FC_UNREGISTER_WITH_BALANCE` while tokens are held. | [INTERFACE](INTERFACE.md) |
 | Borrowed NEAR can fake pool depth for the creator fee. | The fake costs a 24 hour hold with price risk plus about 1.4% to 1.7% of the minimum in fees. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |

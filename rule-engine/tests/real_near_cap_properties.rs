@@ -19,6 +19,9 @@
 //!   small sell of tokens bought in the window counts; it fills as far as it passes the cap
 //!   check or adds nothing to the cap used. Sends never count, and no account's buys lower
 //!   another account's counted sells: the cap used falls by at most the buyer's own part.
+//! - No account takes two floors in one window: its unmarked floor left is the window's floor
+//!   less every token it sold in the window (a buy gives none back), and the tokens of its sells
+//!   that could fill at any cap add up to at most one floor.
 //! - Every holder record has the size of an empty record, so the storage deposit for a record
 //!   pays for it whatever the account does.
 //! - Marked tokens: the early supply total equals the marked balances held; the creator group
