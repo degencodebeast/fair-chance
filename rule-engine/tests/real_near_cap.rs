@@ -859,3 +859,50 @@ fn a_small_account_that_buys_twice_and_sells_once_counts_the_part_above_all_the_
     assert_eq!(sell.near_out, first_buy + second_buy);
     assert_eq!(coin.cap(at).cap_used, used_before);
 }
+
+/// QUESTIONS.md Q38: `cap_left` is the most NEAR out the counted part of a sell with no band
+/// penalty can take. A band sell above its first allowance pays the penalty, and its creator
+/// share is taken from its NEAR before the penalty, so it can take less. Its quote gives its own
+/// limit: the quote equals the real fill, and that fill is below `cap_left`.
+#[test]
+fn a_band_sell_above_its_first_allowance_is_quoted_at_its_real_fill_below_cap_left() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 100 * ONE_NEAR, after(5));
+    coin.buy(BAND, 6 * ONE_NEAR, after(10));
+    let at = window_1(1);
+    // The band account sells its first allowance (no penalty), and the large account sells its
+    // allowance, so the cap has less room left than the band account's next sell asks for.
+    let allowance = coin.account(BAND, at).unmarked.allowance;
+    assert_eq!(coin.sell(BAND, allowance, at).penalty_near, 0);
+    let large_allowance = coin.account(LARGE, at).unmarked.allowance;
+    coin.sell(LARGE, large_allowance, at);
+    let cap_left = coin.cap(at).cap_left;
+    assert!(cap_left > 0);
+
+    let rest = coin.balance(BAND);
+    let quote = coin.quote(BAND, rest, at);
+    let sell = coin.sell(BAND, rest, at);
+    assert_eq!(sell.limit_reason, Some("cap_full"));
+    assert!(sell.penalty_near > 0);
+    assert_eq!(
+        (
+            quote.tokens_filled,
+            quote.near_out,
+            quote.penalty_near,
+            quote.fill,
+            quote.limit_reason
+        ),
+        (
+            sell.tokens_sold,
+            sell.near_out,
+            sell.penalty_near,
+            sell.fill,
+            sell.limit_reason
+        )
+    );
+    assert!(
+        sell.near_out < cap_left,
+        "band fill {} not below cap_left {cap_left}",
+        sell.near_out
+    );
+}
