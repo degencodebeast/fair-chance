@@ -161,3 +161,18 @@ func TestNoAlertSaysWaitsQueuedOrPending(t *testing.T) {
 		}
 	}
 }
+
+func TestALongSymbolIsCutSoTheSentenceKeepsItsFacts(t *testing.T) {
+	w := alerts.Writer{Location: time.UTC, Rules: func(string) (alerts.CoinRules, bool) {
+		return alerts.CoinRules{Symbol: strings.Repeat("S", 4100)}, true
+	}}
+	got, ok := w.Sentence(event("fc_sell", 500, map[string]any{
+		"account": "bigfish.testnet", "class": "large",
+		"tokens_asked": tokens("30000000"), "tokens_sold": tokens("7100000"),
+		"near_out": "1000000000000000000000000", "fill": "partial", "limit_reason": "allowance",
+		"allowance_left": tokens("7100000"), "window_end_ns": at1502,
+	}))
+	if !ok || len([]rune(got)) > 400 || !strings.Contains(got, "It can sell up to 7.1M") || !strings.Contains(got, "…") {
+		t.Fatalf("got %d characters: %.200s", len([]rune(got)), got)
+	}
+}
