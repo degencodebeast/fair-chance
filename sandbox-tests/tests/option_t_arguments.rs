@@ -13,7 +13,11 @@ fn the_known_flags_parse() {
         "--network",
         "testnet",
         "--ticker",
-        "bag",
+        "BAG",
+        "--name",
+        "Bag Holder",
+        "--description",
+        "A coin that holds its bags.",
         "--buy-millinear",
         "500",
         "--buyer-extra-millinear",
@@ -26,7 +30,12 @@ fn the_known_flags_parse() {
     ])
     .unwrap();
     assert_eq!(parsed.network.as_deref(), Some("testnet"));
-    assert_eq!(parsed.ticker.as_deref(), Some("bag"));
+    assert_eq!(parsed.ticker.as_deref(), Some("BAG"));
+    assert_eq!(parsed.name.as_deref(), Some("Bag Holder"));
+    assert_eq!(
+        parsed.description.as_deref(),
+        Some("A coin that holds its bags.")
+    );
     assert_eq!(parsed.buy_millinear, Some(500));
     assert_eq!(parsed.buyer_extra_millinear, Some(200));
     assert_eq!(parsed.buyer_tgas, Some(100));
@@ -45,6 +54,9 @@ fn every_unknown_form_is_refused_and_named() {
         vec!["--buy-millinear", "abc"],
         vec!["--buy-millinear", "--delete-buyers"],
         vec!["--ticker", "a", "--ticker", "b"],
+        vec!["--name", "a", "--name", "b"],
+        vec!["--description"],
+        vec!["--name", "--ticker", "bag"],
         vec!["--delete-buyers", "--delete-buyers"],
     ] {
         let error = parse(&args)

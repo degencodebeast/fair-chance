@@ -117,3 +117,22 @@ func TestFastNearTreatsAnyOtherAnswerAsUnknown(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+func TestFastNearEventsCarryTheirTransactionHashAndSigner(t *testing.T) {
+	var bodies []map[string]any
+	srv := fastNearServer(t, &bodies)
+
+	evs, _, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"walk.factory.sandbox"}, 15)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evs) != 2 {
+		t.Fatalf("events %+v", evs)
+	}
+	if evs[0].TxHash != "33Y9QyfznjCoTjkkxXFoygiYaPxiG47FBR2NFGE2eGiA" || evs[0].TxSigner != "alice.sandbox" {
+		t.Fatalf("buy tx %q signer %q", evs[0].TxHash, evs[0].TxSigner)
+	}
+	if evs[1].TxHash != "Fy6sboDgwfKMDsMTqGaURTDFTX9eRinb4JKdKoGmvRSt" || evs[1].TxSigner != "alice.sandbox" {
+		t.Fatalf("sell tx %q signer %q", evs[1].TxHash, evs[1].TxSigner)
+	}
+}

@@ -20,6 +20,8 @@ expect_refused --network
 expect_refused --delete-buyer
 expect_refused testnet
 expect_refused --ticker
+expect_refused --name
+expect_refused --description --ticker bag
 [ "$failures" = 0 ] && echo "option-t arguments: ok" && exit 0
 echo "option-t arguments: $failures failed"
 exit 1
