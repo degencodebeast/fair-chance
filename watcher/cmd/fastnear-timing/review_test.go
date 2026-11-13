@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -202,5 +203,46 @@ func TestA429WaitOverFifteenMinutesStopsAtOnce(t *testing.T) {
 	err := runWithCoinWaitAndBackOff(context.Background(), &r, 10*time.Millisecond, time.Second, 0, 10*time.Millisecond, time.Millisecond)
 	if err == nil || calls != 1 || time.Since(start) > 5*time.Second {
 		t.Fatalf("err %v after %d calls in %s", err, calls, time.Since(start))
+	}
+}
+
+// The builder's 429 rule holds for the whole tool: the coin wait, the FastNEAR polling and finish
+// share one limit of two waits. Two 429s in the coin wait leave finish no wait at all.
+func TestOneRateLimitCoversTheWholeTool(t *testing.T) {
+	_, fn := servers(t)
+	calls, finishCalls := 0, 0
+	finishing := false
+	rpc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if finishing {
+			finishCalls++
+		}
+		if calls <= 2 || finishing {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		var req struct {
+			Params struct {
+				MethodName string `json:"method_name"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		views := map[string]string{"fc_rules": `{"creator":"c.testnet","launch_block":100,"early_blocks":17}`, "ft_metadata": `{"symbol":"BAG"}`}
+		body, _ := json.Marshal([]byte(views[req.Params.MethodName]))
+		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":"fc","result":{"result":%s,"logs":[]}}`, body)
+	}))
+	t.Cleanup(rpc.Close)
+	r := report{Coin: coin, RPCURL: rpc.URL, FastNearURL: fn.URL}
+	back := limitedBackOff(time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := runLimited(ctx, &r, 10*time.Millisecond, time.Second, 1, 10*time.Millisecond, &back); !errors.Is(err, errDone) {
+		t.Fatalf("run: %v", err)
+	}
+	finishing = true
+	err := finishLimited(ctx, &r, &back)
+	if err == nil || finishCalls != 1 {
+		t.Fatalf("finish: err %v after %d calls; want a stop at its first 429, the third of the tool", err, finishCalls)
 	}
 }
