@@ -27,6 +27,8 @@ Preconditions:
 
 - **Testnet link in the browser.** The runner runs `node web/scripts/check-testnet-link-in-browser.ts`: Chrome opens a `?network=testnet` link with every outside host stubbed from a recorded state, and the page must load and read only from the fixed RPC and FastNEAR hosts.
 
+- **Screens in the browser.** The runner runs `node web/scripts/check-screens-in-browser.ts`: the landing, coin list, alerts and coin screens at widths 1440 and 390 with a stubbed chain. Every sample card must carry its own "Sample data" label, no control may look live and do nothing, the coin list must read the factory's launch events, and the coin page must draw the price chart and holders table.
+
 ## Gotchas
 
 - The sell must be final before the scan; the runner waits for that (`the sell is final at block <n>`).

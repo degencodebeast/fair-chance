@@ -4,6 +4,9 @@
 import { loadCoinPage, type CoinPageData } from "./coin-page.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { telegramButton } from "./telegram-button.ts";
+import { chainReader, configFromUrl } from "./chain.ts";
+import { drawPriceChart } from "./render-price-chart.ts";
+import { fillHolders, holdersPlaceholder } from "./render-holders-table.ts";
 import { drawYourPlan } from "./render-your-plan.ts";
 import {
   coinPageModel,
@@ -74,7 +77,7 @@ function drawReceipt(r: ReceiptItem): HTMLElement {
   );
 }
 
-function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
+function drawReady(m: CoinPageModel, plan: HTMLElement | null, chart: HTMLElement | null, holders: HTMLElement | null): HTMLElement[] {
   const h = m.header;
   const nodes: (HTMLElement | null)[] = [];
   nodes.push(
@@ -147,6 +150,8 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
       el("ol", { id: "receipts" }, ...m.receipts.map(drawReceipt)),
     ),
   );
+  nodes.push(chart);
+  nodes.push(holders);
   nodes.push(
     section(
       "Rules",
@@ -229,8 +234,16 @@ function scheduleRefresh(view: CoinPageView, reload: () => void): void {
 function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null): void {
   scheduleRefresh(view, retry);
   const status = el("p", { id: "status", class: "status", role: "status" }, view.status);
-  const body = view.state === "ready" ? drawReady(view, data?.kind === "ready" ? drawYourPlan(data.reads) : null) : drawError(view);
+  const reads = data?.kind === "ready" ? data.reads : null;
+  const symbol = reads?.metadata.kind === "value" ? reads.metadata.value.symbol : "tokens";
+  const chart = reads ? drawPriceChart(reads.events, symbol) : null;
+  const holders = reads ? holdersPlaceholder() : null;
+  const body = view.state === "ready" ? drawReady(view, reads ? drawYourPlan(reads) : null, chart, holders) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));
+  if (holders && reads) {
+    const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
+    void fillHolders(holders, chainReader(configFromUrl(location.href)), reads.events, supply, reads.loadedAtNs);
+  }
   app.querySelector("#load-error button")?.addEventListener("click", retry);
   const marked = app.querySelector(".from-alert");
   if (marked) marked.scrollIntoView({ block: "center" });

@@ -103,7 +103,9 @@ p { margin: 0; }
   #your-plan { order: 1; }
   #who-can-sell { order: 2; }
   #receipts-section { order: 4; }
-  #rules { order: 5; }
+  #price-chart { order: 5; }
+  #holders { order: 6; }
+  #rules { order: 7; }
   .receipt { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .rules-grid { grid-template-columns: minmax(0, 1fr); }
   .rules-grid dd { text-align: left; }

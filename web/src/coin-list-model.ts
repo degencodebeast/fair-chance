@@ -14,7 +14,7 @@ export interface CoinCard {
   /** For sorting; null when the coin has no pool reading. */
   marketCapNear: number | null;
   marketCap: string;
-  /** Change from the first trade to the last; null with fewer than two trades. */
+  /** Change from the earliest trade to the latest; null with fewer than two trades. */
   change: string | null;
   early: string;
   cap: { label: string; tone: CapTone };
