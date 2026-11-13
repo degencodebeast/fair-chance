@@ -531,42 +531,76 @@ fn unregister(
 }
 
 #[test]
-fn a_force_unregister_while_the_account_holds_tokens_is_refused_with_fc_unregister_with_balance() {
+fn an_unregister_while_the_account_holds_tokens_is_refused_with_fc_unregister_with_balance() {
     let coin = coin_with_a_small_and_a_band_holder();
-    assert_eq!(
-        unregister(&coin, SMALL, true, after(20)),
-        Err("FC_UNREGISTER_WITH_BALANCE".to_string())
-    );
-    // Without force, NEP-145 refuses it with its own error.
-    assert_eq!(
-        unregister(&coin, SMALL, false, after(20)),
-        Err("Can't unregister the account with the positive balance without force".to_string())
-    );
+    for force in [false, true] {
+        assert_eq!(
+            unregister(&coin, SMALL, force, after(20)),
+            Err("FC_UNREGISTER_WITH_BALANCE".to_string()),
+            "force {force}"
+        );
+    }
 }
 
 #[test]
-fn a_force_unregister_after_the_account_used_allowance_is_refused_until_the_window_ends() {
-    let mut coin = Coin::launched();
-    coin.buy(LARGE, 2_500 * ONE_NEAR / 1_000, after(10));
-    // Window 1: LARGE sells its allowance; it still holds tokens, so sell the rest over windows.
-    let mut window = 1;
-    while coin.balance(LARGE) > 0 {
-        coin.sell(LARGE, coin.balance(LARGE), after(window * HOUR_S + 10));
-        window += 1;
+fn an_unregister_with_tokens_and_an_open_window_is_refused_with_fc_unregister_with_balance() {
+    let mut coin = coin_with_a_small_and_a_band_holder();
+    let at = after(HOUR_S + 10);
+    coin.sell(SMALL, coin.balance(SMALL) / 2, at);
+    assert!(coin.account(SMALL, at).unmarked.used > 0);
+    for force in [false, true] {
+        assert_eq!(
+            unregister(&coin, SMALL, force, at),
+            Err("FC_UNREGISTER_WITH_BALANCE".to_string()),
+            "force {force}"
+        );
     }
-    let last = after((window - 1) * HOUR_S + 20);
-    assert!(coin.account(LARGE, last).unmarked.used > 0);
-    assert_eq!(
-        unregister(&coin, LARGE, true, last),
-        Err("FC_UNREGISTER_WITH_BALANCE".to_string())
-    );
+}
 
-    // In the next window nothing is used, and the record goes.
-    let next = after(window * HOUR_S);
-    assert_eq!(
-        unregister(&coin, LARGE, true, next),
-        Ok(rule_engine::Unregistered::Removed { refund: 0 })
-    );
+#[test]
+fn an_account_that_sold_to_zero_cannot_unregister_until_the_window_ends() {
+    let mut coin = coin_with_a_small_and_a_band_holder();
+    let at = after(HOUR_S + 10);
+    coin.sell(SMALL, coin.balance(SMALL), at);
+    assert_eq!(coin.balance(SMALL), 0);
+    for force in [false, true] {
+        assert_eq!(
+            unregister(&coin, SMALL, force, at),
+            Err("FC_UNREGISTER_WINDOW_OPEN".to_string()),
+            "force {force}"
+        );
+        assert_eq!(
+            unregister(&coin, SMALL, force, after(2 * HOUR_S - 1)),
+            Err("FC_UNREGISTER_WINDOW_OPEN".to_string()),
+            "force {force}, last second of the window"
+        );
+        assert_eq!(
+            unregister(&coin, SMALL, force, after(2 * HOUR_S)),
+            Ok(rule_engine::Unregistered::Removed { refund: 0 }),
+            "force {force}, next window"
+        );
+    }
+}
+
+/// A buy and a sell back of the same tokens use no allowance (net), but the account still has
+/// a cap record in the window, so the window stays open.
+#[test]
+fn an_account_with_no_used_allowance_but_a_cap_record_in_the_window_cannot_unregister() {
+    let mut coin = Coin::launched();
+    coin.register(OTHER);
+    let at = after(20);
+    coin.buy(OTHER, ONE_NEAR / 10, at);
+    coin.sell(OTHER, coin.balance(OTHER), at);
+    assert_eq!(coin.balance(OTHER), 0);
+    assert_eq!(coin.account(OTHER, at).unmarked.used, 0);
+    for force in [false, true] {
+        assert_eq!(
+            unregister(&coin, OTHER, force, at),
+            Err("FC_UNREGISTER_WINDOW_OPEN".to_string()),
+            "force {force}"
+        );
+        assert!(unregister(&coin, OTHER, force, after(HOUR_S)).is_ok());
+    }
 }
 
 #[test]
