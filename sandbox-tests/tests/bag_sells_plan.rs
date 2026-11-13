@@ -129,6 +129,8 @@ fn each_sell_must_be_the_next_account_with_the_planned_full_balance() {
 fn the_sells_only_flags_need_each_other_and_a_ticker() {
     let args = |list: &[&str]| -> Vec<String> { list.iter().map(|s| s.to_string()).collect() };
     let parsed = parse_arguments(&args(&[
+        "--network",
+        "testnet",
         "--sells-only",
         "--sell-plan",
         "/tmp/p.json",
