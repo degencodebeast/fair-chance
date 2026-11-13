@@ -139,7 +139,7 @@ describe("the pre-deploy scan of the build", () => {
 
   it("does not call the exact name of a build file a key, in the name or in an import path", async () => {
     plant("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js", 'import("./render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");import("assets/render-very-long-screen-name-that-goes-on-and-on-Bh2fty9r.js");');
-    plant("assets/index-B--492ndAbCdEfGhIjKlMnOpQrStUvWxYz.js", "x");
+    plant("assets/index-B--492nd.js", "x");
     expect(await rules()).toEqual([]);
   });
 
@@ -223,5 +223,54 @@ describe("the pre-deploy scan of the build", () => {
   it("still reads a short property in code, also inside a template expression", async () => {
     plant("assets/a.js", "const s=`rpc ${t.testnet.rpcUrl}`;const q=(n.testnet);");
     expect(await rules()).toEqual([]);
+  });
+
+  it.each([
+    ["a regex literal with a double quote", 'const r=/"/;const s="paid to me.testnet";'],
+    ["the real regex of the refusal texts", 'const a=b.match(/^[^\\s"\']*/);const s="paid to me.testnet";'],
+    ["a regex after return", 'function f(x){return /\'/.test(x)}const s="paid to me.testnet";'],
+    ["a regex with a slash in a class", 'const r=/[/"]x/g;const s="paid to me.testnet";'],
+    ["a regex after a comma and a colon", 'f(1,/"/);const o={a:/\'/};const s="paid to me.testnet";'],
+  ])("fails on a short wallet name in a string after %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toEqual(["wallet"]);
+  });
+
+  it("does not take a division for a regex", async () => {
+    plant("assets/a.js", 'const x=(a+b)/2,y=c[1]/3,z=a/b/c;const s="paid to me.testnet";');
+    expect(await rules()).toEqual(["wallet"]);
+  });
+
+  it.each([
+    ["an unclosed string", 'const s="paid to me.testnet;\nconst t=1;'],
+    ["an unclosed template", "const s=`paid to ${x} me.testnet;"],
+    ["an unclosed comment", "const s=1;/* me.testnet"],
+    ["an unclosed regex", "const r=/abc;\nconst t=1;"],
+  ])("does not pass a script it cannot read: %s", async (_name, text) => {
+    plant("assets/a.js", text);
+    expect(await rules()).toContain("unreadable-file");
+  });
+
+  it("allows only names of the shape the build emits, so a key is not allowed by being a file name", async () => {
+    const key = "Q7xLm2Rv9TbK4pWz8NcH3sYd6FgJ1aUe";
+    plant("index.html", "<html></html>");
+    plant("assets/page-link-H3g8Fd-O.js", `import("./page-link-H3g8Fd-O.js");import("assets/page-link-H3g8Fd-O");`);
+    plant("assets/index-Cj8UrBYp.css", "a{}");
+    expect(await rules()).toEqual([]);
+    plant("assets/a.js", `const s="${key}";`);
+    plant(`assets/${key}.txt`, "x");
+    // The key is found in the script, and its own file name is scanned as text.
+    expect((await rules()).filter((r) => r === "key")).toHaveLength(2);
+  });
+
+  it("scans a file name that is only a key", async () => {
+    plant(`assets/${"Q7xLm2Rv9TbK4pWz8NcH3sYd6FgJ1aUe"}.txt`, "x");
+    expect(await rules()).toEqual(["key"]);
+  });
+
+  it("does not allow a key as the word part or the hash of a build-shaped name", async () => {
+    plant("assets/Q7xLm2Rv9TbK4pWz8NcH3sYd6FgJ1aUe-Cj8UrBYp.js", "x");
+    plant("assets/page-link-Q7xLm2Rv9TbK4pWz8NcH3sYd6FgJ1aUe.js", "x");
+    expect(await rules()).toEqual(["key", "key"]);
   });
 });

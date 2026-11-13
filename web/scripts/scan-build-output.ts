@@ -32,7 +32,7 @@ export interface HostRule {
 
 export interface Finding {
   file: string;
-  rule: "wallet" | "workspace-path" | "key" | "private-endpoint" | "provider-host";
+  rule: "wallet" | "workspace-path" | "key" | "private-endpoint" | "provider-host" | "unreadable-file";
   /** The first characters of the match and its length. Never the whole match. */
   hint: string;
 }
@@ -133,12 +133,45 @@ function unescaped(text: string): string {
   return text.replace(/\\\//g, "/").replace(/\\u002[fF]/g, "/");
 }
 
+const REGEX_KEYWORDS = new Set(["return", "typeof", "instanceof", "in", "of", "case", "void", "new", "delete", "throw", "else", "do", "yield", "await"]);
+
+/** True when a "/" at `at` starts a regex literal, from the last significant token before it. */
+function startsRegex(text: string, at: number): boolean {
+  let i = at - 1;
+  while (i >= 0 && /\s/.test(text[i]!)) i--;
+  if (i < 0) return true;
+  const p = text[i]!;
+  if (/[(,=:[!&|?{};+\-*%<>~^}]/.test(p)) return true;
+  if (!/[A-Za-z0-9_$]/.test(p)) return false;
+  let start = i;
+  while (start > 0 && /[A-Za-z0-9_$]/.test(text[start - 1]!)) start--;
+  return REGEX_KEYWORDS.has(text.slice(start, i + 1));
+}
+
+/** The index after the regex literal that starts at `at`, or -1 when it does not close on its line. */
+function regexEnd(text: string, at: number): number {
+  let i = at + 1;
+  let inClass = false;
+  while (i < text.length && text[i] !== "\n") {
+    const c = text[i]!;
+    if (c === "\\") i += 2;
+    else if (c === "[") (inClass = true, i++);
+    else if (c === "]") (inClass = false, i++);
+    else if (c === "/" && !inClass) {
+      i++;
+      while (i < text.length && /[A-Za-z]/.test(text[i]!)) i++;
+      return i;
+    } else i++;
+  }
+  return -1;
+}
+
 /**
- * For each character of a script: 1 when it is inside a string, a template text or a comment.
- * A name there is text the visitor can read, never code. The lexer does not know regex literals;
- * a quote inside one can shift the mask until the next line ends a string.
+ * For each character of a script: 1 when it is inside a string, a template text, a regex or a
+ * comment. A name there is text the visitor can read, never code. `ok` is false when the lexer
+ * cannot close a string, a regex, a comment or a template: the file is then not passed.
  */
-function textMask(text: string): Uint8Array {
+function textMask(text: string): { mask: Uint8Array; ok: boolean } {
   const mask = new Uint8Array(text.length);
   const stack: { kind: "code" | "tpl"; braces: number; expr: boolean }[] = [{ kind: "code", braces: 0, expr: false }];
   let i = 0;
@@ -165,13 +198,20 @@ function textMask(text: string): Uint8Array {
         mask[i] = 1;
         i += text[i] === "\\" ? 2 : 1;
       }
-      if (i < text.length) mask[i] = 1;
+      if (text[i] !== c) return { mask, ok: false };
+      mask[i] = 1;
       i++;
     } else if (c === "/" && (text[i + 1] === "/" || text[i + 1] === "*")) {
       const end = text[i + 1] === "/" ? text.indexOf("\n", i) : text.indexOf("*/", i + 2);
+      if (end === -1 && text[i + 1] === "*") return { mask, ok: false };
       const stop = end === -1 ? text.length : end + (text[i + 1] === "*" ? 2 : 0);
       mask.fill(1, i, stop);
       i = Math.max(stop, i + 1);
+    } else if (c === "/" && startsRegex(text, i)) {
+      const end = regexEnd(text, i);
+      if (end === -1) return { mask, ok: false };
+      mask.fill(1, i, end);
+      i = end;
     } else if (c === "`") {
       mask[i] = 1;
       stack.push({ kind: "tpl", braces: 0, expr: false });
@@ -188,14 +228,16 @@ function textMask(text: string): Uint8Array {
       i++;
     }
   }
-  return mask;
+  return { mask, ok: stack.length === 1 };
 }
 
 function scanText(text: string, file: string, options: ScanOptions, buildNames: ReadonlySet<string>): Finding[] {
   const found: Finding[] = [];
   const add = (rule: Finding["rule"], match: string) => found.push({ file, rule, hint: hint(match) });
   // One or two characters before ".testnet" in code (not in a string or a comment) is a property read of a minified script.
-  const mask = /\.(?:js|mjs)$/.test(file) ? textMask(text) : null;
+  const lexed = /\.(?:js|mjs)$/.test(file) ? textMask(text) : null;
+  if (lexed !== null && !lexed.ok) add("unreadable-file", file);
+  const mask = lexed?.ok ? lexed.mask : null;
   for (const m of text.matchAll(WALLET)) {
     if (options.sampleAccounts.includes(m[0]) || isAllowedAccount(m[0], options.allowedAccounts)) continue;
     if (mask !== null && mask[m.index!] === 0 && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(m[0])) continue;
@@ -221,14 +263,23 @@ function scanText(text: string, file: string, options: ScanOptions, buildNames: 
   return found;
 }
 
+const PUBLIC_FILES = ["index.html"];
+const BUILT_ASSET = /^assets\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[A-Za-z0-9_-]{8}\.(?:js|css|map)$/;
+
+function isBuildName(name: string): boolean {
+  return PUBLIC_FILES.includes(name) || BUILT_ASSET.test(name);
+}
+
 /** Scans every file under `dir`. Throws when the folder is missing or empty, so a missing build never passes. */
 export async function scanBuildOutput(dir: string, options: ScanOptions): Promise<Finding[]> {
   const files = walk(dir);
   if (files.length === 0) throw new Error("the build folder has no files");
   const names = files.map((path) => relative(dir, path).split("\\").join("/"));
-  // The exact names of the files of this build, as a script writes them: with or without the folder, the dot and the extension.
+  // The names a build emits: index.html, and assets/<words>-<8-character hash>.<js|css|map> (the Vite hash is 8 characters
+  // of letters, digits, "_" and "-"). Script imports name these files, so only these exact names are not read as keys.
+  // Any other file name is scanned like text.
   const buildNames = new Set(
-    names.flatMap((name) => {
+    names.filter(isBuildName).flatMap((name) => {
       const noExtension = name.replace(/\.[A-Za-z0-9]+$/, "");
       const base = noExtension.slice(noExtension.lastIndexOf("/") + 1);
       return [name, noExtension, base, `/${base}`, `/${noExtension}`];
