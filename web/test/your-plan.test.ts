@@ -19,6 +19,8 @@ interface AccountState {
   account_id: string;
   asked: string;
   views: Record<string, unknown>;
+  /** fc_quote_sell for amounts other than `asked`, by amount. */
+  quotes_by_amount?: Record<string, unknown>;
   missing_views: string[];
 }
 
@@ -31,6 +33,10 @@ function readerFrom(s: AccountState, calls: { method: string; args: unknown }[] 
     async view<T>(method: string, args?: object): Promise<T> {
       calls.push({ method, args });
       if (s.missing_views.includes(method) || !(method in s.views)) throw new ViewNotAvailable(method);
+      const amount = (args as { amount?: string } | undefined)?.amount;
+      if (method === "fc_quote_sell" && amount !== undefined && s.quotes_by_amount?.[amount] !== undefined) {
+        return s.quotes_by_amount[amount] as T;
+      }
       return s.views[method] as T;
     },
     async account() {
@@ -240,6 +246,108 @@ describe("an early-supply holder", () => {
         ["Other tokens can sell more after", "15:02, in 38 min"],
       ]),
     );
+  });
+});
+
+describe("early supply held back by the pool cap", () => {
+  const NOTHING_FILLS = { tokens_filled: "0", near_out: "0", penalty_near: "0", fill: "none", limit_reason: "cap_full", cap_left_after: "0" };
+  const withN = (n: string) =>
+    `Early-supply tokens sell before your other tokens. While the pool cap holds them, a sell of about ${n} MOTH or less fills nothing, and a larger sell can fill part of the amount above that from your other tokens.`;
+  const WITH_N = withN("6.0M");
+  const WITHOUT_N =
+    "Early-supply tokens sell before your other tokens. While the pool cap holds them, a small sell can fill nothing. The quote shows what this sell fills.";
+
+  it("names N, the early supply the account can sell now, when a quote of N fills nothing", async () => {
+    const { preview } = await show("early-supply-held-by-cap");
+    expect(preview).toMatchObject({ kind: "preview", title: "Pool cap is full. Your sell does not fill now" });
+    expect(preview?.kind === "preview" && preview.copy).toContain(WITH_N);
+  });
+
+  it("shows the same line with the quote for an amount above N, which fills from the other tokens", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      s.asked = "6050000000000000000000000";
+    });
+    expect(preview).toMatchObject({
+      lines: expect.arrayContaining([{ label: "Filled now", value: "50K MOTH (under 0.01%)", tone: "plain" }]),
+    });
+    expect(preview?.kind === "preview" && preview.copy).toContain(WITH_N);
+  });
+
+  it("rounds N up at the shown precision, never to nearest or down: 6.04M shows as about 6.1M", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      const marked = (s.views.fc_account as { marked: Record<string, unknown> }).marked;
+      marked.left = "6040000000000000000000000";
+      s.asked = "6040000000000000000000000";
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(withN("6.1M"));
+    expect(copy).not.toContain("6.0M MOTH or less");
+  });
+
+  it("rounds N up: 6.09M shows as about 6.1M, never 6.0M, so an ask below N is not shown as larger", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      const marked = (s.views.fc_account as { marked: Record<string, unknown> }).marked;
+      marked.left = "6090000000000000000000000";
+      s.asked = "6050000000000000000000000";
+      s.quotes_by_amount = { "6050000000000000000000000": NOTHING_FILLS };
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(withN("6.1M"));
+    expect(copy).not.toContain("about 6.0M");
+  });
+
+  it("shows the fallback, not N, when the other tokens cannot fill now (unmarked floor left 0)", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      (s.views.fc_account as { unmarked: Record<string, unknown> }).unmarked.floor_left = "0";
+      s.asked = "7000000000000000000000000";
+      s.quotes_by_amount = { "7000000000000000000000000": NOTHING_FILLS };
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(WITHOUT_N);
+    expect(copy).not.toContain("a larger sell");
+  });
+
+  it("checks N with fc_quote_sell", async () => {
+    const s = state("early-supply-held-by-cap");
+    s.asked = "6050000000000000000000000";
+    const calls: { method: string; args: unknown }[] = [];
+    await loadAccountPlan(readerFrom(s, calls), { accountId: "you.testnet", asked: BigInt(s.asked) });
+    expect(calls).toEqual([
+      { method: "fc_account", args: { account_id: "you.testnet" } },
+      { method: "fc_quote_sell", args: { account_id: "you.testnet", amount: s.asked } },
+      { method: "fc_quote_sell", args: { account_id: "you.testnet", amount: "6000000000000000000000000" } },
+    ]);
+  });
+
+  it("leaves out N when the coin does not return the early-supply allowance", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      s.asked = "6050000000000000000000000";
+      delete (s.views.fc_account as Record<string, unknown>).marked;
+    });
+    const copy = preview?.kind === "preview" ? preview.copy : null;
+    expect(copy).toContain(WITHOUT_N);
+    expect(copy).not.toContain("or less");
+  });
+
+  it("shows no such line when a quote of N fills, so the cap does not hold the early supply", async () => {
+    const { preview } = await show("early-supply-held-by-cap", (s) => {
+      s.views.fc_quote_sell = { tokens_filled: "6000000000000000000000000", near_out: "1", penalty_near: "0", fill: "full", limit_reason: null, cap_left_after: "1" };
+      s.quotes_by_amount = {
+        "7000000000000000000000000": { tokens_filled: "6500000000000000000000000", near_out: "1", penalty_near: "0", fill: "partial", limit_reason: "allowance", cap_left_after: "1" },
+      };
+      s.asked = "7000000000000000000000000";
+    });
+    expect(allText(preview).join(" ")).not.toContain("Early-supply tokens sell before");
+  });
+
+  it("follows the copy rules", async () => {
+    const above = await show("early-supply-held-by-cap", (s) => {
+      s.asked = "6050000000000000000000000";
+    });
+    const withoutN = await show("early-supply-held-by-cap", (s) => {
+      delete (s.views.fc_account as Record<string, unknown>).marked;
+    });
+    expect(allText([await show("early-supply-held-by-cap"), above, withoutN]).flatMap(copyViolations)).toEqual([]);
   });
 });
 

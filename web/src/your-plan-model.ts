@@ -3,7 +3,7 @@
 import type { Account, Allowance, SellQuote } from "./account-views.ts";
 import type { Reading } from "./coin-page.ts";
 import { NOT_AVAILABLE, type Tone } from "./coin-page-model.ts";
-import { clockTime, compactTokens, nearAmount, timeWithHint, type TimeContext } from "./format.ts";
+import { clockTime, compactTokens, compactTokensRoundedUp, nearAmount, timeWithHint, type TimeContext } from "./format.ts";
 
 export interface PlanInput {
   accountId: string;
@@ -14,6 +14,8 @@ export interface PlanInput {
   /** Null when no amount was asked; then there is no quote and no preview. */
   asked: bigint | null;
   quote: Reading<SellQuote> | null;
+  /** The quote of N, the early supply a sell takes before the other tokens (see loadAccountPlan). */
+  earlySupplyQuote?: { amount: bigint; quote: Reading<SellQuote> } | null;
 }
 
 export interface Tag {
@@ -203,7 +205,11 @@ function previewView(
     title: titleOf(q),
     tone: limited || penalty ? "limit" : "plain",
     lines,
-    copy: limited ? limitedCopy(q, asked, a, ctx, amount, tokens) : penalty ? penaltyCopy(a, amount) : null,
+    copy: limited
+      ? joinCopy(earlySupplyHeldLine(input, a, q), limitedCopy(q, asked, a, ctx, amount, tokens))
+      : penalty
+        ? penaltyCopy(a, amount)
+        : null,
     bar:
       limited && q.tokensFilled < asked
         ? {
@@ -213,6 +219,34 @@ function previewView(
           }
         : null,
   };
+}
+
+/**
+ * For an account whose early supply the pool cap holds while it has other tokens: a sell takes the
+ * early supply before the other tokens, so a sell of N or less fills nothing. N is checked with a
+ * quote of N and shown rounded up, so the text is at or above the coin's value; when the coin
+ * gives no N, or when the other tokens cannot fill now (the coin's unmarked floor left is 0), the
+ * line leaves N out and points to the quote.
+ */
+function earlySupplyHeldLine(input: PlanInput, a: Account, q: SellQuote): string | null {
+  if (a.markedBalance === 0n || a.unmarkedBalance === 0n) return null;
+  const lead = "Early-supply tokens sell before your other tokens. While the pool cap holds them,";
+  const check = input.earlySupplyQuote ?? null;
+  const nQuote = check !== null && check.quote.kind === "value" ? check.quote.value : null;
+  const held = nQuote !== null && nQuote.tokensFilled === 0n && nQuote.limitReason === "cap_full";
+  if (nQuote !== null && !held) return null;
+  const otherTokensFill = a.unmarked.kind === "value" && a.unmarked.value.floorLeft > 0n;
+  if (check !== null && held && otherTokensFill) {
+    const shown = `${compactTokensRoundedUp(check.amount.toString(), input.decimals)} ${input.symbol}`;
+    return `${lead} a sell of about ${shown} or less fills nothing, and a larger sell can fill part of the amount above that from your other tokens.`;
+  }
+  const nUnknown = held || a.marked.kind === "unavailable" || check !== null;
+  const capStops = q.limitReason === "cap_full" || q.limitReason === "floor";
+  return nUnknown && capStops ? `${lead} a small sell can fill nothing. The quote shows what this sell fills.` : null;
+}
+
+function joinCopy(first: string | null, rest: string): string {
+  return first === null ? rest : `${first} ${rest}`;
 }
 
 function titleOf(q: SellQuote): string {
