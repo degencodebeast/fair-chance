@@ -24,6 +24,6 @@ type Fake struct {
 func (f *Fake) Send(_ context.Context, chatID int64, text string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.Sent = append(f.Sent, Message{ChatID: chatID, Text: text})
+	f.Sent = append(f.Sent, Message{ChatID: chatID, Text: Prepare(text)})
 	return nil
 }
