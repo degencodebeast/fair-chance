@@ -173,3 +173,35 @@ fn a_failed_payout_transfer_puts_the_amount_back_in_the_creator_balance() {
     assert_eq!(view["balance"], BALANCE.to_string());
     assert_eq!(view["claimed_total"], "0");
 }
+
+/// Runs `new` with a 1 NEAR opening buy on a coin account that holds `balance` yoctoNEAR before
+/// the deposit, on empty storage.
+fn new_with_opening_buy(balance: u128) {
+    near_sdk::mock::with_mocked_blockchain(|b| {
+        b.take_storage();
+    });
+    let mut ctx = context("factory.test", ONE_NEAR, LAUNCH_S);
+    ctx.account_balance(NearToken::from_yoctonear(balance));
+    testing_env!(ctx.build());
+    let _ = Coin::new(
+        account(CREATOR),
+        "Test Coin".into(),
+        "TEST".into(),
+        Some(ICON.into()),
+        None,
+        "hash".into(),
+    );
+}
+
+/// The creator balance is owed NEAR too: `new` must not pay the coin's storage out of it.
+#[test]
+#[should_panic(expected = "the launch deposit does not cover the coin's storage")]
+fn new_refuses_an_opening_buy_whose_storage_would_come_out_of_the_creator_balance() {
+    new_with_opening_buy(1_000 * ONE_NEAR);
+    let byte_cost = near_sdk::env::storage_byte_cost().as_yoctonear();
+    let lock = byte_cost * u128::from(near_sdk::env::storage_usage());
+    // The runner adds the 1 NEAR attached to the balance: 1 NEAR plus the lock less 1 yocto. The
+    // real NEAR (1 NEAR less the 0.003 NEAR creator share) and the lock fit only if the creator
+    // share pays for storage.
+    new_with_opening_buy(lock - 1);
+}

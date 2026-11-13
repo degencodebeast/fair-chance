@@ -379,7 +379,11 @@ async fn an_opening_buy_is_the_creators_buy_inside_new() -> Result<()> {
     assert_eq!(balance, buy["tokens_out"]);
     assert_ne!(balance, "0");
     let pool = world.view(&coin, "fc_pool", json!({})).await?;
-    assert_eq!(pool["real_near"], opening_buy.as_yoctonear().to_string());
+    // The opening buy stays in the pool except the creator share of the normal 1% fee.
+    let real_near: u128 = pool["real_near"].as_str().unwrap().parse()?;
+    let creator_fee: u128 = pool["creator_fee_balance"].as_str().unwrap().parse()?;
+    assert_eq!(buy["creator_fee_near"], creator_fee.to_string());
+    assert_eq!(real_near + creator_fee, opening_buy.as_yoctonear());
     assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
     Ok(())
 }
@@ -422,7 +426,8 @@ async fn payable_near(world: &World, coin: &near_api::types::AccountId) -> Resul
 }
 
 #[tokio::test]
-async fn after_an_opening_buy_the_coin_can_pay_out_all_of_its_real_near() -> Result<()> {
+async fn after_an_opening_buy_the_coin_can_pay_out_all_of_its_real_near_and_the_creator_balance(
+) -> Result<()> {
     let world = World::launch().await?;
     let coin = world.coin_for("covered")?;
     let opening_buy = NearToken::from_near(1);
@@ -436,7 +441,9 @@ async fn after_an_opening_buy_the_coin_can_pay_out_all_of_its_real_near() -> Res
     assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
     let pool = world.view(&coin, "fc_pool", json!({})).await?;
     let real_near: u128 = pool["real_near"].as_str().unwrap().parse()?;
-    assert!(payable_near(&world, &coin).await? >= real_near);
+    let creator_fee: u128 = pool["creator_fee_balance"].as_str().unwrap().parse()?;
+    assert!(creator_fee > 0);
+    assert!(payable_near(&world, &coin).await? >= real_near + creator_fee);
     Ok(())
 }
 
