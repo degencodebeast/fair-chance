@@ -94,6 +94,8 @@ case "$mode" in
     doctor || finish FAIL "doctor found problems"
     install_web_packages || finish FAIL "npm ci in web/ failed"
     private_string_scan || finish FAIL "the private-string scan found private names or paths"
+    # Option T refuses a mistyped argument before it builds or starts a sandbox.
+    scripts/test-option-t-arguments.sh | tail -1 || finish FAIL "option-t.sh accepted an unknown or incomplete argument"
     screen_checks_in_browser || finish FAIL "a browser screen check failed (see target/verify-evidence/$run_id/verify.log)"
     hosted_mode_self_test || finish FAIL "the hosted command does not pass on a good local chain or does not fail on a bad one (see target/verify-evidence/$run_id/verify.log)"
     FC_EVIDENCE_DIR="$evidence" scripts/walking-path.sh --read-in-browser \

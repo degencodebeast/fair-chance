@@ -4,6 +4,12 @@
 //! port and makes a new temporary data folder, so runs in parallel do not share either.
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
+pub mod amount_text;
+pub mod option_t;
+pub mod page_and_watcher_reads;
+pub mod pass_list;
+pub mod refusal_texts;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -66,6 +72,7 @@ pub fn check_sandbox_binary() -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone)]
 pub struct Account {
     pub id: AccountId,
     pub signer: Arc<Signer>,
@@ -368,20 +375,7 @@ impl World {
 
     /// Waits until the final head is at `height` or above.
     pub async fn wait_for_height(&self, height: u64) -> Result<()> {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
-        loop {
-            let head = near_api::Chain::block_number()
-                .at(near_api::Reference::Final)
-                .fetch_from(&self.network)
-                .await?;
-            if head >= height {
-                return Ok(());
-            }
-            if std::time::Instant::now() > deadline {
-                bail!("final head {head} did not reach block {height} in 60 s");
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        }
+        wait_for_final_height(&self.network, height).await
     }
 
     /// Sign and send one function call; fails if any receipt failed.
@@ -444,12 +438,7 @@ impl World {
     }
 
     pub async fn view(&self, contract: &AccountId, method: &str, args: Value) -> Result<Value> {
-        let data: Data<Value> = Contract(contract.clone())
-            .call_function(method, args)
-            .read_only()
-            .fetch_from(&self.network)
-            .await?;
-        Ok(data.data)
+        view_on(&self.network, contract, method, args).await
     }
 }
 
@@ -525,8 +514,8 @@ async fn send(
 /// 100 TGas default; unused gas is refunded.
 const TRANSACTION_GAS: near_api::types::NearGas = near_api::types::NearGas::from_tgas(300);
 
-/// Sign and send one function call and return its result, success or not.
-async fn transact(
+/// Sign and send one function call on any network and return its result, success or not.
+pub async fn transact(
     network: &NetworkConfig,
     who: &Account,
     contract: &AccountId,
@@ -534,11 +523,34 @@ async fn transact(
     args: Value,
     deposit: NearToken,
 ) -> Result<TransactionResult> {
+    transact_with_gas(
+        network,
+        who,
+        contract,
+        method,
+        args,
+        deposit,
+        TRANSACTION_GAS,
+    )
+    .await
+}
+
+/// As [`transact`], with the given prepaid gas. The chain holds gas x gas price of the signer's
+/// NEAR until the call ends, so an account with little NEAR needs a smaller value.
+pub async fn transact_with_gas(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+    deposit: NearToken,
+    gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
     Ok(Contract(contract.clone())
         .call_function(method, args)
         .transaction()
         .deposit(deposit)
-        .gas(TRANSACTION_GAS)
+        .gas(gas)
         .with_signer(who.id.clone(), who.signer.clone())
         .send_to(network)
         .await?)
@@ -571,29 +583,7 @@ impl World {
         contract: &AccountId,
         calls: Vec<FunctionCall>,
     ) -> Result<TransactionResult> {
-        let gas = near_api::types::NearGas::from_gas(
-            TRANSACTION_GAS.as_gas() / calls.len().max(1) as u64,
-        );
-        let actions = calls
-            .into_iter()
-            .map(|call| {
-                Ok(near_api::types::Action::FunctionCall(Box::new(
-                    near_api::types::transaction::actions::FunctionCallAction {
-                        method_name: call.method,
-                        args: serde_json::to_vec(&call.args)?,
-                        gas,
-                        deposit: call.deposit,
-                    },
-                )))
-            })
-            .collect::<Result<Vec<_>>>()?;
-        Ok(
-            near_api::Transaction::construct(who.id.clone(), contract.clone())
-                .add_actions(actions)
-                .with_signer(who.signer.clone())
-                .send_to(&self.network)
-                .await?,
-        )
+        batch_on(&self.network, who, contract, calls).await
     }
 
     /// The NEAR the transaction burnt for gas, over its own outcome and every receipt outcome.
@@ -637,4 +627,96 @@ impl World {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
     }
+}
+
+/// One view call on any network.
+pub async fn view_on(
+    network: &NetworkConfig,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+) -> Result<Value> {
+    let data: Data<Value> = Contract(contract.clone())
+        .call_function(method, args)
+        .read_only()
+        .fetch_from(network)
+        .await?;
+    Ok(data.data)
+}
+
+/// Sign and send one transaction on any network that holds every call as a function-call action
+/// to `contract`, as a wallet does (see [`World::batch`]).
+pub async fn batch_on(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    calls: Vec<FunctionCall>,
+) -> Result<TransactionResult> {
+    batch_on_with_gas(network, who, contract, calls, TRANSACTION_GAS).await
+}
+
+/// As [`batch_on`], with the given prepaid gas for the whole transaction, split evenly.
+pub async fn batch_on_with_gas(
+    network: &NetworkConfig,
+    who: &Account,
+    contract: &AccountId,
+    calls: Vec<FunctionCall>,
+    total_gas: near_api::types::NearGas,
+) -> Result<TransactionResult> {
+    let gas = near_api::types::NearGas::from_gas(total_gas.as_gas() / calls.len().max(1) as u64);
+    let actions = calls
+        .into_iter()
+        .map(|call| {
+            Ok(near_api::types::Action::FunctionCall(Box::new(
+                near_api::types::transaction::actions::FunctionCallAction {
+                    method_name: call.method,
+                    args: serde_json::to_vec(&call.args)?,
+                    gas,
+                    deposit: call.deposit,
+                },
+            )))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(
+        near_api::Transaction::construct(who.id.clone(), contract.clone())
+            .add_actions(actions)
+            .with_signer(who.signer.clone())
+            .send_to(network)
+            .await?,
+    )
+}
+
+/// Waits until the final head of any network is at `height` or above (60 s at most).
+pub async fn wait_for_final_height(network: &NetworkConfig, height: u64) -> Result<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        let head = near_api::Chain::block_number()
+            .at(near_api::Reference::Final)
+            .fetch_from(network)
+            .await?;
+        if head >= height {
+            return Ok(());
+        }
+        if std::time::Instant::now() > deadline {
+            bail!("final head {head} did not reach block {height} in 60 s");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+}
+
+/// How many blocks before `launch_block` the watcher and the page start a coin's block scan
+/// (`LaunchScanMarginBlocks` in watcher/internal/eventsource/source.go, `LAUNCH_SCAN_MARGIN_BLOCKS`
+/// in web/src/chain.ts). The launch transaction must sit inside this margin.
+pub const LAUNCH_SCAN_MARGIN_BLOCKS: u64 = 10;
+
+/// The hash of the block that included the transaction itself (its first outcome).
+pub fn transaction_block_hash(result: &TransactionResult) -> Result<CryptoHash> {
+    let TransactionResult::Full(full) = result else {
+        bail!("the transaction has no execution result yet")
+    };
+    Ok(full
+        .outcomes()
+        .first()
+        .context("the transaction has no outcome")?
+        .block_hash)
 }
