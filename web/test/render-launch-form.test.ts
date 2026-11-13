@@ -130,3 +130,49 @@ describe("launch form name check", () => {
     expectNoEnabledControlWithoutHandler(app);
   });
 });
+
+describe("launch form name check, stale answers", () => {
+  const setup = (check: (id: string) => Promise<"free" | "taken">) => {
+    const app = document.createElement("main");
+    document.body.replaceChildren(app);
+    drawLaunchForm(app, "http://localhost/?view=launch", { factory: "factory.sandbox", checkName: check });
+    return app;
+  };
+  const typeTicker = (app: HTMLElement, value: string, change: boolean) => {
+    const t = app.querySelector<HTMLInputElement>("#launch-ticker")!;
+    t.value = value;
+    t.dispatchEvent(new Event("input"));
+    if (change) t.dispatchEvent(new Event("change"));
+  };
+  const text = (app: HTMLElement) => app.querySelector("#launch-name-check")?.textContent ?? "";
+
+  it("drops an old failure that arrives after a newer answer", async () => {
+    const waiting: { resolve: (v: "free" | "taken") => void; reject: (e: Error) => void }[] = [];
+    const app = setup(() => new Promise((resolve, reject) => { waiting.push({ resolve, reject }); }));
+    typeTicker(app, "one", true);
+    typeTicker(app, "two", true);
+    waiting[1]!.resolve("free");
+    await vi.waitFor(() => expect(text(app)).toBe("two.factory.sandbox is free."));
+    waiting[0]!.reject(new Error("rpc down"));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(text(app)).toBe("two.factory.sandbox is free.");
+  });
+
+  it("clears the answer as soon as the ticker is typed again, before any change event", async () => {
+    const app = setup(async () => "free");
+    typeTicker(app, "one", true);
+    await vi.waitFor(() => expect(text(app)).toBe("one.factory.sandbox is free."));
+    typeTicker(app, "onetwo", false);
+    expect(text(app)).toBe("");
+  });
+
+  it("drops an answer that arrives after the ticker was typed again", async () => {
+    let release: (v: "free" | "taken") => void = () => undefined;
+    const app = setup(() => new Promise((r) => { release = r; }));
+    typeTicker(app, "one", true);
+    typeTicker(app, "onex", false);
+    release("free");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(text(app)).toBe("");
+  });
+});
