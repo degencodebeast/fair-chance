@@ -18,6 +18,9 @@ document.title = TITLES[screen];
 async function open(): Promise<void> {
   if (screen === "coin") {
     await import("./render-coin-page.ts");
+    // The recorded run sits after the app, so a redraw of the live coin page never removes it.
+    const run = await (await import("./recorded-run.ts")).loadRecordedRun(href);
+    if (run !== null) app.after((await import("./render-recorded-run.ts")).drawRecordedRun(run));
   } else if (screen === "coins") {
     (await import("./render-coin-list.ts")).drawCoinList(app, href);
   } else if (screen === "launch") {
