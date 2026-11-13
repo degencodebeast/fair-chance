@@ -47,6 +47,8 @@ try {
         // A blocked outside request (fonts) is not a page error; only the page's own host counts.
         if (msg.type() === "error" && new URL(msg.location().url || served.origin).host.startsWith("127.0.0.1")) errors.push(msg.text());
       });
+      // Self-test of this check: FC_LOAD_CHECK_LATE_ERROR=1 makes every page log an error 1.5 s after load, and the check must fail.
+      if (process.env.FC_LOAD_CHECK_LATE_ERROR === "1") await page.addInitScript(() => setTimeout(() => console.error("late error"), 1500));
       await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (route) => route.abort());
       await page.route(`${RPC}/**`, async (route) => {
         if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
