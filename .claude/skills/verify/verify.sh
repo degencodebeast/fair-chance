@@ -74,6 +74,9 @@ case "$mode" in
     # A ?network=testnet link in Chrome, every outside host stubbed: no request leaves the machine.
     node web/scripts/check-testnet-link-in-browser.ts \
       || finish FAIL "the testnet link does not load in the browser (see target/verify-evidence/$run_id/verify.log)"
+    # The loading and error states keep the page frame at 1440 and 390, every outside host stubbed.
+    node web/scripts/check-page-frames-in-browser.ts \
+      || finish FAIL "the loading or error frame is missing or too wide (see target/verify-evidence/$run_id/verify.log)"
     FC_EVIDENCE_DIR="$evidence" scripts/walking-path.sh --read-in-browser \
       || finish FAIL "the walking path failed (see target/verify-evidence/$run_id/verify.log)"
     [ -s "$evidence/receipts-page.png" ] || finish FAIL "no page screenshot in the evidence folder"
