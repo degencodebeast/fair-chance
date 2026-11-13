@@ -12,6 +12,16 @@ export interface HostedPageReport {
   checks: { id: string; status: string }[];
 }
 
+/** The text with the full link and every query value of the link removed, so a page error cannot print a key from the link. */
+export function withoutLinkValues(text: string, url: string): string {
+  const link = new URL(url);
+  let clean = text.split(link.href).join("[link]");
+  for (const value of new Set([...link.searchParams.values()])) {
+    if (value !== "") clean = clean.split(value).join("[value]");
+  }
+  return clean;
+}
+
 export async function checkHostedPage(page: Page, url: string): Promise<HostedPageReport> {
   const errors: string[] = [];
   let refused = "";
@@ -20,6 +30,10 @@ export async function checkHostedPage(page: Page, url: string): Promise<HostedPa
     if ((response.status() === 403 || response.status() === 429) && refused === "") refused = `HTTP ${response.status()} from ${new URL(response.url()).host}`;
   });
   const own = new URL(url).host;
+  let movedTo = "";
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame() && new URL(frame.url()).host !== own && movedTo === "") movedTo = new URL(frame.url()).host;
+  });
   page.on("console", (msg) => {
     if (msg.type() === "error" && new URL(msg.location().url || url).host === own) errors.push(msg.text());
   });
@@ -31,7 +45,10 @@ export async function checkHostedPage(page: Page, url: string): Promise<HostedPa
     const reason = /net::[A-Z_]+/.exec(err instanceof Error ? err.message : "")?.[0] ?? "navigation failed";
     throw new Error(`could not open the page (${reason})`);
   }
-  if (new URL(page.url()).host !== own) throw new Error(`the page moved to another host (${new URL(page.url()).host})`);
+  const stayedOnHost = () => {
+    if (movedTo !== "" || new URL(page.url()).host !== own) throw new Error(`the page moved to another host (${movedTo || new URL(page.url()).host})`);
+  };
+  stayedOnHost();
   await page
     .waitForFunction(() => /sell receipts|Values cannot load/.test(document.querySelector("#status")?.textContent ?? ""), null, { timeout: loadWaitMs })
     .catch(() => undefined);
@@ -53,6 +70,7 @@ export async function checkHostedPage(page: Page, url: string): Promise<HostedPa
   if ((await page.$("#chain-warning")) !== null) throw new Error("the page shows the account warning");
 
   await page.waitForTimeout(1_500);
+  stayedOnHost();
   if (errors.length > 0) throw new Error(`console errors: ${errors.join(" | ")}`);
   return { coin: (await page.textContent("#coin")) ?? "", status, receiptRows, checks };
 }

@@ -3,7 +3,7 @@
 // FC_HOSTED_URL, never from a file. Only the host is printed.
 //   node scripts/check-hosted-page-in-browser.ts [url]
 import { chromium } from "playwright-core";
-import { checkHostedPage } from "./hosted-page-check.ts";
+import { checkHostedPage, withoutLinkValues } from "./hosted-page-check.ts";
 
 const raw = process.argv[2] ?? process.env.FC_HOSTED_URL ?? "";
 let url: URL;
@@ -24,9 +24,9 @@ const browser = await chromium.launch({ headless: true, ...(executablePath ? { e
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const report = await checkHostedPage(page, url.href);
-  console.log(`hosted page ok on ${url.host}: ${JSON.stringify(report)}`);
+  console.log(withoutLinkValues(`hosted page ok on ${url.host}: ${JSON.stringify(report)}`, url.href));
 } catch (err) {
-  console.error(`check-hosted-page-in-browser (${url.host}): ${err instanceof Error ? err.message : String(err)}`);
+  console.error(withoutLinkValues(`check-hosted-page-in-browser (${url.host}): ${err instanceof Error ? err.message : String(err)}`, url.href));
   exitCode = 1;
 } finally {
   await browser.close();
