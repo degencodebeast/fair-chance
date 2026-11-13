@@ -6,3 +6,5 @@ target/
 node_modules/
 dist/
 web/.vitest/
+analysis/near-replay/.cache/
+__pycache__/
