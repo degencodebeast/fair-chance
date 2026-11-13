@@ -743,3 +743,27 @@ fn a_band_account_that_buys_then_sells_the_bought_tokens_counts_the_bought_part_
     assert!(sell.near_out > 0);
     assert_eq!(coin.cap(at).cap_used, used_after_buy + sell.near_out);
 }
+
+/// At a full cap a band account's first allowance still fills, and only the part above it is
+/// checked: a sell inside the first allowance fills in full and adds nothing to the cap used,
+/// and a sell above it stops at the first allowance.
+#[test]
+fn at_a_full_cap_a_band_first_allowance_fills_and_only_the_part_above_is_checked() {
+    let mut coin = coin_with_a_cap_above_full_in_window_1();
+    let at = window_1(3);
+    let first_allowance = coin.account(BAND, at).penalty_applies_above.expect("band");
+    assert!(coin.balance(BAND) > first_allowance);
+    let used = coin.cap(at).cap_used;
+
+    let inside = coin.clone().sell(BAND, first_allowance / 2, at);
+    assert_eq!(inside.fill, "full");
+    assert_eq!(inside.limit_reason, None);
+    assert_eq!(inside.penalty_near, 0);
+
+    let above = coin.sell(BAND, first_allowance + 1, at);
+    assert_eq!(above.tokens_sold, first_allowance);
+    assert_eq!(above.fill, "partial");
+    assert_eq!(above.limit_reason, Some("cap_full"));
+    assert_eq!(above.penalty_near, 0);
+    assert_eq!(coin.cap(at).cap_used, used);
+}
