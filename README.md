@@ -54,9 +54,9 @@ The hackathon FAQ names how projects are judged: Claude Code and Codex screen ea
 | Technical implementation | The rules run in the coin contract. Run step 2, then `cargo test --workspace --locked` ([evidence](docs/evidence.md)). |
 | Design | The coin page shows limits, receipts and refusals in plain words (`web/`). <!-- waits on: the page link and screenshots --> |
 | Impact | The problem is in [OVERVIEW](docs/OVERVIEW.md). Demand is not measured, and the numbers are a replay and a simulation ([measured results](#measured-results)). |
-| Originality | [Differences from a per-sell cap](#how-this-differs-from-a-per-sell-cap) and [credits](#libraries-templates-and-ai-tools). The falling early fee is not new ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md)). |
-| Sustainability | The creator earns a fee share after the pool holds depth for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md)). |
-| The mechanic, not the chart | Sell limits, partial fills and the real NEAR cap sit in `rule-engine/` and `contracts/coin/`. No price chart is a rule. |
+| Originality | [Differences from a per-sell cap](#how-this-differs-from-a-per-sell-cap) and [credits](#libraries-templates-and-ai-tools). The falling early fee is not new ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md#decision)). |
+| Sustainability | The creator earns a fee share after the pool holds depth for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)). <!-- waits on: the creator fee work --> |
+| The mechanic, not the chart | Sell limits, partial fills and the real NEAR cap sit in `rule-engine/` and `contracts/coin/`. No price chart is a rule. <!-- waits on: the marked-token cap rule --> |
 | Mechanic in the contract, not a backend | One contract holds the token and the pool ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md)). The watcher and the page read and explain. They hold no rule. |
 | Parameters set at launch, no admin key | The coin account has no access keys, and every value is a constant read with `fc_rules` ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)). |
 | Sybil limits written plainly | [Known limits](#known-limits) and [evidence](docs/evidence.md). |
@@ -72,27 +72,27 @@ Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin 
 | Rule | What it means for a trader |
 | --- | --- |
 | Window | Allowances reset on a fixed grid from launch: 1 hour for ordinary accounts, 24 hours for early supply ([glossary](GLOSSARY.md)). |
-| Allowance | Each account may sell up to one allowance per window. The allowance is sized by pool depth: a 2% price drop at most (`p_bps` 200) ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md)). |
-| Small bag | <!-- waits on: the marked-token cap rule (the wording for bags inside one allowance and the floor) --> |
-| Class | Small, band or large. Large starts at 2% of supply. Class never drops below its level just before your opening action in the window, so selling in parts pays the same as one sell ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md), `rule-engine/src/holder_class.rs`). |
+| Allowance | Unmarked tokens: each account may sell up to one allowance per window, and a band account may sell above it and pay the penalty. Early supply: each account gets a pro-rata share of one shared allowance. Pool depth sizes the allowance: a 2% price drop at most (`p_bps` 200) ([ADR 0004](docs/adr/0004-partial-fill-band-penalty-per-class-windows.md#decision), [ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md#decision)). |
+| Small bag | <!-- waits on: the marked-token cap rule --> |
+| Class | Small, band or large. Large starts at 2% of supply. In each 1 hour window, class never drops below its level just before your earliest action in that window, and the floor is band at most. So selling in parts pays the same as one sell ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md#decision), `rule-engine/src/holder_class.rs`). <!-- waits on: the rewritten wording for the large-at-zero class exception --> |
 | Large holders | A large account cannot send tokens. A send that would make a receiver large is refused. A buy is the one way an account becomes large. <!-- waits on: the rewritten wording for the large-at-zero class exception --> |
-| Partial fill | A large or early-supply sell above the allowance fills in part. The rest stays in the wallet ([ADR 0004](docs/adr/0004-partial-fill-band-penalty-per-class-windows.md)). |
+| Partial fill | A large or early-supply sell above the allowance fills in part. The rest stays in the wallet ([ADR 0004](docs/adr/0004-partial-fill-band-penalty-per-class-windows.md#decision)). | <!-- waits on: the marked-token work -->
 | Band penalty | A band account may sell above one allowance and pays 10% on the NEAR of the part above. The penalty stays in the pool. <!-- waits on: the rewritten wording for the allowance and cap sentence --> |
-| Real NEAR cap | <!-- waits on: the marked-token cap rule (how one cap limits all real NEAR paid out per window) --> See [ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md). |
-| Early window | A buy in blocks 0 to N (N is 17) is early supply and cannot sell in those blocks. Early supply shares one allowance per 24 hours ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md)). |
-| Early fee | The buy fee starts at 50% and falls to 1% over blocks 0 to 17. It goes to the pool and no account is exempt. The falling fee is not new. |
-| Creator cap | The creator group may hold at most 4% of supply ([ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md)). |
-| Creator fee | The creator earns 30% of the normal 1% swap fee. A claim pays after the pool holds 10 real NEAR for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md)). |
-| Sell needs 1 yoctoNEAR | A leaked app login key cannot sell ([ADR 0009](docs/adr/0009-one-yocto-on-sell.md)). |
-| Opening buy | `buy` refuses an account with no storage record. Call `storage_deposit` before it, or send both calls in one transaction. |
+| Real NEAR cap | <!-- waits on: the marked-token cap rule --> See [ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#decision). |
+| Early window | A buy in blocks 0 to N (N is 17) is early supply, labeled "bought in blocks 0 to N". It cannot sell in those blocks. Early supply shares one allowance per 24 hours ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md#decision)). <!-- waits on: the marked-token work --> |
+| Early fee | The buy fee starts at 50% and falls to 1% over blocks 0 to 17. It goes to the pool and no account is exempt. The falling fee is not new. <!-- waits on: the marked-token work --> |
+| Creator cap | The creator group may hold at most 4% of supply ([ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md#decision)). <!-- waits on: the marked-token work --> |
+| Creator fee | The creator earns 30% of the normal 1% swap fee. A claim pays after the pool holds 10 real NEAR for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)). <!-- waits on: the creator fee work --> |
+| Sell needs 1 yoctoNEAR | A leaked app login key cannot sell ([ADR 0009](docs/adr/0009-one-yocto-on-sell.md#decision)). |
+| Buy without storage | `buy` refuses an account with no storage record. Call `storage_deposit` before it, or send both calls in one transaction. |
 
 ## How this differs from a per-sell cap
 
-- The limits follow pool depth, not a fixed share per sell ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md)).
-- A limited sell fills in part. It does not fail ([ADR 0004](docs/adr/0004-partial-fill-band-penalty-per-class-windows.md), `partial_fill_and_band_penalty` tests).
+- The limits follow pool depth, not a fixed share per sell ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md#decision)).
+- A limited sell fills in part. It does not fail ([ADR 0004](docs/adr/0004-partial-fill-band-penalty-per-class-windows.md#decision), `partial_fill_and_band_penalty` tests).
 - A large holder cannot split a bag by sends: large accounts cannot send, and a send cannot make a receiver large (`holder_class_and_sends` tests).
-- The creator group shares one limit, and so does all early supply ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md)).
-- One cap limits all real NEAR paid out per window ([ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md), `real_near_cap` tests).
+- The creator group shares one limit, and so does all early supply ([ADR 0001](docs/adr/0001-large-holders-cannot-send-shared-early-allowance.md#decision)).
+- One cap limits all real NEAR paid out per window ([ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#decision), `real_near_cap` tests). <!-- waits on: the marked-token cap rule -->
 
 In facts, against [meme.cooking](https://docs.meme.cooking/): its docs describe an auction where every depositor buys at the same price, then a pool on Ref Finance with locked LP shares. Fair Chance has no auction and no outside pool. The coin holds its own pool, and sells face the limits above.
 
@@ -136,12 +136,12 @@ Open `docs/evidence.md` for what each test proves. Sandbox tests need `NEAR_SAND
 
 ## Measured results
 
-These are recorded runs, not guarantees.
+These are recorded runs. They do not predict results.
 
 | What | Result | Conditions |
 | --- | --- | --- |
 | Rule tests | <!-- waits on: the final test count --> | `cargo test --workspace --locked` |
-| Property tests | Two real NEAR cap properties run 10,000 random cases per run. | Random multi-account sequences. The regression file is committed. |
+| Property tests | <!-- waits on: the marked-token cap rule --> | |
 | NEAR launch replay and 60-day simulation | See [analysis/FINDINGS.md](analysis/FINDINGS.md). | Public-chain replay and synthetic activity. Not a forecast. |
 | SMDD replay | <!-- waits on: the SMDD replay section --> | |
 
@@ -151,10 +151,10 @@ Numbers from a replay or a simulation show how the rules behave. They are simula
 
 The rule slows a dump. Each line below is a way around it or a cost it leaves. Details and tests are in [docs/evidence.md](docs/evidence.md) and [OVERVIEW](docs/OVERVIEW.md).
 
-- Wallet splitting. A fresh account still gets a fresh allowance. A bag split into many small wallets, each inside one allowance, sells with no limit.
+- Wallet splitting. <!-- waits on: the marked-token cap rule -->
 - Creator-funded wallets. The contract cannot see who funded an account. A wallet the creator funds that buys after block N is unmarked.
 - Late splitters. People who buy after block N through many small wallets at market price skip the early-supply rules.
-- Floors above the cap. Each account has its own floor, so many accounts can pass a full cap.
+- Floors above the cap. <!-- waits on: the marked-token cap rule -->
 - Bots at the reset. Every allowance and the cap reset at the same moment.
 - Aggregators and routers cannot buy for users, because the caller holds the tokens.
 - Account handover. A holder can give away a whole account, keys included.
@@ -168,7 +168,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 - Claude Code wrote most of the code and the docs, under the builder's direction.
 - Contracts: `near-sdk`, `cargo-near`. Tests: `near-sandbox`, `near-api`, `proptest`, `tokio`.
 - Watcher: Go. Page: TypeScript, Vite, Vitest, Playwright core for browser checks.
-- Prior curve designs: the constant-product pool with a virtual reserve comes from earlier launchpad curves ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md), [ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md)). No code is copied from other launchpads.
+- Prior curve designs: the constant-product pool with a virtual reserve comes from earlier launchpad curves ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md), [ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md#decision)). No code is copied from other launchpads.
 - The launch replay and the simulation come from Kalu ([analysis/FINDINGS.md](analysis/FINDINGS.md)).
 - Code written before 1 November 2026: <!-- waits on: the baseline tag list -->
 

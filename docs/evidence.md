@@ -15,8 +15,8 @@ Run every test with `cargo test --workspace --locked`. Sandbox tests need `NEAR_
 | `holder_class_and_sends.rs` | Large accounts cannot send. A send that would make a receiver large is refused. Sends to the coin and to yourself are refused. Unregister is refused while tokens are held. |
 | `window_class_floor.rs` | A band account that sells below one allowance stays band until the window ends. The floor resets in the next window. |
 | `partial_fill_and_band_penalty.rs` | A large sell above the allowance fills in part and the rest stays in the wallet. A band sell inside one allowance pays no penalty. A band sell above it pays 10% on the part above. |
-| `real_near_cap.rs` | The cap is checked against the real NEAR left after each sell. Buys and sells net per account. Small sells never count. |
-| `real_near_cap_properties.rs` | Random multi-account sequences keep the cap properties. Two properties run 10,000 cases per run. Failure seeds live in `rule-engine/proptest-regressions/`. |
+| `real_near_cap.rs` | <!-- waits on: the marked-token cap rule --> |
+| `real_near_cap_properties.rs` | <!-- waits on: the marked-token cap rule --> |
 | `launch_and_rules.rs` | `new` mints the whole supply once, into the pool. The parent account alone can call `new`. `fc_rules` returns every fixed value. |
 | `walking_path.rs` | Launch, buy, sell and receipt in the rule engine alone. |
 
@@ -45,8 +45,8 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 
 | Limit | Why it stays | Source |
 | --- | --- | --- |
-| A fresh account gets a fresh allowance. | A bag split into small wallets, each inside one allowance, sells with no limit and never counts toward the cap. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
-| Floors above the cap. | Each account has its own floor, so many accounts can pass a full cap. | [ADR 0005](adr/0005-live-pool-wide-cap-on-real-near.md) |
+| A fresh account gets a fresh allowance. | <!-- waits on: the marked-token cap rule --> | |
+| Floors above the cap. | <!-- waits on: the marked-token cap rule --> | |
 | Creator-funded wallets. | The contract cannot see who funded an account. | ADR 0007 in `docs/adr/` |
 | Late splitters after block N. | Accounts that buy at market price stay unmarked. | [ADR 0008](adr/0008-snipers-are-early-supply-with-early-fee.md) |
 | Bots at the reset. | Every allowance and the cap reset together. | [INTERFACE](INTERFACE.md) |
