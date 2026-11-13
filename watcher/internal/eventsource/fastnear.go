@@ -1,0 +1,178 @@
+package eventsource
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"slices"
+	"time"
+)
+
+// FastNear is the Source for NEAR testnet, read through the FastNEAR transactions API.
+// It is read only. It stops at the first 403 and does not retry; a 429 is an error and the
+// caller's poll interval is the back-off. The public endpoint needs no key.
+//
+// Request shapes follow the FastNEAR read check: POST /v0/account lists the transactions of an
+// account that logged events, POST /v0/transactions gives up to 20 of them with their receipt logs.
+type FastNear struct {
+	baseURL string
+	http    *http.Client
+}
+
+var (
+	ErrForbidden   = errors.New("FastNEAR answered 403: stop and report")
+	ErrRateLimited = errors.New("FastNEAR answered 429: wait before the next read")
+)
+
+const (
+	accountPageSize = 100
+	accountMaxPages = 10
+	transactionsMax = 20 // hashes per /v0/transactions call
+)
+
+func NewFastNear(baseURL string) *FastNear {
+	return &FastNear{baseURL: baseURL, http: &http.Client{Timeout: 30 * time.Second}}
+}
+
+type accountTx struct {
+	Hash   string `json:"transaction_hash"`
+	Height uint64 `json:"tx_block_height"`
+}
+
+type fastNearTx struct {
+	Transaction struct {
+		Hash string `json:"hash"`
+	} `json:"transaction"`
+	Receipts []struct {
+		Receipt struct {
+			ReceiptID  string `json:"receipt_id"`
+			ReceiverID string `json:"receiver_id"`
+		} `json:"receipt"`
+		ExecutionOutcome struct {
+			Outcome struct {
+				Logs   []string       `json:"logs"`
+				Status map[string]any `json:"status"`
+			} `json:"outcome"`
+		} `json:"execution_outcome"`
+	} `json:"receipts"`
+}
+
+func (f *FastNear) Events(ctx context.Context, coins []string, since Cursor) ([]Event, Cursor, error) {
+	var out []Event
+	seen := map[string]bool{}
+	next := since
+	for _, coin := range coins {
+		txs, err := f.accountTxsSince(ctx, coin, since)
+		if err != nil {
+			return nil, since, err
+		}
+		// Chain order: oldest first.
+		slices.SortStableFunc(txs, func(a, b accountTx) int { return int(int64(a.Height) - int64(b.Height)) })
+		for start := 0; start < len(txs); start += transactionsMax {
+			batch := txs[start:min(start+transactionsMax, len(txs))]
+			hashes := make([]string, len(batch))
+			for i, tx := range batch {
+				hashes[i] = tx.Hash
+			}
+			var res struct {
+				Transactions []fastNearTx `json:"transactions"`
+			}
+			if err := f.post(ctx, "/v0/transactions", map[string]any{"tx_hashes": hashes}, &res); err != nil {
+				return nil, since, err
+			}
+			heights := map[string]uint64{}
+			for _, tx := range batch {
+				heights[tx.Hash] = tx.Height
+			}
+			for _, tx := range res.Transactions {
+				if height, asked := heights[tx.Transaction.Hash]; asked {
+					out = append(out, eventsOfTx(tx, coin, height, seen)...)
+				}
+			}
+		}
+		for _, tx := range txs {
+			next = max(next, Cursor(tx.Height+1))
+		}
+	}
+	slices.SortStableFunc(out, func(a, b Event) int { return int(int64(a.Block) - int64(b.Block)) })
+	return out, next, nil
+}
+
+func eventsOfTx(tx fastNearTx, coin string, height uint64, seen map[string]bool) []Event {
+	var out []Event
+	for _, r := range tx.Receipts {
+		if r.Receipt.ReceiverID != coin || seen[r.Receipt.ReceiptID] || !succeeded(r.ExecutionOutcome.Outcome.Status) {
+			continue
+		}
+		for _, line := range r.ExecutionOutcome.Outcome.Logs {
+			if ev, ok := parseLog(line); ok {
+				ev.Coin, ev.ReceiptID, ev.Block = coin, r.Receipt.ReceiptID, height
+				out = append(out, ev)
+			}
+		}
+		seen[r.Receipt.ReceiptID] = true
+	}
+	return out
+}
+
+// accountTxsSince pages through the newest-first list until it reaches a transaction below the cursor.
+func (f *FastNear) accountTxsSince(ctx context.Context, coin string, since Cursor) ([]accountTx, error) {
+	var kept []accountTx
+	token := ""
+	for page := 0; page < accountMaxPages; page++ {
+		body := map[string]any{"account_id": coin, "desc": true, "is_event_log": true, "is_success": true, "limit": accountPageSize}
+		if token != "" {
+			body["resume_token"] = token
+		}
+		var res struct {
+			AccountTxs  []accountTx `json:"account_txs"`
+			ResumeToken *string     `json:"resume_token"`
+		}
+		if err := f.post(ctx, "/v0/account", body, &res); err != nil {
+			return nil, err
+		}
+		reachedOld := false
+		for _, tx := range res.AccountTxs {
+			if Cursor(tx.Height) < since {
+				reachedOld = true
+				continue
+			}
+			kept = append(kept, tx)
+		}
+		if reachedOld || res.ResumeToken == nil || *res.ResumeToken == "" || len(res.AccountTxs) == 0 {
+			return kept, nil
+		}
+		token = *res.ResumeToken
+	}
+	return nil, fmt.Errorf("more than %d pages of transactions for %s since block %d", accountMaxPages, coin, since)
+}
+
+func (f *FastNear) post(ctx context.Context, path string, body any, out any) error {
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, f.baseURL+path, bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := f.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusForbidden:
+		return fmt.Errorf("%s: %w", path, ErrForbidden)
+	case http.StatusTooManyRequests:
+		return fmt.Errorf("%s: %w", path, ErrRateLimited)
+	default:
+		return fmt.Errorf("%s: HTTP %d", path, resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}

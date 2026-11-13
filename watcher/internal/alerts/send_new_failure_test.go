@@ -53,12 +53,12 @@ func TestAFailedSendKeepsTheCursorAtTheFirstUnsentEventsBlock(t *testing.T) {
 	src := fixedSource{events: []eventsource.Event{sellAt(20, "a.test"), sellAt(25, "b.test")}, next: 30}
 	sender := &failOnce{failAt: 2}
 
-	sent, next, err := alerts.SendNew(context.Background(), src, []string{"coin"}, 15, sender, 1)
+	sent, next, err := alerts.SendNew(context.Background(), src, []string{"coin"}, 15, alerts.Writer{}, sender, 1)
 	if err == nil || sent != 1 || next != 25 {
 		t.Fatalf("first pass: sent %d next %d err %v; want 1, 25, an error", sent, next, err)
 	}
 
-	sent, next, err = alerts.SendNew(context.Background(), src, []string{"coin"}, next, sender, 1)
+	sent, next, err = alerts.SendNew(context.Background(), src, []string{"coin"}, next, alerts.Writer{}, sender, 1)
 	if err != nil || sent != 1 || next != 30 {
 		t.Fatalf("second pass: sent %d next %d err %v; want 1, 30, nil", sent, next, err)
 	}

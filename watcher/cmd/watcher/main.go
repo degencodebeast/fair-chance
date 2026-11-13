@@ -67,7 +67,7 @@ func run(ctx context.Context, rpcURL string, coins []string, chatID int64, once 
 	fake := &telegram.Fake{}
 	printed := 0
 	for {
-		_, next, err := alerts.SendNew(ctx, src, coins, cursor, fake, chatID)
+		_, next, err := alerts.SendNew(ctx, src, coins, cursor, alerts.Writer{Location: time.Local}, fake, chatID)
 		cursor = next
 		if err != nil && ctx.Err() == nil {
 			log.Printf("read pass: %v", err)

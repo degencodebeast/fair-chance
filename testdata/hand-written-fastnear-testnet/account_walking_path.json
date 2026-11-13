@@ -1,0 +1,20 @@
+{
+  "account_txs": [
+    {
+      "transaction_hash": "Fy6sboDgwfKMDsMTqGaURTDFTX9eRinb4JKdKoGmvRSt",
+      "tx_block_height": 27,
+      "tx_block_timestamp": "1794538400000000000",
+      "is_event_log": true,
+      "is_receiver": true
+    },
+    {
+      "transaction_hash": "33Y9QyfznjCoTjkkxXFoygiYaPxiG47FBR2NFGE2eGiA",
+      "tx_block_height": 21,
+      "tx_block_timestamp": "1794538300000000000",
+      "is_event_log": true,
+      "is_receiver": true
+    }
+  ],
+  "resume_token": null,
+  "txs_count": 2
+}

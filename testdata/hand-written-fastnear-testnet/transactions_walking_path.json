@@ -1,0 +1,72 @@
+{
+  "transactions": [
+    {
+      "transaction": {
+        "hash": "33Y9QyfznjCoTjkkxXFoygiYaPxiG47FBR2NFGE2eGiA",
+        "signer_id": "alice.sandbox"
+      },
+      "execution_outcome": {
+        "outcome": {
+          "logs": [],
+          "status": {
+            "SuccessReceiptId": "x"
+          }
+        }
+      },
+      "receipts": [
+        {
+          "receipt": {
+            "receipt_id": "receiptBuy1",
+            "receiver_id": "walk.factory.sandbox"
+          },
+          "execution_outcome": {
+            "outcome": {
+              "executor_id": "walk.factory.sandbox",
+              "logs": [
+                "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.4\",\"event\":\"fc_buy\",\"data\":[{\"account\":\"alice.sandbox\",\"near_in\":\"1000000000000000000000000\",\"fee_near\":\"0\",\"creator_fee_near\":\"0\",\"tokens_out\":\"9900990099009900990099009\",\"marked_tokens\":\"0\",\"class_after\":\"small\",\"block\":22}]}"
+              ],
+              "status": {
+                "SuccessValue": ""
+              }
+            }
+          }
+        }
+      ],
+      "data_receipts": []
+    },
+    {
+      "transaction": {
+        "hash": "Fy6sboDgwfKMDsMTqGaURTDFTX9eRinb4JKdKoGmvRSt",
+        "signer_id": "alice.sandbox"
+      },
+      "execution_outcome": {
+        "outcome": {
+          "logs": [],
+          "status": {
+            "SuccessReceiptId": "x"
+          }
+        }
+      },
+      "receipts": [
+        {
+          "receipt": {
+            "receipt_id": "receiptSell1",
+            "receiver_id": "walk.factory.sandbox"
+          },
+          "execution_outcome": {
+            "outcome": {
+              "executor_id": "walk.factory.sandbox",
+              "logs": [
+                "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.4\",\"event\":\"fc_sell\",\"data\":[{\"account\":\"alice.sandbox\",\"class\":\"small\",\"tokens_asked\":\"4950495049504950495049504\",\"tokens_sold\":\"4950495049504950495049504\",\"marked_sold\":\"0\",\"near_out\":\"502487562189054726368159\",\"fee_near\":\"0\",\"creator_fee_near\":\"0\",\"penalty_near\":\"0\",\"fill\":\"full\",\"limit_reason\":null,\"allowance_used\":\"0\",\"allowance_left\":\"0\",\"cap_used\":\"0\",\"cap_left\":\"0\",\"window_end_ns\":\"1794538472690371000\"}]}"
+              ],
+              "status": {
+                "SuccessValue": ""
+              }
+            }
+          }
+        }
+      ],
+      "data_receipts": []
+    }
+  ]
+}

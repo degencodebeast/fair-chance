@@ -21,7 +21,7 @@ func TestOneRecordedSellBecomesOneAlertAtTheFakeSender(t *testing.T) {
 	}
 	fake := &telegram.Fake{}
 
-	sent, next, err := alerts.SendNew(ctx, eventsource.NewRPCScan(rpc.URL), []string{coin}, cursor, fake, 42)
+	sent, next, err := alerts.SendNew(ctx, eventsource.NewRPCScan(rpc.URL), []string{coin}, cursor, alerts.Writer{}, fake, 42)
 	if err != nil {
 		t.Fatal(err)
 	}
