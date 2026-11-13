@@ -36,7 +36,7 @@ func Render(v eventsource.PreBuyViews, now time.Time, loc *time.Location) string
 	if v.BlocksLeft > 0 {
 		fmt.Fprintf(&b, "Early supply cannot sell for %d more blocks.\n", v.BlocksLeft)
 	} else {
-		fmt.Fprintf(&b, "Shared allowance left today: %s %s\n", alerts.Compact(v.SharedAllowance), symbol)
+		fmt.Fprintf(&b, "Shared allowance for this 24 h window: %s %s\n", alerts.Compact(v.SharedAllowance), symbol)
 		fmt.Fprintf(&b, "Refills %s\n", whenText(nextRefill(v, now), now, loc))
 	}
 

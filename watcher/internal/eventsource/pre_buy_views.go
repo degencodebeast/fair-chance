@@ -20,7 +20,7 @@ type PreBuyViews struct {
 
 	BlocksLeft       uint64 // fc_early_window.blocks_left
 	EarlySupplyTotal string // fc_early_window.early_supply_total
-	SharedAllowance  string // fc_early_window.shared_allowance
+	SharedAllowance  string // fc_early_window.shared_allowance: the allowance per 24 h window, not the amount left
 
 	CapWindowEndNs string // fc_cap.window_end_ns
 	CapTotal       string // fc_cap.cap_total
