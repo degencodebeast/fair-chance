@@ -1028,7 +1028,7 @@ fn window_sells(history: &[Step], who: usize, trades: &[WindowTrade]) -> Vec<FcS
 
 /// The Q20 seed: the first sell fills marked tokens into the cap room, and the bought tokens
 /// fill through the unmarked floor. Marked tokens sold in the 1 h window count against the
-/// unmarked floor, so the account gets one floor per window and the second sell fills 0.
+/// unmarked floor, so the account gets one floor per window and the second sell pays 0 NEAR.
 #[test]
 fn marked_tokens_sold_in_the_window_use_up_the_unmarked_floor_so_a_second_sell_fills_zero() {
     let history = [
@@ -1066,8 +1066,10 @@ fn marked_tokens_sold_in_the_window_use_up_the_unmarked_floor_so_a_second_sell_f
     ];
     let sells = window_sells(&history, 3, &trades);
     assert!(sells[0].marked_sold > 0);
-    assert_eq!(sells[1].tokens_sold, 0);
-    assert_eq!(sells[1].fill, "none");
+    // Only dust can still fill: token units whose NEAR out rounds down to 0.
+    assert_eq!(sells[1].near_out, 0);
+    assert!(sells[1].tokens_sold < 1_000, "{}", sells[1].tokens_sold);
+    assert_eq!(sells[1].limit_reason, Some("cap_full"));
 }
 
 /// An account with no marked tokens keeps its full unmarked floor, also after other accounts

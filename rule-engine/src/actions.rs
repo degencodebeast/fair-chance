@@ -1,7 +1,7 @@
 //! The actions the rule engine applies (buy, sell) and what one action returns.
 
 use crate::allowance::{
-    self, count_bought, count_sold, unmarked_allowance, unmarked_window_end_ns,
+    self, count_bought, count_marked_sold, count_sold, unmarked_allowance, unmarked_window_end_ns,
 };
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::creator_group::{creator_cap, in_creator_group};
@@ -274,6 +274,7 @@ fn sell(
     holder.marked_balance -= parts.marked;
     holder.marked_share.sold += parts.marked;
     count_sold(state, holder, parts.unmarked, at);
+    count_marked_sold(state, holder, parts.marked, at);
     holder.cap_net = outcome.cap_net;
     let after_sell = unmarked_allowance(state, Some(holder), at);
     let mut next = state.clone();
