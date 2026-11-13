@@ -43,7 +43,10 @@ fn now() -> At {
 
 #[near]
 impl Coin {
+    /// The one-time start of the coin. Any attached NEAR is the creator's opening buy, made at
+    /// the launch block under the same rules as every buy.
     #[init]
+    #[payable]
     pub fn new(
         creator: AccountId,
         name: String,
@@ -72,10 +75,19 @@ impl Coin {
         for event in &launched.events {
             env::log_str(&event.log_line());
         }
-        Self {
+        let mut started = Self {
             state: launched.state,
             holders: LookupMap::new(b"h"),
+        };
+        let opening_buy = env::attached_deposit().as_yoctonear();
+        if opening_buy > 0 {
+            started.commit(&Action::Buy {
+                account: creator.to_string(),
+                near_in: opening_buy,
+                min_tokens_out: 0,
+            });
         }
+        started
     }
 
     /// Buy tokens with the attached NEAR. Refused with `FC_SLIPPAGE` below `min_tokens_out`.

@@ -342,3 +342,64 @@ async fn coin_methods_called_by_the_factory_give_the_same_result_as_for_any_acco
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn an_opening_buy_is_the_creators_buy_inside_new() -> Result<()> {
+    let world = World::launch().await?;
+    let coin = world.coin_for("opening")?;
+    let opening_buy = NearToken::from_near(1);
+    let result = world
+        .try_launch(
+            &world.alice,
+            launch_args("Opening", "opening", None, None, Some(opening_buy)),
+            LAUNCH_DEPOSIT.saturating_add(opening_buy),
+        )
+        .await?;
+    assert!(result.is_success(), "{result:?}");
+
+    let buys = events(&result, "fair_chance", "fc_buy");
+    assert_eq!(buys.len(), 1);
+    let buy = &buys[0].event["data"][0];
+    assert_eq!(buys[0].executor, coin.to_string());
+    assert_eq!(buy["account"], world.alice.id.to_string());
+    assert_eq!(buy["near_in"], opening_buy.as_yoctonear().to_string());
+
+    let rules = world.view(&coin, "fc_rules", json!({})).await?;
+    assert_eq!(buy["block"], rules["launch_block"]);
+    let balance = world
+        .view(
+            &coin,
+            "ft_balance_of",
+            json!({ "account_id": world.alice.id }),
+        )
+        .await?;
+    assert_eq!(balance, buy["tokens_out"]);
+    assert_ne!(balance, "0");
+    let pool = world.view(&coin, "fc_pool", json!({})).await?;
+    assert_eq!(pool["real_near"], opening_buy.as_yoctonear().to_string());
+    assert_eq!(events(&result, "fair_chance_factory", "fc_launch").len(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_opening_buy_of_the_whole_deposit_is_refused() -> Result<()> {
+    let world = World::launch().await?;
+    let failure = world
+        .call_refused(
+            &world.alice,
+            &world.factory.id,
+            "launch",
+            launch_args("Greedy", "greedy", None, None, Some(LAUNCH_DEPOSIT)),
+            LAUNCH_DEPOSIT,
+        )
+        .await?;
+    assert!(
+        failure.contains("opening_buy must be less than the attached deposit"),
+        "{failure}"
+    );
+    assert_eq!(
+        world.contract_state(&world.coin_for("greedy")?).await?,
+        None
+    );
+    Ok(())
+}
