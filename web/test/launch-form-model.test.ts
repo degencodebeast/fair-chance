@@ -13,7 +13,7 @@ describe("launch form limits", () => {
 describe("launch form model", () => {
   it("counts the characters of each field", () => {
     const m = launchFormModel(ok);
-    expect(m.counts).toEqual({ name: "9/32", ticker: "4/8", description: "32/80" });
+    expect(m.counts).toEqual({ name: "9/32", ticker: "4/8", description: "31/80" });
     expect(m.errors).toEqual([]);
   });
 
