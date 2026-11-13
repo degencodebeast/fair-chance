@@ -449,12 +449,7 @@ impl World {
     }
 
     pub async fn view(&self, contract: &AccountId, method: &str, args: Value) -> Result<Value> {
-        let data: Data<Value> = Contract(contract.clone())
-            .call_function(method, args)
-            .read_only()
-            .fetch_from(&self.network)
-            .await?;
-        Ok(data.data)
+        view_on(&self.network, contract, method, args).await
     }
 }
 
@@ -530,8 +525,8 @@ async fn send(
 /// 100 TGas default; unused gas is refunded.
 const TRANSACTION_GAS: near_api::types::NearGas = near_api::types::NearGas::from_tgas(300);
 
-/// Sign and send one function call and return its result, success or not.
-async fn transact(
+/// Sign and send one function call on any network and return its result, success or not.
+pub async fn transact(
     network: &NetworkConfig,
     who: &Account,
     contract: &AccountId,
@@ -642,4 +637,19 @@ impl World {
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
         }
     }
+}
+
+/// One view call on any network.
+pub async fn view_on(
+    network: &NetworkConfig,
+    contract: &AccountId,
+    method: &str,
+    args: Value,
+) -> Result<Value> {
+    let data: Data<Value> = Contract(contract.clone())
+        .call_function(method, args)
+        .read_only()
+        .fetch_from(network)
+        .await?;
+    Ok(data.data)
 }
