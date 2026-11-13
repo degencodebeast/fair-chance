@@ -1,6 +1,8 @@
 // Typed reading of fc_quote_buy. The page shows these fields and does no buy math of its own.
 import { fields, reader, UnexpectedView } from "./coin-views.ts";
 import type { AccountClass } from "./account-views.ts";
+import { ViewNotAvailable, type ChainReader } from "./chain.ts";
+import type { Reading } from "./coin-page.ts";
 
 export interface BuyQuote {
   tokensOut: bigint;
@@ -28,4 +30,14 @@ export function parseBuyQuote(value: unknown): BuyQuote {
     becomesLarge: r.flag("becomes_large"),
     allowanceAfter: r.amount("allowance_after"),
   };
+}
+
+/** Reads the quote for one buy. A coin without the view gives "unavailable"; any other failure is thrown. */
+export async function loadBuyQuote(chain: ChainReader, accountId: string, nearIn: bigint): Promise<Reading<BuyQuote>> {
+  try {
+    return { kind: "value", value: parseBuyQuote(await chain.view("fc_quote_buy", { account_id: accountId, near_in: nearIn.toString() })) };
+  } catch (e) {
+    if (e instanceof ViewNotAvailable) return { kind: "unavailable" };
+    throw e;
+  }
 }
