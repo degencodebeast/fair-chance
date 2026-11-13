@@ -12,7 +12,7 @@ const quoteView = {
   becomes_large: false,
   allowance_after: "7100000000000000000000000",
 };
-const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200 };
+const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value" as const, value: 1_250_000_000_000_000_000_000n } };
 const asked = (over: object = {}) => ({
   ...base,
   preview: { kind: "quote" as const, accountId: "you.testnet", nearIn: 10n ** 24n, quote: { kind: "value" as const, value: parseBuyQuote({ ...quoteView, ...over }) } },
@@ -27,10 +27,16 @@ describe("trade box with no wallet", () => {
     expect(m.connect.label).toBe("Connect");
   });
 
-  it("says in the buy reason that a buy from an account with no storage record also pays the storage deposit", () => {
+  it("says in the buy reason, from the coin's storage bounds, what a buy from an account that never held the coin also pays", () => {
     const m = tradeBoxModel({ ...base, preview: { kind: "none" } });
-    expect(m.buy.button.reason).toMatch(/storage deposit/);
-    expect(m.buy.button.reason).toMatch(/no storage record/);
+    expect(m.buy.button.reason).toContain("If this account never held this coin, the buy also pays a storage deposit of 0.00125 NEAR.");
+    const other = tradeBoxModel({ ...base, storageMin: { kind: "value", value: 5n * 10n ** 21n }, preview: { kind: "none" } });
+    expect(other.buy.button.reason).toContain("a storage deposit of 0.005 NEAR.");
+  });
+
+  it("says the amount is not available when the coin has no storage bounds", () => {
+    const m = tradeBoxModel({ ...base, storageMin: { kind: "unavailable" }, preview: { kind: "none" } });
+    expect(m.buy.button.reason).toContain("If this account never held this coin, the buy also pays a storage deposit. The amount is not available from this coin.");
   });
 
   it("shows no quote lines before a preview is asked for", () => {

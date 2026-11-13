@@ -52,7 +52,7 @@ async function openScreen(browser: Browser, width: number, query: string, become
     const q = JSON.parse(route.request().postData() ?? "{}").params ?? {};
     let answer: object = {};
     if (q.request_type === "call_function") {
-      const views: Record<string, unknown> = { ...state.views, fc_account: holderView, fc_creator_fees: creatorFees, fc_quote_buy: buyQuote(becomesLarge) };
+      const views: Record<string, unknown> = { ...state.views, fc_account: holderView, fc_creator_fees: creatorFees, storage_balance_bounds: { min: "1250000000000000000000", max: null }, fc_quote_buy: buyQuote(becomesLarge) };
       answer = { result: { result: Array.from(new TextEncoder().encode(JSON.stringify(views[q.method_name as string]))) } };
     } else if (q.request_type === "view_account") answer = { result: state.account };
     else if (q.request_type === "view_access_key_list") answer = { result: { keys: [] } };
@@ -144,7 +144,7 @@ try {
       return { connect: state("trade-connect"), buy: state("trade-buy-button"), claim: state("claim-fees-button") };
     });
     for (const [name, s] of Object.entries(off)) if (!s.off) fail(label, `${name} must be turned off`);
-    if (!/storage deposit/.test(off.buy.reason)) fail(label, `the buy reason must mention the storage deposit: ${off.buy.reason}`);
+    if (!off.buy.reason.includes("If this account never held this coin, the buy also pays a storage deposit of 0.00125 NEAR.")) fail(label, `the buy reason must name the storage deposit from the coin: ${off.buy.reason}`);
 
     // Buy preview: the warning comes from the view.
     await page.fill("#trade-buy-account", "you.testnet");

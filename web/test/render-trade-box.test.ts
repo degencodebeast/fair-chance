@@ -16,7 +16,7 @@ const quoteView = {
 
 function box(over: object = {}) {
   const loadQuote = vi.fn(async () => ({ kind: "value" as const, value: parseBuyQuote({ ...quoteView, ...over }) }));
-  const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, loadQuote });
+  const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value", value: 1_250_000_000_000_000_000_000n }, loadQuote });
   document.body.replaceChildren(root);
   return { root, loadQuote };
 }
@@ -38,7 +38,7 @@ describe("trade box", () => {
     const { root } = box();
     const reasons = turnedOffReasons(root);
     expect(Object.keys(reasons).sort()).toEqual(["trade-buy-button", "trade-connect", "trade-sell-button"]);
-    expect(reasons["trade-buy-button"]).toMatch(/storage deposit/);
+    expect(reasons["trade-buy-button"]).toContain("If this account never held this coin, the buy also pays a storage deposit of 0.00125 NEAR.");
     expect(reasons["trade-connect"]).toMatch(/turned off/);
   });
 
@@ -85,7 +85,7 @@ describe("trade box", () => {
   });
 
   it("shows an error and no number when the read fails", async () => {
-    const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, loadQuote: async () => { throw new Error("rpc down"); } });
+    const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "unavailable" }, loadQuote: async () => { throw new Error("rpc down"); } });
     document.body.replaceChildren(root);
     await preview(root, "you.testnet", "1");
     expect(root.querySelector("#trade-buy-status")?.textContent).toMatch(/cannot load/);
@@ -97,7 +97,7 @@ describe("trade box with slow answers", () => {
   it("drops an older quote that arrives after a newer one", async () => {
     const pending: { resolve: (v: { kind: "value"; value: ReturnType<typeof parseBuyQuote> }) => void }[] = [];
     const root = drawTradeBox({
-      symbol: "MOTH", decimals: 18, largeThresholdBps: 200,
+      symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "unavailable" },
       loadQuote: () => new Promise((resolve) => { pending.push({ resolve }); }),
     });
     document.body.replaceChildren(root);

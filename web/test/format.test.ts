@@ -45,3 +45,13 @@ describe("time", () => {
     expect(age(50n * HOUR)).toBe("2 days 2 h");
   });
 });
+
+describe("exactNear", () => {
+  it("writes the whole amount of NEAR without trailing zeros", async () => {
+    const { exactNear } = await import("../src/format.ts");
+    expect(exactNear("1250000000000000000000")).toBe("0.00125");
+    expect(exactNear("1000000000000000000000000")).toBe("1");
+    expect(exactNear("1500000000000000000000000")).toBe("1.5");
+    expect(exactNear("0")).toBe("0");
+  });
+});
