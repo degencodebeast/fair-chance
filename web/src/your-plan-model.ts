@@ -101,7 +101,7 @@ function primaryAllowance(a: Account): { kind: "unmarked" | "marked"; value: All
   return unmarked === null ? null : { kind: "unmarked", value: unmarked };
 }
 
-const PROFIT_HELD_BACK = "Profit from tokens you bought this hour is held back while the pool cap is full.";
+const PROFIT_HELD_BACK = "Profit from tokens you bought this hour is held back while the pool cap has too little room for it.";
 
 function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bigint) => string): PlanView {
   const symbol = input.symbol;
