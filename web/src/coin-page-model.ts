@@ -4,7 +4,7 @@ import type { CoinEvent } from "./chain.ts";
 import type { CheckResult } from "./chain-checks.ts";
 import type { CoinPageData, CoinReads } from "./coin-page.ts";
 import { age, clockTime, compactTokens, nearAmount, percentOfBps, timeWithHint, type TimeContext } from "./format.ts";
-import { sellRow } from "./receipts.ts";
+import { nearShort, sellRow, tokensShort } from "./receipts.ts";
 
 export const NOT_AVAILABLE = "Not available from this coin";
 const TOKEN_DECIMALS = 18;
@@ -63,7 +63,18 @@ export interface CoinPageModel {
   asOf: string;
   /** The time the page should read again: when the cap hour or the early block count ends. Null when none is ahead. */
   refreshAtNs: bigint | null;
-  header: { name: string; symbol: string; creator: string; launched: string; description: string | null; icon: string | null };
+  header: {
+    name: string;
+    symbol: string;
+    creator: string;
+    launched: string;
+    description: string | null;
+    icon: string | null;
+    /** The text of the link to the rules: long on desktop, short on a phone. */
+    rulesChip: { desktop: string; phone: string };
+  };
+  /** The Telegram button is shown turned off, with the reason, until a public bot is approved. */
+  telegram: { label: string; reason: string };
   banner: Banner | null;
   /** Set when any chain check failed or could not run. */
   warning: { title: string; reasons: string[] } | null;
@@ -83,9 +94,27 @@ export interface CoinPageModel {
   gaps: string[];
 }
 
+/** The page frame while nothing is read: each card says "Loading" or "Not loaded". */
+export interface PlaceholderFrame {
+  stats: Stat[];
+  summaryLines: { label: string; value: string; tone: Tone }[];
+  who: { title: string; text: string }[];
+  receipts: string;
+}
+
+export function loadingFrame(text: "Loading" | "Not loaded"): PlaceholderFrame {
+  const stat = (label: string): Stat => ({ label, value: text, sub: "", available: false });
+  return {
+    stats: [stat("Price per 1M tokens"), stat("Market cap"), stat("Real NEAR in pool"), stat("Age")],
+    summaryLines: ["Early supply", "Large holders", "Pool cap"].map((label) => ({ label, value: text, tone: "plain" as Tone })),
+    who: ["Creator group and early buyers", "Large holders", "Pool cap this hour"].map((title) => ({ title, text })),
+    receipts: text,
+  };
+}
+
 export type CoinPageView =
   | CoinPageModel
-  | { state: "error"; status: string; title: string; detail: string; lastAttempt: string };
+  | { state: "error"; status: string; title: string; detail: string; lastAttempt: string; frame: PlaceholderFrame };
 
 const ICON_PREFIX = "data:image/webp;base64,";
 
@@ -94,29 +123,31 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
     return {
       state: "error",
       status: `Values cannot load: ${data.message}`,
-      title: "Values cannot load from the chain.",
+      title: `Values cannot load from ${data.source}.`,
       detail: `Nothing on this page is shown as live until they load. ${data.message}`,
       lastAttempt: clockTime(data.attemptedAtNs, ctx),
+      frame: loadingFrame("Not loaded"),
     };
   }
   const r = data.reads;
   const symbol = r.metadata.kind === "value" ? r.metadata.value.symbol : "tokens";
   const supply = r.totalSupply.kind === "value" ? r.totalSupply.value : null;
-  const receipts = receiptItems(r.events, { ...ctx, supply, highlight: data.highlightReceipt });
+  const receipts = receiptItems(r.events, { ...ctx, supply, highlight: data.highlightReceipt, launchBlock: r.rules.launchBlock, creator: r.rules.creator });
   const who = whoCanSell(r, ctx, symbol, supply);
   const checksOk = r.checks.every((c) => c.status === "pass");
   return {
     state: "ready",
-    status: `${receipts.filter((x) => x.sellReceiptId !== null).length} sell receipts from block ${r.rules.launchBlock}, read from the chain.`,
+    status: `${sellCount(receipts)} from block ${r.rules.launchBlock}, read from the chain.`,
     asOf: `As of ${clockTime(r.loadedAtNs, ctx)}`,
     refreshAtNs: refreshAt(r, ctx.nowNs),
     header: header(r, ctx),
+    telegram: { label: "Watch on Telegram", reason: "Not open yet. The public alert bot is not live." },
     banner: banner(r, ctx),
     warning: checksOk ? null : warning(r.checks),
     checks: r.checks,
     checksSource: `Checks read through the RPC host ${r.rpcHost}.`,
     stats: stats(r, ctx, symbol, supply),
-    summaryLines: summaryLines(who),
+    summaryLines: summaryLines(r, who, supply, ctx),
     who,
     receipts,
     receiptsEmpty: receipts.length === 0 ? EMPTY_RECEIPTS : null,
@@ -127,6 +158,11 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
       : null,
     gaps: gaps(r),
   };
+}
+
+function sellCount(receipts: ReceiptItem[]): string {
+  const n = receipts.filter((x) => x.sellReceiptId !== null).length;
+  return `${n} sell ${n === 1 ? "receipt" : "receipts"}`;
 }
 
 const EMPTY_RECEIPTS =
@@ -141,6 +177,7 @@ function header(r: CoinReads, ctx: TimeContext): CoinPageModel["header"] {
     launched: timeWithHint(r.rules.launchNs, ctx),
     description: r.rules.description,
     icon: icon !== null && icon.startsWith(ICON_PREFIX) ? icon : null,
+    rulesChip: { desktop: "Same rules for every coin", phone: "Rules" },
   };
 }
 
@@ -288,17 +325,27 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
   return [early, large, cap];
 }
 
-function summaryLines(who: Card[]): CoinPageModel["summaryLines"] {
-  const [early, large, cap] = who as [Card, Card, Card];
-  const first = (c: Card, i = 0) => c.lines[i]?.text ?? NOT_AVAILABLE;
+function summaryLines(r: CoinReads, who: Card[], supply: bigint | null, ctx: TimeContext): CoinPageModel["summaryLines"] {
+  const [, , cap] = who as [Card, Card, Card];
+  let early = NOT_AVAILABLE;
+  if (r.earlyWindow.kind === "value") {
+    const e = r.earlyWindow.value;
+    if (e.blocksLeft > 0) early = `no sells until block ${e.earlyBlocks}`;
+    else if (supply !== null && supply > 0n) early = `${percentOfBps(Number((e.earlySupplyTotal * 10_000n) / supply))} of supply`;
+  }
+  const large = r.pool.kind === "value" ? `${r.pool.value.largeHolders} now` : NOT_AVAILABLE;
+  const old = cap.chip?.text === "Old";
+  let capText = NOT_AVAILABLE;
+  if (old) capText = "Old, reload";
+  else if (r.cap.kind === "value") {
+    const c = r.cap.value;
+    const resets = `resets ${clockTime(c.windowEndNs, ctx)}`;
+    capText = c.isFull ? `full, ${resets}` : `${nearAmount(c.capLeft.toString())} of ${nearAmount(c.capTotal.toString())} NEAR left, ${resets}`;
+  }
   return [
-    { label: "Early supply", value: first(early, 1), tone: "plain" },
-    { label: "Large holders", value: first(large), tone: "plain" },
-    {
-      label: "Pool cap",
-      value: cap.chip?.text === "Old" ? "Old, reload" : cap.meter ? (cap.chip?.text === "Full" ? "Full" : cap.meter.text) : NOT_AVAILABLE,
-      tone: cap.chip?.text === "Old" ? "limit" : (cap.meter?.tone ?? "plain"),
-    },
+    { label: "Early supply", value: early, tone: "plain" },
+    { label: "Large holders", value: large, tone: "plain" },
+    { label: "Pool cap", value: capText, tone: old || cap.chip?.text === "Full" ? "limit" : "plain" },
   ];
 }
 
@@ -314,7 +361,7 @@ const LIMIT_REASONS: Record<string, string> = {
 
 function receiptItems(
   events: CoinEvent[],
-  ctx: TimeContext & { supply: bigint | null; highlight: string | null },
+  ctx: TimeContext & { supply: bigint | null; highlight: string | null; launchBlock: number; creator: string },
 ): ReceiptItem[] {
   const items: ReceiptItem[] = [];
   for (const e of events) {
@@ -333,6 +380,37 @@ function receiptItems(
         sentence: row.text,
         detail: reason === null ? null : `Limit: ${reason}.${next}`,
         tone: reason === null ? "plain" : "limit",
+      });
+    } else if (e.name === "fc_buy") {
+      if (!/^\d+$/.test(String(d.marked_tokens)) || BigInt(String(d.marked_tokens)) === 0n) continue;
+      const isCreator = d.account === ctx.creator;
+      const all = d.marked_tokens === d.tokens_out;
+      const size = tokensShort(String(d.tokens_out));
+      const where = ` in block ${Math.max(0, e.block - ctx.launchBlock)}`;
+      const count = all ? "These tokens count" : `${tokensShort(String(d.marked_tokens))} of them count`;
+      items.push({
+        ...base,
+        sellReceiptId: null,
+        kind: isCreator ? "Creator group" : "Early supply",
+        sentence: `${d.account}${isCreator ? " (creator group)" : ""} bought ${size} tokens${where}. ${count} as early supply.`,
+        detail: null,
+        tone: "plain",
+      });
+    } else if (e.name === "fc_send") {
+      const moved = String(d.to_marked_amount);
+      const marked = /^\d+$/.test(moved) && BigInt(moved) > 0n;
+      const tail = !marked
+        ? ""
+        : moved === d.amount
+          ? ` All of them count as early supply for ${d.to}.`
+          : ` ${tokensShort(moved)} of them count as early supply for ${d.to}.`;
+      items.push({
+        ...base,
+        sellReceiptId: null,
+        kind: "Send",
+        sentence: `${d.from} sent ${tokensShort(String(d.amount))} tokens to ${d.to}.${tail}`,
+        detail: null,
+        tone: "plain",
       });
     } else if (e.name === "fc_cap_filled") {
       items.push({

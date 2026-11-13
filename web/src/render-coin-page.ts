@@ -3,6 +3,7 @@
 // become markup.
 import { loadCoinPage, type CoinPageData } from "./coin-page.ts";
 import { el, type Child } from "./dom-elements.ts";
+import { telegramButton } from "./telegram-button.ts";
 import { drawYourPlan } from "./render-your-plan.ts";
 import {
   coinPageModel,
@@ -10,6 +11,8 @@ import {
   type Card,
   type CoinPageModel,
   type CoinPageView,
+  type PlaceholderFrame,
+  loadingFrame,
   type ReceiptItem,
 } from "./coin-page-model.ts";
 
@@ -89,9 +92,11 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
           el("span", { class: "chip", id: "coin-account" }, new URL(location.href).searchParams.get("coin") ?? ""),
           el("span", { class: "chip" }, `Creator ${h.creator}`),
           el("span", { class: "chip" }, `Launched ${h.launched}`),
-          el("a", { class: "chip chip-link", href: "#rules" }, "Rules"),
+          el("a", { class: "chip chip-link chip-desktop", href: "#rules" }, h.rulesChip.desktop),
+          el("a", { class: "chip chip-link chip-phone", href: "#rules" }, h.rulesChip.phone),
         ),
         h.description && el("p", { class: "coin-description", id: "coin-description" }, h.description),
+        telegramButton(m.telegram),
       ),
     ),
   );
@@ -171,6 +176,33 @@ function drawReady(m: CoinPageModel, plan: HTMLElement | null): HTMLElement[] {
   return nodes.filter((n): n is HTMLElement => n !== null);
 }
 
+function drawFrame(f: PlaceholderFrame): HTMLElement[] {
+  return [
+    el(
+      "div",
+      { class: "stats", id: "stats" },
+      ...f.stats.map((x) => el("div", { class: "stat" }, el("div", { class: "stat-label" }, x.label), el("div", { class: "stat-value stat-missing" }, x.value), el("div", { class: "stat-sub" }, ""))),
+    ),
+    el(
+      "div",
+      { class: "summary-lines card", id: "summary-lines" },
+      ...f.summaryLines.map((l) => el("div", { class: "summary-line" }, el("b", {}, l.label), el("span", { class: "num" }, l.value))),
+    ),
+    section(
+      "Who can sell how fast",
+      "who-can-sell",
+      el("div", { class: "section-head" }, el("h2", {}, "Who can sell how fast")),
+      el("div", { class: "who-grid" }, ...f.who.map((c) => el("div", { class: "who-card", "data-card": "none" }, el("div", { class: "who-title" }, el("b", {}, c.title)), el("p", { class: "who-line" }, c.text)))),
+    ),
+    section(
+      "Receipts",
+      "receipts-section",
+      el("div", { class: "section-head" }, el("h2", {}, "Receipts")),
+      el("p", { class: "note", id: "receipts-empty" }, f.receipts),
+    ),
+  ];
+}
+
 function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement[] {
   return [
     el("h1", { id: "coin" }, "Fair Chance"),
@@ -180,6 +212,7 @@ function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement
       el("span", { class: "banner-grow" }, el("b", {}, view.title), ` ${view.detail} Last attempt ${view.lastAttempt}.`),
       el("button", { type: "button", class: "button" }, "Try again"),
     ),
+    ...drawFrame(view.frame),
   ];
 }
 
@@ -207,7 +240,7 @@ function drawLoading(): void {
   app.replaceChildren(
     el("h1", { id: "coin" }, "Fair Chance"),
     el("p", { id: "status", class: "status", role: "status" }, "Reading the chain."),
-    el("p", { class: "note" }, "Loading."),
+    ...drawFrame(loadingFrame("Loading")),
   );
 }
 
@@ -219,7 +252,7 @@ function load(): void {
     .catch((err: unknown) => {
       // loadCoinPage does not throw; this only guards the drawing code.
       const message = err instanceof Error ? err.message : String(err);
-      draw({ state: "error", status: `Values cannot load: ${message}`, title: "Values cannot load from the chain.", detail: message, lastAttempt: "" }, load, null);
+      draw({ state: "error", status: `Values cannot load: ${message}`, title: "Values cannot load from the chain.", detail: message, lastAttempt: "", frame: loadingFrame("Not loaded") }, load, null);
     });
 }
 
