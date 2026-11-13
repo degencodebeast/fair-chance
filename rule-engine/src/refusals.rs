@@ -123,20 +123,31 @@ mod every_refusal_message_fixture {
         }
     }
 
+    /// A struct, not a JSON map, so the field order does not depend on which serde_json features
+    /// the build turns on.
+    #[derive(serde::Serialize)]
+    struct ContractRefusal {
+        refusal: String,
+        message: String,
+    }
+
     fn every_refusal_message() -> String {
-        let mut entries: Vec<serde_json::Value> = RefusalCode::iter()
+        let mut entries: Vec<ContractRefusal> = RefusalCode::iter()
             .map(|code| {
                 let refusal = match sample_detail(code) {
                     Some(detail) => Refusal::with_detail(code, detail),
                     None => Refusal::new(code),
                 };
-                serde_json::json!({ "refusal": format!("{code:?}"), "message": refusal.to_string() })
+                ContractRefusal {
+                    refusal: format!("{code:?}"),
+                    message: refusal.to_string(),
+                }
             })
             .collect();
-        entries.push(serde_json::json!({
-            "refusal": "NotRegistered (storage_withdraw form)",
-            "message": storage_withdraw_not_registered(SAMPLE_ACCOUNT),
-        }));
+        entries.push(ContractRefusal {
+            refusal: "NotRegistered (storage_withdraw form)".to_string(),
+            message: storage_withdraw_not_registered(SAMPLE_ACCOUNT),
+        });
         serde_json::to_string_pretty(&entries).expect("json") + "\n"
     }
 
