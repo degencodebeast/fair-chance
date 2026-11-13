@@ -6,7 +6,8 @@ use crate::allowance::{
 use crate::coin_state::{At, CoinState, Holder, Holders};
 use crate::events::{Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtTransfer};
 use crate::holder_class::{
-    class_of, clear_large_at_zero, large_threshold, mark_large_after_buy, max_receive, Class,
+    class_of, clear_large_at_zero, large_threshold, mark_large_after_buy, max_receive,
+    raise_class_floor, Class,
 };
 use crate::pool_math;
 use crate::real_near_cap::{self, CapNet};
@@ -92,7 +93,14 @@ pub fn apply(
     allowance::record_window_reserve(&mut state, at);
     real_near_cap::record_cap_window(&mut state, at);
     let state = &state;
-    match action {
+    let touched = touched_accounts(action);
+    let mut holders = holders;
+    for account in &touched {
+        if let Some(holder) = holders.get_mut(*account) {
+            raise_class_floor(state, holder, at);
+        }
+    }
+    let mut applied = match action {
         Action::Buy {
             account,
             near_in,
@@ -118,6 +126,21 @@ pub fn apply(
             amount,
             memo,
         } => send(state, holders, from, to, *amount, memo.clone(), at),
+    }?;
+    for account in &touched {
+        if let Some(holder) = applied.holders.get_mut(*account) {
+            raise_class_floor(&applied.state, holder, at);
+        }
+    }
+    Ok(applied)
+}
+
+/// The accounts whose balance an action can change: the buyer, the seller, or the sender and the
+/// receiver.
+fn touched_accounts(action: &Action) -> Vec<&str> {
+    match action {
+        Action::Buy { account, .. } | Action::Sell { account, .. } => vec![account.as_str()],
+        Action::Send { from, to, .. } => vec![from.as_str(), to.as_str()],
     }
 }
 

@@ -21,7 +21,7 @@ mod wide_integer_math;
 pub use actions::{Action, Applied, Fill, Payout};
 pub use allowance::{WindowReserve, WindowTotals};
 pub use coin_state::{
-    launch, At, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
+    launch, At, ClassFloor, CoinMetadata, CoinState, Holder, Holders, LaunchRequest, Launched,
 };
 pub use events::{Event, FcBecameLarge, FcBuy, FcCapFilled, FcSell, FcSend, FtMint, FtTransfer};
 pub use fixed_values::FixedValues;

@@ -1,10 +1,15 @@
-//! Holder class (ADR 0001): `small`, `band` or `large`, from the live balance at each action.
+//! Holder class (ADR 0001): `small`, `band` or `large`. The live class comes from the balance.
 //! An account becomes large only by the buy that takes its balance to T (`large_threshold_bps` of
 //! supply) or more, and it stays large until its balance is zero. A send never makes a receiver
 //! large: the send rules refuse it.
+//!
+//! The class in a window is never below the class floor: the class just before the account's
+//! first action (buy, sell, send or receive) in that window. A sell or a send that takes a band
+//! account below one allowance leaves it band until the window ends. The floor is band at most,
+//! so an account that was large and sold to zero is band for the rest of the window.
 
-use crate::allowance::unmarked_allowance;
-use crate::coin_state::{At, CoinState, Holder};
+use crate::allowance::{unmarked_allowance, unmarked_window};
+use crate::coin_state::{At, ClassFloor, CoinState, Holder};
 use crate::wide_integer_math::mul_div_up;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,11 +40,23 @@ pub fn large_threshold(state: &CoinState) -> u128 {
     )
 }
 
-/// The holder's class at `at`. A missing record is a new account with zero balance.
+/// The holder's class at `at`: the live class, raised to band when the class floor of the
+/// window that holds `at` is band. A missing record is a new account with zero balance.
 pub fn class_of(state: &CoinState, holder: Option<&Holder>, at: At) -> Class {
     let Some(holder) = holder else {
         return Class::Small;
     };
+    let live = live_class(state, holder, at);
+    let floor = holder.class_floor;
+    if live == Class::Small && floor.band && floor.window == unmarked_window(state, at) {
+        Class::Band
+    } else {
+        live
+    }
+}
+
+/// The class from the balance alone.
+fn live_class(state: &CoinState, holder: &Holder, at: At) -> Class {
     if holder.is_large {
         Class::Large
     } else if holder.balance > unmarked_allowance(state, Some(holder), at).allowance {
@@ -47,6 +64,25 @@ pub fn class_of(state: &CoinState, holder: Option<&Holder>, at: At) -> Class {
     } else {
         Class::Small
     }
+}
+
+/// Raises the holder's class floor to its live class. Call it for each account an action
+/// touches, before the action (the first action of a window starts a new floor) and after it
+/// (a buy or a receive can raise the floor).
+pub fn raise_class_floor(state: &CoinState, holder: &mut Holder, at: At) {
+    let window = unmarked_window(state, at);
+    let above_small = live_class(state, holder, at) != Class::Small;
+    holder.class_floor = if holder.class_floor.window == window {
+        ClassFloor {
+            window,
+            band: holder.class_floor.band || above_small,
+        }
+    } else {
+        ClassFloor {
+            window,
+            band: above_small,
+        }
+    };
 }
 
 /// The most tokens a send to this account can carry now without taking it to T; `None` for a

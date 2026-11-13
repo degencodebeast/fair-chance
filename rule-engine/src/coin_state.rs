@@ -72,6 +72,19 @@ pub struct Holder {
     pub storage_deposit: u128,
     /// The account's net NEAR out for the real NEAR cap in its last 1 h window with a trade.
     pub cap_net: CapNet,
+    /// The lowest class the account can have in its last 1 h window with an action.
+    pub class_floor: ClassFloor,
+}
+
+/// The class floor (ADR 0001): in a window, the account's class is never below its class just
+/// before its first action in that window. A buy or a receive can raise it; a sell or a send
+/// cannot drop it until the next window.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub struct ClassFloor {
+    pub window: u64,
+    /// True when the account was band or large at some point in the window, from just before
+    /// its first action on.
+    pub band: bool,
 }
 
 impl Holder {

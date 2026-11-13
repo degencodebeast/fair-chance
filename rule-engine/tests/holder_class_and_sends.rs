@@ -224,18 +224,23 @@ fn coin_with_a_small_and_a_band_holder() -> Coin {
 }
 
 #[test]
-fn class_is_small_inside_one_allowance_and_band_above_it_from_the_live_balance() {
+fn class_is_small_inside_one_allowance_and_band_above_it_and_a_send_keeps_band_until_the_window_ends(
+) {
     let mut coin = coin_with_a_small_and_a_band_holder();
     let at = after(20);
     assert_eq!(coin.account(SMALL, at).class, "small");
     assert_eq!(coin.account(OTHER, at).class, "band");
     assert!(coin.account(OTHER, at).can_send);
 
-    // The band account sends most of its bag: both classes follow the live balances.
-    let half = coin.balance(OTHER) * 3 / 4;
-    coin.send(OTHER, SMALL, half, at).expect("send");
-    assert_eq!(coin.account(OTHER, at).class, "small");
+    // The band account sends most of its bag: the receiver rises to band at once, and the
+    // sender stays band (its class floor) until the window ends.
+    let three_quarters = coin.balance(OTHER) * 3 / 4;
+    coin.send(OTHER, SMALL, three_quarters, at).expect("send");
+    assert_eq!(coin.account(OTHER, at).class, "band");
     assert_eq!(coin.account(SMALL, at).class, "band");
+    let next_window = after(HOUR_S);
+    assert_eq!(coin.account(OTHER, next_window).class, "small");
+    assert_eq!(coin.account(SMALL, next_window).class, "band");
 }
 
 #[test]
