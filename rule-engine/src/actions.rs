@@ -402,8 +402,11 @@ pub(crate) struct SellFillPlan {
     marked_always_fills: u128,
     /// The most marked tokens that can fill.
     marked_most: u128,
-    /// Unmarked tokens that fill whatever the cap says.
+    /// Unmarked tokens that fill whatever the cap says, before this sell's own marked part.
     always_fills: u128,
+    /// A large account's unmarked floor left before this sell. The sell's own marked part
+    /// uses it first, so one sell never gets the floor twice.
+    floor_left_before: Option<u128>,
     /// The most unmarked tokens that can fill.
     most: u128,
     /// The first unmarked tokens of the sell that pay no penalty.
@@ -426,6 +429,7 @@ impl SellFillPlan {
         let unmarked_asked = (amount - marked_most).min(holder.balance - holder.marked_balance);
         let allowance = unmarked_allowance(state, Some(holder), at);
         let bought_not_sold = real_near_cap::cap_net_now(state, Some(holder), at).bought_not_sold;
+        let floor_left_before = (class == Class::Large).then_some(allowance.floor_left);
         let (always_fills, most, penalty_free, never_counted) = match class {
             Class::Large => {
                 let most = unmarked_asked.min(allowance.sell_room);
@@ -450,9 +454,19 @@ impl SellFillPlan {
             marked_always_fills: marked_most.min(marked.floor_left),
             marked_most,
             always_fills,
+            floor_left_before,
             most,
             penalty_free,
             never_counted,
+        }
+    }
+
+    /// The unmarked tokens that fill whatever the cap says, next to a marked part of `marked`.
+    /// A large account's marked tokens sold use its unmarked floor, also within one sell.
+    fn always_fills_next_to(&self, marked: u128) -> u128 {
+        match self.floor_left_before {
+            Some(floor_left) => self.most.min(floor_left.saturating_sub(marked)),
+            None => self.always_fills,
         }
     }
 
@@ -471,18 +485,19 @@ impl SellFillPlan {
         let marked = largest_that_fits(self.marked_always_fills, self.marked_most, |marked| {
             fits(SoldParts {
                 marked,
-                unmarked: self.always_fills,
+                unmarked: self.always_fills_next_to(marked),
             })
         });
         let used_by_marked_part = cap_used_with(SoldParts {
             marked,
             unmarked: 0,
         });
-        let unmarked = largest_that_fits(self.always_fills, self.most, |unmarked| {
-            let parts = SoldParts { marked, unmarked };
-            fits(parts)
-                || (self.class == Class::Small && cap_used_with(parts) <= used_by_marked_part)
-        });
+        let unmarked =
+            largest_that_fits(self.always_fills_next_to(marked), self.most, |unmarked| {
+                let parts = SoldParts { marked, unmarked };
+                fits(parts)
+                    || (self.class == Class::Small && cap_used_with(parts) <= used_by_marked_part)
+            });
         SoldParts { marked, unmarked }
     }
 
@@ -497,7 +512,9 @@ impl SellFillPlan {
             }
         } else if parts.unmarked == self.most {
             Some("allowance")
-        } else if class == Class::Large && parts.unmarked == self.always_fills && parts.unmarked > 0
+        } else if class == Class::Large
+            && parts.unmarked == self.always_fills_next_to(parts.marked)
+            && parts.unmarked > 0
         {
             Some("floor")
         } else {
