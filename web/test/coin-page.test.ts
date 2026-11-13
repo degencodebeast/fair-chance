@@ -245,3 +245,39 @@ describe("copy rules", () => {
     expect(copyViolations("Pool cap safeguard")).toEqual([]);
   });
 });
+
+describe("known deployment comes from the page code, not the link", () => {
+  const anchors = `&factory=${factory}&code_hash=${knownHash}`;
+  const testnetRpc = encodeURIComponent("https://rpc.testnet.example");
+
+  it("does not let a crafted testnet link supply its own factory and hash", async () => {
+    const href = `http://localhost/?coin=${coin}&rpc=${testnetRpc}${anchors}`;
+    const view = await ready(recordedCoin("normal"), href);
+    expect(view.checks.map((c) => [c.id, c.status])).toEqual([
+      ["parent-account", "unchecked"],
+      ["code-hash", "unchecked"],
+      ["no-access-keys", "pass"],
+    ]);
+    expect(view.warning?.reasons[0]).toBe(
+      "Coin is a direct sub-account of the factory: Not checked: no known deployment for this network.",
+    );
+    expect(view.rulesStatement).toBeNull();
+  });
+
+  it.each(["http://localhost.evil.example:1", "http://127.0.0.1.evil.example:1", "https://rpc.mainnet.example"])(
+    "ignores link anchors for the RPC host %s",
+    async (rpc) => {
+      const href = `http://localhost/?coin=${coin}&rpc=${encodeURIComponent(rpc)}${anchors}`;
+      const view = await ready(recordedCoin("normal"), href);
+      expect(view.checks.slice(0, 2).map((c) => c.status)).toEqual(["unchecked", "unchecked"]);
+    },
+  );
+
+  it("takes link anchors on localhost and on 127.0.0.1, where each run deploys a fresh sandbox", async () => {
+    for (const host of ["http://localhost:3030", "http://127.0.0.1:3030"]) {
+      const href = `http://localhost/?coin=${coin}&rpc=${encodeURIComponent(host)}${anchors}`;
+      const view = await ready(recordedCoin("normal"), href);
+      expect(view.checks.map((c) => c.status)).toEqual(["pass", "pass", "pass"]);
+    }
+  });
+});
