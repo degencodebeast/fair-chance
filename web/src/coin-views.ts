@@ -173,3 +173,8 @@ export function parseTotalSupply(value: unknown): bigint {
   if (typeof value !== "string" || !/^\d+$/.test(value)) throw new UnexpectedView("ft_total_supply is not a decimal string");
   return BigInt(value);
 }
+
+/** `storage_balance_bounds().min`: the deposit an account pays to register on the coin. */
+export function parseStorageMin(value: unknown): bigint {
+  return reader("storage_balance_bounds", fields(value, "storage_balance_bounds")).amount("min");
+}

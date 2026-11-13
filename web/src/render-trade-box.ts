@@ -15,11 +15,12 @@ export interface TradeBoxDeps {
   symbol: string;
   decimals: number;
   largeThresholdBps: number;
+  storageMin: Reading<bigint>;
   loadQuote: (accountId: string, nearIn: bigint) => Promise<Reading<BuyQuote>>;
 }
 
 export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
-  const model = (preview: BuyPreview) => tradeBoxModel({ symbol: deps.symbol, decimals: deps.decimals, largeThresholdBps: deps.largeThresholdBps, preview });
+  const model = (preview: BuyPreview) => tradeBoxModel({ symbol: deps.symbol, decimals: deps.decimals, largeThresholdBps: deps.largeThresholdBps, storageMin: deps.storageMin, preview });
   const first = model({ kind: "none" });
 
   const tabBuy = el("button", { type: "button", role: "tab", id: "trade-tab-buy", "aria-selected": "true", "aria-controls": "trade-buy-panel", class: "tab" }, "Buy");
