@@ -1,9 +1,11 @@
-use rule_engine::{apply, launch, Action, At, CoinState, Event, FixedValues, Holders};
+use rule_engine::{
+    apply, launch, Action, At, CoinState, Event, FixedValues, Holders, LaunchRequest,
+};
 
 const BUYER: &str = "alice.test";
 const ONE_NEAR: u128 = 1_000_000_000_000_000_000_000_000;
 
-/// Field names of `fc_sell` in INTERFACE.md 1.0.0-rc.4, copied from the document.
+/// Field names of `fc_sell` in INTERFACE.md (unchanged since 1.0.0-rc.4), copied from the document.
 const FC_SELL_FIELDS: [&str; 16] = [
     "account",
     "class",
@@ -26,14 +28,22 @@ const FC_SELL_FIELDS: [&str; 16] = [
 fn launched() -> CoinState {
     launch(
         FixedValues::fixed(),
-        "coin.test",
-        "creator.test",
-        "hash",
+        LaunchRequest {
+            coin: "coin.test",
+            caller: "test",
+            creator: "creator.test",
+            code_hash: "hash",
+            name: "Test Coin",
+            symbol: "TEST",
+            icon: None,
+            description: None,
+        },
         At {
             block: 100,
             ns: 1_000,
         },
     )
+    .expect("launch")
     .state
 }
 

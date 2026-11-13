@@ -8,6 +8,11 @@ pub enum RefusalCode {
     TransferCall,
     /// Not an `FC_` code: the standard NEP-141 balance error.
     NotEnoughBalance,
+    /// Not an `FC_` code: `new` called by an account that is not the coin's parent (ADR 0006:
+    /// only the factory starts a coin).
+    NotParentAccount,
+    /// Not an `FC_` code: the NEP-148 icon is not a WebP data URL under 8 KB.
+    IconNotSmallWebp,
 }
 
 impl RefusalCode {
@@ -17,6 +22,10 @@ impl RefusalCode {
             Self::Slippage => "FC_SLIPPAGE",
             Self::TransferCall => "FC_TRANSFER_CALL",
             Self::NotEnoughBalance => "The account doesn't have enough balance",
+            Self::NotParentAccount => "new must be called by the parent account of the coin",
+            Self::IconNotSmallWebp => {
+                "icon must be a WebP data URL (data:image/webp;base64,...) under 8192 bytes"
+            }
         }
     }
 }

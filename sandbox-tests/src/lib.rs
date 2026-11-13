@@ -15,6 +15,9 @@ use near_sandbox::{GenesisAccount, Sandbox, SandboxConfig};
 use serde_json::{json, Value};
 
 pub const COIN_TICKER: &str = "walk";
+/// The walking-path coin's icon: a 96 x 96 WebP data URL under 8 KB.
+pub const COIN_ICON: &str = include_str!("../../testdata/coin-icon-96px-webp-data-url.txt");
+pub const COIN_DESCRIPTION: &str = "The walking-path coin.";
 
 /// The near-sandbox (neard) release these tests run on. `NEAR_SANDBOX_BIN_PATH` must point to it.
 pub const SANDBOX_RELEASE: &str = "2.13.4";
@@ -182,7 +185,13 @@ impl World {
             &creator,
             &factory.id,
             "launch",
-            json!({ "name": "Walk Coin", "ticker": COIN_TICKER, "icon": null, "description": null, "opening_buy": null }),
+            json!({
+                "name": "Walk Coin",
+                "ticker": COIN_TICKER,
+                "icon": COIN_ICON,
+                "description": COIN_DESCRIPTION,
+                "opening_buy": null,
+            }),
             NearToken::from_near(5),
         )
         .await?;
@@ -270,7 +279,7 @@ pub fn events(result: &TransactionResult, standard: &str, name: &str) -> Vec<Log
         .collect()
 }
 
-/// Field names of `fc_sell` in INTERFACE.md 1.0.0-rc.4.
+/// Field names of `fc_sell` in INTERFACE.md (unchanged since 1.0.0-rc.4).
 pub const FC_SELL_FIELDS: [&str; 16] = [
     "account",
     "class",

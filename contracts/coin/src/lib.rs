@@ -5,7 +5,7 @@ use near_sdk::store::LookupMap;
 use near_sdk::{env, near, AccountId, NearToken, PanicOnDefault, Promise};
 use rule_engine::{
     AccountView, Action, Applied, At, BuyQuote, CapView, CoinState, CreatorFeesView,
-    EarlyWindowView, FixedValues, Holder, Holders, PoolView, RulesView, SellQuote,
+    EarlyWindowView, FixedValues, Holder, Holders, LaunchRequest, PoolView, RulesView, SellQuote,
 };
 
 #[derive(Clone)]
@@ -25,16 +25,13 @@ pub struct FungibleTokenMetadata {
     contract_metadata(
         standard(standard = "nep141", version = "1.0.0"),
         standard(standard = "nep148", version = "1.0.0"),
-        standard(standard = "fair_chance", version = "1.0.0-rc.4")
+        standard(standard = "fair_chance", version = "1.0.0-rc.5")
     )
 )]
 #[derive(PanicOnDefault)]
 pub struct Coin {
     state: CoinState,
     holders: LookupMap<String, Holder>,
-    name: String,
-    symbol: String,
-    icon: Option<String>,
 }
 
 fn now() -> At {
@@ -52,25 +49,32 @@ impl Coin {
         name: String,
         symbol: String,
         icon: Option<String>,
+        description: Option<String>,
         code_hash: String,
     ) -> Self {
         let coin = env::current_account_id();
+        let caller = env::predecessor_account_id();
         let launched = rule_engine::launch(
             FixedValues::fixed(),
-            coin.as_str(),
-            creator.as_str(),
-            &code_hash,
+            LaunchRequest {
+                coin: coin.as_str(),
+                caller: caller.as_str(),
+                creator: creator.as_str(),
+                code_hash: &code_hash,
+                name: &name,
+                symbol: &symbol,
+                icon: icon.as_deref(),
+                description: description.as_deref(),
+            },
             now(),
-        );
+        )
+        .unwrap_or_else(|r| env::panic_str(&r.to_string()));
         for event in &launched.events {
             env::log_str(&event.log_line());
         }
         Self {
             state: launched.state,
             holders: LookupMap::new(b"h"),
-            name,
-            symbol,
-            icon,
         }
     }
 
@@ -111,11 +115,12 @@ impl Coin {
     }
 
     pub fn ft_metadata(&self) -> FungibleTokenMetadata {
+        let metadata = &self.state.metadata;
         FungibleTokenMetadata {
             spec: "ft-1.0.0".into(),
-            name: self.name.clone(),
-            symbol: self.symbol.clone(),
-            icon: self.icon.clone(),
+            name: metadata.name.clone(),
+            symbol: metadata.symbol.clone(),
+            icon: metadata.icon.clone(),
             reference: None,
             reference_hash: None,
             decimals: self.state.fixed.decimals,
