@@ -18,6 +18,7 @@ Run it from the repo root (any folder works; the script finds the root). A full 
 1. **Doctor** (read only): Node equals `web/.nvmrc`, cargo-near 0.21.1, rustc equals `rust-toolchain.toml`, Go present, `NEAR_SANDBOX_BIN_PATH` set and reporting release 2.13.4, Google Chrome found.
 2. **Web packages**: `npm ci` in `web/` only when `node_modules` does not match `package-lock.json` (one install at a time, lock folder `target/npm-install.lock`).
 3. **Private-string scan**: `scripts/test-scan-private-strings.sh`, then `scripts/scan-private-strings.sh`. It fails on private build-plan names (ticket or part numbers), private workspace folder names and home folder paths in any file git tracks or would add, and in every commit message from `HEAD`. Commits listed in `scripts/private-string-scan-known-commits.txt` are skipped and counted.
+3b. **Browser screen checks** (`screen_checks_in_browser` in `verify.sh`): testnet link, page frames, screens, load check, turned-off screens; then the hosted-command self-test.
 4. **Walking path with the browser step**: `scripts/walking-path.sh --read-in-browser` (see Drive).
 5. **Evidence check**: the page screenshot must exist.
 
@@ -67,6 +68,16 @@ Proof standard: a done line quotes the command and the last lines of `verify.log
 ## Two runs at the same time
 
 Safe. Each run has its own sandbox port and data folder, its own page build folder and server port, its own browser profile and its own evidence folder. Builds and `npm ci` take turns through lock folders in `target/`. A lock left by a dead run is taken over.
+
+## Screens mode and hosted mode
+
+```bash
+.claude/skills/verify/verify.sh screens          # browser screen checks alone; no sandbox
+.claude/skills/verify/verify.sh hosted "<url>"   # or FC_HOSTED_URL=<url>; read only
+```
+
+- `screens` runs the five browser scripts that the default run also runs (see `features/screens.md`).
+- `hosted` opens the URL in headless Chrome and checks: the page loads, the early banner shows, the receipt list renders, the stats are complete, the three coin account checks pass, no console error. No key, no wallet, no stub. The URL comes from the command line or the environment only; never write it to a file. A 403 or 429 stops the check; do not retry. The default run proves the command on a local build with a fake chain (`web/scripts/check-hosted-page-on-local-build.ts`).
 
 ## Testnet mode (the builder only)
 
