@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"fairchance/watcher/internal/checkcard"
 	"fairchance/watcher/internal/commands"
 	"fairchance/watcher/internal/eventsource"
 	"fairchance/watcher/internal/telegram"
@@ -18,7 +19,7 @@ import (
 
 const defaultFastNearTestnet = "https://tx.test.fastnear.com"
 
-// runTelegram runs the bot: long polling for /watch, and a read pass for alerts.
+// runTelegram runs the bot: long polling for /watch and /check, and a read pass for alerts.
 // Environment: FC_RPC_URL, FC_TELEGRAM_CHAT_ID (the one chat the bot answers), TELEGRAM_BOT_TOKEN
 // (read here and nowhere else), FC_EVENT_SOURCE ("block-scan" by default, or "fastnear" with
 // FC_FASTNEAR_URL), FC_COINS (optional coins to watch from the start).
@@ -82,7 +83,8 @@ func runTelegram(poll time.Duration) error {
 			}
 		}
 	}()
-	bot := commands.Bot{ChatID: chatID, Reply: api, Watcher: set}
+	bot := commands.Bot{ChatID: chatID, Reply: api, Watcher: set,
+		Checker: checkcard.Checker{RPCURL: rpcURL, Location: time.Local}}
 	if err := bot.Serve(ctx, api); err != nil && ctx.Err() == nil {
 		return err
 	}

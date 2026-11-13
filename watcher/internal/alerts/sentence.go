@@ -77,7 +77,7 @@ func (w Writer) Sentence(ev eventsource.Event) (string, bool) {
 		if json.Unmarshal(ev.Data, &e) != nil {
 			return "", false
 		}
-		return fmt.Sprintf("%s now holds %s of supply. It is large and cannot send tokens.", e.Account, supplyShare(e.Balance)), true
+		return fmt.Sprintf("%s now holds %s of supply. It is large and cannot send tokens.", e.Account, SupplyShare(e.Balance)), true
 	case "fc_buy":
 		var e struct {
 			Account      string `json:"account"`
@@ -126,7 +126,7 @@ func (w Writer) sellSentence(ev eventsource.Event, symbol string) (string, bool)
 			s.Account, s.Class, Amount(s.TokensSold, tokenDecimals, 2), Amount(s.NearOut, nearDecimals, 4)), true
 	}
 	text := fmt.Sprintf("%s tried to sell %s %s (%s of supply). The rule filled %s (%s).",
-		s.Account, Compact(s.TokensAsked), symbol, supplyShare(s.TokensAsked), Compact(s.TokensSold), supplyShare(s.TokensSold))
+		s.Account, Compact(s.TokensAsked), symbol, SupplyShare(s.TokensAsked), Compact(s.TokensSold), SupplyShare(s.TokensSold))
 	if !isZero(s.AllowanceLeft) {
 		text += fmt.Sprintf(" It can sell up to %s more after %s.", Compact(s.AllowanceLeft), w.clock(s.WindowEndNs))
 	} else {
@@ -180,17 +180,25 @@ func Compact(base string) string {
 	return whole.String()
 }
 
-// supplyShare writes an amount as a share of the fixed supply: 3.4%, 0.7%, 0.01% or <0.01%.
-func supplyShare(base string) string {
+// SupplyShare writes an amount as a share of the fixed supply: 3.4%, 0.7%, 0.01% or <0.01%.
+func SupplyShare(base string) string {
 	n, ok := new(big.Int).SetString(base, 10)
 	if !ok || n.Sign() <= 0 {
 		return "0%"
 	}
 	supply := new(big.Int).Mul(big.NewInt(supplyWholeTokens), pow10(tokenDecimals))
 	bps := new(big.Int).Div(new(big.Int).Mul(n, big.NewInt(10_000)), supply).Int64()
+	if bps == 0 {
+		return "<0.01%"
+	}
+	return FormatBps(bps)
+}
+
+// FormatBps writes basis points as a percent, cut and not rounded: 3.9%, 0.07% or 0%.
+func FormatBps(bps int64) string {
 	switch {
 	case bps == 0:
-		return "<0.01%"
+		return "0%"
 	case bps < 10:
 		return fmt.Sprintf("0.%02d%%", bps)
 	}

@@ -1,0 +1,7 @@
+{
+  "ft_metadata": {"spec": "ft-1.0.0", "name": "Moth Lamp", "symbol": "MOTH", "decimals": 18},
+  "fc_rules": {"creator": "wick.lamp.testnet", "launch_block": 100, "launch_ns": "1794488520000000000", "window_early_s": 86400, "window_unmarked_s": 3600, "early_blocks": 100},
+  "fc_pool": {"block": 400, "large_holders": 3, "creator_group_share_bps": 390},
+  "fc_early_window": {"early_blocks": 100, "blocks_left": 0, "early_supply_total": "145000000000000000000000000", "shared_allowance": "3400000000000000000000000"},
+  "fc_cap": {"window_start_ns": "1794578520000000000", "window_end_ns": "1794582120000000000", "cap_total": "2130000000000000000000000", "cap_used": "2130000000000000000000000", "cap_left": "0", "is_full": true}
+}
