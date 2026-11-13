@@ -11,6 +11,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -77,6 +78,9 @@ func run(ctx context.Context, rpcURL string, coins []string, chatID int64, once 
 		_, next, err := alerts.SendNew(ctx, src, coins, cursor, alerts.Writer{Location: time.Local}, fake, chatID)
 		cursor = next
 		if err != nil && ctx.Err() == nil {
+			if errors.Is(err, eventsource.ErrForbidden) || errors.Is(err, eventsource.ErrUnexpectedResponse) {
+				return fmt.Errorf("reads stopped for good, no retry: %w", err)
+			}
 			log.Printf("read pass: %v", err)
 		}
 		if !once {

@@ -4,6 +4,7 @@ package watchedcoins
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 	"time"
@@ -24,9 +25,11 @@ type Set struct {
 	Location *time.Location // for HH:MM times in alerts
 	Now      func() time.Time
 
-	mu      sync.Mutex
-	coins   map[string]*watched
-	history []string
+	mu         sync.Mutex
+	stopped    error     // set by a 403 or an unknown answer: no read after it
+	pausedTill time.Time // set by a 429
+	coins      map[string]*watched
+	history    []string
 }
 
 type watched struct {
@@ -59,7 +62,11 @@ func (s *Set) Watch(ctx context.Context, coin string) error {
 }
 
 // Stopped is nil until a read stops for good.
-func (s *Set) Stopped() error { return nil }
+func (s *Set) Stopped() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopped
+}
 
 // Coins lists the watched coin accounts.
 func (s *Set) Coins() []string {
@@ -82,6 +89,12 @@ func (s *Set) Recent() []string {
 
 // Poll reads new events of every watched coin once and sends their alerts.
 func (s *Set) Poll(ctx context.Context) error {
+	if err := s.Stopped(); err != nil {
+		return err
+	}
+	if s.paused() {
+		return nil
+	}
 	var firstErr error
 	for _, coin := range s.Coins() {
 		s.mu.Lock()
@@ -99,6 +112,12 @@ func (s *Set) Poll(ctx context.Context) error {
 		s.mu.Lock()
 		w.cursor = next
 		s.mu.Unlock()
+		if s.noteFailure(err) {
+			return err
+		}
+		if s.paused() {
+			return err // no read of the other coins during the wait
+		}
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -122,4 +141,37 @@ func (r *recordingSender) Send(ctx context.Context, chatID int64, text string) e
 		r.set.history = r.set.history[len(r.set.history)-historySize:]
 	}
 	return nil
+}
+
+func (s *Set) now() time.Time {
+	if s.Now != nil {
+		return s.Now()
+	}
+	return time.Now()
+}
+
+func (s *Set) paused() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.now().Before(s.pausedTill)
+}
+
+// noteFailure applies the source rules to a read error and reports whether reads must stop.
+// A 403 or an answer the watcher does not know stops all reads for good, with no retry.
+// A 429 pauses reads for the Retry-After wait, or one poll interval when FastNEAR gave none.
+func (s *Set) noteFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if errors.Is(err, eventsource.ErrForbidden) || errors.Is(err, eventsource.ErrUnexpectedResponse) {
+		s.stopped = err
+		return true
+	}
+	var limited *eventsource.RateLimitedError
+	if errors.As(err, &limited) && limited.RetryAfter > 0 {
+		s.pausedTill = s.now().Add(limited.RetryAfter)
+	}
+	return false
 }

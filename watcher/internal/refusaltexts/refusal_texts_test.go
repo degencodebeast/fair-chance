@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	textsPath     = "../../../shared/refusal-texts.json"
+	textsPath     = "../../../refusal-texts/refusal-texts.json"
 	interfacePath = "../../../docs/INTERFACE.md"
 )
 

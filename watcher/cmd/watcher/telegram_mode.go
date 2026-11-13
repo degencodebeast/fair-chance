@@ -69,6 +69,10 @@ func runTelegram(poll time.Duration) error {
 	go func() {
 		for {
 			if err := set.Poll(ctx); err != nil && ctx.Err() == nil {
+				if stop := set.Stopped(); stop != nil {
+					log.Printf("reads stopped for good, no retry, restart the watcher after you check the source: %v", stop)
+					return
+				}
 				log.Printf("read pass: %v", err)
 			}
 			select {

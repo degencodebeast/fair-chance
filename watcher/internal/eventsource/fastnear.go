@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -178,9 +180,23 @@ func (f *FastNear) post(ctx context.Context, path string, body any, out any) err
 	case http.StatusForbidden:
 		return fmt.Errorf("%s: %w", path, ErrForbidden)
 	case http.StatusTooManyRequests:
-		return fmt.Errorf("%s: %w", path, ErrRateLimited)
+		return fmt.Errorf("%s: %w", path, &RateLimitedError{RetryAfter: retryAfter(resp.Header.Get("Retry-After"))})
 	default:
-		return fmt.Errorf("%s: HTTP %d", path, resp.StatusCode)
+		return fmt.Errorf("%s: HTTP %d: %w", path, resp.StatusCode, ErrUnexpectedResponse)
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("%s: %v: %w", path, err, ErrUnexpectedResponse)
+	}
+	return nil
+}
+
+// retryAfter reads a Retry-After header given in seconds or as an HTTP date. A missing or bad value is 0.
+func retryAfter(header string) time.Duration {
+	if secs, err := strconv.Atoi(strings.TrimSpace(header)); err == nil && secs > 0 {
+		return time.Duration(secs) * time.Second
+	}
+	if at, err := http.ParseTime(header); err == nil {
+		return max(0, time.Until(at))
+	}
+	return 0
 }
