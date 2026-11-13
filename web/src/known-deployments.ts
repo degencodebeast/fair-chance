@@ -13,6 +13,8 @@ export interface KnownNetwork extends KnownDeployment {
   rpcUrl: string;
   /** The FastNEAR transactions API the page reads events through. */
   fastNearUrl: string;
+  /** The block to read the factory's `fc_launch` events from; the builder sets it after the deploy. */
+  factoryFromBlock: number;
 }
 
 /**
@@ -23,6 +25,7 @@ export const KNOWN_NETWORKS = {
   testnet: {
     rpcUrl: "https://test.rpc.fastnear.com",
     fastNearUrl: "https://tx.test.fastnear.com",
+    factoryFromBlock: 0,
     factory: null,
     codeHash: null,
   },

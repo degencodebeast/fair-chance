@@ -1,0 +1,117 @@
+/* Landing, coin list, alerts, price chart and holders table. Colours and fonts come from coin-page.css. */
+.screen-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font: 400 20px var(--font-display); color: var(--ink); text-decoration: none; }
+.screen-nav { display: flex; gap: 6px; flex: 1; }
+.nav-link { color: var(--ink); font-weight: 700; padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center; border-radius: 20px; text-decoration: none; }
+.nav-link[aria-current="page"] { background: var(--ink); color: var(--paper); }
+a.button { display: inline-flex; align-items: center; text-decoration: none; }
+.button-big { min-height: 50px; padding: 0 26px; font-size: 16px; }
+.off-control { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.text-link { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; min-height: 44px; display: inline-flex; align-items: center; }
+.text-link-light { color: var(--paper); }
+.sample-label { display: inline-block; align-self: flex-start; font: 600 12px var(--font-num); color: var(--ink); background: var(--highlight); border: 1.5px dashed var(--ink); border-radius: 8px; padding: 3px 8px; overflow-wrap: anywhere; }
+.kicker { font: 700 13px var(--font-body); color: var(--muted); }
+
+/* Landing */
+.hero { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
+.hero h1 { font-size: 64px; line-height: 1.06; text-wrap: balance; }
+.hero-sub { font: 400 30px/1.2 var(--font-display); color: var(--limit); text-wrap: balance; }
+.hero-intro { font-size: 18px; line-height: 1.5; max-width: 620px; }
+.hero-actions { display: flex; gap: 12px 16px; flex-wrap: wrap; align-items: flex-start; }
+.proof { background: var(--ink); color: var(--paper); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+.proof .sample-label { background: var(--paper); }
+.proof p { font: 600 17px/1.45 var(--font-body); }
+.problem { border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: 28px 0; }
+.problem p { font: 400 28px/1.3 var(--font-display); max-width: 1100px; }
+.landing-card h2 { font-size: 28px; margin-top: 6px; }
+.landing-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 32px; margin-top: 10px; }
+.landing-item { padding: 14px 0; border-top: 2px dashed var(--dash); line-height: 1.5; }
+.how-steps { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.how-steps li { display: flex; gap: 12px; line-height: 1.5; }
+.step-n { flex-shrink: 0; width: 32px; height: 32px; border-radius: 16px; background: var(--ink); color: var(--paper); font: 600 14px var(--font-num); display: flex; align-items: center; justify-content: center; }
+#how h2, .wont h2 { font-size: 28px; }
+.wont { background: var(--ink); color: var(--paper); border-radius: 18px; padding: 24px 28px; display: flex; flex-direction: column; gap: 8px; }
+.wont ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 16px; }
+.landing-footer { border-top: 2px solid var(--ink); padding-top: 16px; font-size: 14px; }
+
+/* Coin list */
+.list-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.list-title h1 { font-size: 40px; }
+.top-coins { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.top-coin { background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; color: var(--ink); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+.how-strip { display: flex; gap: 10px 24px; flex-wrap: wrap; align-items: center; padding: 14px 18px; }
+.how-strip ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; flex: 1 1 400px; font-size: 14px; }
+.search-field { display: flex; flex-direction: column; gap: 6px; max-width: 560px; }
+.search-field label { font-weight: 700; font-size: 13px; }
+.search-field input { min-height: 48px; border: 2px solid var(--ink); border-radius: 24px; background: var(--paper); color: var(--ink); padding: 0 18px; font: 500 15px var(--font-body); min-width: 0; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { border: 2px solid var(--ink); border-radius: 20px; min-height: 44px; padding: 0 14px; font: 800 14px var(--font-body); cursor: pointer; background: var(--paper); color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+#list-empty { max-width: 640px; font-size: 16px; padding: 24px; }
+.coin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.coin-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; color: var(--ink); text-decoration: none; min-width: 0; }
+a.coin-card-open:hover { box-shadow: 4px 4px 0 var(--ink); }
+.coin-card-head { display: flex; gap: 12px; align-items: center; }
+.coin-icon-small { width: 52px; height: 52px; border-radius: 12px; }
+.coin-card-title { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.coin-card-name { font: 400 17px var(--font-display); }
+.spark-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.spark { flex: 1; min-width: 0; height: 34px; display: block; }
+.cap-chip { align-self: flex-start; font-family: var(--font-body); font-weight: 700; }
+.cap-full { background: var(--limit); border-color: var(--limit); color: var(--paper); }
+.cap-early { background: var(--ink); color: var(--paper); }
+.coin-card-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.coin-card-facts .num { font-size: 16px; font-weight: 600; }
+.latest { border-top: 2px dashed var(--dash); padding-top: 10px; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+
+/* Alerts */
+.alerts-intro { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+.alerts-intro h1 { font-size: 40px; }
+.alerts-grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.alerts-grid > .card { flex: 1 1 360px; min-width: 0; }
+.chat { width: 390px; max-width: 100%; border: 2px solid var(--ink); border-radius: 22px; overflow: hidden; background: #d9e1e6; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; flex-shrink: 0; }
+.chat-title { background: #fff; padding: 12px 16px; font-weight: 700; color: #111; border-bottom: 1px solid #c4cdd3; }
+.chat-label { background: #fff; padding: 8px 12px; border-bottom: 1px solid #c4cdd3; }
+.chat-body { padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; max-height: 760px; overflow: auto; }
+.chat-bubble { max-width: 86%; background: #fff; border-radius: 14px; padding: 8px 12px 6px; color: #111; box-shadow: 0 1px 0 #b9c3c9; font-size: 14px; line-height: 1.45; min-width: 0; }
+.chat-you { align-self: flex-end; background: #e1f5cf; }
+.chat-bot { align-self: flex-start; }
+.chat-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-time { font-size: 11px; color: #4a545c; text-align: right; margin-top: 2px; }
+.open-on-fair-chance { display: inline-block; background: none; border: 0; padding: 4px 0; min-height: 28px; color: #1f5fa6; font: 600 14px system-ui, sans-serif; text-decoration: underline; cursor: pointer; }
+button.open-on-fair-chance[disabled] { color: #6b7780; text-decoration: line-through; cursor: not-allowed; }
+.plain-item { border-top: 2px dashed var(--dash); margin-top: 12px; padding-top: 10px; }
+.plain-label { font: 700 12px var(--font-body); color: var(--muted); }
+pre { margin: 6px 0 0; font: 400 12.5px/1.55 var(--font-num); white-space: pre-wrap; overflow-wrap: anywhere; }
+#pre-buy-card { max-width: 480px; display: flex; flex-direction: column; gap: 8px; }
+
+/* Price chart and holders table on the coin page */
+.chart-svg { width: 100%; height: 220px; display: block; margin-top: 8px; border-bottom: 2px solid var(--ink); }
+.chart-axis { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; margin-top: 6px; }
+.chart-caption { margin-top: 8px; }
+.holder-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.holder-list li { display: grid; grid-template-columns: 1.3fr 1fr 1.7fr 1.5fr 0.6fr; gap: 12px; padding: 11px 0; border-bottom: 2px dashed var(--dash); align-items: center; font-size: 13px; }
+.holder-heading { font-weight: 700; color: var(--muted); }
+.holder-list li > * { min-width: 0; overflow-wrap: anywhere; }
+.holder-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 720px) {
+  .hero h1 { font-size: 30px; }
+  .hero-sub { font-size: 20px; }
+  .hero-intro { font-size: 15px; }
+  .hero-actions > * { flex: 1 1 100%; }
+  .hero-actions .button { width: 100%; justify-content: center; }
+  .problem p { font-size: 18px; }
+  .problem { padding: 18px 0; }
+  .landing-card h2, #how h2, .wont h2 { font-size: 20px; }
+  .wont { padding: 16px; }
+  .list-title h1, .alerts-intro h1 { font-size: 28px; }
+  .top-coins { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coin-grid { grid-template-columns: minmax(0, 1fr); }
+  .chat { width: 100%; }
+  .screen-nav { order: 3; flex-basis: 100%; }
+  .holder-heading { display: none; }
+  .holder-list li { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
+  .holder-tags, .holder-now, .holder-send { grid-column: 1 / -1; }
+  .holder-send::before { content: "Can send "; color: var(--muted); }
+}
