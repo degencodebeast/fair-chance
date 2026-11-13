@@ -14,6 +14,10 @@ use rule_engine::{
 
 /// Storage key prefix of the holder records.
 const HOLDERS_PREFIX: &[u8] = b"h";
+/// Bytes the coin state gains after `new`: the creator fee depth record's start time
+/// (`claim_depth.ok_since_ns`) goes from none to a u64 when the first 1 h window with enough
+/// real NEAR closes. Every other field of the state has a fixed size after `new`.
+const STATE_GROWTH_AFTER_NEW_BYTES: u64 = 8;
 /// Bytes the chain counts for each stored record on top of its key and value.
 const RECORD_OVERHEAD_BYTES: u64 = 40;
 /// The longest NEAR account ID.
@@ -115,11 +119,12 @@ impl Coin {
             });
         }
         // Write the state now so storage_usage counts all of it. The pool's real NEAR and the
-        // creator balance must stay payable, so the storage lock must come from the rest.
+        // creator balance must stay payable, so the storage lock must come from the rest. The
+        // lock also covers the state's later growth, so it never comes from them either.
         started.holders.flush();
         env::state_write(&started);
-        let storage_lock =
-            env::storage_byte_cost().as_yoctonear() * u128::from(env::storage_usage());
+        let storage_lock = env::storage_byte_cost().as_yoctonear()
+            * u128::from(env::storage_usage() + STATE_GROWTH_AFTER_NEW_BYTES);
         let free = env::account_balance()
             .as_yoctonear()
             .saturating_sub(started.state.real_near)
