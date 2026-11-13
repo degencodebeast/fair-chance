@@ -4,13 +4,21 @@
   check_readme_links.py                     files, anchors and the Contents list (no network)
   check_readme_links.py --external          also ask each http(s) link once
   check_readme_links.py --testnet           also look up each testnet account and each transaction
-                                            hash in a link on the public testnet RPC
+                                            link on the public testnet RPC and compare the receipt
+                                            with the claim in the link title
   check_readme_links.py FILE...             check these files instead of the default list
 
 It holds no key and sends no transaction. An external link that answers 403 or 429 is
-reported and never asked again. Exit 0 when nothing is wrong, 1 otherwise.
+reported and never asked again. Exit 0 when nothing is wrong, 1 otherwise, 2 on a bad flag.
+
+A transaction link carries its claim in the link title:
+  [tx](https://explorer.../transactions/<hash> "claim: partial_fill by buyer.testnet")
+The claim is partial_fill, full_fill or refusal:<FC_CODE>, and the account after "by" is the
+sender. The check reads the receipt and compares what it finds with the claim.
 """
+import argparse
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -19,7 +27,9 @@ from pathlib import Path
 
 DEFAULT_FILES = ["README.md", "docs/evidence.md", "docs/model/README.md"]
 RPC_URL = "https://rpc.testnet.near.org"
-LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"([^\"]*)\")?\)")
+CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|refusal:FC_[A-Z_]+)\s+by\s+(\S+)")
+FC_CODE = re.compile(r"FC_[A-Z_]+")
 ACCOUNT = re.compile(r"(?<![A-Za-z0-9_.@-])([a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet)(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
 TX_HASH = re.compile(r"/(?:transactions|txns|txn)/([1-9A-HJ-NP-Za-km-z]{43,44})\b")
 
@@ -75,6 +85,22 @@ def links(path):
             yield number, match.group(1)
 
 
+def links_with_titles(path):
+    for number, line in prose_lines(path.read_text()):
+        for match in LINK.finditer(line):
+            yield number, match.group(1), match.group(2) or ""
+
+
+def exact_case(root, dest):
+    """True when every part of the path below root has the case the file system lists."""
+    current = root
+    for part in dest.relative_to(root).parts:
+        if part not in os.listdir(current):
+            return False
+        current = current / part
+    return True
+
+
 def check_local(root, files):
     problems = []
     for path in files:
@@ -82,11 +108,13 @@ def check_local(root, files):
             if re.match(r"[a-z][a-z0-9+.-]*:", target):
                 continue
             name, _, fragment = target.partition("#")
-            dest = path if name == "" else (path.parent / name).resolve()
+            dest = path.resolve() if name == "" else (path.parent / name).resolve()
             where = f"{path.relative_to(root)}:{number}"
-            if not dest.exists():
+            if not dest.is_relative_to(root.resolve()):
+                problems.append(f"{where}: link leaves the repository: {target}")
+            elif not dest.exists() or not exact_case(root.resolve(), dest):
                 problems.append(f"{where}: no such file: {target}")
-            elif fragment and dest.is_file() and dest.suffix == ".md":
+            elif fragment and dest.is_file() and dest.suffix.lower() == ".md":
                 if fragment not in anchors(dest.read_text()):
                     problems.append(f"{where}: no such anchor: {target}")
     return problems
@@ -149,6 +177,32 @@ def rpc_call(method, params):
         return {"error": {"message": f"{type(error).__name__}"}}
 
 
+def receipt_outcome(reply):
+    """What a transaction did, as the claim words: partial_fill, full_fill, no_fill,
+    refusal:FC_CODE, or None when the reply holds no result."""
+    result = reply.get("result")
+    if not isinstance(result, dict):
+        return None
+    outcomes = [r.get("outcome", {}) for r in result.get("receipts_outcome", []) if isinstance(r, dict)]
+    for outcome in outcomes:
+        for log in outcome.get("logs", []):
+            if not log.startswith("EVENT_JSON:"):
+                continue
+            try:
+                event = json.loads(log[len("EVENT_JSON:"):])
+            except ValueError:
+                continue
+            if event.get("event") == "fc_sell":
+                fill = (event.get("data") or [{}])[0].get("fill")
+                return {"partial": "partial_fill", "full": "full_fill", "none": "no_fill"}.get(fill)
+    for outcome in outcomes + [{"status": result.get("status")}]:
+        status = outcome.get("status")
+        if isinstance(status, dict) and "Failure" in status:
+            code = FC_CODE.search(json.dumps(status["Failure"]))
+            return f"refusal:{code.group()}" if code else "failure"
+    return None
+
+
 def check_testnet(root, files, rpc=rpc_call):
     problems, accounts = [], {}
     for path in files:
@@ -161,32 +215,43 @@ def check_testnet(root, files, rpc=rpc_call):
                     accounts[account] = "result" in reply
                 if not accounts[account]:
                     problems.append(f"{where}: testnet account not found: {account}")
-            for tx in TX_HASH.findall(line):
-                senders = ACCOUNT.findall(line)
-                if not senders:
-                    problems.append(f"{where}: transaction {tx} has no sender account on its line")
-                    continue
-                reply = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx, "sender_account_id": senders[0], "wait_until": "FINAL"})
-                status = reply.get("result", {}).get("status")
-                if not isinstance(status, dict) or "SuccessValue" not in status and "SuccessReceiptId" not in status:
-                    problems.append(f"{where}: transaction {tx} did not resolve as a success")
+        for number, target, title in links_with_titles(path):
+            tx = TX_HASH.search(target)
+            if not tx:
+                continue
+            where = f"{path.relative_to(root)}:{number}"
+            claim = CLAIM.search(title)
+            if not claim:
+                problems.append(f"{where}: transaction {tx.group(1)} has no claim in its link title")
+                continue
+            reply = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx.group(1), "sender_account_id": claim.group(2), "wait_until": "FINAL"})
+            found = receipt_outcome(reply)
+            if found != claim.group(1):
+                problems.append(f"{where}: transaction {tx.group(1)} claims {claim.group(1)} but the receipt shows {found}")
     return problems
 
 
+def parse(argv):
+    parser = argparse.ArgumentParser(description="Read-only link check for the README and its docs.")
+    parser.add_argument("--external", action="store_true", help="ask each http(s) link once")
+    parser.add_argument("--testnet", action="store_true", help="look up testnet accounts and transactions")
+    parser.add_argument("files", nargs="*", help="files to check (default: the README and two docs)")
+    return parser.parse_args(argv)
+
+
 def main(argv):
-    flags = [a for a in argv if a.startswith("--")]
-    names = [a for a in argv if not a.startswith("--")] or DEFAULT_FILES
+    args = parse(argv)
     root = Path(__file__).resolve().parent.parent
-    files = [(root / n).resolve() for n in names]
+    files = [(root / n).resolve() for n in (args.files or DEFAULT_FILES)]
     problems = check_local(root, files)
     for readme in files:
         if readme.name == "README.md" and readme.parent == root:
             problems += check_contents(readme)
     notes = []
-    if "--external" in flags:
+    if args.external:
         more, notes = check_external(root, files)
         problems += more
-    if "--testnet" in flags:
+    if args.testnet:
         problems += check_testnet(root, files)
     for line in notes:
         print(f"note: {line}")

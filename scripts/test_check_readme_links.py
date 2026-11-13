@@ -1,4 +1,5 @@
 """Tests for scripts/check_readme_links.py. No network: the external and RPC readers are faked."""
+import json
 import sys
 import tempfile
 import unittest
@@ -88,13 +89,38 @@ class External(unittest.TestCase):
         self.assertEqual(asked, ["https://ok.example/a"])
 
 
+H = "9" * 44
+
+
+def tx_line(claim, sender="alice.testnet", h=H):
+    return f'[tx](https://explorer.testnet.near.org/transactions/{h} "claim: {claim} by {sender}")\n'
+
+
+def sell_log(fill):
+    event = {"standard": "fair_chance", "version": "1.0.0-rc.7", "event": "fc_sell", "data": [{"fill": fill}]}
+    return "EVENT_JSON:" + json.dumps(event)
+
+
+def tx_reply(logs=(), failure=None):
+    outcome = {"logs": list(logs), "status": {"Failure": failure} if failure else {"SuccessValue": ""}}
+    return {"result": {"status": {"SuccessValue": ""}, "receipts_outcome": [{"outcome": outcome}]}}
+
+
+def fake_rpc(tx=None, accounts=True, seen=None):
+    def rpc(method, params):
+        if seen is not None:
+            seen.append((method, params.get("sender_account_id")))
+        if method == "query":
+            return {"result": {}} if accounts else {"error": {}}
+        return tx
+    return rpc
+
+
 class Testnet(unittest.TestCase):
     def test_accounts_are_looked_up_and_a_missing_one_is_reported(self):
         root = make({"README.md": "coin `good.fc.testnet` and `bad.fc.testnet`\n"})
-        calls = []
 
         def rpc(method, params):
-            calls.append((method, params))
             if params.get("account_id") == "bad.fc.testnet":
                 return {"error": {"cause": {"name": "UNKNOWN_ACCOUNT"}}}
             return {"result": {"code_hash": "x"}}
@@ -102,39 +128,74 @@ class Testnet(unittest.TestCase):
         out = c.check_testnet(root, [root / "README.md"], rpc)
         self.assertEqual(len(out), 1)
         self.assertIn("bad.fc.testnet", out[0])
-        self.assertTrue(all(m == "query" for m, _ in calls))
 
-    def test_a_tx_hash_in_a_link_resolves_with_the_sender_on_its_line(self):
-        h = "9" * 44
-        root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{h}) from alice.testnet\n"})
+    def test_a_partial_fill_claim_matches_a_partial_fill_receipt(self):
+        root = make({"README.md": tx_line("partial_fill")})
         seen = []
-
-        def rpc(method, params):
-            seen.append(method)
-            if method == "query":
-                return {"result": {}}
-            return {"result": {"status": {"SuccessValue": ""}}}
-
+        rpc = fake_rpc(tx_reply([sell_log("partial")]), seen=seen)
         self.assertEqual(c.check_testnet(root, [root / "README.md"], rpc), [])
-        self.assertIn("EXPERIMENTAL_tx_status", seen)
+        self.assertIn(("EXPERIMENTAL_tx_status", "alice.testnet"), seen)
 
-    def test_a_tx_hash_with_no_sender_on_its_line_is_reported(self):
-        h = "9" * 44
-        root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{h})\n"})
-        out = c.check_testnet(root, [root / "README.md"], lambda m, p: {"result": {}})
+    def test_a_partial_fill_claim_fails_on_a_full_fill(self):
+        root = make({"README.md": tx_line("partial_fill")})
+        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))
         self.assertEqual(len(out), 1)
-        self.assertIn("sender", out[0])
+        self.assertIn("full_fill", out[0])
 
-    def test_a_failed_tx_is_reported(self):
-        h = "9" * 44
-        root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{h}) alice.testnet\n"})
+    def test_a_full_fill_claim_matches(self):
+        root = make({"README.md": tx_line("full_fill")})
+        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")]))), [])
 
-        def rpc(method, params):
-            if method == "query":
-                return {"result": {}}
-            return {"result": {"status": {"Failure": {}}}}
+    def test_a_refusal_claim_matches_the_code_in_the_receipt(self):
+        root = make({"README.md": tx_line("refusal:FC_CREATOR_CAP")})
+        failure = {"ActionError": {"kind": {"FunctionCallError": {"ExecutionError": "Smart contract panicked: FC_CREATOR_CAP"}}}}
+        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply(failure=failure))), [])
 
-        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], rpc)), 1)
+    def test_a_refusal_claim_fails_on_another_code_or_on_a_fill(self):
+        root = make({"README.md": tx_line("refusal:FC_CREATOR_CAP")})
+        failure = {"ActionError": {"kind": {"FunctionCallError": {"ExecutionError": "Smart contract panicked: FC_ONE_YOCTO"}}}}
+        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply(failure=failure)))), 1)
+        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
+
+    def test_a_tx_link_with_no_claim_is_reported(self):
+        root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{H}) alice.testnet\n"})
+        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("partial")])))
+        self.assertEqual(len(out), 1)
+        self.assertIn("claim", out[0])
+
+    def test_a_tx_that_does_not_resolve_is_reported(self):
+        root = make({"README.md": tx_line("partial_fill")})
+        out = c.check_testnet(root, [root / "README.md"], fake_rpc({"error": {"message": "unknown"}}))
+        self.assertEqual(len(out), 1)
+
+
+class Outside(unittest.TestCase):
+    def test_a_link_that_leaves_the_repo_is_reported(self):
+        base = make({"outside.md": "# x\n", "repo/README.md": "[a](../outside.md)\n"})
+        root = base / "repo"
+        out = c.check_local(root, [root / "README.md"])
+        self.assertEqual(len(out), 1)
+        self.assertIn("outside", out[0])
+
+    def test_the_case_of_a_path_must_match_exactly(self):
+        root = make({"README.md": "[a](docs/X.md) [b](Docs/x.md)\n", "docs/x.md": "# x\n"})
+        self.assertEqual(len(c.check_local(root, [root / "README.md"])), 2)
+
+    def test_an_anchor_is_checked_for_an_upper_case_md_suffix(self):
+        root = make({"README.md": "[a](docs/x.MD#nope)\n", "docs/x.MD": "# x\n"})
+        self.assertEqual(len(c.check_local(root, [root / "README.md"])), 1)
+
+
+class Flags(unittest.TestCase):
+    def test_an_unknown_flag_fails(self):
+        with self.assertRaises(SystemExit) as caught:
+            c.parse(["--extrenal"])
+        self.assertEqual(caught.exception.code, 2)
+
+    def test_the_known_flags_parse(self):
+        args = c.parse(["--external", "--testnet", "README.md"])
+        self.assertTrue(args.external and args.testnet)
+        self.assertEqual(args.files, ["README.md"])
 
 
 if __name__ == "__main__":
