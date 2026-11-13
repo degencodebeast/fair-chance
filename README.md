@@ -143,7 +143,15 @@ These are recorded runs. They do not predict results.
 | Rule tests | <!-- waits on: the final test count --> | `cargo test --workspace --locked` |
 | Property tests | <!-- waits on: the marked-token cap rule --> | |
 | NEAR launch replay and 60-day simulation | See [analysis/FINDINGS.md](analysis/FINDINGS.md). | Public-chain replay and synthetic activity. Not a forecast. |
-| SMDD replay | <!-- waits on: the SMDD replay section --> | |
+| SMDD replay | With the limits off, the creator sold 4.7% of all tokens sold in that run and took 10.2% of all NEAR paid out in that run in the first hour. With all rules together (early fee, allowance, class and cap), the creator sold 0.02% of all tokens sold in that run and took 0.02% of all NEAR paid out in that run. See [the chart and table](analysis/smdd-replay/results/). | SMDD's first-hour trades on Solana, replayed in order on one Fair Chance pool, limits on in the same coin code, in the near-sdk in-process runner, with exact blocks and times. Groups only, minutes from launch. The difference comes from all the rules together. Sizing in [the replay method](analysis/smdd-replay/METHOD.md). |
+
+Real coin: the creator sold 7.331% of supply. Replay with limits off: 6.77%. The gap comes from the curve shape (pump.fun's 1.073 billion virtual tokens).
+
+5 wallets funded directly by one wallet before launch paid 0.5% of all NEAR paid in for buys in the first hour and sold none in the first hour.
+
+The same-funder check sees direct funding only, so wallets funded through other wallets can sit in "other".
+
+![SMDD replay: price at the end of each minute, limits off and on.](analysis/smdd-replay/results/replay-price-path.svg)
 
 Numbers from a replay or a simulation show how the rules behave. They are simulation, not demand.
 
@@ -160,8 +168,6 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 - Account handover. A holder can give away a whole account, keys included.
 - Plain `storage_unregister` differs from NEP-145 in two ways. It refuses while the window is open (`FC_UNREGISTER_WINDOW_OPEN`), and it refuses an account with tokens with `FC_UNREGISTER_WITH_BALANCE`.
 - Testnet tokens have no value. Screens marked "sample data" show no real trades.
-
-<!-- waits on: the SMDD replay section -->
 
 ## Libraries, templates and AI tools
 
