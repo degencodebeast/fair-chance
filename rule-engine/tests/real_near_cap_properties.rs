@@ -16,7 +16,15 @@
 //! - Every holder record has the size of an empty record, so the storage deposit for a record
 //!   pays for it whatever the account does.
 //!
-//! Each gate run tries 1,000 sequences. A failing sequence is saved in
+//!
+//! A second property runs one account's buys, round trips and sells in one window after a
+//! random history. The NEAR it gets for the tokens it held at the window start (its payouts
+//! less the NEAR its buys paid) is at most what a twin run gets: the same trades with its buys
+//! and buy-backs removed (the twin run already includes its floor), plus c x F, plus the price
+//! effect of F (twin NEAR out x F / the lowest NEAR reserve in the window, virtual plus real),
+//! plus 1 yoctoNEAR per trade for rounding. F is the fees the pool kept from the account's buys.
+//!
+//! Each gate run tries 1,000 sequences per property. A failing sequence is saved in
 //! `proptest-regressions/real_near_cap_properties.txt` (committed), and runs first next time.
 
 use std::collections::BTreeMap;
@@ -76,8 +84,13 @@ fn step() -> impl Strategy<Value = Step> {
     ]
 }
 
+/// Account 0 is the coin's creator; the others are plain accounts.
 fn account_name(index: usize) -> String {
-    format!("account-{index}.test")
+    if index == 0 {
+        "creator.test".to_string()
+    } else {
+        format!("account-{index}.test")
+    }
 }
 
 /// One coin and its whole ledger, with the totals the properties compare against.
@@ -313,6 +326,132 @@ impl Coin {
     }
 }
 
+#[derive(Debug, Clone)]
+enum WindowTrade {
+    Buy {
+        near_in: u128,
+    },
+    /// Sells `share_bps` of the balance at that moment (10_000 = all of it).
+    Sell {
+        share_bps: u128,
+    },
+}
+
+fn window_trade() -> impl Strategy<Value = WindowTrade> {
+    prop_oneof![
+        near_in().prop_map(|near_in| WindowTrade::Buy { near_in }),
+        share_bps().prop_map(|share_bps| WindowTrade::Sell { share_bps }),
+    ]
+}
+
+/// What one account's trades in one window gave it.
+#[derive(Debug, Default)]
+struct WindowResult {
+    payouts: u128,
+    buys: u128,
+    buy_fees: u128,
+    trades: u128,
+    lowest_near_reserve: u128,
+    /// The actions that went through, in order.
+    actions: Vec<Action>,
+}
+
+/// Runs `actions` by one account from `start`, one second apart, on a copy of the coin. A
+/// sell asks for at most the balance; a refused action is left out.
+fn run_window(coin: &Coin, account: &str, actions: Vec<Action>, start: At) -> WindowResult {
+    let mut state = coin.state.clone();
+    let mut ledger = coin.ledger.clone();
+    let mut result = WindowResult {
+        lowest_near_reserve: state.near_reserve(),
+        ..WindowResult::default()
+    };
+    for (i, action) in actions.into_iter().enumerate() {
+        let at = At {
+            block: start.block + i as u64,
+            ns: start.ns + i as u64 * 1_000_000_000,
+        };
+        let balance = ledger.get(account).map_or(0, |h| h.balance);
+        let action = match action {
+            Action::Sell { amount, .. } => Action::Sell {
+                account: account.to_string(),
+                amount: amount.min(balance),
+                min_near_out: 0,
+                attached: 1,
+            },
+            other => other,
+        };
+        let holders: Holders = ledger
+            .get(account)
+            .map(|h| (account.to_string(), h.clone()))
+            .into_iter()
+            .collect();
+        let Ok(applied) = apply(&state, holders, &action, at) else {
+            continue;
+        };
+        for event in &applied.events {
+            if let Event::FcBuy(buy) = event {
+                result.buys += buy.near_in;
+                result.buy_fees += buy.fee_near;
+            }
+        }
+        result.payouts += applied.payout.as_ref().map_or(0, |p| p.amount);
+        result.trades += 1;
+        state = applied.state;
+        ledger.extend(applied.holders);
+        result.lowest_near_reserve = result.lowest_near_reserve.min(state.near_reserve());
+        result.actions.push(action);
+    }
+    result
+}
+
+/// The account's real trades: a sell asks for its share of the balance at that moment.
+fn real_window_actions(
+    coin: &Coin,
+    account: &str,
+    trades: &[WindowTrade],
+    start: At,
+) -> WindowResult {
+    let mut actions = Vec::new();
+    for trade in trades {
+        // Sell amounts depend on the balance, so run the prefix to learn it.
+        let action = match *trade {
+            WindowTrade::Buy { near_in } => Action::Buy {
+                account: account.to_string(),
+                near_in,
+                min_tokens_out: 0,
+            },
+            WindowTrade::Sell { share_bps } => {
+                let so_far = run_window(coin, account, actions.clone(), start);
+                let mut ledger = coin.ledger.clone();
+                let mut state = coin.state.clone();
+                for (i, action) in so_far.actions.iter().enumerate() {
+                    let at = At {
+                        block: start.block + i as u64,
+                        ns: start.ns + i as u64 * 1_000_000_000,
+                    };
+                    let holders: Holders = ledger
+                        .get(account)
+                        .map(|h| (account.to_string(), h.clone()))
+                        .into_iter()
+                        .collect();
+                    let applied = apply(&state, holders, action, at).expect("replay");
+                    state = applied.state;
+                    ledger.extend(applied.holders);
+                }
+                let balance = ledger.get(account).map_or(0, |h| h.balance);
+                Action::Sell {
+                    account: account.to_string(),
+                    amount: balance * share_bps / BPS,
+                    min_near_out: 0,
+                    attached: 1,
+                }
+            }
+        };
+        actions.push(action);
+    }
+    run_window(coin, account, actions, start)
+}
+
 proptest! {
     #![proptest_config(ProptestConfig {
         cases: 1_000,
@@ -330,5 +469,46 @@ proptest! {
         for step in &steps {
             coin.run(step)?;
         }
+    }
+
+    #[test]
+    fn one_account_s_buys_in_a_window_gain_it_no_near_for_the_tokens_it_held_before(
+        history in proptest::collection::vec(step(), 0..40),
+        who in 0..ACCOUNTS,
+        trades in proptest::collection::vec(window_trade(), 1..16),
+    ) {
+        let mut coin = Coin::launched();
+        for step in &history {
+            coin.run(step)?;
+        }
+        let account = account_name(who);
+        let window_end = view_cap(&coin.state, coin.at).window_end_ns;
+        let start = At { block: coin.at.block + 10, ns: window_end };
+
+        let real = real_window_actions(&coin, &account, &trades, start);
+        // The twin: the same trades with every buy (and so every buy-back) removed.
+        let twin_actions = real
+            .actions
+            .iter()
+            .filter(|a| !matches!(a, Action::Buy { .. }))
+            .cloned()
+            .collect();
+        let twin = run_window(&coin, &account, twin_actions, start);
+
+        let fees = real.buy_fees;
+        let cap_room = (fees * coin.state.fixed.real_cap_c_bps as u128).div_ceil(BPS);
+        let lowest = ethnum::U256::from(real.lowest_near_reserve);
+        let price_effect = ((ethnum::U256::from(twin.payouts) * ethnum::U256::from(fees)
+            + lowest
+            - 1)
+            / lowest)
+            .as_u128();
+        let bound = twin.payouts + cap_room + price_effect + real.trades;
+        let got = real.payouts as i128 - real.buys as i128;
+        prop_assert!(
+            got <= bound as i128,
+            "{account} got {got} for its held tokens; twin {} + c x F {cap_room} + price {price_effect} + trades {}; real actions {:?}",
+            twin.payouts, real.trades, real.actions
+        );
     }
 }

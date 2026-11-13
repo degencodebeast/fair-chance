@@ -646,8 +646,7 @@ fn at_an_exactly_full_cap_a_buy_opens_no_room_for_tokens_the_account_held_before
     let y_filled = sell.tokens_sold - bought;
     assert!(y_filled < y, "the full Y filled");
     let y_near = sell.near_out - payout_for(&before, bought, at);
-    let floor_near =
-        payout_for(&before, bought + floor_left, at) - payout_for(&before, bought, at);
+    let floor_near = payout_for(&before, bought + floor_left, at) - payout_for(&before, bought, at);
     // Fees the pool kept: the 1% buy fee on X, rounded up, and the sell's fee.
     let kept_fees = x.div_ceil(100) + sell.fee_near;
     let fee_room = (kept_fees * C_BPS).div_ceil(BPS);
