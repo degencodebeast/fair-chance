@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Deterministic synthetic exercise of the Issue #2 sell rules."""
 from __future__ import annotations
-import argparse, csv, json, random
+import argparse, csv, json, random, math
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-SUPPLY, VIRTUAL, FEE, ALLOWANCE, CAP, FLOOR = 1e9, 100., .01, .010153, .05, .001
+SUPPLY, VIRTUAL, FEE, CAP, FLOOR = 1e9, 100., .01, .05, .001
+ALLOWANCE = 1 / math.sqrt(1 - .02) - 1
 
 @dataclass(frozen=True)
 class Policy:
@@ -29,9 +30,15 @@ class Pool:
         payout = max(0., gross - normal - gross * penalty)
         self.token += tokens; self.near -= payout + creator; self.real -= payout + creator; self.creator_fees += creator
         return payout, normal - creator + gross * penalty, gross * penalty
+    def sell_band(self, tokens, first_tokens, share, penalty_rate):
+        gross=min(self.gross(tokens),self.real);first=min(tokens,first_tokens);first_gross=min(self.gross(first),self.real)
+        normal=gross*FEE;creator=normal*share;excess_after_fee=max(0.,gross-first_gross)*(1-FEE)
+        penalty=excess_after_fee*penalty_rate;payout=max(0.,gross-normal-penalty)
+        self.token+=tokens;self.near-=payout+creator;self.real-=payout+creator;self.creator_fees+=creator
+        return payout,normal-creator+penalty,penalty,max(0.,payout-first_gross*(1-FEE))
     def tokens_for(self, payout, share, penalty=0.):
         lo, hi = 0., self.token
-        for _ in range(64):
+        for _ in range(100):
             mid = (lo + hi) / 2
             if min(self.gross(mid), self.real) * (1 - FEE - penalty) <= payout: lo = mid
             else: hi = mid
@@ -45,7 +52,7 @@ class Wallet:
 class Engine:
     policy: Policy; pool: Pool = field(default_factory=Pool); wallets: dict = field(default_factory=dict)
     sold: dict = field(default_factory=lambda: defaultdict(float)); bought: dict = field(default_factory=lambda: defaultdict(float))
-    cap_counted: dict = field(default_factory=lambda: defaultdict(float)); cap_noncounted: dict = field(default_factory=lambda: defaultdict(float)); cap_buy: dict = field(default_factory=lambda: defaultdict(float))
+    cap_counted: dict = field(default_factory=lambda: defaultdict(float)); cap_noncounted: dict = field(default_factory=lambda: defaultdict(float)); cap_buy: dict = field(default_factory=lambda: defaultdict(float)); floor_sold: dict = field(default_factory=lambda: defaultdict(float))
     snaps: dict = field(default_factory=dict); reserve_snaps: dict = field(default_factory=dict); prices: dict = field(default_factory=dict); brakes: int = 0; penalties: float = 0.; band_penalties: float = 0.; max_drawdown: float = 0.
     def __post_init__(self): self.initial_price = self.pool.price()
     def wallet(self, name, creator=False):
@@ -62,15 +69,16 @@ class Engine:
     def reserve_snapshot(self, hour):
         return self.reserve_snaps.setdefault(self.bucket(hour), self.pool.token)
     def buy(self, name, near, hour, early=False, block=10_000, creator=False):
-        self.snapshot(hour, block); marked = block <= self.policy.n or creator or self.wallet(name).creator
-        extra = .09 * max(0., 1 - block / self.policy.n) if block <= self.policy.n else 0.
+        self.snapshot(hour, block); self.reserve_snapshot(hour); marked = block <= self.policy.n or creator or self.wallet(name).creator
+        b=max(0,block)
+        extra=.49*max(0.,18-min(18,b))/18 if b < 18 else 0.
         estimate = self.pool.token - self.pool.token * self.pool.near / (self.pool.near + near * (1-FEE-extra))
         group = creator or self.wallet(name).creator
         if group and self.creator_tokens() + estimate > .04 * SUPPLY: return 0.
         out = self.pool.buy(near, self.policy.creator_fee_share, extra); w = self.wallet(name, group)
         w.tokens += out; w.marked += out if marked or group else 0.; w.ever_large |= w.tokens >= self.policy.threshold * SUPPLY
         self.bought[name, self.bucket(hour)] += out
-        if not group: self.cap_buy[name, self.cap_bucket(hour)] += near
+        self.cap_buy[name, self.cap_bucket(hour)] += near
         return out
     def transfer(self, source, target, amount, block, target_creator=False):
         a,b = self.wallet(source),self.wallet(target,target_creator)
@@ -88,16 +96,32 @@ class Engine:
         gross=min(self.pool.gross(wanted),self.pool.real); payout=gross*(1-FEE-penalty); creator=gross*FEE*self.policy.creator_fee_share
         if self.cap_used(hour,name,payout) <= CAP*(self.pool.real-payout-creator): return wanted
         lo,hi=0.,wanted
-        for _ in range(32):
+        for _ in range(100):
             mid=(lo+hi)/2; gross=min(self.pool.gross(mid),self.pool.real); payout=gross*(1-FEE-penalty); creator=gross*FEE*self.policy.creator_fee_share
             if self.cap_used(hour,name,payout) <= CAP*(self.pool.real-payout-creator): lo=mid
             else: hi=mid
         return lo
+    def cap_fill_band(self,name,wanted,first,hour):
+        def fits(total):
+            gross=min(self.pool.gross(total),self.pool.real);first_gross=min(self.pool.gross(min(total,first)),self.pool.real)
+            penalty=max(0.,gross-first_gross)*(1-FEE)*self.policy.penalty
+            counted=max(0.,gross*(1-FEE)-penalty-first_gross*(1-FEE))
+            creator=gross*FEE*self.policy.creator_fee_share
+            return self.cap_used(hour,name,counted)<=CAP*(self.pool.real-gross*(1-FEE)-penalty-creator)
+        if fits(wanted):return wanted
+        lo,hi=min(wanted,first),wanted
+        if hi<=lo:return lo
+        for _ in range(100):
+            mid=(lo+hi)/2
+            if fits(mid):lo=mid
+            else:hi=mid
+        return lo
     def floor_tokens(self, name, hour, marked):
-        reserve=self.reserve_snapshot(hour)
+        reserve=self.reserve_snapshot(hour); key=(name,self.bucket(hour,marked))
         if marked:
-            amounts,total,_=self.snaps[self.bucket(hour,True)]; return FLOOR*reserve*amounts.get(name,0.)/total if total else 0.
-        return FLOOR*reserve
+            amounts,total,reserve=self.snaps[self.bucket(hour,True)]; allowance=FLOOR*reserve*amounts.get(name,0.)/total if total else 0.
+        else: allowance=FLOOR*reserve
+        return max(0.,allowance-self.floor_sold[key])
     def sell(self, name, wanted, hour, block=10_000):
         self.snapshot(hour, block); w=self.wallet(name); wanted=min(wanted,w.tokens); marked=min(wanted,w.marked); unmarked=wanted-marked
         if block<=self.policy.n: marked=0.
@@ -105,23 +129,32 @@ class Engine:
         if marked:
             k=self.bucket(hour,True); amounts,supply,reserve=self.snaps[k]; allowance=ALLOWANCE*reserve*amounts.get(name,0.)/supply if supply else 0.
             wanted_marked=min(marked,max(0.,allowance-self.sold[name,k])); amount=self.cap_fill(name,wanted_marked,hour,0.)
-            if amount < wanted_marked: amount=min(wanted_marked,max(amount,self.floor_tokens(name,hour,True)))
+            floor_used=0.
+            if amount < wanted_marked:
+                floor_used=min(wanted_marked-amount,self.floor_tokens(name,hour,True));amount+=floor_used
             paid,fee,_=self.pool.sell(amount,self.policy.creator_fee_share); self.sold[name,k]+=amount; self.cap_counted[name,self.cap_bucket(hour)]+=paid; self.penalties+=fee; total+=amount;payout+=paid
+            if floor_used:self.floor_sold[name,self.bucket(hour,True)]+=floor_used
         if unmarked:
             k,ck=self.bucket(hour),self.cap_bucket(hour); room=max(0.,ALLOWANCE*self.reserve_snapshot(hour)+self.bought[name,k]-self.sold[name,k])
             base=min(unmarked,room); extra=0. if w.ever_large else max(0.,unmarked-base)
-            if w.ever_large:
-                wanted_base=base; base=self.cap_fill(name,base,hour,0.)
-                if base < wanted_base: base=min(wanted_base,max(base,self.floor_tokens(name,hour,False)))
             start=self.prices.setdefault(ck,self.price())
             if extra and self.policy.brake is not None and 1-self.price()/start>=self.policy.brake: self.brakes+=1;extra=0.
-            extra=self.cap_fill(name,extra,hour,self.policy.penalty)
-            for amount,penalty,counted in ((base,0.,w.ever_large),(extra,self.policy.penalty,True)):
-                if amount:
-                    paid,fee,band=self.pool.sell(amount,self.policy.creator_fee_share,penalty); self.sold[name,k]+=amount
-                    if counted:self.cap_counted[name,ck]+=paid
-                    else:self.cap_noncounted[name,ck]+=paid
-                    self.penalties+=fee;self.band_penalties+=band;total+=amount;payout+=paid
+            if w.ever_large:
+                wanted_base=base;base=self.cap_fill(name,base,hour,0.);floor_used=0.
+                if base<wanted_base:
+                    floor_used=min(wanted_base-base,self.floor_tokens(name,hour,False));base+=floor_used
+                if base:
+                    paid,fee,_=self.pool.sell(base,self.policy.creator_fee_share);self.cap_counted[name,ck]+=paid;self.sold[name,k]+=base;self.penalties+=fee;total+=base;payout+=paid
+                    if floor_used:self.floor_sold[name,ck]+=floor_used
+            else:
+                total_sell=base+extra
+                if total_sell:
+                    allowed=self.cap_fill_band(name,total_sell,base,hour)
+                    # The base allowance always fills; only above-allowance tokens need cap room.
+                    allowed=max(min(base,total_sell),allowed)
+                    paid,fee,band,counted=self.pool.sell_band(allowed,base,self.policy.creator_fee_share,self.policy.penalty)
+                    self.sold[name,k]+=allowed;self.cap_noncounted[name,ck]+=max(0.,paid-counted);self.cap_counted[name,ck]+=counted
+                    self.penalties+=fee;self.band_penalties+=band;total+=allowed;payout+=paid
         w.tokens-=total;w.marked-=min(w.marked,total);w.received+=payout
         if w.tokens == 0:w.ever_large=False
         return total,payout
@@ -134,7 +167,7 @@ class Engine:
 
 def seed(policy, early_near=3.):
     e=Engine(policy)
-    creator_near=(e.pool.token*e.pool.near/(e.pool.token-.04*SUPPLY)-e.pool.near)/(1-FEE-.09)
+    creator_near=(e.pool.token*e.pool.near/(e.pool.token-.04*SUPPLY)-e.pool.near)/(1-FEE-.49)
     e.buy('creator',creator_near,0,True,0,True)
     for i in range(5):e.buy(f'early-{i}',early_near,0,True,i*3)
     e.buy('small-early',.05,0,True,3)
@@ -175,7 +208,7 @@ def creator_exit(p,snipers=False):
         if snipers and h%8==0:e.buy(f'sniper-{h}',1,h)
         e.sell('creator',e.wallet('creator').tokens,h)
         if e.wallet('creator').tokens<1:break
-    return {'start_tokens':start,'remaining_tokens':e.wallet('creator').tokens,'days':h/24}
+    return {'start_tokens':start,'remaining_tokens':e.wallet('creator').tokens,'days':h/24,'exit_status':'out' if e.wallet('creator').tokens<1 else 'not out by day 60'}
 def early_exit(p,share):
     e=seed(p);total=sum(w.marked for w in e.wallets.values());f=share*SUPPLY/total
     for w in e.wallets.values():
@@ -184,7 +217,7 @@ def early_exit(p,share):
     for h in range(1440):
         e.sell(w.name,w.tokens,h)
         if w.marked<1:break
-    return {'early_supply_share':share,'holder_days':h/24,'remaining_marked_tokens':w.marked}
+    return {'early_supply_share':share,'holder_days':h/24,'remaining_marked_tokens':w.marked,'exit_status':'out' if w.marked<1 else 'not out by day 60'}
 def base(p):return {'label':'simulation','n':p.n,'t':p.threshold,'brake':'off' if p.brake is None else p.brake,'penalty':p.penalty,'creator_fee_share':p.creator_fee_share,'window_hours':p.window}
 def rows(p,only=None):
     b=base(p);e=normal(p);r={1:dict(b,test='1_normal_brake',brake_trips=e.brakes,max_drawdown=e.max_drawdown,final_price=e.price()),2:dict(b,test='2_first_seller_race',**race(p)),3:dict(b,test='3_cap_race_many_sellers',**cap_race(p)),4:dict(b,test='4_small_holder_drawdown',max_drawdown=e.max_drawdown,final_price=e.price(),penalty_near=e.band_penalties),5:dict(b,test='5_brake_penalty',brakes=e.brakes,penalty_near=e.band_penalties),6:dict(b,test='6_penalty_level',penalty_near=e.band_penalties),7:dict(b,test='7_band_split',**split_test(p)),8:dict(b,test='8_cap_round_trip',**round_trip(p)),9:dict(b,test='9_buy_raise_cap',**round_trip(p,True))}
@@ -197,42 +230,41 @@ def write(name,rows,directory=None):
     with path.open('w',newline='') as f:o=csv.DictWriter(f,fieldnames=cols,lineterminator='\n');o.writeheader();o.writerows(rows)
 def unit(value, scale): return str(int((Decimal(str(value))*Decimal(str(scale))).quantize(Decimal('1'),rounding=ROUND_HALF_UP)))
 def cap_cases():
-    """Small deterministic vectors for a contract implementation (decimal math)."""
+    """Export reproducible examples, including each launch-fee block."""
     cases=[]
-    for share in (0.,.3):
-        p=Policy(17,.02,None,.1,share); e=Engine(p,Pool(token=SUPPLY,near=110.,real=10.)); e.wallet('large').tokens=500_000_000.;e.wallet('large').ever_large=True
-        actions=[]
-        def sell(account, amount, second=0, block=100):
-            filled,paid=e.sell(account,amount,second/3600,block)
-            actions.append({'account':account,'kind':'sell','amount_token_base':unit(amount,1e18),'time_s':second,'block':block,'result':{'tokens_filled_base':unit(filled,1e18),'near_out_yocto':unit(paid,1e24),'cap_used_yocto':unit(e.cap_used(second/3600),1e24),'refusal_code':None if filled else 'FC_CAP_FULL'}})
-        sell('large',500_000_000.)
-        cases.append({'name':f'large-post-sell-cap-s-{int(share*100)}','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':int(share*10000)},'actions':actions})
-        e=Engine(p,Pool(token=SUPPLY,near=110.,real=10.)); e.wallet('same').tokens=500_000_000.;e.wallet('same').ever_large=True; actions=[]
-        bought=e.buy('same',100,0); actions.append({'account':'same','kind':'buy','amount_near_yocto':unit(100,1e24),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(bought,1e18),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}})
-        sell('same',e.wallet('same').tokens,1)
-        cases.append({'name':f'same-account-round-trip-s-{int(share*100)}','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':int(share*10000)},'actions':actions})
-    # Same-account buy/sell ordering must not change another account's cap debit.
-    for order in ('buy-first','sell-first'):
-        e=Engine(Policy(17,.02,None,.1),Pool(token=SUPPLY,near=110.,real=10.));e.wallet('large').tokens=50_000_000.;e.wallet('large').ever_large=True
-        actions=[]
-        sequence=[('large','sell',10_000_000.),('buyer','buy',1.)]
-        if order=='buy-first':sequence.reverse()
-        for account,kind,amount in sequence:
-            if kind=='buy': result=e.buy(account,amount,0); fill={'tokens_filled_base':unit(result,1e18),'near_out_yocto':'0','refusal_code':None}
-            else: result=e.sell(account,amount,0); fill={'tokens_filled_base':unit(result[0],1e18),'near_out_yocto':unit(result[1],1e24),'refusal_code':None}
-            fill['cap_used_yocto']=unit(e.cap_used(0),1e24)
-            actions.append({'account':account,'kind':kind,'amount_near_yocto' if kind=='buy' else 'amount_token_base':unit(amount,1e24 if kind=='buy' else 1e18),'time_s':0,'block':100,'result':fill})
-        cases.append({'name':f'order-independence-{order}','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':0},'actions':actions})
-    # Ten within-allowance round trips create no cap credit for the later band exit.
-    e=Engine(Policy(17,.02,None,.1),Pool(token=SUPPLY,near=110.,real=10.));e.wallet('band').tokens=20_000_000.;actions=[]
-    for _ in range(10):
-        bought=e.buy('band',.01,0);sold=e.sell('band',bought,0)
-        actions.extend([{'account':'band','kind':'buy','amount_near_yocto':unit(.01,1e24),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(bought,1e18),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}}, {'account':'band','kind':'sell','amount_token_base':unit(bought,1e18),'time_s':0,'block':100,'result':{'tokens_filled_base':unit(sold[0],1e18),'near_out_yocto':unit(sold[1],1e24),'cap_used_yocto':unit(e.cap_used(0),1e24),'refusal_code':None}}])
-    e.wallet('band').ever_large=True
-    sold=e.sell('band',e.wallet('band').tokens,1)
-    actions.append({'account':'band','kind':'sell','amount_token_base':unit(20_000_000,1e18),'time_s':3600,'block':100,'result':{'tokens_filled_base':unit(sold[0],1e18),'near_out_yocto':unit(sold[1],1e24),'cap_used_yocto':unit(e.cap_used(1),1e24),'refusal_code':None}})
-    cases.append({'name':'band-round-trip-credit','start_state':{'real_near_yocto':unit(10,1e24),'virtual_near_yocto':unit(100,1e24),'token_reserve_base':unit(SUPPLY,1e18),'creator_fee_share_bps':0},'actions':actions})
-    (ROOT/'results'/'cap-cases.json').write_text(json.dumps({'version':'1.0.0-rc.4','math':'decimal floating-point simulation; amounts are serialized as integer base units','cases':cases},indent=2)+'\n')
+    def start(e):
+        holders=[{'account':w.name,'tokens_base':unit(w.tokens,1e18),'marked_base':unit(w.marked,1e18),'large':w.ever_large} for w in e.wallets.values()]
+        reserve_base=int(unit(SUPPLY,1e18))-sum(int(w['tokens_base']) for w in holders)
+        return {'real_near_yocto':unit(e.pool.real,1e24),'virtual_near_yocto':unit(e.pool.near-e.pool.real,1e24),
+                'token_reserve_base':str(reserve_base),'holders':holders,'total_supply_base':unit(SUPPLY,1e18),
+                'rules':{'n':e.policy.n,'t':e.policy.threshold,'penalty':e.policy.penalty,'creator_fee_share_bps':int(e.policy.creator_fee_share*10000),
+                         'cap_bps':int(CAP*10000),'floor_bps':int(FLOOR*10000),'window_s':int(e.policy.window*3600),'allowance':ALLOWANCE}}
+    def case(name,state,actions):cases.append({'name':name,'start_state':state,'actions':actions})
+    def buy(e,actions,name,near,block,second=0,creator=False):
+        h=second/3600;before=e.wallet(name).ever_large;out=e.buy(name,near,h,block=block,creator=creator)
+        actions.append({'account':name,'kind':'buy','amount_near_yocto':unit(near,1e24),'time_s':second,'block':block,'result':{'tokens_filled_base':unit(out,1e18),'large_before':before,'large_after':e.wallet(name).ever_large,'cap_used_yocto':unit(e.cap_used(h),1e24)}})
+    def sell(e,actions,name,amount,second=0,block=100):
+        h=second/3600;e.snapshot(h,block);w=e.wallet(name);marked=min(amount,w.marked);pre_cap=e.cap_used(h);pre_limit=CAP*e.pool.real
+        allowance=ALLOWANCE*e.reserve_snapshot(h)
+        if marked: allowance=ALLOWANCE*e.snaps[e.bucket(h,True)][2]*marked/max(e.snaps[e.bucket(h,True)][1],1)
+        prior_penalty=e.band_penalties;filled,paid=e.sell(name,amount,h,block);reason=None
+        if filled<amount:
+            if pre_cap>=pre_limit-1e-9 and filled<=FLOOR*e.reserve_snapshot(h)+1e-6:reason='floor'
+            elif pre_cap>=pre_limit-1e-9:reason='cap_full'
+            elif filled>=allowance-1e-6:reason='allowance'
+            else:reason='cap_full'
+        actions.append({'account':name,'kind':'sell','amount_token_base':unit(amount,1e18),'time_s':second,'block':block,
+                        'result':{'tokens_filled_base':unit(filled,1e18),'near_out_yocto':unit(paid,1e24),'fill':'full' if filled>=amount-1e-6 else ('none' if filled<=1e-9 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24)}})
+    p=Policy(17,.02,None,.1)
+    # The band holder starts at 2%; a buy crosses the 5% threshold.
+    band_policy=Policy(17,.05,None,.1);e=Engine(band_policy,Pool(token=SUPPLY-20_000_000.,near=100.,real=0.));e.wallet('band').tokens=20_000_000.;state=start(e);actions=[];buy(e,actions,'band',4.,100);sell(e,actions,'band',e.wallet('band').tokens*.9,1);case('threshold-cross-at-2-percent',state,actions)
+    e=Engine(band_policy,Pool(token=SUPPLY-20_000_000.,near=105.,real=5.));e.wallet('band').tokens=20_000_000.;state=start(e);actions=[];buy(e,actions,'band',.1,100);sell(e,actions,'band',e.wallet('band').tokens,1);case('band-sell-above-allowance',state,actions)
+    # Each launch-relative block has an explicit buy vector.
+    for b in range(18):
+        e=Engine(p,Pool(token=SUPPLY,near=100.,real=0.));state=start(e);actions=[];buy(e,actions,'early-buyer',1.,b);case(f'early-buy-block-{b}',state,actions)
+    e=Engine(p,Pool(token=SUPPLY,near=100.,real=0.));state=start(e);actions=[];buy(e,actions,'marked',1.,0);buy(e,actions,'other-marked',9.,0);sell(e,actions,'marked',e.wallet('marked').tokens,1,18);case('marked-allowance-limit',state,actions)
+    e=Engine(p,Pool(token=SUPPLY,near=110.,real=10.));setup=[];buy(e,setup,'large',3.,100,3600);state=start(e);state['cap_used_by_account_yocto']={'other':unit(CAP*e.pool.real,1e24)};e.cap_counted['other',1]=CAP*e.pool.real;actions=[];sell(e,actions,'large',e.wallet('large').tokens,3601);sell(e,actions,'large',e.wallet('large').tokens,3602);case('full-cap-floor-and-second-sell',state,actions);cases[-1]['state_after_setup']=True;cases[-1]['setup_actions']=setup
+    (ROOT/'results'/'cap-cases.json').write_text(json.dumps({'version':'1.0.0-rc.5','math':'binary floating point; 100 bisection iterations; serialized values rounded to nearest base unit','cases':cases},indent=2)+'\n')
 def main():
     a=argparse.ArgumentParser();a.add_argument('--checkpoint',action='store_true');a.add_argument('--shard',type=int);a.add_argument('--shards',type=int);a.add_argument('--merge',action='store_true');a.add_argument('--cap-cases',action='store_true');args=a.parse_args()
     if args.cap_cases: cap_cases();return

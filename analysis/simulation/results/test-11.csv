@@ -1,7 +1,7 @@
-label,n,t,brake,penalty,creator_fee_share,window_hours,test,early_supply_share,holder_days,remaining_marked_tokens
-simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.09,59.958333333333336,538205.5331135858
-simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.23,59.958333333333336,10850167.85808223
-simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.41,59.958333333333336,33437635.84301255
-simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.09,59.958333333333336,539606.6762675277
-simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.23,59.958333333333336,10859960.78490098
-simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.41,59.958333333333336,33452872.05734642
+label,n,t,brake,penalty,creator_fee_share,window_hours,test,early_supply_share,holder_days,remaining_marked_tokens,exit_status
+simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.09,59.958333333333336,361505.01328772615,not out by day 60
+simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.23,59.958333333333336,7349734.008178018,not out by day 60
+simulation,17,0.02,off,0.1,0.0,1.0,11_early_supply_exit,0.41,59.958333333333336,22847279.478340097,not out by day 60
+simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.09,59.958333333333336,362474.41606457223,not out by day 60
+simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.23,59.958333333333336,7356905.833847357,not out by day 60
+simulation,17,0.02,off,0.1,0.3,1.0,11_early_supply_exit,0.41,59.958333333333336,22859242.370321862,not out by day 60
