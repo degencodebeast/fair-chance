@@ -12,12 +12,28 @@ export interface HostedPageReport {
   checks: { id: string; status: string }[];
 }
 
-/** The text with the full link and every query value of the link removed, so a page error cannot print a key from the link. */
+/** The text with the full link, its query and fragment values (decoded, encoded and raw) removed, so a page error cannot print a key from the link. */
 export function withoutLinkValues(text: string, url: string): string {
   const link = new URL(url);
+  const secrets = new Set<string>();
+  const addValues = (params: URLSearchParams) => {
+    for (const value of params.values()) {
+      secrets.add(value);
+      secrets.add(encodeURIComponent(value));
+    }
+  };
+  addValues(link.searchParams);
+  addValues(new URLSearchParams(link.hash.slice(1)));
+  // The raw text after each "=" as written in the link.
+  for (const part of `${link.search.slice(1)}&${link.hash.slice(1)}`.split("&")) {
+    const raw = part.includes("=") ? part.slice(part.indexOf("=") + 1) : "";
+    if (raw !== "") secrets.add(raw);
+  }
   let clean = text.split(link.href).join("[link]");
-  for (const value of new Set([...link.searchParams.values()])) {
-    if (value !== "") clean = clean.split(value).join("[value]");
+  if (link.hash !== "") clean = clean.split(link.hash).join("[fragment]");
+  // Longest first, so a value that holds a shorter one is removed whole. Matching ignores case for percent codes.
+  for (const secret of [...secrets].sort((x, y) => y.length - x.length)) {
+    clean = clean.replace(new RegExp(secret.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "[value]");
   }
   return clean;
 }
