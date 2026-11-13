@@ -171,7 +171,7 @@ const EMPTY_RECEIPTS =
 function header(r: CoinReads, ctx: TimeContext): CoinPageModel["header"] {
   const icon = r.metadata.kind === "value" ? r.metadata.value.icon : null;
   return {
-    name: r.metadata.kind === "value" ? r.metadata.value.name : r.coin,
+    name: r.metadata.kind === "value" && r.metadata.value.name !== "" ? r.metadata.value.name : r.coin,
     symbol: r.metadata.kind === "value" ? r.metadata.value.symbol : "",
     creator: r.rules.creator,
     launched: timeWithHint(r.rules.launchNs, ctx),
