@@ -121,3 +121,52 @@ func TestFinishBacksOffOnA429AndGoesOn(t *testing.T) {
 		t.Fatal("the back-off did not use the given start")
 	}
 }
+
+// Fix 2 after the first testnet run: the coin wait polls every 5 s by default and waits out a
+// 429's Retry-After before it reads again.
+func TestTheCoinWaitPollsEveryFiveSecondsByDefault(t *testing.T) {
+	if defaultCoinWaitPoll != 5*time.Second {
+		t.Fatalf("coin wait poll %s, want 5s", defaultCoinWaitPoll)
+	}
+}
+
+func TestTheCoinWaitHonoursRetryAfter(t *testing.T) {
+	_, fn := servers(t)
+	calls := 0
+	var second time.Time
+	start := time.Now()
+	limited := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		if second.IsZero() {
+			second = time.Now()
+		}
+		var req struct {
+			Params struct {
+				MethodName string `json:"method_name"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		views := map[string]string{"fc_rules": `{"creator":"c.testnet","launch_block":100,"early_blocks":17}`, "ft_metadata": `{"symbol":"BAG"}`}
+		body, _ := json.Marshal([]byte(views[req.Params.MethodName]))
+		fmt.Fprintf(w, `{"jsonrpc":"2.0","id":"fc","result":{"result":%s,"logs":[]}}`, body)
+	}))
+	t.Cleanup(limited.Close)
+	r := report{Coin: coin, RPCURL: limited.URL, FastNearURL: fn.URL}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = runWithCoinWait(ctx, &r, 10*time.Millisecond, 200*time.Millisecond, 1, 10*time.Millisecond)
+	if r.LaunchBlock != 100 {
+		t.Fatalf("the coin was not found: %+v", r)
+	}
+	if gap := second.Sub(start); gap < time.Second {
+		t.Fatalf("read again %s after a 429 with Retry-After 1", gap)
+	}
+	if r.RateLimited != 1 {
+		t.Fatalf("rate limited reads %d, want 1", r.RateLimited)
+	}
+}

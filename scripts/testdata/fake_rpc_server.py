@@ -1,6 +1,6 @@
 """A local fake NEAR RPC for scripts/test-wait-for-coin.sh. It answers every POST by MODE and
 counts the requests in COUNT_FILE. Modes: 403, 429, 500, unknown, launch (UNKNOWN_ACCOUNT twice,
-then the fc_rules result). It prints its port on stdout and serves until killed."""
+then the fc_rules result), retryafter (one 429 with Retry-After: 2, then the fc_rules result). It prints its port on stdout and serves until killed."""
 import http.server
 import json
 import sys
@@ -16,9 +16,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         count += 1
         with open(count_file, "w") as f:
             f.write(str(count))
-        status, body = 200, ""
+        status, body, headers = 200, "", {}
         if mode in ("403", "429", "500"):
             status = int(mode)
+        elif mode == "retryafter" and count == 1:
+            status, headers = 429, {"Retry-After": "2"}
         elif mode == "unknown":
             body = json.dumps({"jsonrpc": "2.0", "id": "fc", "result": {"something": "else"}})
         elif mode == "launch" and count <= 2:
@@ -29,6 +31,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         raw = body.encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        for name, value in headers.items():
+            self.send_header(name, value)
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
