@@ -14,6 +14,8 @@ export interface PlanInput {
   /** Null when no amount was asked; then there is no quote and no preview. */
   asked: bigint | null;
   quote: Reading<SellQuote> | null;
+  /** The quote of N, the early supply a sell takes before the other tokens (see loadAccountPlan). */
+  earlySupplyQuote?: { amount: bigint; quote: Reading<SellQuote> } | null;
 }
 
 export interface Tag {
@@ -203,7 +205,11 @@ function previewView(
     title: titleOf(q),
     tone: limited || penalty ? "limit" : "plain",
     lines,
-    copy: limited ? limitedCopy(q, asked, a, ctx, amount, tokens) : penalty ? penaltyCopy(a, amount) : null,
+    copy: limited
+      ? joinCopy(earlySupplyHeldLine(input, a, q, amount), limitedCopy(q, asked, a, ctx, amount, tokens))
+      : penalty
+        ? penaltyCopy(a, amount)
+        : null,
     bar:
       limited && q.tokensFilled < asked
         ? {
@@ -213,6 +219,30 @@ function previewView(
           }
         : null,
   };
+}
+
+/**
+ * For an account whose early supply the pool cap holds while it has other tokens: a sell takes the
+ * early supply before the other tokens, so a sell of N or less fills nothing. N is checked with a
+ * quote of N; when the coin gives no N, the line leaves N out.
+ */
+function earlySupplyHeldLine(input: PlanInput, a: Account, q: SellQuote, amount: (n: bigint) => string): string | null {
+  if (a.markedBalance === 0n || a.unmarkedBalance === 0n) return null;
+  const lead = "Early-supply tokens sell before your other tokens. While the pool cap holds them,";
+  const check = input.earlySupplyQuote ?? null;
+  if (check !== null && check.quote.kind === "value") {
+    const n = check.quote.value;
+    return n.tokensFilled === 0n && n.limitReason === "cap_full"
+      ? `${lead} a sell of ${amount(check.amount)} or less fills nothing, and a larger sell fills from your other tokens.`
+      : null;
+  }
+  const nUnknown = a.marked.kind === "unavailable" || check !== null;
+  const capStops = q.limitReason === "cap_full" || q.limitReason === "floor";
+  return nUnknown && capStops ? `${lead} a sell fills from your other tokens alone.` : null;
+}
+
+function joinCopy(first: string | null, rest: string): string {
+  return first === null ? rest : `${first} ${rest}`;
 }
 
 function titleOf(q: SellQuote): string {
