@@ -477,38 +477,89 @@ proptest! {
         who in 0..ACCOUNTS,
         trades in proptest::collection::vec(window_trade(), 1..16),
     ) {
-        let mut coin = Coin::launched();
-        for step in &history {
-            coin.run(step)?;
-        }
-        let account = account_name(who);
-        let window_end = view_cap(&coin.state, coin.at).window_end_ns;
-        let start = At { block: coin.at.block + 10, ns: window_end };
-
-        let real = real_window_actions(&coin, &account, &trades, start);
-        // The twin: the same trades with every buy (and so every buy-back) removed.
-        let twin_actions = real
-            .actions
-            .iter()
-            .filter(|a| !matches!(a, Action::Buy { .. }))
-            .cloned()
-            .collect();
-        let twin = run_window(&coin, &account, twin_actions, start);
-
-        let fees = real.buy_fees;
-        let cap_room = (fees * coin.state.fixed.real_cap_c_bps as u128).div_ceil(BPS);
-        let lowest = ethnum::U256::from(real.lowest_near_reserve);
-        let price_effect = ((ethnum::U256::from(twin.payouts) * ethnum::U256::from(fees)
-            + lowest
-            - 1)
-            / lowest)
-            .as_u128();
-        let bound = twin.payouts + cap_room + price_effect + real.trades;
-        let got = real.payouts as i128 - real.buys as i128;
-        prop_assert!(
-            got <= bound as i128,
-            "{account} got {got} for its held tokens; twin {} + c x F {cap_room} + price {price_effect} + trades {}; real actions {:?}",
-            twin.payouts, real.trades, real.actions
-        );
+        twin_bound_holds(&history, who, &trades)?;
     }
+}
+
+/// Rounding slack per trade in the twin bound: each trade has up to three roundings (NEAR out,
+/// fee, penalty), each toward the pool, but on different bases in the two runs.
+const ROUNDING_YOCTO_PER_TRADE: u128 = 1;
+
+/// The twin-run property for one history, one account and its trades in the next window.
+fn twin_bound_holds(
+    history: &[Step],
+    who: usize,
+    trades: &[WindowTrade],
+) -> Result<(), TestCaseError> {
+    let mut coin = Coin::launched();
+    for step in history {
+        coin.run(step)?;
+    }
+    let account = account_name(who);
+    let window_end = view_cap(&coin.state, coin.at).window_end_ns;
+    let start = At {
+        block: coin.at.block + 10,
+        ns: window_end,
+    };
+
+    let real = real_window_actions(&coin, &account, trades, start);
+    // The twin: the same trades with every buy (and so every buy-back) removed.
+    let twin_actions = real
+        .actions
+        .iter()
+        .filter(|a| !matches!(a, Action::Buy { .. }))
+        .cloned()
+        .collect();
+    let twin = run_window(&coin, &account, twin_actions, start);
+
+    let fees = real.buy_fees;
+    let cap_room = (fees * coin.state.fixed.real_cap_c_bps as u128).div_ceil(BPS);
+    let lowest = ethnum::U256::from(real.lowest_near_reserve);
+    let price_effect = ((ethnum::U256::from(twin.payouts) * ethnum::U256::from(fees) + lowest - 1)
+        / lowest)
+        .as_u128();
+    let bound = twin.payouts + cap_room + price_effect + real.trades * ROUNDING_YOCTO_PER_TRADE;
+    let got = real.payouts as i128 - real.buys as i128;
+    prop_assert!(
+        got <= bound as i128,
+        "{account} got {got} for its held tokens; twin {} + c x F {cap_room} + price {price_effect} + trades {}; real actions {:?}",
+        twin.payouts, real.trades, real.actions
+    );
+    Ok(())
+}
+
+/// A saved case from the random runs: a buy, then two sells, where the real run and the twin
+/// run round on different bases.
+#[test]
+fn the_twin_bound_holds_for_a_buy_then_two_sells_that_round_on_different_bases() {
+    let history = [
+        Step::Buy {
+            account: 5,
+            near_in: 758_980_140_491_974_805_048_750,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 6_920_531_327_738_845_529_101_183,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 15_772_612_238_901_679_912_002_747,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 23_630_972_305_690_285_432_213_539,
+        },
+        Step::Buy {
+            account: 0,
+            near_in: 11_263_261_550_640_298_493_450_627,
+        },
+    ];
+    let trades = [
+        WindowTrade::Buy {
+            near_in: 673_560_730_771_697_173_802_353,
+        },
+        WindowTrade::Sell { share_bps: 6_922 },
+        WindowTrade::Sell { share_bps: 10_000 },
+    ];
+    twin_bound_holds(&history, 5, &trades).expect("twin bound");
 }
