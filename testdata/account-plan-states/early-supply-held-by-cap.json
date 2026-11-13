@@ -1,0 +1,57 @@
+{
+  "description": "The pool cap is full. A large account holds 10M early-supply tokens (6M left to sell this window, its early-supply floor used) and 20M other tokens. It asks for 6M, all early supply, and nothing fills. quotes_by_amount gives fc_quote_sell for other amounts.",
+  "now_ns": "1794579840000000000",
+  "symbol": "MOTH",
+  "decimals": 18,
+  "total_supply": "1000000000000000000000000000",
+  "account_id": "you.testnet",
+  "asked": "6000000000000000000000000",
+  "views": {
+    "fc_account": {
+      "marked_balance": "10000000000000000000000000",
+      "in_creator_group": false,
+      "marked": {
+        "share_bps": 1500,
+        "allowance": "6500000000000000000000000",
+        "used": "500000000000000000000000",
+        "left": "6000000000000000000000000",
+        "floor_left": "0",
+        "window_end_ns": "1794661320000000000"
+      },
+      "class": "large",
+      "balance": "30000000000000000000000000",
+      "unmarked_balance": "20000000000000000000000000",
+      "is_large": true,
+      "can_send": false,
+      "max_receive": null,
+      "unmarked": {
+        "allowance": "7100000000000000000000000",
+        "used": "0",
+        "left": "7100000000000000000000000",
+        "floor_left": "100000000000000000000000",
+        "window_end_ns": "1794582120000000000"
+      },
+      "max_full_fill_now": "0",
+      "penalty_applies_above": null
+    },
+    "fc_quote_sell": {
+      "tokens_filled": "0",
+      "near_out": "0",
+      "penalty_near": "0",
+      "fill": "none",
+      "limit_reason": "cap_full",
+      "cap_left_after": "0"
+    }
+  },
+  "quotes_by_amount": {
+    "6050000000000000000000000": {
+      "tokens_filled": "50000000000000000000000",
+      "near_out": "10000000000000000000000",
+      "penalty_near": "0",
+      "fill": "partial",
+      "limit_reason": "cap_full",
+      "cap_left_after": "0"
+    }
+  },
+  "missing_views": []
+}
