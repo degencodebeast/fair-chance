@@ -6,8 +6,10 @@ const CARRIED = ["network", "rpc", "factory", "code_hash", "fastnear", "from_blo
 
 export function screenFor(href: string): Screen {
   const params = new URL(href).searchParams;
-  if (params.get("coin")) return "coin";
   const view = params.get("view");
+  // The alerts screen may name a coin: its "Open on Fair Chance" links go to that coin.
+  if (view === "alerts") return "alerts";
+  if (params.get("coin")) return "coin";
   return view === "coins" || view === "alerts" ? view : "landing";
 }
 
