@@ -336,3 +336,33 @@ fn an_account_that_was_large_and_holds_a_bag_inside_one_allowance_is_still_limit
     let sell = coin.sell(LARGE, view.balance / 2, at);
     assert_eq!(sell.class, "large");
 }
+
+/// A large account that sells to zero is band for the rest of the window, so a buy in the same
+/// window follows the band rules; in the next window it is small.
+#[test]
+fn a_large_account_that_sells_to_zero_is_band_for_the_rest_of_the_window() {
+    let mut coin = Coin::launched();
+    coin.buy(LARGE, 10 * ONE_NEAR, after(1));
+    let mut window = 1;
+    while coin.balance(LARGE) > 0 {
+        let at = after(window * HOUR_S);
+        let sold = coin.sell_all(LARGE, at);
+        assert_eq!(sold.class, "large");
+        if coin.balance(LARGE) == 0 {
+            let view = coin.account(LARGE, at);
+            assert!(!view.is_large);
+            assert_eq!(view.class, "band");
+            coin.buy(LARGE, ONE_NEAR / 100, after(window * HOUR_S + 5));
+            assert_eq!(
+                coin.account(LARGE, after(window * HOUR_S + 6)).class,
+                "band"
+            );
+            let next = coin.account(LARGE, after((window + 1) * HOUR_S));
+            assert_eq!(next.class, "small");
+            return;
+        }
+        window += 1;
+        assert!(window < 200);
+    }
+    panic!("the account never sold to zero");
+}
