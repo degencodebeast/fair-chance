@@ -504,8 +504,11 @@ impl SellFillPlan {
     /// `floor` when the sell fills only its floor: the marked part at its marked floor, or a
     /// large account's unmarked part at its unmarked floor with the marked part at its floor.
     fn limit_reason(&self, class: Class, parts: SoldParts) -> Option<&'static str> {
+        // The unmarked part used up the floor itself, not only an ask below it.
         let unmarked_at_floor = class == Class::Large
-            && parts.unmarked == self.always_fills_next_to(parts.marked)
+            && self.floor_left_before.is_some_and(|floor_left| {
+                parts.unmarked == floor_left.saturating_sub(parts.marked)
+            })
             && parts.unmarked > 0;
         if parts.tokens() == self.amount {
             None
