@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/rules", "contracts/coin", "contracts/factory", "e2e"]
+members = ["rule-engine", "contracts/coin", "contracts/factory", "sandbox-tests"]
 
 [workspace.package]
 edition = "2021"

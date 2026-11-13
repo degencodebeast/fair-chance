@@ -1,6 +1,6 @@
 // Prints, as JSON, the receipts the page shows for a page URL:
 //   node scripts/read-receipts.ts "http://localhost/?coin=<coin>&rpc=<url-encoded RPC URL>"
-import { loadReceiptsPage } from "../src/page.ts";
+import { loadReceiptsPage } from "../src/receipts-page.ts";
 
 const href = process.argv[2];
 if (!href) {

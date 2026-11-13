@@ -1,12 +1,12 @@
 //! Fair Chance coin contract. Thin wrappers: every rule is in `fc_rules`.
 
-use fc_rules::{
-    AccountView, Action, Applied, At, BuyQuote, CapView, CoinState, CreatorFeesView,
-    EarlyWindowView, Holder, Holders, PoolView, Rules, RulesView, SellQuote,
-};
 use near_sdk::json_types::U128;
 use near_sdk::store::LookupMap;
 use near_sdk::{env, near, AccountId, NearToken, PanicOnDefault, Promise};
+use rule_engine::{
+    AccountView, Action, Applied, At, BuyQuote, CapView, CoinState, CreatorFeesView,
+    EarlyWindowView, FixedValues, Holder, Holders, PoolView, RulesView, SellQuote,
+};
 
 #[derive(Clone)]
 #[near(serializers = [json])]
@@ -55,8 +55,8 @@ impl Coin {
         code_hash: String,
     ) -> Self {
         let coin = env::current_account_id();
-        let launched = fc_rules::launch(
-            Rules::fixed(),
+        let launched = rule_engine::launch(
+            FixedValues::fixed(),
             coin.as_str(),
             creator.as_str(),
             &code_hash,
@@ -99,7 +99,7 @@ impl Coin {
     }
 
     pub fn ft_total_supply(&self) -> U128 {
-        U128(self.state.rules.total_supply)
+        U128(self.state.fixed.total_supply)
     }
 
     pub fn ft_balance_of(&self, account_id: AccountId) -> U128 {
@@ -118,42 +118,42 @@ impl Coin {
             icon: self.icon.clone(),
             reference: None,
             reference_hash: None,
-            decimals: self.state.rules.decimals,
+            decimals: self.state.fixed.decimals,
         }
     }
 
     pub fn fc_rules(&self) -> RulesView {
-        fc_rules::view_rules(&self.state)
+        rule_engine::view_rules(&self.state)
     }
 
     pub fn fc_pool(&self) -> PoolView {
-        fc_rules::view_pool(&self.state, now())
+        rule_engine::view_pool(&self.state, now())
     }
 
     pub fn fc_early_window(&self) -> EarlyWindowView {
-        fc_rules::view_early_window(&self.state, now())
+        rule_engine::view_early_window(&self.state, now())
     }
 
     pub fn fc_cap(&self) -> CapView {
-        fc_rules::view_cap(&self.state, now())
+        rule_engine::view_cap(&self.state, now())
     }
 
     pub fn fc_account(&self, account_id: AccountId) -> AccountView {
-        fc_rules::view_account(&self.state, self.holders.get(account_id.as_str()), now())
+        rule_engine::view_account(&self.state, self.holders.get(account_id.as_str()), now())
     }
 
     pub fn fc_quote_sell(&self, account_id: AccountId, amount: U128) -> Option<SellQuote> {
         let holders = self.load(&[account_id.to_string()]);
-        fc_rules::quote_sell(&self.state, holders, account_id.as_str(), amount.0, now())
+        rule_engine::quote_sell(&self.state, holders, account_id.as_str(), amount.0, now())
     }
 
     pub fn fc_quote_buy(&self, account_id: AccountId, near_in: U128) -> Option<BuyQuote> {
         let holders = self.load(&[account_id.to_string()]);
-        fc_rules::quote_buy(&self.state, holders, account_id.as_str(), near_in.0, now())
+        rule_engine::quote_buy(&self.state, holders, account_id.as_str(), near_in.0, now())
     }
 
     pub fn fc_creator_fees(&self) -> CreatorFeesView {
-        fc_rules::view_creator_fees(&self.state)
+        rule_engine::view_creator_fees(&self.state)
     }
 }
 
@@ -174,7 +174,7 @@ impl Coin {
             events,
             payout,
             ..
-        } = fc_rules::apply(&self.state, holders, action, now())
+        } = rule_engine::apply(&self.state, holders, action, now())
             .unwrap_or_else(|r| env::panic_str(&r.to_string()));
         self.state = state;
         for (account, holder) in holders {

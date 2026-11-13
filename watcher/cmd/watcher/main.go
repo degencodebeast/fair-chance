@@ -19,9 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"fairchance/watcher/internal/events"
+	"fairchance/watcher/internal/alerts"
+	"fairchance/watcher/internal/eventsource"
 	"fairchance/watcher/internal/telegram"
-	"fairchance/watcher/internal/watch"
 )
 
 func main() {
@@ -55,19 +55,19 @@ func main() {
 }
 
 func run(ctx context.Context, rpcURL string, coins []string, chatID int64, once bool, want int, poll time.Duration) error {
-	cursor := events.Cursor(^uint64(0))
+	cursor := eventsource.Cursor(^uint64(0))
 	for _, coin := range coins {
-		c, err := events.LaunchCursor(ctx, rpcURL, coin)
+		c, err := eventsource.LaunchCursor(ctx, rpcURL, coin)
 		if err != nil {
 			return err
 		}
 		cursor = min(cursor, c)
 	}
-	src := events.NewRPCScan(rpcURL)
+	src := eventsource.NewRPCScan(rpcURL)
 	fake := &telegram.Fake{}
 	printed := 0
 	for {
-		_, next, err := watch.Pass(ctx, src, coins, cursor, fake, chatID)
+		_, next, err := alerts.SendNew(ctx, src, coins, cursor, fake, chatID)
 		cursor = next
 		if err != nil && ctx.Err() == nil {
 			log.Printf("read pass: %v", err)

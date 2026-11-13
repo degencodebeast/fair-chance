@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { chainReader, configFromUrl } from "../src/chain.ts";
 import { receiptRows } from "../src/receipts.ts";
-import { RECORDED, recordedFetch } from "./rpcfake.ts";
+import { RECORDED, recordedFetch } from "./recorded-rpc.ts";
 
 const coin = "walk.factory.sandbox";
 const rpcUrl = "http://127.0.0.1:1";
@@ -62,7 +62,7 @@ describe("chain reader on recorded sandbox responses", () => {
 
 describe("receipts page", () => {
   it("shows the recorded sell found by the block scan, from the page URL alone", async () => {
-    const { loadReceiptsPage } = await import("../src/page.ts");
+    const { loadReceiptsPage } = await import("../src/receipts-page.ts");
     const href = `http://localhost/?coin=${coin}&rpc=${encodeURIComponent(rpcUrl)}`;
     const page = await loadReceiptsPage(href, recordedFetch(RECORDED, 27));
     expect(page.source).toBe("block-scan");

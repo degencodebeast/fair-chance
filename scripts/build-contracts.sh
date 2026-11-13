@@ -6,4 +6,4 @@ for crate in coin factory; do
   cargo near build non-reproducible-wasm --locked --no-abi --manifest-path "contracts/$crate/Cargo.toml" >/dev/null 2>&1 \
     || cargo near build non-reproducible-wasm --locked --no-abi --manifest-path "contracts/$crate/Cargo.toml"
 done
-echo "build-contracts: target/near/fc_coin/fc_coin.wasm target/near/fc_factory/fc_factory.wasm"
+echo "build-contracts: target/near/fair_chance_coin/fair_chance_coin.wasm target/near/fair_chance_factory/fair_chance_factory.wasm"

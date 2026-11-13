@@ -890,22 +890,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40404c3f5f511ec4da6fe866ddf6a717c309fdbb69fbbad7b0f3edab8f2e835f"
 
 [[package]]
-name = "fastrand"
-version = "2.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
-
-[[package]]
-name = "fc-coin"
+name = "fair-chance-coin"
 version = "1.0.0-rc.4"
 dependencies = [
- "fc-rules",
+ "fair-chance-rule-engine",
  "near-sdk",
  "serde_json",
 ]
 
 [[package]]
-name = "fc-e2e"
+name = "fair-chance-factory"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "serde_json",
+]
+
+[[package]]
+name = "fair-chance-rule-engine"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "ethnum",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fair-chance-sandbox-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -916,22 +928,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "fc-factory"
-version = "0.1.0"
-dependencies = [
- "near-sdk",
- "serde_json",
-]
-
-[[package]]
-name = "fc-rules"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "ethnum",
- "serde",
- "serde_json",
-]
+name = "fastrand"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "ff"
