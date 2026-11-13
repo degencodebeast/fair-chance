@@ -46,4 +46,6 @@ echo "$commit" > "$out/built-commit.txt"
 echo "$hash" > "$out/cargo-near-sha256-base58.txt"
 echo "build-coin-reproducible: commit $commit code hash $hash"
 
+# The sandbox tests deploy the locally built factory with this coin wasm.
+scripts/build-contracts.sh
 cargo test --locked -p fair-chance-sandbox-tests --test reproducible_coin_build_on_sandbox -- --ignored
