@@ -1,7 +1,8 @@
 // The page's one wallet control, and the wallet bar every screen shows. The wallet library is a
 // separate script file: it loads only when the visitor connects, or when the page takes up a
 // session saved by an earlier visit, and only on a testnet page (wallet-session.ts checks that).
-import { walletBar } from "./screen-chrome.ts";
+import { screenHeader, setHeaderWallet, walletBar } from "./screen-chrome.ts";
+import { screenFor } from "./screen-route.ts";
 import { walletControl, type WalletAccount, type WalletControl, type WalletLibrary } from "./wallet-session.ts";
 
 /** A wallet library that loads on its first call. Events listened to before then start once it loads. */
@@ -31,11 +32,20 @@ export function lazyLibrary(load: () => Promise<WalletLibrary>): WalletLibrary {
   };
 }
 
-/** Puts the wallet bar before the app, once. A redraw of a screen does not remove it. */
-export function mountWalletBar(doc: Document, control: WalletControl): void {
+/**
+ * Makes the page's one wallet bar, once, and puts it on the right of the header of each app screen
+ * (the landing screen keeps its Open app button). The coin page draws no screen header in the app,
+ * so it gets one before the app; a redraw of the coin page does not remove it.
+ */
+export function mountWalletBar(doc: Document, control: WalletControl, href: string): void {
   const app = doc.querySelector("#app");
   if (app === null || doc.querySelector("#wallet-bar") !== null) return;
-  app.before(walletBar(control));
+  setHeaderWallet(walletBar(control));
+  if (screenFor(href) === "coin") {
+    const header = screenHeader(href, "coin");
+    header.classList.add("page-top");
+    app.before(header);
+  }
 }
 
 let shared: WalletControl | null = null;

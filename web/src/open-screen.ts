@@ -11,8 +11,8 @@ const entry = hostedEntryHref(location.href);
 if (entry !== null) history.replaceState(null, "", entry);
 const href = location.href;
 showNetworkBanner(document, href);
-// The wallet bar sits on every screen, outside the part each screen redraws.
-mountWalletBar(document, pageWallet(href));
+// The wallet bar sits on the right of the header of every app screen.
+mountWalletBar(document, pageWallet(href), href);
 const screen = screenFor(href);
 
 const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", launch: "Launch a coin", mine: "My coins", coin: "Fair Chance coin" };

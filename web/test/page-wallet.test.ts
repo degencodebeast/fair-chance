@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { screenHeader, setHeaderWallet } from "../src/screen-chrome.ts";
 import { lazyLibrary, mountWalletBar } from "../src/page-wallet.ts";
 import { walletControl, type WalletAccount, type WalletLibrary } from "../src/wallet-session.ts";
 
@@ -61,23 +62,50 @@ describe("the lazy wallet library", () => {
 });
 
 describe("the wallet bar on every screen", () => {
-  it("sits before the app once, so a redraw of the screen keeps it", () => {
+  const COINS = "https://example.test/?network=testnet&view=coins";
+  afterEach(() => setHeaderWallet(null));
+
+  it("sits on the right of each app screen header, and a redraw keeps the one bar", () => {
     document.body.innerHTML = '<div id="network-banner"></div><main id="app"></main>';
     const control = walletControl(PAGE, () => fakeLibrary().lib);
-    mountWalletBar(document, control);
-    mountWalletBar(document, control);
+    mountWalletBar(document, control, COINS);
+    const app = document.querySelector("#app")!;
+    app.replaceChildren(screenHeader(COINS, "coins"));
+    const first = document.querySelector("#wallet-bar");
+    expect(first?.parentElement?.className).toBe("screen-header");
+    expect(document.querySelector("#header-open-app")).toBeNull();
+    expect(first?.textContent).toBe("Connect wallet");
+    app.replaceChildren(screenHeader(COINS, "coins"));
     expect(document.querySelectorAll("#wallet-bar")).toHaveLength(1);
-    expect(document.querySelector("#wallet-bar")?.nextElementSibling?.id).toBe("app");
+    expect(document.querySelector("#wallet-bar")).toBe(first);
+    mountWalletBar(document, control, COINS);
+    expect(document.querySelectorAll("#wallet-bar")).toHaveLength(1);
+  });
+
+  it("keeps Open app on the landing header and puts no wallet bar there", () => {
+    document.body.innerHTML = '<main id="app"></main>';
+    mountWalletBar(document, walletControl(PAGE, () => fakeLibrary().lib), PAGE);
+    document.querySelector("#app")!.replaceChildren(screenHeader(PAGE, "landing"));
+    expect(document.querySelector("#header-open-app")?.textContent).toBe("Open app");
+    expect(document.querySelector("#wallet-bar")).toBeNull();
+  });
+
+  it("gives the coin page a header before the app, so a redraw of the coin page keeps it", () => {
+    const COIN = "https://example.test/?network=testnet&coin=bag.factory.fairchance.testnet";
+    document.body.innerHTML = '<main id="app"></main>';
+    mountWalletBar(document, walletControl(PAGE, () => fakeLibrary().lib), COIN);
     document.querySelector("#app")!.replaceChildren();
-    expect(document.querySelector("#wallet-bar")).not.toBeNull();
+    expect(document.querySelector("header.screen-header")?.nextElementSibling?.id).toBe("app");
+    expect(document.querySelector("header.screen-header #wallet-bar")).not.toBeNull();
   });
 
   it("shows a session saved by an earlier visit after restore", async () => {
     document.body.innerHTML = '<main id="app"></main>';
     const control = walletControl(PAGE, () => fakeLibrary({ accountId: "lamp.testnet", network: "testnet" }).lib);
-    mountWalletBar(document, control);
+    mountWalletBar(document, control, COINS);
+    document.querySelector("#app")!.replaceChildren(screenHeader(COINS, "coins"));
     await control.restore();
     await flush();
-    expect(document.querySelector("#wallet-account")?.textContent).toBe("lamp.testnet");
+    expect(document.querySelector(".screen-header #wallet-account")?.textContent).toBe("lamp.testnet");
   });
 });

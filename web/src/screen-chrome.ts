@@ -1,9 +1,19 @@
-// The header the landing, coin list and alerts screens share: the name, the three screens and the
-// Open app button on the right.
+// The header every screen shares: the name, the three screens and, on the right, the Open app button
+// on the landing screen or the page's one wallet bar on the app screens.
 import { el } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { screenLink, type Screen } from "./screen-route.ts";
 import type { WalletControl, WalletState } from "./wallet-session.ts";
+
+let headerWallet: HTMLElement | null = null;
+
+/**
+ * Sets the page's one wallet bar. Each app screen header then holds that same node, so a redraw moves
+ * it into the new header and its state stays. Null clears it (for tests).
+ */
+export function setHeaderWallet(bar: HTMLElement | null): void {
+  headerWallet = bar;
+}
 
 export function screenHeader(href: string, current: Screen): HTMLElement {
   const link = (screen: Screen, label: string) =>
@@ -13,7 +23,9 @@ export function screenHeader(href: string, current: Screen): HTMLElement {
     { class: "screen-header" },
     el("a", { class: "brand", href: screenLink(href, "landing") }, "Fair Chance"),
     el("nav", { "aria-label": "Screens", class: "screen-nav" }, link("coins", "Coins"), link("mine", "My coins"), link("alerts", "Alerts")),
-    el("a", { class: "button button-dark", id: "header-open-app", href: screenLink(href, "coins") }, "Open app"),
+    current !== "landing" && headerWallet !== null
+      ? headerWallet
+      : el("a", { class: "button button-dark", id: "header-open-app", href: screenLink(href, "coins") }, "Open app"),
   );
 }
 

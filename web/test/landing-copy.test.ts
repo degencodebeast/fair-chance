@@ -46,14 +46,15 @@ describe("landing copy", () => {
   });
 
   it("has no buttons that do nothing: every action names the screen it opens", () => {
-    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["coins", "launch-off", "rules"]);
+    expect(landingCopy.actions.map((a) => a.opens)).toEqual(["demo", "launch", "rules"]);
   });
 });
 
-describe("launch button reason", () => {
-  it("says what is true now: launching signs a transaction and this page does not sign", () => {
-    expect(landingCopy.launchOffNote).toBe("Launching signs a transaction. This page does not sign yet.");
-    expect(copyViolations(landingCopy.launchOffNote)).toEqual([]);
+describe("hero buttons", () => {
+  it("says Watch the demo for the video and Open app until the video link is set", () => {
+    expect(landingCopy.actions[0].label).toBe("Watch the demo");
+    expect(landingCopy.openAppLabel).toBe("Open app");
+    expect(landingCopy.demoUrl === null || landingCopy.demoUrl.startsWith("https://")).toBe(true);
   });
 });
 

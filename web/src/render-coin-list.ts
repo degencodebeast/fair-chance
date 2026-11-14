@@ -5,12 +5,11 @@ import { loadCoinCards } from "./coin-cards-from-chain.ts";
 import { coinListModel, type CoinCard, type ListTab } from "./coin-list-model.ts";
 import { drawCoinTile } from "./coin-tile.ts";
 import { el, type Child } from "./dom-elements.ts";
-import { landingCopy } from "./landing-copy.ts";
 import { resolveListLink, type ListLink } from "./page-link.ts";
 import { fallbackList } from "./list-fallback.ts";
 import { drawTryItBox } from "./render-try-it-box.ts";
 import { sampleLabel } from "./sample-label.ts";
-import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
+import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
 import { refreshWhileShown } from "./refresher.ts";
 
@@ -94,7 +93,7 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
   });
   app.replaceChildren(
     screenHeader(href, "coins"),
-    el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), turnedOffButton("launch-coin", "Launch a coin", landingCopy.launchOffNote)),
+    el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), el("a", { class: "button", id: "launch-coin", href: screenLink(href, "launch") }, "Launch a coin")),
     noteLine,
     drawTryItBox(),
     top,

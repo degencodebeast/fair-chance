@@ -2,7 +2,7 @@
 import { el, type Child } from "./dom-elements.ts";
 import { landingCopy as copy } from "./landing-copy.ts";
 import { sampleLabel } from "./sample-label.ts";
-import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
+import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
 import { isOwnMachineHost } from "./local-host.ts";
 import { drawTryItBox } from "./render-try-it-box.ts";
@@ -31,8 +31,10 @@ export function drawLanding(app: HTMLElement, href: string): void {
       el(
         "div",
         { class: "hero-actions" },
-        el("a", { class: "button button-dark button-big", id: "open-app", href: coins }, copy.actions[0].label),
-        turnedOffButton("launch-coin", copy.actions[1].label, copy.launchOffNote),
+        copy.demoUrl !== null
+          ? el("a", { class: "button button-dark button-big", id: "watch-demo", href: copy.demoUrl, target: "_blank", rel: "noopener noreferrer" }, copy.actions[0].label)
+          : el("a", { class: "button button-dark button-big", id: "open-app", href: coins }, copy.openAppLabel),
+        el("a", { class: "button button-big", id: "launch-coin", href: screenLink(href, "launch") }, copy.actions[1].label),
         el("a", { class: "text-link", id: "see-rules", href: coins }, copy.actions[2].label),
       ),
       // The example receipt is made up, so only the visitor's own machine shows it.

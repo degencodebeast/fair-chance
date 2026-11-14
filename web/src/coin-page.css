@@ -86,6 +86,8 @@ p { margin: 0; }
 .as-of { font-size: 12px; }
 #plan-result > .as-of { grid-column: 1 / -1; }
 #app > * { min-width: 0; }
+/* The coin page's screen header sits before the app, with the app's width and side padding. */
+.page-top { max-width: 1440px; margin: 0 auto; padding: 24px 40px 0; }
 .legend { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .swatch { width: 14px; height: 14px; border-radius: 4px; background: var(--limit); flex-shrink: 0; }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 5px var(--paper); }
@@ -96,6 +98,7 @@ p { margin: 0; }
   .chip-desktop { display: none; }
   .chip-phone { display: inline-block; }
   #app { padding: 12px; gap: 12px; }
+  .page-top { padding: 12px 12px 0; }
   h1 { font-size: 28px; }
   .summary-lines { display: block; }
   .receipt { grid-template-columns: minmax(0, 1fr); gap: 4px; }
