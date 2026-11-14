@@ -958,6 +958,8 @@ name = "fair-chance-sandbox-tests"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
+ "borsh",
  "ethnum",
  "fair-chance-rule-engine",
  "near-api",

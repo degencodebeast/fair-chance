@@ -19,6 +19,10 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "ti
 
 [dev-dependencies]
 ethnum = "1"
+# The sandbox test reads the actions of a recorded signed send. Both already in the lock through
+# near-api-types, at these versions; no new crate.
+base64 = "0.22.1"
+borsh = "1.8.1"
 # The fake RPC in tests/common: a local TCP server. Features only; no new crate.
 tokio = { version = "1", features = ["net", "io-util"] }
 
