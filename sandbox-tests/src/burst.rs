@@ -35,6 +35,11 @@ pub struct BurstTiming {
     pub early_sell_gap_s: f64,
 }
 
+/// The longest send call, gap or block time the guard takes, in seconds.
+const MAX_TIMING_S: f64 = 600.0;
+/// The shortest block time the guard takes, in seconds.
+const MIN_BLOCK_S: f64 = 0.001;
+
 /// Blocks after the send of an early sell until its receipt runs: one to get into a block, one to
 /// run the receipt on the coin.
 const INCLUDE_AND_EXECUTE_BLOCKS: u64 = 2;
@@ -43,17 +48,22 @@ const INCLUDE_AND_EXECUTE_BLOCKS: u64 = 2;
 /// estimate: tail + ceil((send + gap) / block) + 2. It refuses the run when that is after
 /// `early_blocks`.
 pub fn check_burst_timing(timing: &BurstTiming, early_blocks: u64) -> Result<u64> {
-    let usable = timing.block_s.is_finite()
-        && timing.block_s > 0.0
-        && timing.send_s.is_finite()
-        && timing.send_s >= 0.0
-        && timing.early_sell_gap_s.is_finite()
-        && timing.early_sell_gap_s >= 0.0;
-    if !usable {
-        bail!("the burst timing {timing:?} is not usable; nothing was signed");
+    let refuse =
+        || anyhow::anyhow!("the burst timing {timing:?} is not usable; nothing was signed");
+    let in_range = |s: f64| s.is_finite() && (0.0..=MAX_TIMING_S).contains(&s);
+    if !(in_range(timing.block_s) && timing.block_s >= MIN_BLOCK_S)
+        || !in_range(timing.send_s)
+        || !in_range(timing.early_sell_gap_s)
+    {
+        return Err(refuse());
     }
+    // At most MAX_TIMING_S x 2 / MIN_BLOCK_S blocks: a small whole number.
     let wait_blocks = ((timing.send_s + timing.early_sell_gap_s) / timing.block_s).ceil() as u64;
-    let last = timing.launch_tail_blocks + wait_blocks + INCLUDE_AND_EXECUTE_BLOCKS;
+    let last = timing
+        .launch_tail_blocks
+        .checked_add(wait_blocks)
+        .and_then(|b| b.checked_add(INCLUDE_AND_EXECUTE_BLOCKS))
+        .ok_or_else(refuse)?;
     if last > early_blocks {
         bail!(
             "the last early sell would land in block {last} after the launch, after the early window (blocks 0 to {early_blocks}): {timing:?}; nothing was signed"
@@ -200,9 +210,10 @@ pub fn check_launch_answer(
     launch_answer_s: f64,
 ) -> Result<()> {
     let spare = early_blocks.saturating_sub(check_burst_timing(timing, early_blocks)?);
+    // The tail is at most early_blocks here, since check_burst_timing passed.
     let blocks = LAUNCH_TO_COIN_BLOCKS + timing.launch_tail_blocks + spare;
     let allowed = timing.send_s + blocks as f64 * timing.block_s;
-    if launch_answer_s > allowed {
+    if !launch_answer_s.is_finite() || launch_answer_s > allowed {
         bail!(
             "the launch answer took {launch_answer_s:.1} s, more than the {allowed:.1} s the burst plan allows; the coin exists, but no buy was sent"
         );

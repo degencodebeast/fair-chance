@@ -75,3 +75,37 @@ fn a_launch_answer_that_comes_back_late_stops_the_burst() {
         "{error}"
     );
 }
+
+#[test]
+fn timing_values_that_are_huge_tiny_or_not_finite_are_refused_without_a_panic() {
+    for broken in [
+        BurstTiming {
+            send_s: 1e30,
+            ..testnet_today()
+        },
+        BurstTiming {
+            block_s: 1e-300,
+            ..testnet_today()
+        },
+        BurstTiming {
+            send_s: f64::NAN,
+            ..testnet_today()
+        },
+        BurstTiming {
+            block_s: f64::INFINITY,
+            ..testnet_today()
+        },
+        BurstTiming {
+            early_sell_gap_s: -1.0,
+            ..testnet_today()
+        },
+        BurstTiming {
+            launch_tail_blocks: u64::MAX,
+            ..testnet_today()
+        },
+    ] {
+        assert!(check_burst_timing(&broken, 17).is_err(), "{broken:?}");
+        assert!(check_launch_answer(&broken, 17, 1.0).is_err(), "{broken:?}");
+    }
+    assert!(check_launch_answer(&testnet_today(), 17, f64::NAN).is_err());
+}

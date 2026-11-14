@@ -120,3 +120,53 @@ fn the_sandbox_rehearsal_flags_are_refused_on_testnet() {
     assert!(check_sandbox_only_flags(&rehearsal, DemoNetwork::Sandbox).is_ok());
     assert!(check_sandbox_only_flags(&parse(&[]).unwrap(), DemoNetwork::Testnet).is_ok());
 }
+
+#[test]
+fn values_out_of_range_are_refused_and_named() {
+    let max = u64::MAX.to_string();
+    for args in [
+        vec!["--buyers", "0"],
+        vec!["--buyers", "21"],
+        vec!["--buyers", max.as_str()],
+        vec!["--buy-millinear", "100001"],
+        vec!["--buy-millinear", max.as_str()],
+        vec!["--later-buy-millinear", "100001"],
+        vec!["--buyer-extra-millinear", "10001"],
+        vec!["--launch-deposit-millinear", "100001"],
+        vec!["--buyer-tgas", "0"],
+        vec!["--buyer-tgas", "301"],
+        vec!["--sandbox-block-ms", "0"],
+        vec!["--sandbox-block-ms", "10001"],
+        vec!["--sandbox-send-delay-ms", "60001"],
+    ] {
+        let error = parse(&args)
+            .err()
+            .unwrap_or_else(|| panic!("{args:?} was accepted"));
+        assert!(error.to_string().contains(args[0]), "{args:?}: {error}");
+    }
+}
+
+#[test]
+fn the_edges_of_each_range_are_accepted() {
+    let parsed = parse(&[
+        "--buyers",
+        "20",
+        "--buy-millinear",
+        "100000",
+        "--later-buy-millinear",
+        "0",
+        "--buyer-extra-millinear",
+        "10000",
+        "--launch-deposit-millinear",
+        "100000",
+        "--buyer-tgas",
+        "300",
+        "--sandbox-block-ms",
+        "1",
+        "--sandbox-send-delay-ms",
+        "60000",
+    ])
+    .unwrap();
+    assert_eq!(parsed.buyers, Some(20));
+    assert_eq!(parsed.buy_millinear, Some(100_000));
+}

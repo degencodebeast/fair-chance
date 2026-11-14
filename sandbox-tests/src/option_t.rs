@@ -72,6 +72,20 @@ pub struct OptionTArguments {
     pub sell_plan: Option<String>,
 }
 
+/// The values each number flag takes. Bounded so no amount or count can overflow later.
+fn number_range(flag: &str) -> Option<std::ops::RangeInclusive<u64>> {
+    Some(match flag {
+        "--buyers" => 1..=20,
+        "--buy-millinear" | "--launch-deposit-millinear" => 1..=100_000,
+        "--later-buy-millinear" => 0..=100_000,
+        "--buyer-extra-millinear" => 0..=10_000,
+        "--buyer-tgas" => 1..=300,
+        "--sandbox-block-ms" => 1..=10_000,
+        "--sandbox-send-delay-ms" => 0..=60_000,
+        _ => return None,
+    })
+}
+
 /// Parses the arguments after the program name. It refuses any argument it does not know, a flag
 /// without its value, `--flag=value`, a number that does not parse and a repeated flag, so a typo
 /// never falls back to the default run or skips a guard.
@@ -119,11 +133,19 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             Some(value) if !value.starts_with("--") => value,
             _ => bail!("{flag} needs a value"),
         };
-        let number = || {
-            value
+        let number = || -> Result<Option<u64>> {
+            let n = value
                 .parse::<u64>()
-                .map(Some)
-                .with_context(|| format!("{flag} takes a whole number, not {value}"))
+                .with_context(|| format!("{flag} takes a whole number, not {value}"))?;
+            let range = number_range(flag).context("no range")?;
+            if !range.contains(&n) {
+                bail!(
+                    "{flag} takes {} to {}, not {n}; nothing was run",
+                    range.start(),
+                    range.end()
+                );
+            }
+            Ok(Some(n))
         };
         match flag.as_str() {
             "--network" => parsed.network = Some(value.clone()),
@@ -280,7 +302,7 @@ pub fn funding(
     launch_deposit
         .saturating_add(CREATOR_EXTRA)
         .saturating_add(NearToken::from_yoctonear(
-            buyer.as_yoctonear() * buyers as u128,
+            buyer.as_yoctonear().saturating_mul(buyers as u128),
         ))
 }
 
