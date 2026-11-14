@@ -63,6 +63,37 @@ describe("launch form", () => {
     expect(app.querySelector("#launch-errors")?.textContent).toContain("letters, digits, - and _ only");
   });
 
+  it("shows the rules every coin gets and a cost card with the total", () => {
+    const app = form();
+    const rules = app.querySelector("#launch-rules")!;
+    expect(rules.textContent).toContain("Same rules for every coin");
+    expect(rules.textContent).toContain("17 blocks");
+    expect(rules.textContent).toContain("4% of supply");
+    expect(app.querySelector("#launch-cost-total")?.textContent).toBe("0.25 NEAR");
+    type(app, "#launch-buy", "4.4");
+    expect(app.querySelector("#launch-cost")?.textContent).toContain("Your opening buy4.4 NEAR");
+    expect(app.querySelector("#launch-cost-total")?.textContent).toBe("4.65 NEAR");
+  });
+
+  it("shows no field error before the visitor typed in or left that field", () => {
+    const app = form();
+    expect(app.querySelector("#launch-errors")?.textContent).toBe("");
+    type(app, "#launch-ticker", "MO TH");
+    const text = app.querySelector("#launch-errors")?.textContent ?? "";
+    expect(text).toContain("letters, digits");
+    expect(text).not.toContain("Type a name.");
+    app.querySelector("#launch-name")!.dispatchEvent(new Event("blur"));
+    expect(app.querySelector("#launch-errors")?.textContent).toContain("Type a name.");
+  });
+
+  it("puts the picture file input inside a tile with a Choose button", () => {
+    const app = form();
+    const tile = app.querySelector(".picture-tile")!;
+    expect(tile.querySelector("#launch-picture-input")?.getAttribute("type")).toBe("file");
+    expect(tile.textContent).toContain("Choose");
+    expect(tile.tagName).toBe("LABEL");
+  });
+
   it("does not submit anything: the form handler stops the default", () => {
     const app = form();
     const event = new Event("submit", { cancelable: true });

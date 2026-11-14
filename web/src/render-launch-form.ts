@@ -4,7 +4,7 @@
 import { el, type Child } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { iconToWebp, type IconResult } from "./icon-to-webp.ts";
-import { LAUNCH_LIMITS, launchFormModel, type LaunchArgs } from "./launch-form-model.ts";
+import { LAUNCH_LIMITS, launchFormModel, type LaunchArgs, type LaunchField } from "./launch-form-model.ts";
 import { launchNameCheckFromLink, type LaunchNameCheck } from "./account-name-check.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 import type { LaunchedCoin } from "./launch-handoff.ts";
@@ -39,7 +39,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   let icon: string | null = null;
   let latestPicture = 0;
   let pictureState: NonNullable<Parameters<typeof launchFormModel>[0]["picture"]> = { state: "none" };
-  const pictureInput = el("input", { id: "launch-picture-input", type: "file", accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml", "aria-describedby": "launch-picture-status" });
+  const pictureInput = el("input", { id: "launch-picture-input", type: "file", class: "picture-file", accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml", "aria-describedby": "launch-picture-status" });
   const pictureStatus = el("span", { id: "launch-picture-status", class: "muted", role: "status" }, "Any picture. It is shrunk to a WebP image under 8 KB.");
   const name = field("Name", "launch-name", LAUNCH_LIMITS.name);
   const ticker = field("Ticker", "launch-ticker", LAUNCH_LIMITS.ticker, { spellcheck: "false" });
@@ -53,12 +53,19 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const deposit = el("p", { id: "launch-deposit", class: "muted" });
   const result = el("div", { id: "launch-result", role: "status", "aria-live": "polite", class: "trade-result" });
   let pending = false;
+  // An error shows once its field was typed in or left, or the visitor pressed Launch.
+  const touched = new Set<LaunchField>();
+  const touch = (field: LaunchField): void => {
+    if (touched.has(field)) return;
+    touched.add(field);
+    refresh();
+  };
   const session = (): WalletSession | null => {
     const s = send?.wallet.state();
     return s?.kind === "signed-in" ? s.session : null;
   };
   const formInput = (): LaunchFormInput => ({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value });
-  const previewBox = el("section", { id: "launch-preview", "aria-label": "Launch preview", class: "card" });
+  const previewBox = el("aside", { id: "launch-preview", "aria-label": "Launch preview" });
 
   const refresh = (): void => {
     const signedIn = send !== null && nameCheck.factory !== null ? (session()?.accountId ?? null) : null;
@@ -69,15 +76,37 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     description.count.textContent = m.counts.description;
     buyHelp.textContent = m.buyHelp;
     feeNote.textContent = m.feeNote;
-    errors.replaceChildren(...m.errors.map((e) => el("li", { class: "tone-limit" }, e)));
+    errors.replaceChildren(...m.errors.filter((_, i) => touched.has(m.errorFields[i]!)).map((e) => el("li", { class: "tone-limit" }, e)));
     buttonSlot.replaceChildren(m.button.reason === null ? launchButton(m.button.label) : turnedOffButton("launch-button", m.button.label, m.button.reason));
     deposit.textContent = m.deposit === null ? "" : `${m.deposit.total} ${m.deposit.note}`;
     previewBox.replaceChildren(
-      ...(icon === null ? [] : [el("img", { id: "launch-picture-preview", class: "launch-picture-preview", src: icon, alt: "Coin picture preview", width: "64", height: "64" })]),
-      el("h2", {}, m.preview.name === "" ? "Your coin" : m.preview.name),
-      el("p", { class: "num" }, m.preview.ticker === "" ? "TICKER" : m.preview.ticker),
-      el("p", {}, m.preview.description === "" ? "No description." : m.preview.description),
-      el("p", { class: "muted" }, m.preview.openingBuy === null ? "No opening buy." : `Opening buy ${m.preview.openingBuy}`),
+      el(
+        "div",
+        { class: "card launch-preview-card" },
+        ...(icon === null ? [] : [el("img", { id: "launch-picture-preview", class: "launch-picture-preview", src: icon, alt: "Coin picture preview", width: "64", height: "64" })]),
+        el("h2", {}, m.preview.name === "" ? "Your coin" : m.preview.name),
+        el("p", { class: "num" }, m.preview.ticker === "" ? "TICKER" : m.preview.ticker),
+        el("p", {}, m.preview.description === "" ? "No description." : m.preview.description),
+        el("p", { class: "muted" }, m.preview.openingBuy === null ? "No opening buy." : `Opening buy ${m.preview.openingBuy}`),
+      ),
+      el(
+        "div",
+        { id: "launch-rules", class: "card" },
+        el("h2", {}, "Same rules for every coin"),
+        el("p", { class: "muted" }, "Fixed by the factory. There is nothing to set, and nobody can change them after launch."),
+        ...m.rules.map((r) => el("div", { class: "fact-row" }, el("span", { class: "muted" }, r.label), el("span", { class: "num" }, r.value))),
+      ),
+      ...(m.cost === null
+        ? []
+        : [
+            el(
+              "div",
+              { id: "launch-cost", class: "card" },
+              el("h2", {}, "Cost"),
+              ...m.cost.rows.map((r) => el("div", { class: "fact-row" }, el("span", { class: "muted" }, r.label), el("span", { class: "num" }, r.value))),
+              el("div", { class: "fact-total" }, el("b", {}, "Total"), el("span", { id: "launch-cost-total", class: "num" }, m.cost.total)),
+            ),
+          ]),
     );
   };
   const launchButton = (label: string): HTMLElement => {
@@ -89,6 +118,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     const s = session();
     const factory = nameCheck.factory;
     if (send === null || s === null || factory === null || pending) return;
+    for (const f of ["name", "ticker", "description", "buy", "picture"] as const) touched.add(f);
     const form = formInput();
     const chosenIcon = icon;
     pending = true;
@@ -139,6 +169,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   listen(pictureInput, "change", () => {
     const file = pictureInput.files?.[0];
     const mine = ++latestPicture;
+    touched.add("picture");
     icon = null;
     pictureState = file === undefined ? { state: "none" } : { state: "pending" };
     refresh();
@@ -169,12 +200,24 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     latestCheck++;
     nameStatus.textContent = "";
   });
-  for (const input of [name.input, ticker.input, description.input, buy]) listen(input, "input", refresh);
+  const fieldOf: [HTMLInputElement, LaunchField][] = [[name.input, "name"], [ticker.input, "ticker"], [description.input, "description"], [buy, "buy"]];
+  for (const [input, field] of fieldOf) {
+    listen(input, "input", () => {
+      touched.add(field);
+      refresh();
+    });
+    listen(input, "blur", () => touch(field));
+  }
 
   const form = el(
     "form",
     { id: "launch-form", class: "card launch-form" },
-    el("div", { class: "launch-picture" }, el("label", { class: "muted num", for: "launch-picture-input" }, "coin picture"), pictureInput, pictureStatus),
+    el(
+      "div",
+      { class: "launch-picture" },
+      el("label", { class: "picture-tile", for: "launch-picture-input" }, el("span", { class: "muted num" }, "coin picture"), el("span", { class: "picture-choose" }, "Choose"), pictureInput),
+      pictureStatus,
+    ),
     name.box,
     ticker.box,
     nameStatus,
