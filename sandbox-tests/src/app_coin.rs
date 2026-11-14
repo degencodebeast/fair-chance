@@ -60,3 +60,63 @@ pub fn app_coin_request(
         label,
     }))
 }
+
+/// What the chain says about the coin when it appears: the code hash of the account, and from
+/// `fc_rules` the code hash the coin recorded, its creator and its early window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppCoinFacts {
+    pub account_code_hash: String,
+    pub rules_code_hash: String,
+    pub creator: String,
+    pub early_blocks: u64,
+}
+
+/// The checks before any buy is sent: the known code on the account and in `fc_rules`, the fixed
+/// early window, and a creator that is neither the funder nor one of its sub-accounts (the runner
+/// signs for those, so such a coin could be the runner's own launch).
+pub fn check_app_coin(
+    facts: &AppCoinFacts,
+    funder: &AccountId,
+    known_code_hash: &str,
+    early_blocks: u64,
+) -> Result<()> {
+    for (what, hash) in [
+        ("the coin account's code hash", &facts.account_code_hash),
+        ("fc_rules.code_hash", &facts.rules_code_hash),
+    ] {
+        if hash != known_code_hash {
+            bail!("{what} is {hash}, not the known {known_code_hash}; no buy was sent");
+        }
+    }
+    if facts.early_blocks != early_blocks {
+        bail!(
+            "fc_rules.early_blocks is {}, not {early_blocks}; no buy was sent",
+            facts.early_blocks
+        );
+    }
+    let creator = facts.creator.as_str();
+    if creator == funder.as_str() || creator.ends_with(&format!(".{funder}")) {
+        bail!(
+            "the coin's creator {creator} is the funder {funder} or one of its sub-accounts, so the runner could have launched it; the app must launch it from another account; no buy was sent"
+        );
+    }
+    Ok(())
+}
+
+/// Checks the blocks from the coin's launch block to the read that found it against the plan of
+/// [`crate::burst::check_burst_timing`]: the planned detect blocks plus the spare blocks of the
+/// estimate. A later find means the burst would land later than estimated, so no buy is sent.
+pub fn check_detection(
+    timing: &crate::burst::BurstTiming,
+    early_blocks: u64,
+    lag_blocks: u64,
+) -> Result<()> {
+    let last = crate::burst::check_burst_timing(timing, early_blocks)?;
+    let allowed = timing.launch_tail_blocks + early_blocks.saturating_sub(last);
+    if lag_blocks > allowed {
+        bail!(
+            "the coin was found {lag_blocks} blocks after its launch block, more than the {allowed} the burst plan allows; no buy was sent"
+        );
+    }
+    Ok(())
+}
