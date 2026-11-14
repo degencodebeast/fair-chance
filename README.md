@@ -1,6 +1,8 @@
 # Fair Chance
 
-**You buy. The creator dumps on you. You're left holding the bag.**
+**You buy. The cabal dumps on you. You're left holding the bag.**
+
+The coin cannot know who is in a cabal, so it gives a tighter limit to whoever bought in the first blocks.
 
 Fair Chance slows the dump at launch, inside the coin contract.
 
