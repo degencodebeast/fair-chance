@@ -345,6 +345,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 - Contracts: `near-sdk`, `cargo-near`. Tests: `near-sandbox`, `near-api`, `proptest`, `tokio`.
 - Watcher: Go. Page: TypeScript, Vite, Vitest, Playwright core for browser checks.
 - Prior curve designs: the constant-product pool with a virtual reserve comes from earlier launchpad curves ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md), [ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md#decision)). No code is copied from other launchpads.
+- Where the rule design came from: exchange risk limits, which the builder knows as a Bybit trader. On Bybit, a larger position gets a tighter limit, and at the cap only orders that reduce the position are accepted. Fair Chance applies the same idea per holder inside the coin: larger holders get tighter limits, and a sell above a limit fills in part. Unlike an exchange, nobody can change these rules after launch.
 - The launch replay and the simulation come from Kalu ([analysis/FINDINGS.md](analysis/FINDINGS.md)).
 - Code written before 1 November 2026: none. All code in this repo was written during the event.
 
