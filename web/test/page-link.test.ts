@@ -68,3 +68,9 @@ describe("a local sandbox may give the RPC URL, factory and code hash", () => {
     expect(r.known.factory).toBe(KNOWN_NETWORKS.testnet.factory);
   });
 });
+
+describe("the sandbox RPC host stays exact", () => {
+  it.each(["http://[::1]:3030", "http://127.0.0.2:3030", "http://app.localhost:3030", "http://0.0.0.0:3030"])("refuses %s as rpc=", (rpc) => {
+    expect(() => resolvePageLink(link(`rpc=${enc(rpc)}`))).toThrow();
+  });
+});

@@ -18,11 +18,11 @@ async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_b
 ) -> Result<()> {
     let world = World::launch().await?;
     let coin = &world.coin;
-    world.register(&world.bob, coin).await?;
-    world.register(&world.alice, coin).await?;
+    let _ = world.register(&world.bob, coin).await?;
+    let _ = world.register(&world.alice, coin).await?;
     // bob buys 1.5 NEAR (about 1.46% of supply) and sends it all to alice, so alice holds a
     // band bag with no trade of its own in this window.
-    world
+    let _ = world
         .call(
             &world.bob,
             coin,
@@ -34,7 +34,7 @@ async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_b
     let held = world
         .view(coin, "ft_balance_of", json!({ "account_id": world.bob.id }))
         .await?;
-    world
+    let _ = world
         .call(
             &world.bob,
             coin,
@@ -50,7 +50,7 @@ async fn a_band_account_that_buys_and_sells_back_plus_its_allowance_counts_the_b
     let allowance = amount(&alice["unmarked"]["allowance"])?;
 
     // alice buys 0.3 NEAR of tokens, then sells those tokens plus one allowance.
-    world
+    let _ = world
         .call(
             &world.alice,
             coin,

@@ -42,10 +42,13 @@ simulated sniper-buy pattern. This tests one scripted path; it does not estimate
 how long a real creator or most wallets would take to sell. Source:
 [test 10 results](simulation/results/test-10.csv).
 
-The rc.5 comparison vector for a band seller who buys and sells in the same
-hour fills 11,910,132 tokens before the cap holds the rest (`cap_full`). It is a
-rule-check case, not a launch observation. Its start state, rules, ordered
-actions, and outcomes are in [cap-cases.json](simulation/results/cap-cases.json).
+In the rc.7 `band-above-allowance-cap-left` vector, a 30-million-token band
+holder fills 11,247,222.281 tokens before the cap holds the rest
+(`cap_full`). Its counted payout is 0.138357 NEAR against `cap_left` of
+0.190476 NEAR before the sell; the band penalty makes the counted part take
+less than the no-penalty limit. This is a synthetic rule-check case, not a
+launch observation. Its state and ordered actions are in
+[cap-cases.json](simulation/results/cap-cases.json).
 
 ## Charts
 

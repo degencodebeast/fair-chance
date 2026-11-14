@@ -96,6 +96,9 @@ case "$mode" in
     private_string_scan || finish FAIL "the private-string scan found private names or paths"
     # The replay tests, with the sandbox equivalence test on (it starts one sandbox).
     FC_REPLAY_ON_SANDBOX=1 scripts/test-trade-replay.sh || finish FAIL "the trade replay tests failed"
+    # The sniper scene analysis on its small run file: numbers, labels and the early-sell margin guard.
+    python3 -I -m unittest discover -s analysis/sniper-scene/tests 2>&1 | tail -1 \
+      || finish FAIL "the sniper scene analysis tests failed"
     # Option T refuses a mistyped argument before it builds or starts a sandbox.
     scripts/test-option-t-arguments.sh | tail -1 || finish FAIL "option-t.sh accepted an unknown or incomplete argument"
     screen_checks_in_browser || finish FAIL "a browser screen check failed (see target/verify-evidence/$run_id/verify.log)"

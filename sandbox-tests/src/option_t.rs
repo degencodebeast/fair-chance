@@ -70,6 +70,15 @@ pub struct OptionTArguments {
     /// The BAG sells-only step ([`crate::sells_only`]); needs `--sell-plan` and `--ticker`.
     pub sells_only: bool,
     pub sell_plan: Option<String>,
+    /// The return step after the BAG sells ([`crate::sells_only::run_returns`]); needs
+    /// `--sells-only`.
+    pub return_to_funder: bool,
+    /// The sha256 (64 lowercase hex digits) of the existing plan file that the return step or the
+    /// continue step reads.
+    pub plan_sha256: Option<String>,
+    /// `--continue`: the continue step after a sells run that stopped part way
+    /// ([`crate::sells_only::run_continue`]).
+    pub continue_sells: bool,
 }
 
 /// The values each number flag takes. Bounded so no amount or count can overflow later.
@@ -107,6 +116,20 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             parsed.sells_only = true;
             continue;
         }
+        if flag == "--continue" {
+            if parsed.continue_sells {
+                bail!("{flag} is given twice");
+            }
+            parsed.continue_sells = true;
+            continue;
+        }
+        if flag == "--return-to-funder" {
+            if parsed.return_to_funder {
+                bail!("{flag} is given twice");
+            }
+            parsed.return_to_funder = true;
+            continue;
+        }
         let taken = match flag.as_str() {
             "--network" => parsed.network.is_some(),
             "--ticker" => parsed.ticker.is_some(),
@@ -124,6 +147,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--sandbox-block-ms" => parsed.sandbox_block_ms.is_some(),
             "--sandbox-send-delay-ms" => parsed.sandbox_send_delay_ms.is_some(),
             "--sell-plan" => parsed.sell_plan.is_some(),
+            "--plan-sha256" => parsed.plan_sha256.is_some(),
             _ => bail!("unknown argument {flag}; nothing was run"),
         };
         if taken {
@@ -156,6 +180,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--spend-cap" => parsed.spend_cap = Some(value.clone()),
             "--keep" => parsed.keep = Some(value.clone()),
             "--sell-plan" => parsed.sell_plan = Some(value.clone()),
+            "--plan-sha256" => parsed.plan_sha256 = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,
@@ -661,14 +686,10 @@ pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
         let transaction = near_api::Account(id.clone())
             .delete_account_with_beneficiary(setup.funder.id.clone())
             .with_signer(setup.funder.signer.clone());
-        let result = send_once(
-            transaction,
-            &setup.funder.id,
-            &setup.network,
-            &setup.send_network,
-        )
-        .await
-        .with_context(|| format!("deleting {id}; nothing more deleted"))?;
+        // The buyer signs its own delete (with the funder's key), so its nonce is the buyer's.
+        let result = send_once(transaction, &id, &setup.network, &setup.send_network)
+            .await
+            .with_context(|| format!("deleting {id}; nothing more deleted"))?;
         if !result.is_success() {
             bail!("deleting {id} failed: {result:?}");
         }

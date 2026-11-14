@@ -12,6 +12,12 @@
 //!   option-t --network testnet --ticker BAG --sells-only --sell-plan <new file>
 //!                                     the BAG sells-only step: buyers 01 to 18 sell their full
 //!                                     balance in order; 19 and 20 never sell (sells_only.rs)
+//!   option-t --network testnet --ticker BAG --sells-only --sell-plan <that file> --continue
+//!                                     --plan-sha256 <hex>: after a stopped sells run, sells the
+//!                                     rest from the same plan file, in order
+//!   option-t --network testnet --ticker BAG --sells-only --sell-plan <that file> --return-to-funder
+//!                                     the return step after the sells: buyers 01 to 18 send their
+//!                                     NEAR minus 0.05 NEAR to the funder, once; 19 and 20 untouched
 //!   --buy-millinear <n>               NEAR per buy, in milliNEAR (default 1000)
 //!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
 //!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
@@ -65,6 +71,9 @@ async fn start(list: &mut PassList) -> Result<()> {
         std::env::var(TESTNET_YES_FLAG).ok().as_deref(),
     )?;
     let sell_plan = fair_chance_sandbox_tests::sells_only::sells_only_request(&args)?;
+    let return_to_funder = fair_chance_sandbox_tests::sells_only::return_request(&args)?;
+    let continue_sells = fair_chance_sandbox_tests::sells_only::continue_request(&args)?;
+    // --return-to-funder and --continue need --sells-only, so they pass the BAG gate with it.
     fair_chance_sandbox_tests::option_t::check_ticker(
         args.ticker.as_deref().unwrap_or("optiont"),
         network,
@@ -138,7 +147,14 @@ async fn start(list: &mut PassList) -> Result<()> {
                 "the run would sell on {coin}, not on the checked coin; nothing was signed"
             );
         }
-        fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
+        let sha = args.plan_sha256.as_deref().unwrap_or_default();
+        if return_to_funder {
+            fair_chance_sandbox_tests::sells_only::run_returns(&setup, &plan, sha, list).await?;
+        } else if continue_sells {
+            fair_chance_sandbox_tests::sells_only::run_continue(&setup, &plan, sha, list).await?;
+        } else {
+            fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
+        }
         return Ok(());
     }
     if delete {

@@ -29,6 +29,13 @@ title, metadata), comments, CDATA and attribute values, with entities decoded. O
 attributes (coordinates, sizes, colours) do not count.
 A finding names the file, the line and, in a table, the column number. It never shows the text.
 
+One exception, by exact value. If `evidence/testnet-run.json` exists and says "network":
+"testnet", the guard lets through its coin code hash, its factory and coin accounts and the
+transaction hashes of its launch, buys and transactions, and no other field. A value counts only
+when the whole word matches; a changed character, a longer word or a mainnet account fails. The
+guard reads that file and nothing else. It makes no network call. Without the file, nothing is
+let through.
+
 Command (a video script or a caption file goes through it too):
   python3 -I analysis/smdd-replay/published_figures_guard.py <file>...
 It exits 1 on any finding.
@@ -36,6 +43,7 @@ It exits 1 on any finding.
 from __future__ import annotations
 
 import html
+import json
 import re
 import sys
 import unicodedata
@@ -120,11 +128,60 @@ _DASHES = dict.fromkeys(map(ord, "‐‑‒–—―−﹣"), "-")
 _INVISIBLE = dict.fromkeys(map(ord, "­​‌‍⁠﻿"), None)
 
 
-def normalized(text: str) -> str:
-    """NFKC, ASCII digits, plain dashes, no zero-width character, lower case."""
+EVIDENCE_FILE = Path(__file__).resolve().parents[2] / "evidence" / "testnet-run.json"
+_HASH_SHAPE = re.compile(r"[1-9A-HJ-NP-Za-km-z]{43,44}|[0-9a-fA-F]{64}")
+_ACCOUNT_SHAPE = re.compile(r"[a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet")
+
+
+def load_allowlist(path: Path = EVIDENCE_FILE) -> frozenset:
+    """The exact values the guard lets through, from the testnet run record: the coin code hash
+    ("code_hash"), the factory and coin accounts ("factory", "coin") and the "tx_hash" of
+    "launch" and of each entry in "buys" and "transactions". Only when the file says "network": "testnet", and only these fields, each
+    with the shape of its kind. A missing, unreadable or other file gives an empty set, which is
+    the guard without an exception."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return frozenset()
+    if not isinstance(data, dict) or data.get("network") != "testnet":
+        return frozenset()
+    found = []
+    if _is(data.get("code_hash"), _HASH_SHAPE):
+        found.append(data["code_hash"])
+    for field in ("factory", "coin"):
+        if _is(data.get(field), _ACCOUNT_SHAPE):
+            found.append(data[field])
+    launch = data.get("launch")
+    transactions = [launch] if isinstance(launch, dict) else []
+    for field in ("buys", "transactions"):
+        listed = data.get(field)
+        transactions += listed if isinstance(listed, list) else []
+    for tx in transactions:
+        if isinstance(tx, dict) and _is(tx.get("tx_hash"), _HASH_SHAPE):
+            found.append(tx["tx_hash"])
+    return frozenset(found)
+
+
+def _is(value, shape) -> bool:
+    return isinstance(value, str) and shape.fullmatch(value) is not None
+
+
+def _without_allowed(text: str, allowed: frozenset) -> str:
+    for value in allowed:
+        edge = r"(?<![A-Za-z0-9_.-])" + re.escape(value) + r"(?![A-Za-z0-9_-]|\.[A-Za-z0-9])"
+        text = re.sub(edge, " ", text)
+    return text
+
+
+def folded(text: str) -> str:
+    """NFKC, ASCII digits, plain dashes, no zero-width character. The case stays."""
     text = unicodedata.normalize("NFKC", text).translate(_DASHES).translate(_INVISIBLE)
-    text = "".join(str(unicodedata.decimal(c)) if c.isdecimal() and not c.isascii() else c for c in text)
-    return text.lower()
+    return "".join(str(unicodedata.decimal(c)) if c.isdecimal() and not c.isascii() else c for c in text)
+
+
+def normalized(text: str) -> str:
+    """The folded text in lower case."""
+    return folded(text).lower()
 
 
 def _raw_count(text: str) -> bool:
@@ -143,9 +200,9 @@ def _sentence_fails(sentence: str) -> bool:
     return bool(EXAMPLE.search(sentence) and TRADE_WORD.search(sentence))
 
 
-def text_fails(text: str, venues_allowed: bool = False) -> bool:
+def text_fails(text: str, venues_allowed: bool = False, allowed: frozenset = frozenset()) -> bool:
     """True when this piece of text (a line or a table cell) breaks a rule."""
-    text = normalized(CREATOR_CHECK_LINE.sub(" ", text))
+    text = _without_allowed(folded(CREATOR_CHECK_LINE.sub(" ", text)), allowed).lower()
     text = FUNDER_PHRASE.sub(" ", text)
     rules = (CLOCK_TIME, TRADE_SIZE, PER_WALLET) + (() if venues_allowed else (VENUE,))
     if any(rule.search(text) for rule in rules) or _long_code(text) or _raw_count(text):
@@ -161,7 +218,9 @@ def _is_separator(row: str) -> bool:
     return _is_table_row(row) and set(row.replace("|", "").strip()) <= set("-: ")
 
 
-def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list[str]:
+def findings_in_text(
+    name: str, text: str, venues_allowed: bool = False, allowed: frozenset = frozenset()
+) -> list[str]:
     """One finding per failing line, as "<name>: line N", or per failing table cell, as
     "<name>: line N, column C". A table's header is its first row when a separator follows it;
     every other row must be a group (or the README row)."""
@@ -169,7 +228,7 @@ def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list
     lines = text.splitlines()
     for number, line in enumerate(lines, 1):
         if not _is_table_row(line):
-            if text_fails(line, venues_allowed):
+            if text_fails(line, venues_allowed, allowed):
                 findings.append(f"{name}: line {number}")
             continue
         if _is_separator(line):
@@ -179,7 +238,7 @@ def findings_in_text(name: str, text: str, venues_allowed: bool = False) -> list
         is_header = starts_table and number < len(lines) and _is_separator(lines[number])
         for index, cell in enumerate(cells):
             not_a_group = index == 0 and not is_header and cell not in ROW_LABELS
-            if not_a_group or text_fails(cell, venues_allowed):
+            if not_a_group or text_fails(cell, venues_allowed, allowed):
                 findings.append(f"{name}: line {number}, column {index + 1}")
     return findings
 
@@ -214,12 +273,12 @@ def visible_text(name: str, text: str) -> str:
     return "\n".join(part for part in joined if part) + "\n"
 
 
-def findings_in_files(paths: list[Path]) -> list[str]:
+def findings_in_files(paths: list[Path], allowed: frozenset = frozenset()) -> list[str]:
     findings = []
     for path in paths:
         name = Path(path).name
         text = visible_text(name, Path(path).read_text())
-        findings += findings_in_text(name, text, venues_allowed=name == METHOD_FILE)
+        findings += findings_in_text(name, text, venues_allowed=name == METHOD_FILE, allowed=allowed)
     return findings
 
 
@@ -227,7 +286,7 @@ def main() -> None:
     if len(sys.argv) < 2:
         print("published figures guard: name the files", file=sys.stderr)
         sys.exit(2)
-    findings = findings_in_files([Path(p) for p in sys.argv[1:]])
+    findings = findings_in_files([Path(p) for p in sys.argv[1:]], load_allowlist())
     for finding in findings:
         print(f"published figures guard: failed at {finding}")
     if findings:

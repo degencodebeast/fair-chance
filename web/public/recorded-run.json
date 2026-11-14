@@ -1,0 +1,150 @@
+{
+  "network": "testnet",
+  "coin": "bag.factory.fairchance.testnet",
+  "transactions": [
+    {
+      "tx_hash": "GhGZ1j5c3BRC7dcRJpMJ9UxtWLsFjzMRAUU4u466rZgp",
+      "outcome": "full_fill",
+      "account": "bag-buyer-01.fairchance.testnet",
+      "tokens_asked": "7308624762134838070425063",
+      "tokens_sold": "7308624762134838070425063",
+      "near_out": "1030531831363946847733561"
+    },
+    {
+      "tx_hash": "9wM75SVYewAMu7LXCLRUnnr4TKQNHhjodYcJwNS8CFZM",
+      "outcome": "full_fill",
+      "account": "bag-buyer-02.fairchance.testnet",
+      "tokens_asked": "8735932608046996791698688",
+      "tokens_sold": "8735932608046996791698688",
+      "near_out": "1205063709954884844776304"
+    },
+    {
+      "tx_hash": "DXbn6j9HgPm6uRhe1mF73hKEhvogrpbzmDCfvg5MLiA9",
+      "outcome": "full_fill",
+      "account": "bag-buyer-03.fairchance.testnet",
+      "tokens_asked": "9802950787206654124170709",
+      "tokens_sold": "9802950787206654124170709",
+      "near_out": "1309382644667818737652566"
+    },
+    {
+      "tx_hash": "CePo3J98PzyxAAcuiVt6nUaPzho3FJu6J6dDweJ34v14",
+      "outcome": "full_fill",
+      "account": "bag-buyer-04.fairchance.testnet",
+      "tokens_asked": "7434954520756576344062005",
+      "tokens_sold": "7434954520756576344062005",
+      "near_out": "986827837625817430660166"
+    },
+    {
+      "tx_hash": "K5YbpnT1N9or2hbKk9ZxbjuVj6khCaoSnPebcQpZhHG",
+      "outcome": "full_fill",
+      "account": "bag-buyer-05.fairchance.testnet",
+      "tokens_asked": "8418793016192005018989788",
+      "tokens_sold": "8418793016192005018989788",
+      "near_out": "1097266290987143871024526"
+    },
+    {
+      "tx_hash": "HsePhMvDFrEAfMytwTHRyAwViSsptwxzfT6n4neiSwRx",
+      "outcome": "full_fill",
+      "account": "bag-buyer-06.fairchance.testnet",
+      "tokens_asked": "9611961119757080926167756",
+      "tokens_sold": "9611961119757080926167756",
+      "near_out": "1216318881179662349383484"
+    },
+    {
+      "tx_hash": "H6Vm6ceSzrigeh7PX2wSgZ5ygFrEeik3MioMPZJcPgEs",
+      "outcome": "full_fill",
+      "account": "bag-buyer-07.fairchance.testnet",
+      "tokens_asked": "6948389762244947184344944",
+      "tokens_sold": "6948389762244947184344944",
+      "near_out": "870953034946933420427407"
+    },
+    {
+      "tx_hash": "Dzo668TNrCETf9rkuxskYjFddVaP93ZGYfCfNrEEDEYB",
+      "outcome": "full_fill",
+      "account": "bag-buyer-08.fairchance.testnet",
+      "tokens_asked": "7834263032415318815236706",
+      "tokens_sold": "7834263032415318815236706",
+      "near_out": "965933556544149397885386"
+    },
+    {
+      "tx_hash": "27aGaKKgoQqTNvPx5R7zfkX3cuLYdZLDHgtNyTjXWUoK",
+      "outcome": "full_fill",
+      "account": "bag-buyer-09.fairchance.testnet",
+      "tokens_asked": "8901273352840913852470278",
+      "tokens_sold": "8901273352840913852470278",
+      "near_out": "1075411154713120329510083"
+    },
+    {
+      "tx_hash": "DLWdpkvvMLDrJGpWDCkfcQb3tkMPoMocyR3YTnVBMfNp",
+      "outcome": "full_fill",
+      "account": "bag-buyer-10.fairchance.testnet",
+      "tokens_asked": "8266667831146366813659516",
+      "tokens_sold": "8266667831146366813659516",
+      "near_out": "981935098145168799765445"
+    },
+    {
+      "tx_hash": "8SaDYea1MYcQEEVbefwa6Uv4sP7Hv469PjhjA8pfKYnd",
+      "outcome": "full_fill",
+      "account": "bag-buyer-11.fairchance.testnet",
+      "tokens_asked": "9246371902723509409898189",
+      "tokens_sold": "9246371902723509409898189",
+      "near_out": "1071762502343256063163510"
+    },
+    {
+      "tx_hash": "22EPmkZ48WKWy34D1Vi86QVgEXnerz6jEbF6dGbSQUrj",
+      "outcome": "full_fill",
+      "account": "bag-buyer-12.fairchance.testnet",
+      "tokens_asked": "7697654484483231878870414",
+      "tokens_sold": "7697654484483231878870414",
+      "near_out": "880987763378046110643878"
+    },
+    {
+      "tx_hash": "4JhBxFFKrnMvpJ1PV7pRxPXaPHMKWLvpYVxLKW6q9Jzj",
+      "outcome": "full_fill",
+      "account": "bag-buyer-13.fairchance.testnet",
+      "tokens_asked": "7564592234938497027082514",
+      "tokens_sold": "7564592234938497027082514",
+      "near_out": "851790114435734943220255"
+    },
+    {
+      "tx_hash": "BXdpgLWgwJLFR4NJ9HDBGi2p4hBehZuPXXA5vD5rC3vP",
+      "outcome": "full_fill",
+      "account": "bag-buyer-14.fairchance.testnet",
+      "tokens_asked": "8575161478443227352090048",
+      "tokens_sold": "8575161478443227352090048",
+      "near_out": "949251725609461100296865"
+    },
+    {
+      "tx_hash": "EUxijRmwjwdrygx7oBPYJSQTd7uaTYx7NvLP7mLhyKm3",
+      "outcome": "full_fill",
+      "account": "bag-buyer-15.fairchance.testnet",
+      "tokens_asked": "8118633683881696384146705",
+      "tokens_sold": "8118633683881696384146705",
+      "near_out": "883131454517626576088075"
+    },
+    {
+      "tx_hash": "FTHkJauT4MhTMMFPUbaTxmAKouSyg3rCN2vSRjMNncLy",
+      "outcome": "full_fill",
+      "account": "bag-buyer-16.fairchance.testnet",
+      "tokens_asked": "7065447148316375719906077",
+      "tokens_sold": "7065447148316375719906077",
+      "near_out": "756536315574607339841138"
+    },
+    {
+      "tx_hash": "F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj",
+      "outcome": "partial_fill",
+      "account": "bag-buyer-17.fairchance.testnet",
+      "tokens_asked": "9426505449507747827819514",
+      "tokens_sold": "8737868038700155563510651",
+      "near_out": "920495437893996097270282"
+    },
+    {
+      "tx_hash": "47i65jgBxyVa5esrPqndRyq1h1eg1qhnRbfaRrKn1G2E",
+      "outcome": "full_fill",
+      "account": "bag-buyer-18.fairchance.testnet",
+      "tokens_asked": "7185491299901294261795733",
+      "tokens_sold": "7185491299901294261795733",
+      "near_out": "744735648084809192746129"
+    }
+  ]
+}

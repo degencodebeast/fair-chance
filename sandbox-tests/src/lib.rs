@@ -814,8 +814,71 @@ pub async fn transact_once(
     send_once(transaction, &who.id, read, send).await
 }
 
-/// Signs `transaction` (reading the nonce from `send`), sends it once to `send`, and returns its
-/// result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
+/// The account that signs `transaction`.
+fn transaction_signer(
+    transaction: &near_api::advanced::ExecuteSignedTransaction,
+) -> Result<AccountId> {
+    use near_api::advanced::TransactionableOrSigned;
+    match &transaction.transaction {
+        TransactionableOrSigned::Transactionable(t) => Ok(t
+            .prepopulated()
+            .map_err(|e| anyhow::anyhow!("the transaction is not valid: {e}; nothing was sent"))?
+            .signer_id),
+        TransactionableOrSigned::Signed((signed, _)) => Ok(signed.transaction.signer_id().clone()),
+    }
+}
+
+/// Signs `transaction` without sending it. The nonce and a final block hash come from `send`; when
+/// that read fails, nothing went out, so they come from one read on the first endpoint of `read`
+/// (FastNEAR on testnet) instead. When that fails too, it stops with "nothing was sent". No error
+/// text carries an RPC URL.
+pub async fn presign_once(
+    transaction: near_api::advanced::ExecuteSignedTransaction,
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+) -> Result<near_api::advanced::ExecuteSignedTransaction> {
+    // The nonce belongs to the account that signs, so it comes from the transaction itself, as in
+    // near-api's presign_with; no caller can name another account.
+    let signer_id = &transaction_signer(&transaction)?;
+    let failed = |what: &str, e: &dyn std::fmt::Display| {
+        anyhow::anyhow!(
+            "signing for {signer_id} failed before any send: {what}: {}; nothing was sent",
+            rate_limit::without_urls(&format!("{e}"))
+        )
+    };
+    let key = transaction
+        .signer
+        .get_public_key()
+        .await
+        .map_err(|e| failed("the public key", &e))?;
+    let (nonce, block_hash, _) = match transaction
+        .signer
+        .fetch_tx_nonce(signer_id.clone(), key, send)
+        .await
+    {
+        Ok(found) => found,
+        Err(first) => {
+            println!(
+                "send: the nonce read for {signer_id} on the send RPC failed ({}); nothing was sent; reading it once on the read RPC",
+                rate_limit::without_urls(&format!("{first}"))
+            );
+            let mut fallback = read.clone();
+            fallback.rpc_endpoints.truncate(1);
+            transaction
+                .signer
+                .fetch_tx_nonce(signer_id.clone(), key, &fallback)
+                .await
+                .map_err(|e| failed("the nonce read on both RPCs", &e))?
+        }
+    };
+    transaction
+        .presign_offline(key, block_hash, nonce)
+        .await
+        .map_err(|e| failed("signing", &e))
+}
+
+/// Signs `transaction` ([`presign_once`]: the nonce from `send`, or once from `read` when that
+/// read fails), sends it once to `send`, and returns its result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
 /// try ([`rpcs::testnet_rpcs`]). When the send gives no answer or an unknown result, it looks up the
 /// transaction by its hash on `read` and returns what the chain holds; it never sends it again, on
 /// either RPC. A hash the chain does not know stops the run. A failure before the send (signing,
@@ -843,12 +906,18 @@ pub async fn send_once_and_flag(
             unclear.store(true, std::sync::atomic::Ordering::SeqCst);
         }
     };
-    let signed = transaction.presign_with(send).await.map_err(|e| {
-        anyhow::anyhow!(
-            "signing for {signer_id} failed before any send: {}; nothing was sent",
-            rate_limit::without_urls(&format!("{e}"))
-        )
-    })?;
+    let signs = transaction_signer(&transaction)?;
+    if &signs != signer_id {
+        bail!("the transaction is signed by {signs}, not {signer_id}; nothing was sent");
+    }
+    // A transaction signed before (the pre-signed burst) goes out as it is, with no nonce read
+    // before its send; any other is signed here with one nonce read.
+    let signed = match &transaction.transaction {
+        near_api::advanced::TransactionableOrSigned::Signed(_) => transaction,
+        near_api::advanced::TransactionableOrSigned::Transactionable(_) => {
+            presign_once(transaction, read, send).await?
+        }
+    };
     let hash = match &signed.transaction {
         near_api::advanced::TransactionableOrSigned::Signed((tx, _)) => tx.get_hash(),
         near_api::advanced::TransactionableOrSigned::Transactionable(_) => {

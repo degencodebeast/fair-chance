@@ -1,3 +1,4 @@
+import { KNOWN_NETWORKS } from "../src/known-deployments.ts";
 import { describe, expect, it } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
 import { coinPageModel, loadingFrame, NOT_AVAILABLE, type CoinPageModel } from "../src/coin-page-model.ts";
@@ -319,17 +320,15 @@ describe("copy rules", () => {
 describe("known deployment comes from the page code, not the link", () => {
   const anchors = `&factory=${factory}&code_hash=${knownHash}`;
 
-  it("does not let a crafted testnet link supply its own factory and hash", async () => {
+  it("does not let a crafted testnet link replace the fixed factory and hash", async () => {
     const href = `http://localhost/?coin=${coin}&network=testnet${anchors}`;
     const view = await ready(recordedCoin("normal"), href);
     expect(view.checks.map((c) => [c.id, c.status])).toEqual([
-      ["parent-account", "unchecked"],
-      ["code-hash", "unchecked"],
+      ["parent-account", "fail"],
+      ["code-hash", "fail"],
       ["no-access-keys", "pass"],
     ]);
-    expect(view.warning?.reasons[0]).toBe(
-      "Coin is a direct sub-account of the factory: Not checked: no known deployment for this network.",
-    );
+    expect(view.checks[0]!.detail).toContain(KNOWN_NETWORKS.testnet.factory);
     expect(view.rulesStatement).toBeNull();
   });
 

@@ -105,23 +105,42 @@ func TestACoinOfAnotherFactoryMakesNoReadAndGetsOneLine(t *testing.T) {
 	}
 }
 
-func TestOneChatGetsOneCheckEveryTenSecondsAndSilenceBetween(t *testing.T) {
+const waitLine = "Please wait a few seconds, then send it again."
+
+func TestOneChatGetsOneCheckEveryThreeSecondsAndOneWaitLineBetween(t *testing.T) {
 	checker := &fixedChecker{text: "card text"}
 	bot, _, fake, clk := newPublicBot(checker)
 	say(bot, strangerChat, "/check "+demoCoin)
-	clk.now = clk.now.Add(9 * time.Second)
+	clk.now = clk.now.Add(time.Second)
 	say(bot, strangerChat, "/check "+demoCoin)
-	if len(checker.checked) != 1 || len(fake.Sent) != 1 {
+	clk.now = clk.now.Add(time.Second)
+	say(bot, strangerChat, "/check "+demoCoin)
+	if len(checker.checked) != 1 || len(fake.Sent) != 2 || fake.Sent[0].Text != "card text" || fake.Sent[1].Text != waitLine {
 		t.Fatalf("checked %v sent %+v", checker.checked, fake.Sent)
 	}
 	clk.now = clk.now.Add(time.Second)
 	say(bot, strangerChat, "/check "+demoCoin)
-	if len(checker.checked) != 2 || len(fake.Sent) != 2 {
+	if len(checker.checked) != 2 || len(fake.Sent) != 3 || fake.Sent[2].Text != "card text" {
+		t.Fatalf("checked %v sent %+v", checker.checked, fake.Sent)
+	}
+	clk.now = clk.now.Add(time.Second)
+	say(bot, strangerChat, "/check "+demoCoin)
+	if len(fake.Sent) != 4 || fake.Sent[3].Text != waitLine {
+		t.Fatalf("a new gap gets a new wait line: %+v", fake.Sent)
+	}
+}
+
+func TestStartThenCheckAtOnceReturnsTheCard(t *testing.T) {
+	checker := &fixedChecker{text: "card text"}
+	bot, _, fake, _ := newPublicBot(checker)
+	say(bot, strangerChat, "/start")
+	say(bot, strangerChat, "/check "+demoCoin)
+	if len(checker.checked) != 1 || len(fake.Sent) != 2 || fake.Sent[1].Text != "card text" {
 		t.Fatalf("checked %v sent %+v", checker.checked, fake.Sent)
 	}
 }
 
-func TestOneStrangerChatCausesAtMostOneSendEveryTenSeconds(t *testing.T) {
+func TestOneStrangerChatCausesAtMostThreeSendsEveryThreeSeconds(t *testing.T) {
 	checker := &fixedChecker{text: "card text"}
 	bot, _, fake, clk := newPublicBot(checker)
 	for i := 0; i < 100; i++ {
@@ -129,12 +148,12 @@ func TestOneStrangerChatCausesAtMostOneSendEveryTenSeconds(t *testing.T) {
 		say(bot, strangerChat, "/check other.testnet")
 		say(bot, strangerChat, "/help")
 	}
-	if len(fake.Sent) != 1 || len(checker.checked) != 1 {
+	if len(fake.Sent) != 3 || len(checker.checked) != 1 {
 		t.Fatalf("sends %d checks %d", len(fake.Sent), len(checker.checked))
 	}
-	clk.now = clk.now.Add(10 * time.Second)
+	clk.now = clk.now.Add(3 * time.Second)
 	say(bot, strangerChat, "/help")
-	if len(fake.Sent) != 2 {
+	if len(fake.Sent) != 4 {
 		t.Fatalf("sends %d", len(fake.Sent))
 	}
 }
@@ -243,9 +262,63 @@ func TestCountsHoldNumbersAndNoChatIDOrText(t *testing.T) {
 	bot, _, _, _ := newPublicBot(checker)
 	say(bot, strangerChat, "/check "+demoCoin)
 	say(bot, strangerChat, "/check "+demoCoin)
+	say(bot, strangerChat, "/check "+demoCoin)
 	say(bot, 5, "/check other.testnet")
 	got := bot.Public.Counts()
 	if got.Served != 1 || got.Silent != 1 || got.Refused != 1 {
 		t.Fatalf("counts %+v", got)
+	}
+}
+
+func TestOneStrangerChatCannotTakeTheWholeSendBudget(t *testing.T) {
+	checker := &fixedChecker{text: "card text"}
+	bot, _, fake, clk := newPublicBot(checker)
+	for i := 0; i < 20; i++ {
+		say(bot, strangerChat, "/check "+demoCoin)
+		say(bot, strangerChat, "/check "+demoCoin)
+		say(bot, strangerChat, "/help")
+		clk.now = clk.now.Add(3 * time.Second)
+	}
+	clk.now = clk.now.Add(-2 * time.Second) // still inside the first minute
+	before := len(fake.Sent)
+	if before > 10 {
+		t.Fatalf("one chat got %d sends in a minute, want at most 10", before)
+	}
+	say(bot, 4242, "/check "+demoCoin)
+	say(bot, 4243, "/help")
+	if len(fake.Sent)-before != 2 {
+		t.Fatalf("other strangers got %d sends, want 2", len(fake.Sent)-before)
+	}
+}
+
+func TestAChatAtItsMinuteCapGetsNothingUntilTheWindowMoves(t *testing.T) {
+	checker := &fixedChecker{text: "card text"}
+	bot, _, fake, clk := newPublicBot(checker)
+	for i := 0; i < 10; i++ {
+		say(bot, strangerChat, "/check "+demoCoin)
+		clk.now = clk.now.Add(3 * time.Second)
+	}
+	if len(fake.Sent) != 10 {
+		t.Fatalf("sends %d", len(fake.Sent))
+	}
+	say(bot, strangerChat, "/check "+demoCoin)
+	say(bot, strangerChat, "/help")
+	if len(fake.Sent) != 10 || len(checker.checked) != 10 {
+		t.Fatalf("sends %d checks %d", len(fake.Sent), len(checker.checked))
+	}
+	clk.now = clk.now.Add(31 * time.Second) // the first send is now older than a minute
+	say(bot, strangerChat, "/check "+demoCoin)
+	if len(fake.Sent) != 11 {
+		t.Fatalf("sends %d", len(fake.Sent))
+	}
+}
+
+func TestTheBuilderChatHasNoMinuteCap(t *testing.T) {
+	bot, _, fake, _ := newPublicBot(&fixedChecker{text: "card text"})
+	for i := 0; i < 30; i++ {
+		say(bot, builderChat, "/help")
+	}
+	if len(fake.Sent) != 30 {
+		t.Fatalf("sends %d", len(fake.Sent))
 	}
 }

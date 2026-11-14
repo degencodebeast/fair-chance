@@ -32,7 +32,7 @@ func TestALongCoinNameAndSymbolNeverPushTheRuleFactsOffTheCard(t *testing.T) {
 
 	card := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC)
 	sent := telegram.Prepare(card)
-	for _, want := range []string{"Pool cap this hour", "Nobody can change these rules."} {
+	for _, want := range []string{"Pool cap this hour", "Nobody can change these rules, not even the creator."} {
 		if !strings.Contains(sent, want) {
 			t.Fatalf("the sent card lost %q", want)
 		}

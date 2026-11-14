@@ -1,0 +1,12 @@
+Bag Holder (BAG)
+Read at 04:34 WAT.
+
+The creator group holds 0% of supply.
+Early supply holds 0% of supply.
+Early supply can sell 10.1M BAG in total in this 24 h window. The limit refills at 22:33 WAT, in 17 h 59 min.
+
+Large holders: 0. A large holder cannot send tokens to another account.
+
+Pool cap this hour: 0.94 NEAR left of 0.99 NEAR. It resets at 05:33 WAT, in 59 min.
+
+Nobody can change these rules, not even the creator.

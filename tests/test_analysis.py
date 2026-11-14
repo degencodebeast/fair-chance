@@ -72,8 +72,10 @@ class SimulationTests(unittest.TestCase):
         engine.cap_net["b", engine.cap_bucket(1)] = -1_000_000
         sold_a, _ = engine.sell("a", engine.wallet("a").tokens, 1)
         sold_b, _ = engine.sell("b", engine.wallet("b").tokens, 1)
-        self.assertAlmostEqual(sold_a / marked_a, sold_b / marked_b, delta=1e-12)
-        self.assertLessEqual(sold_a + sold_b, sim.ALLOWANCE * engine.pool.token * 1.001)
+        self.assertGreater(sold_a, 0); self.assertGreater(sold_b, 0)
+        total=marked_a+marked_b;reserve=engine.reserve_snapshot(1)
+        self.assertLessEqual(sold_a, sim.ALLOWANCE*reserve*marked_a/total+1e-6)
+        self.assertLessEqual(sold_b, sim.ALLOWANCE*reserve*marked_b/total+1e-6)
 
     def test_large_wallet_cannot_split(self):
         engine = sim.seed(self.policy()); wallet = engine.wallet("large-0")
@@ -93,18 +95,39 @@ class SimulationTests(unittest.TestCase):
 
     def test_marked_sell_is_refused_through_n(self):
         e = sim.Engine(self.policy()); e.buy("early", 1, 0, True, 0)
+        e.wallet("early").tokens += 1_000_000
         sold, _ = e.sell("early", e.wallet("early").tokens, 0, 17)
         self.assertEqual(sold, 0)
+        self.assertEqual(e.last_refusal_code["early"], "FC_EARLY_WINDOW")
+        self.assertEqual(e.wallet("early").tokens, e.wallet("early").marked+1_000_000)
 
     def test_creator_group_cap_refuses_overflow(self):
         e = sim.Engine(self.policy()); e.buy("creator", 4, 0, True, 0, True)
         self.assertEqual(e.buy("creator.child", 1_000, 1, creator=True), 0)
+
+    def test_creator_group_transfer_stops_at_four_percent(self):
+        e=sim.Engine(sim.Policy(17,.5,None,.1));e.wallet('sender').tokens=50_000_000
+        self.assertTrue(e.transfer('sender','creator',40_000_000,100,target_creator=True,hour=1))
+        self.assertEqual(e.creator_tokens(),40_000_000)
+        self.assertFalse(e.transfer('sender','creator',1,100,target_creator=True,hour=1))
+        self.assertEqual(e.buy('creator.child',.1,1,creator=True),0)
 
     def test_post_sell_cap_uses_real_near_left(self):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); w = e.wallet("large")
         w.tokens = sim.SUPPLY / 2; w.ever_large = True
         e.sell("large", w.tokens, 1)
         self.assertLessEqual(e.cap_used(1), sim.CAP * e.pool.real + 1e-9)
+
+    def test_rc7_cap_left_matches_exact_creator_fee_formula(self):
+        e=sim.Engine(sim.Policy(17,.02,None,.1,.3),sim.Pool(near=110,real=10))
+        e.cap_net['other',e.cap_bucket(1)]=.1
+        c,f,s=sim.CAP,sim.FEE,e.policy.creator_fee_share
+        expected=(c*e.pool.real-e.cap_used(1))*(1-f)/((1+c)*(1-f)+c*s*f)
+        self.assertAlmostEqual(e.cap_left(1),expected,places=14)
+        e.wallet('large').tokens=100_000_000;e.wallet('large').ever_large=True
+        e.sell('large',10_000_000,1)
+        expected=max(0,(c*e.pool.real-e.cap_used(1))*(1-f)/((1+c)*(1-f)+c*s*f))
+        self.assertAlmostEqual(e.cap_left(1),expected,places=14)
 
     def test_buy_does_not_offset_another_accounts_cap(self):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); e.buy("buyer", 100, 1)
@@ -152,12 +175,71 @@ class SimulationTests(unittest.TestCase):
         self.assertAlmostEqual(first,sim.FLOOR*e.reserve_snapshot(1),places=6)
         self.assertEqual(second,0)
 
-    def test_floor_left_nets_bought_tokens(self):
+    def test_rc7_floor_never_refunds_buys_and_subtracts_marked_sales(self):
         e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));w=e.wallet('big');w.tokens=sim.SUPPLY/2;w.ever_large=True
         e.cap_net['other',e.cap_bucket(1)]=1e6
         e.unmarked_sold['big',e.bucket(1)]=200_000
         e.unmarked_bought['big',e.bucket(1)]=100_000
-        self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-100_000,places=6)
+        self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-200_000,places=6)
+        e.marked_sold_hour['big',e.cap_bucket(1)]=300_000
+        self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-500_000,places=6)
+
+    def test_marked_floor_uses_24h_reserve_and_subtracts_unmarked_sales(self):
+        e=sim.Engine(self.policy(),sim.Pool(token=331_000_000,near=110,real=10))
+        e.wallet('holder').tokens=100_000_000;e.wallet('holder').marked=100_000_000
+        e.reserve_snaps[1]=331_000_000
+        e.snaps[0]=({'holder':100_000_000},100_000_000,480_000_000)
+        e.unmarked_sold['holder',1]=12_345
+        self.assertEqual(e.floor_tokens('holder',1,True),480_000-12_345)
+
+    def test_small_seller_counts_window_buy_and_can_sell_old_balance(self):
+        e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));e.wallet('other')
+        e.cap_net['other',1]=sim.CAP*e.pool.real;e.wallet('small').tokens=100_000
+        e.buy('small',.1,1,block=100);balance=e.wallet_base('small')
+        filled,_=e.sell('small',e.wallet('small').tokens,1,wanted_base=balance)
+        self.assertEqual(e.last_sell_tokens_base['small'],balance)
+        self.assertGreater(e.last_counted_near['small'],0)
+        self.assertEqual(e.cap_used(1),sim.CAP*10)
+
+    def test_transfer_debits_marked_tokens_first(self):
+        e=sim.Engine(self.policy());sender=e.wallet('sender');sender.tokens=100;sender.marked=60
+        self.assertTrue(e.transfer('sender','receiver',50,100,hour=1))
+        self.assertEqual(sender.marked_base,10*sim.TOKEN_BASE)
+        self.assertEqual(sender.tokens_base,50*sim.TOKEN_BASE)
+        self.assertEqual(e.wallet_base('receiver',True),50*sim.TOKEN_BASE)
+
+    def test_band_boundary_is_strictly_above_small_allowance(self):
+        boundary=sim.ALLOWANCE*sim.SUPPLY
+        small=sim.Engine(self.policy());small.wallet('holder').tokens=boundary
+        above=sim.Engine(self.policy());above.wallet('holder').tokens=boundary+1
+        self.assertEqual(small.live_class('holder',0),'small')
+        self.assertEqual(above.live_class('holder',0),'band')
+
+    def test_brake_trips_at_exact_drop_boundary(self):
+        e=sim.Engine(sim.Policy(17,.5,.125,.1),sim.Pool(token=8,near=7,real=0))
+        e.wallet('band').tokens=1;e.prices[e.cap_bucket(1)]=1.
+        filled,_=e.sell('band',1,1)
+        self.assertEqual(e.brakes,1)
+        self.assertEqual(e.last_sell_tokens_base['band'],sim.token_base_floor(sim.ALLOWANCE*8))
+        self.assertLess(filled,1)
+
+    def test_marked_out_uses_ceil_yocto_rounding(self):
+        e=sim.Engine(self.policy(),sim.Pool(token=1e9,near=1e-15,real=1e-15))
+        marked_base=1_002*sim.TOKEN_BASE;unmarked_base=10_000*sim.TOKEN_BASE
+        gross_yocto=int(sim.unit_floor(e.pool.gross(sim.token_amount(marked_base)),1e24))
+        q=e.quote_sell('holder',marked_base,unmarked_base,0,0,float('inf'),1)
+        expected=(gross_yocto*99+99)//100
+        floored=(gross_yocto*99)//100
+        self.assertEqual(expected,floored+1)
+        self.assertEqual(int(sim.unit(q['marked_out'],1e24)),expected)
+
+    def test_test11_scales_integer_wallet_balances_with_marked_supply(self):
+        e=sim.seed(self.policy());sim.scale_marked_supply(e,.41)
+        expected=sim.token_base_floor(Decimal('.41')*Decimal(str(sim.SUPPLY)))
+        self.assertEqual(sum(w.marked_base for w in e.wallets.values()),expected)
+        self.assertTrue(all(w.tokens_base==w.marked_base for w in e.wallets.values() if w.marked_base))
+        result=sim.early_exit(self.policy(),.41)
+        self.assertAlmostEqual(result['remaining_marked_tokens'],22_847_279.47834015,places=3)
 
     def test_marked_sell_preserves_unmarked_balance(self):
         e=sim.Engine(self.policy(),sim.Pool(token=sim.SUPPLY,near=200,real=100));w=e.wallet('holder')
@@ -180,20 +262,36 @@ class SimulationTests(unittest.TestCase):
         second,_=e.sell('small',9_000_000,1)
         self.assertEqual(second,9_000_000)
 
-    def test_cap_netting_offsets_uncounted_sells_in_action_order(self):
+    def test_rc6_cap_net_counts_buys_once_and_marked_sells_gross(self):
         e=sim.Engine(self.policy(),sim.Pool(near=110,real=10))
-        e.record_cap_buy('a',1,10);e.record_cap_sell('a',1,counted=5);e.record_cap_sell('a',1,uncounted=10)
+        e.record_cap_buy('a',1,10);e.record_cap_sell('a',1,counted=5)
         self.assertEqual(e.account_cap('a',1),0)
+        e.record_cap_sell('a',1,counted=0)
+        self.assertEqual(e.account_cap('a',1),0)
+        e.record_marked_sell('a',1,3)
+        e.record_cap_buy('a',1,30)
+        self.assertEqual(e.account_cap('a',1),3)
         e=sim.Engine(self.policy(),sim.Pool(near=110,real=10))
-        e.record_cap_sell('a',1,uncounted=5.4179);e.record_cap_buy('a',1,30);e.record_cap_sell('a',1,counted=29.4108)
-        self.assertAlmostEqual(e.account_cap('a',1),4.8287,places=4)
+        e.record_cap_buy('a',1,30);e.record_cap_sell('a',1,counted=29.4108)
+        self.assertEqual(e.account_cap('a',1),0)
+
+    def test_rc6_small_old_tokens_are_uncapped_but_window_buys_are_counted(self):
+        old=sim.Engine(self.policy(),sim.Pool(near=110,real=10));old.wallet('small').tokens=10_000_000
+        old.cap_net['other',old.cap_bucket(1)]=sim.CAP*old.pool.real
+        old_fill,_=old.sell('small',10_000_000,1)
+        self.assertEqual(old_fill,10_000_000)
+        bought=sim.Engine(self.policy(),sim.Pool(near=110,real=10));bought.wallet('small').tokens=10_000_000
+        bought.cap_bought_tokens['small',bought.cap_bucket(1)]=10_000_000
+        bought.cap_net['other',bought.cap_bucket(1)]=sim.CAP*bought.pool.real
+        bought_fill,_=bought.sell('small',10_000_000,1)
+        self.assertLess(bought_fill,10_000_000)
 
     def test_small_sell_payout_offsets_later_buy_before_large_sell(self):
         e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));e.wallet('a').tokens=5_000_000
         e.sell('a',5_000_000,1);e.buy('a',30,1,block=100)
         self.assertTrue(e.wallet('a').ever_large)
         e.sell('a',e.wallet('a').tokens,1)
-        self.assertGreater(e.account_cap('a',1),0)
+        self.assertEqual(e.account_cap('a',1),0)
 
     def test_marked_and_unmarked_sell_counters_do_not_collide(self):
         e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));w=e.wallet('large');w.tokens=30_000_000;w.ever_large=True
@@ -238,31 +336,38 @@ class SimulationTests(unittest.TestCase):
         for block,fee in ((0,.50),(17,.01+.49/18),(18,.01)):
             e=sim.Engine(self.policy()); out=e.buy('holder',1,0,block=block)
             expected=sim.SUPPLY-sim.SUPPLY*100/(100+1*(1-fee))
-            self.assertAlmostEqual(out,expected,places=7)
+            self.assertAlmostEqual(out,expected,places=6)
+            extra=.49*max(0.,18-min(18,block))/18 if block<18 else 0.
+            effective=Decimal(1)*(Decimal(1)-Decimal('.01')-Decimal(str(extra)))
+            exact_base=int((Decimal('1e27')*effective/(Decimal(100)+effective)).to_integral_value(rounding='ROUND_DOWN'))
+            self.assertEqual(e.pool.last_buy_tokens_base,exact_base)
         e=sim.Engine(self.policy());e.buy('a',1,1);snap=e.reserve_snapshot(1);e.buy('b',1,1)
         self.assertEqual(snap,sim.SUPPLY)
 
-    def test_cap_cases_have_explicit_state_and_no_refusal_code(self):
+    def test_cap_cases_have_explicit_state_and_refusals_only_for_early_marked_sells(self):
         with tempfile.TemporaryDirectory() as tmp:
             case_path=Path(tmp)/'cap-cases.json';sim.cap_cases(case_path)
             data=json.loads(case_path.read_text())
         self.assertIn('early-buy-block-17',{c['name'] for c in data['cases']})
-        self.assertEqual(data['version'],'1.0.0-rc.5')
+        self.assertEqual(data['interface'],'1.0.0-rc.7')
+        self.assertEqual(data['version'],'1.0.0-rc.7')
         band=next(c for c in data['cases'] if c['name']=='threshold-cross-at-2-percent')
         self.assertEqual(int(band['start_state']['holders'][0]['tokens_base']),20_000_000*10**18)
         self.assertFalse(band['start_state']['holders'][0]['large'])
         self.assertTrue(band['actions'][0]['result']['large_after'])
         self.assertIn('real NEAR',band['note'])
         band_sell=next(c for c in data['cases'] if c['name']=='band-sell-above-allowance')
-        self.assertGreater(int(band_sell['actions'][1]['result']['penalty_near']),0)
+        self.assertEqual(band_sell['actions'][1]['result']['fill'],'partial')
+        self.assertEqual(band_sell['actions'][1]['result']['limit_reason'],'cap_full')
+        self.assertEqual(int(band_sell['actions'][1]['result']['tokens_filled_base']),12_911_252_650_806_659_844_417_354)
+        self.assertEqual(int(band_sell['actions'][1]['result']['penalty_near']),21_148_202_867_270_188_000_000)
         full=next(c for c in data['cases'] if c['name']=='full-cap-floor-and-second-sell')
         self.assertFalse(full['start_state']['holders'][0]['large'])
         self.assertTrue(full['actions'][0]['result']['large_after'])
         self.assertEqual(full['actions'][1]['result']['limit_reason'],'cap_full')
-        self.assertEqual(full['actions'][-1]['result']['limit_reason'],'floor')
+        self.assertEqual(full['actions'][-1]['result']['limit_reason'],'cap_full')
         band_cap=next(c for c in data['cases'] if c['name']=='band-sell-above-allowance')
         self.assertEqual(band_cap['actions'][-1]['result']['limit_reason'],'cap_full')
-        self.assertAlmostEqual(int(band_cap['actions'][-1]['result']['tokens_filled_base'])/1e18,11_910_132,delta=1)
         self.assertEqual({c['name'] for c in data['cases'] if c['name'].startswith('post-sell-cap')},{'post-sell-cap-s-0','post-sell-cap-s-30'})
         self.assertEqual({c['name'] for c in data['cases'] if c['name'].startswith('same-account-round-trip')},{'same-account-round-trip-s-0','same-account-round-trip-s-30'})
         self.assertTrue(all(c['actions'][-1]['amount']=='all' and 'amount_token_base' not in c['actions'][-1] for c in data['cases'] if c['name'].startswith('same-account-round-trip')))
@@ -278,7 +383,74 @@ class SimulationTests(unittest.TestCase):
         self.assertEqual(int(class_floor['start_state']['holders'][0]['tokens_base']),12_000_000*10**18)
         self.assertEqual(class_floor['actions'][0]['result']['class_after'],'band')
         self.assertEqual(class_floor['actions'][1]['result']['class_before'],'band')
-        self.assertGreater(int(class_floor['actions'][1]['result']['penalty_near']),0)
+        self.assertEqual(class_floor['actions'][1]['result']['fill'],'full')
+        self.assertEqual(int(class_floor['actions'][1]['result']['penalty_near']),21_231_060_362_107_722_000_000)
+        floor_marked=next(c for c in data['cases'] if c['name']=='floor-marked-first')
+        floor_unmarked=next(c for c in data['cases'] if c['name']=='floor-unmarked-first')
+        for c in (floor_marked,floor_unmarked):
+            floor=int(c['start_state']['reserve_snapshot_token_base'])//1000
+            self.assertEqual(sum(int(a['result']['tokens_filled_base']) for a in c['actions']),floor)
+            self.assertEqual(c['actions'][0]['result']['limit_reason'],'floor')
+        early=next(c for c in data['cases'] if c['name']=='early-window-refuses-mixed-sell')
+        self.assertEqual(early['actions'][0]['result']['refusal_code'],'FC_EARLY_WINDOW')
+        self.assertEqual(early['actions'][0]['result']['fill'],'none')
+        marked_limit=next(c for c in data['cases'] if c['name']=='marked-allowance-limit')
+        self.assertEqual(marked_limit['actions'][-1]['amount'],'all')
+        small_round=next(c for c in data['cases'] if c['name']=='small-buy-sell-at-full-cap')
+        self.assertEqual(small_round['actions'][-1]['amount'],'all')
+        resale=next(c for c in data['cases'] if c['name']=='marked-resale-two-account-cap')
+        bought_tokens=int(resale['actions'][1]['result']['tokens_filled_base'])
+        self.assertEqual(int(resale['actions'][2]['amount']),bought_tokens)
+        one_swap=next(c for c in data['cases'] if c['name']=='marked-sale-reduces-unmarked-floor')
+        self.assertEqual(int(one_swap['actions'][0]['result']['near_out_yocto']),108_791_208_791_208_800_000_000)
+        tiny=next(c for c in data['cases'] if c['name']=='cap-left-s-30')
+        self.assertIn(int(tiny['actions'][1]['result']['tokens_filled_base']),{16,17})
+        self.assertEqual([a['result']['limit_reason'] for a in tiny['actions'][1:]],['cap_full','cap_full'])
+        self.assertEqual(resale['actions'][0]['result']['limit_reason'],'allowance')
+        self.assertEqual(resale['actions'][1]['result']['tokens_filled_base'],resale['actions'][2]['amount'])
+        self.assertEqual(resale['actions'][2]['result']['tokens_filled_base'],resale['actions'][1]['result']['tokens_filled_base'])
+        self.assertEqual(resale['actions'][2]['result']['fill'],'full')
+        self.assertIsNone(resale['actions'][2]['result']['limit_reason'])
+        self.assertEqual(resale['actions'][3]['result']['limit_reason'],'allowance')
+        held=next(c for c in data['cases'] if c['name']=='marked-cap-hold-does-not-use-unmarked-floor')
+        self.assertEqual(int(held['actions'][0]['result']['tokens_filled_base']),0)
+        self.assertEqual(int(held['actions'][1]['result']['tokens_filled_base']),864_000_000_000_000_000_000_000)
+        self.assertEqual(held['actions'][1]['result']['limit_reason'],'floor')
+        cap_left=next(c for c in data['cases'] if c['name']=='cap-left-s-30')
+        self.assertEqual(cap_left['start_state']['creator_fee_share_bps'],3000)
+        self.assertTrue(all('cap_left_before_yocto' in a['result'] and 'cap_left_yocto' in a['result'] for a in cap_left['actions']))
+        band_cap_left=next(c for c in data['cases'] if c['name']=='band-above-allowance-cap-left')['actions'][0]['result']
+        self.assertLess(int(band_cap_left['counted_near_yocto']),int(band_cap_left['cap_left_before_yocto']))
+        for name in ('marked-sell-buy-resell','marked-resale-two-account-cap','small-buy-sell-at-full-cap',
+                     'small-buy-price-rise-cap','marked-and-unmarked-old-plus-buy-resell','marked-sale-reduces-unmarked-floor'):
+            self.assertIn(name,{c['name'] for c in data['cases']})
+        for name in ('same-account-round-trip-s-0','same-account-round-trip-s-30'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][1]['amount'],'all')
+            self.assertEqual(c['actions'][1]['result']['fill'],'full')
+            self.assertEqual(c['actions'][1]['result']['tokens_filled_base'],c['actions'][0]['result']['tokens_filled_base'])
+        for name in ('post-sell-cap-s-0','post-sell-cap-s-30'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][1]['amount'],'all')
+            self.assertEqual(c['actions'][1]['result']['fill'],'partial')
+            self.assertEqual(c['actions'][1]['result']['limit_reason'],'cap_full')
+        marked_resell=next(c for c in data['cases'] if c['name']=='marked-sell-buy-resell')
+        self.assertEqual(marked_resell['actions'][2]['amount'],'all')
+        self.assertEqual(marked_resell['actions'][2]['result']['tokens_filled_base'],marked_resell['actions'][1]['result']['tokens_filled_base'])
+        self.assertEqual(marked_resell['actions'][2]['result']['fill'],'full')
+        for name in ('band-sell-above-allowance','small-buy-price-rise-cap'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][-1]['amount'],'all')
+        credit=next(c for c in data['cases'] if c['name']=='band-round-trip-credit')
+        for i in range(1,20,2):
+            self.assertEqual(credit['actions'][i]['amount'],credit['actions'][i-1]['result']['tokens_filled_base'])
+        old_plus_buy=next(c for c in data['cases'] if c['name']=='marked-and-unmarked-old-plus-buy-resell')
+        self.assertEqual(old_plus_buy['actions'][-1]['amount'],old_plus_buy['actions'][-2]['result']['tokens_filled_base'])
+        small_round=next(c for c in data['cases'] if c['name']=='small-buy-sell-at-full-cap')
+        self.assertEqual(small_round['actions'][-1]['result']['fill'],'full')
+        price_rise=next(c for c in data['cases'] if c['name']=='small-buy-price-rise-cap')
+        self.assertEqual(price_rise['actions'][-1]['result']['fill'],'partial')
+        self.assertEqual(price_rise['actions'][-1]['result']['limit_reason'],'cap_full')
         for case in data['cases']:
             state=case['start_state'];self.assertIn('holders',state)
             self.assertEqual(int(state['token_reserve_base'])+sum(int(h['tokens_base']) for h in state['holders']),int(state['total_supply_base']))
@@ -287,8 +459,17 @@ class SimulationTests(unittest.TestCase):
                     self.assertNotIn('amount_token_base',action)
                     self.assertIn(action['result']['fill'],{'full','partial','none'})
                     self.assertIn(action['result']['limit_reason'],{None,'allowance','cap_full','floor'})
-                    self.assertNotIn('refusal_code',action['result'])
+                    if case['name']=='early-window-refuses-mixed-sell':
+                        self.assertEqual(action['result']['refusal_code'],'FC_EARLY_WINDOW')
+                        self.assertEqual(action['result']['fill'],'none')
+                    else:self.assertNotIn('refusal_code',action['result'])
                     self.assertEqual(action['time_s'],int(action['time_s']))
+
+    def test_cap_cases_regenerate_committed_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            generated=Path(tmp)/'cap-cases.json';sim.cap_cases(generated)
+            committed=ROOT/'analysis/simulation/results/cap-cases.json'
+            self.assertEqual(generated.read_bytes(),committed.read_bytes())
 
     def test_runs_are_deterministic(self):
         a, b = sim.normal(self.policy()), sim.normal(self.policy())
