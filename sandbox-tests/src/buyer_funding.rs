@@ -35,56 +35,68 @@ pub const ACCOUNT_RESERVE: NearToken = NearToken::from_millinear(10);
 const SELL_DEPOSIT: u128 = 1;
 
 /// The price, in yoctoNEAR per gas, the check uses: the higher of `gas_price` with headroom and
-/// `min_purchase` (the node's `min_gas_purchase_price`).
-pub fn price_used(gas_price: u128, min_purchase: u128) -> u128 {
-    (gas_price * GAS_PRICE_HEADROOM_PERCENT)
-        .div_ceil(100)
-        .max(min_purchase)
+/// `min_purchase` (the node's `min_gas_purchase_price`). A gas price too large to raise stops.
+pub fn price_used(gas_price: u128, min_purchase: u128) -> Result<u128> {
+    let raised = gas_price
+        .checked_mul(GAS_PRICE_HEADROOM_PERCENT)
+        .with_context(|| {
+            format!("the node's gas price {gas_price} yoctoNEAR per gas is too large to count; stopped, nothing was signed")
+        })?;
+    Ok(raised.div_ceil(100).max(min_purchase))
 }
 
 fn gas(g: NearGas) -> u128 {
     u128::from(g.as_gas())
 }
 
-/// buy + storage deposit + gas x price + reserve + sell deposits.
-fn need(buy: NearToken, total_gas: u128, sells: u128, price: u128) -> u128 {
-    buy.as_yoctonear()
-        + BUY_STORAGE_DEPOSIT.as_yoctonear()
-        + total_gas * price
-        + ACCOUNT_RESERVE.as_yoctonear()
-        + sells * SELL_DEPOSIT
+/// buy + storage deposit + gas x price + reserve + sell deposits. A price too large to count
+/// stops.
+fn need(buy: NearToken, total_gas: u128, sells: u128, price: u128) -> Result<u128> {
+    total_gas
+        .checked_mul(price)
+        .and_then(|cost| cost.checked_add(buy.as_yoctonear()))
+        .and_then(|sum| sum.checked_add(BUY_STORAGE_DEPOSIT.as_yoctonear()))
+        .and_then(|sum| sum.checked_add(ACCOUNT_RESERVE.as_yoctonear()))
+        .and_then(|sum| sum.checked_add(sells * SELL_DEPOSIT))
+        .with_context(|| {
+            format!("the price {price} yoctoNEAR per gas is too large to count a buyer's need; stopped, nothing was signed")
+        })
 }
 
 /// What an early buyer must hold at `price`: the larger of the burst and the sell after the
 /// window.
-pub fn buyer_need(buy: NearToken, buyer_gas: NearGas, price: u128) -> NearToken {
+pub fn buyer_need(buy: NearToken, buyer_gas: NearGas, price: u128) -> Result<NearToken> {
     let fee = gas(SEND_FEE_GAS);
     let burst = need(
         buy,
         gas(buyer_gas) + gas(EARLY_SELL_GAS) + 2 * fee,
         1,
         price,
-    );
+    )?;
     let window = need(
         buy,
         2 * gas(BURNT_GAS_PER_TX) + gas(buyer_gas) + fee,
         2,
         price,
-    );
-    NearToken::from_yoctonear(burst.max(window))
+    )?;
+    Ok(NearToken::from_yoctonear(burst.max(window)))
 }
 
 /// What the later buyer must hold at `price`: the larger of its buy and its sell after it.
-pub fn later_buyer_need(later_buy: NearToken, buyer_gas: NearGas, price: u128) -> NearToken {
+pub fn later_buyer_need(
+    later_buy: NearToken,
+    buyer_gas: NearGas,
+    price: u128,
+) -> Result<NearToken> {
     let fee = gas(SEND_FEE_GAS);
-    let buy = need(later_buy, gas(buyer_gas) + fee, 0, price);
+    let buy = need(later_buy, gas(buyer_gas) + fee, 0, price)?;
     let sell = need(
         later_buy,
         gas(BURNT_GAS_PER_TX) + gas(buyer_gas) + fee,
         1,
         price,
-    );
-    NearToken::from_yoctonear(buy.max(sell))
+    )?;
+    Ok(NearToken::from_yoctonear(buy.max(sell)))
 }
 
 /// The smallest extra, in whole milliNEAR, that covers both kinds of buyer. A zero `later_buy`
@@ -94,23 +106,24 @@ pub fn buyer_extra_for(
     later_buy: NearToken,
     buyer_gas: NearGas,
     price: u128,
-) -> NearToken {
+) -> Result<NearToken> {
     let short = |need: NearToken, holds: NearToken| {
         need.as_yoctonear().saturating_sub(holds.as_yoctonear())
     };
-    let mut extra = short(buyer_need(buy, buyer_gas, price), buy);
+    let mut extra = short(buyer_need(buy, buyer_gas, price)?, buy);
     if !later_buy.is_zero() {
         extra = extra.max(short(
-            later_buyer_need(later_buy, buyer_gas, price),
+            later_buyer_need(later_buy, buyer_gas, price)?,
             later_buy,
         ));
     }
     let milli = NearToken::from_millinear(1).as_yoctonear();
-    NearToken::from_millinear(extra.div_ceil(milli))
+    Ok(NearToken::from_millinear(extra.div_ceil(milli)))
 }
 
 /// Stops, before any signature, when a buyer (buy + extra) or the later buyer (later buy +
-/// extra) would hold less than its need at `price` (yoctoNEAR per gas, from [`price_used`]).
+/// extra) would hold less than its need at `price` (yoctoNEAR per gas, from [`price_used`]), or
+/// when the price is too large to count.
 pub fn check_buyer_funding(
     buy: NearToken,
     later_buy: NearToken,
@@ -118,16 +131,16 @@ pub fn check_buyer_funding(
     buyer_gas: NearGas,
     price: u128,
 ) -> Result<()> {
-    let fix = buyer_extra_for(buy, later_buy, buyer_gas, price);
+    let fix = buyer_extra_for(buy, later_buy, buyer_gas, price)?;
     let mut buyers = vec![(
         "each early buyer",
-        buyer_need(buy, buyer_gas, price),
+        buyer_need(buy, buyer_gas, price)?,
         buy.saturating_add(extra),
     )];
     if !later_buy.is_zero() {
         buyers.push((
             "the later buyer",
-            later_buyer_need(later_buy, buyer_gas, price),
+            later_buyer_need(later_buy, buyer_gas, price)?,
             later_buy.saturating_add(extra),
         ));
     }
@@ -170,7 +183,7 @@ pub async fn gas_prices(network: &NetworkConfig) -> Result<GasPrices> {
     Ok(GasPrices {
         gas_price,
         min_purchase,
-        used: price_used(gas_price, min_purchase),
+        used: price_used(gas_price, min_purchase)?,
     })
 }
 
@@ -240,15 +253,16 @@ async fn protocol_config(network: &NetworkConfig) -> Result<Value> {
             .map_err(|e| RawFault(without_urls(&format!("{e:?}"))))?;
         let status = answer.status().as_u16();
         if status != 200 {
-            let retry_after = answer
-                .headers()
-                .get("retry-after")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("")
-                .to_string();
-            return Err(RawFault(format!(
-                "status: {status}, headers: {{\"retry-after\": \"{retry_after}\"}}"
-            )));
+            // The header as the answer gave it, or none: an empty value would read as a
+            // Retry-After the runner cannot read.
+            let headers = match answer.headers().get("retry-after") {
+                Some(value) => format!(
+                    "{{\"retry-after\": \"{}\"}}",
+                    String::from_utf8_lossy(value.as_bytes())
+                ),
+                None => "{}".to_string(),
+            };
+            return Err(RawFault(format!("status: {status}, headers: {headers}")));
         }
         answer
             .text()

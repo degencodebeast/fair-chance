@@ -382,7 +382,7 @@ pub async fn run_app_coin(
         prices.min_purchase,
         prices.used,
         setup.buyer_gas.as_tgas(),
-        buyer_need(setup.buy_near, setup.buyer_gas, prices.used).exact_amount_display(),
+        buyer_need(setup.buy_near, setup.buyer_gas, prices.used)?.exact_amount_display(),
         setup.buy_near.saturating_add(setup.buyer_extra).exact_amount_display()
     ));
     let (buyers, later) = make_buyer_accounts(setup).await?;
