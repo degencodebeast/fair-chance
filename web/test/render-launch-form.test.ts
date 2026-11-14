@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 import { LAUNCH_LIMITS } from "../src/launch-form-model.ts";
+import type { LaunchArgs } from "../src/launch-form-model.ts";
+import type { IconResult } from "../src/icon-to-webp.ts";
 import { drawLaunchForm } from "../src/render-launch-form.ts";
 import { expectNoEnabledControlWithoutHandler, turnedOffReasons } from "./dom-controls.ts";
 
@@ -28,9 +30,9 @@ describe("launch form", () => {
     expectNoEnabledControlWithoutHandler(form());
   });
 
-  it("turns off launch and the picture button, each with a reason", () => {
+  it("turns off the launch button, with a reason", () => {
     const reasons = turnedOffReasons(form());
-    expect(Object.keys(reasons).sort()).toEqual(["launch-button", "launch-picture-button"]);
+    expect(Object.keys(reasons)).toEqual(["launch-button"]);
     expect(reasons["launch-button"]).toMatch(/turned off/);
   });
 
@@ -174,5 +176,70 @@ describe("launch form name check, stale answers", () => {
     release("free");
     await new Promise((r) => setTimeout(r, 20));
     expect(text(app)).toBe("");
+  });
+});
+
+describe("launch form picture", () => {
+  const icon = "data:image/webp;base64,UklGRg==";
+  function withPicture(convert: (f: File) => Promise<IconResult>) {
+    const app = document.createElement("main");
+    document.body.replaceChildren(app);
+    const seen: Array<LaunchArgs | null> = [];
+    drawLaunchForm(app, "http://localhost/?view=launch", { factory: null, checkName: null }, { convert, onArgs: (a) => seen.push(a) });
+    return { app, seen };
+  }
+  const choose = (app: HTMLElement, name = "pic.png") => {
+    const input = app.querySelector<HTMLInputElement>("#launch-picture-input")!;
+    Object.defineProperty(input, "files", { value: [new File(["x"], name, { type: "image/png" })], configurable: true });
+    input.dispatchEvent(new Event("change"));
+  };
+  const status = (app: HTMLElement) => app.querySelector("#launch-picture-status")?.textContent ?? "";
+
+  it("has a file input that takes images, with a handler", () => {
+    const { app } = withPicture(async () => ({ ok: true, dataUrl: icon }));
+    const input = app.querySelector<HTMLInputElement>("#launch-picture-input")!;
+    expect(input.type).toBe("file");
+    expect(input.accept).toMatch(/image\//);
+    expectNoEnabledControlWithoutHandler(app);
+  });
+
+  it("shows the converted picture and passes it into the launch arguments", async () => {
+    const { app, seen } = withPicture(async () => ({ ok: true, dataUrl: icon }));
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    choose(app);
+    await vi.waitFor(() => expect(app.querySelector<HTMLImageElement>("#launch-picture-preview")?.getAttribute("src")).toBe(icon));
+    expect(seen.at(-1)).toMatchObject({ name: "Moth Lamp", ticker: "moth", icon });
+    expect(status(app)).toMatch(/KB|characters/);
+  });
+
+  it("shows the refusal sentence, no preview and no icon when the picture cannot fit", async () => {
+    const { app, seen } = withPicture(async () => ({ ok: false, reason: "This picture does not fit in 8 KB, even at 64 px. Choose a simpler picture." }));
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    choose(app);
+    await vi.waitFor(() => expect(status(app)).toContain("does not fit in 8 KB"));
+    expect(app.querySelector("#launch-picture-preview")).toBeNull();
+    expect(seen.at(-1)?.icon).toBeNull();
+  });
+
+  it("drops an older conversion that finishes after a newer choice", async () => {
+    const waiting: Array<(r: IconResult) => void> = [];
+    const { app } = withPicture(() => new Promise((r) => { waiting.push(r); }));
+    choose(app, "one.png");
+    choose(app, "two.png");
+    waiting[1]!({ ok: true, dataUrl: "data:image/webp;base64,BBBB" });
+    await vi.waitFor(() => expect(app.querySelector("#launch-picture-preview")?.getAttribute("src")).toBe("data:image/webp;base64,BBBB"));
+    waiting[0]!({ ok: true, dataUrl: "data:image/webp;base64,AAAA" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(app.querySelector("#launch-picture-preview")?.getAttribute("src")).toBe("data:image/webp;base64,BBBB");
+  });
+
+  it("keeps the typed fields when the picture is chosen", async () => {
+    const { app } = withPicture(async () => ({ ok: true, dataUrl: icon }));
+    type(app, "#launch-name", "Moth Lamp");
+    choose(app);
+    await vi.waitFor(() => expect(app.querySelector("#launch-preview img")).not.toBeNull());
+    expect(app.querySelector<HTMLInputElement>("#launch-name")!.value).toBe("Moth Lamp");
   });
 });

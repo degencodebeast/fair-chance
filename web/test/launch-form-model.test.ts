@@ -80,3 +80,33 @@ describe("ticker rule (as the factory builds the coin account)", () => {
     }
   });
 });
+
+describe("launch form picture", () => {
+  const icon = "data:image/webp;base64,UklGRg==";
+
+  it("passes the picture into the launch arguments as the factory takes them", () => {
+    const m = launchFormModel({ ...ok, icon });
+    expect(m.launchArgs).toEqual({
+      name: "Moth Lamp",
+      ticker: "MOTH",
+      icon,
+      description: "A lamp for moths. Nothing else.",
+      opening_buy: "4400000000000000000000000",
+    });
+  });
+
+  it("sends null for a missing picture, description and opening buy", () => {
+    const m = launchFormModel({ name: "Moth Lamp", ticker: "MOTH", description: "", openingBuy: "" });
+    expect(m.launchArgs).toEqual({ name: "Moth Lamp", ticker: "MOTH", icon: null, description: null, opening_buy: null });
+  });
+
+  it("gives no launch arguments while a field has an error", () => {
+    expect(launchFormModel({ ...ok, icon, name: "" }).launchArgs).toBeNull();
+  });
+
+  it("refuses a picture the coin would refuse", () => {
+    const m = launchFormModel({ ...ok, icon: "data:image/png;base64,AAAA" });
+    expect(m.errors).toContain("The picture must be a WebP image under 8 KB. Choose it again.");
+    expect(m.launchArgs).toBeNull();
+  });
+});

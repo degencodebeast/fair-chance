@@ -135,3 +135,4 @@ pre { margin: 6px 0 0; font: 400 12.5px/1.55 var(--font-num); white-space: pre-w
 
 /* The fixed network banner above every screen on a named network. */
 #network-banner { position: sticky; top: 0; z-index: 10; padding: 8px 16px; text-align: center; font: 600 13px var(--font-body); background: var(--ink); color: var(--paper); }
+.launch-picture-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }

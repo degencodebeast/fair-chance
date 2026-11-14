@@ -1,5 +1,6 @@
 // The text and checks of the launch form. Pure. The launch button is turned off in this version:
 // launching needs a wallet, and nothing on this page signs.
+import { iconFits } from "./icon-to-webp.ts";
 import { parseTokenAmount } from "./token-amount.ts";
 
 /**
@@ -18,11 +19,24 @@ export interface LaunchFormInput {
   ticker: string;
   description: string;
   openingBuy: string;
+  /** The picture as a WebP data URL from `iconToWebp`; absent or null for no picture. */
+  icon?: string | null;
+}
+
+/** The arguments of the factory's `launch`, field by field (contracts/factory/src/lib.rs). `opening_buy` is yoctoNEAR text. */
+export interface LaunchArgs {
+  name: string;
+  ticker: string;
+  icon: string | null;
+  description: string | null;
+  opening_buy: string | null;
 }
 
 export interface LaunchFormModel {
   counts: { name: string; ticker: string; description: string };
   errors: string[];
+  /** What the launch call takes; null while any field has an error. */
+  launchArgs: LaunchArgs | null;
   /** The ticker as it appears in the coin account: lowered. Null when the ticker is empty or breaks a rule. */
   accountLabel: string | null;
   buyHelp: string;
@@ -49,6 +63,9 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
     errors.push("Type the opening buy as a number of NEAR, for example 4.40, or leave it empty.");
   }
+  const icon = input.icon ?? null;
+  if (icon !== null && !iconFits(icon)) errors.push("The picture must be a WebP image under 8 KB. Choose it again.");
+  const openingBuyUnits = buy === "" ? null : parseTokenAmount(buy, NEAR_DECIMALS);
   const shownTicker = ticker.toUpperCase();
   const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker.toLowerCase()) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
   return {
@@ -58,6 +75,10 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
       description: `${description.length}/${LAUNCH_LIMITS.description}`,
     },
     errors,
+    launchArgs:
+      errors.length > 0
+        ? null
+        : { name, ticker, icon, description: description === "" ? null : description, opening_buy: openingBuyUnits === null ? null : openingBuyUnits.toString() },
     accountLabel,
     buyHelp:
       "Optional. An opening buy counts as early supply and pays the early buy fee. The creator group, sub-accounts included, can hold at most 4% of supply.",

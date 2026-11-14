@@ -3,11 +3,16 @@
 // signs or sends. Text comes from the launch form model.
 import { el, type Child } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
-import { LAUNCH_LIMITS, launchFormModel } from "./launch-form-model.ts";
+import { iconToWebp, type IconResult } from "./icon-to-webp.ts";
+import { LAUNCH_LIMITS, launchFormModel, type LaunchArgs } from "./launch-form-model.ts";
 import { launchNameCheckFromLink, type LaunchNameCheck } from "./account-name-check.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 
-const PICTURE_REASON = "Choosing a picture is turned off in this version. A picture must be a WebP image under 8 KB.";
+/** The picture seams: the converter (a test passes its own) and the receiver of the launch arguments, which a wiring part uses to sign. */
+export interface LaunchFormPicture {
+  convert?: (file: File) => Promise<IconResult>;
+  onArgs?: (args: LaunchArgs | null) => void;
+}
 
 function field(label: string, id: string, max: number, attrs: Record<string, string> = {}): { box: HTMLElement; input: HTMLInputElement; count: HTMLElement } {
   const input = el("input", { id, type: "text", maxlength: String(max), autocomplete: "off", ...attrs });
@@ -15,7 +20,12 @@ function field(label: string, id: string, max: number, attrs: Record<string, str
   return { box: el("label", { class: "launch-field", for: id }, el("b", {}, label), input, count), input, count };
 }
 
-export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: LaunchNameCheck = launchNameCheckFromLink(href)): void {
+export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: LaunchNameCheck = launchNameCheckFromLink(href), picture: LaunchFormPicture = {}): void {
+  const convert = picture.convert ?? iconToWebp;
+  let icon: string | null = null;
+  let latestPicture = 0;
+  const pictureInput = el("input", { id: "launch-picture-input", type: "file", accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml", "aria-describedby": "launch-picture-status" });
+  const pictureStatus = el("span", { id: "launch-picture-status", class: "muted", role: "status" }, "Any picture. It is shrunk to a WebP image under 8 KB.");
   const name = field("Name", "launch-name", LAUNCH_LIMITS.name);
   const ticker = field("Ticker", "launch-ticker", LAUNCH_LIMITS.ticker, { spellcheck: "false" });
   const description = field("One line about the coin", "launch-description", LAUNCH_LIMITS.description);
@@ -28,7 +38,8 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const previewBox = el("section", { id: "launch-preview", "aria-label": "Launch preview", class: "card" });
 
   const refresh = (): void => {
-    const m = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value });
+    const m = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value, icon });
+    picture.onArgs?.(m.launchArgs);
     name.count.textContent = m.counts.name;
     ticker.count.textContent = m.counts.ticker;
     description.count.textContent = m.counts.description;
@@ -37,6 +48,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     errors.replaceChildren(...m.errors.map((e) => el("li", { class: "tone-limit" }, e)));
     buttonSlot.replaceChildren(turnedOffButton("launch-button", m.button.label, m.button.reason));
     previewBox.replaceChildren(
+      ...(icon === null ? [] : [el("img", { id: "launch-picture-preview", class: "launch-picture-preview", src: icon, alt: "Coin picture preview", width: "64", height: "64" })]),
       el("h2", {}, m.preview.name === "" ? "Your coin" : m.preview.name),
       el("p", { class: "num" }, m.preview.ticker === "" ? "TICKER" : m.preview.ticker),
       el("p", {}, m.preview.description === "" ? "No description." : m.preview.description),
@@ -66,6 +78,29 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
       },
     );
   };
+  listen(pictureInput, "change", () => {
+    const file = pictureInput.files?.[0];
+    const mine = ++latestPicture;
+    icon = null;
+    refresh();
+    if (file === undefined) {
+      pictureStatus.textContent = "No picture. The coin gets none.";
+      return;
+    }
+    pictureStatus.textContent = "Shrinking the picture.";
+    convert(file).then(
+      (result) => {
+        if (mine !== latestPicture) return;
+        icon = result.ok ? result.dataUrl : null;
+        pictureStatus.textContent = result.ok ? `Picture ready: ${result.dataUrl.length} of 8191 characters.` : result.reason;
+        refresh();
+      },
+      () => {
+        if (mine !== latestPicture) return;
+        pictureStatus.textContent = "This page could not read this file as a picture. Choose a PNG, JPEG, GIF, WebP or SVG file.";
+      },
+    );
+  });
   listen(ticker.input, "change", checkName);
   listen(ticker.input, "input", () => {
     latestCheck++;
@@ -76,7 +111,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const form = el(
     "form",
     { id: "launch-form", class: "card launch-form" },
-    el("div", { class: "launch-picture" }, el("span", { class: "muted num" }, "coin picture"), turnedOffButton("launch-picture-button", "Choose", PICTURE_REASON)),
+    el("div", { class: "launch-picture" }, el("label", { class: "muted num", for: "launch-picture-input" }, "coin picture"), pictureInput, pictureStatus),
     name.box,
     ticker.box,
     nameStatus,
