@@ -285,7 +285,7 @@ function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
     actions: {
       buy: (session, buy) => sendBuy({ chain, session, coin }, buy),
       sell: (session, amount) => sendSell({ chain, session, coin }, amount),
-      sellLimit: (accountId) => loadSellLimit(chain, accountId),
+      sellLimit: (accountId) => loadSellLimit(chain, accountId, { symbol, decimals }),
       // The trade changed the coin: read it again now, not at the next refresh.
       onTraded: () => void refreshOnce().catch(() => {}),
     },
@@ -321,7 +321,7 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
   const old = keep && reads ? drawn : null;
   const sameEvents = old !== null && reads !== null && old.eventCount === reads.events.length;
   const holders = reads ? (old?.holders && sameEvents ? old.holders : holdersPlaceholder()) : null;
-  const plan = reads ? (old?.plan && holdsVisitorWork(old.plan) ? old.plan : drawYourPlan(reads)) : null;
+  const plan = reads ? (old?.plan && holdsVisitorWork(old.plan) ? old.plan : drawYourPlan(reads, pageWallet())) : null;
   const keepTrade = old?.trade && holdsVisitorWork(old.trade) && checksWarning(reads?.checks ?? []) === null;
   const trade = reads ? (keepTrade ? old!.trade : tradeBox(reads, symbol)) : null;
   const parts = reads ? { plan, chart, holders, trade, claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };

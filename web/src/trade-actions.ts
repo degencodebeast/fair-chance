@@ -9,7 +9,7 @@ import type { LaunchFormInput } from "./launch-form-model.ts";
 import { buildBuy, buildLaunch, buildSell, LAUNCH_STORAGE_DEPOSIT, readBuyerStorage } from "./tx-builders.ts";
 import { parseTxOutcome, type TxResult } from "./tx-outcome.ts";
 import type { TxRequest, WalletSession } from "./tx-types.ts";
-import { REASON_SENTENCE } from "./your-plan-model.ts";
+import { REASON_SENTENCE, yourPlanView } from "./your-plan-model.ts";
 
 export type TradeOutcome =
   /** The wallet sent the transaction and the chain gave a final outcome. */
@@ -97,14 +97,25 @@ export interface SellLimit {
   balance: bigint;
   /** The tokens of the whole balance that fill now, from fc_quote_sell. */
   canSellNow: bigint;
+  /** When more opens up, from the same model as the sell limit card; null when the coin gives no time or nothing is held back. */
+  moreOpens: string | null;
 }
 
 /** What the account holds, and how much of it the coin says can sell now. */
-export async function loadSellLimit(chain: Pick<ChainReader, "view">, accountId: string): Promise<SellLimit> {
-  const { balance } = parseAccount(await chain.view("fc_account", { account_id: accountId }));
-  if (balance === 0n) return { balance, canSellNow: 0n };
+export async function loadSellLimit(
+  chain: Pick<ChainReader, "view">,
+  accountId: string,
+  coin: { symbol: string; decimals: number },
+): Promise<SellLimit> {
+  const account = parseAccount(await chain.view("fc_account", { account_id: accountId }));
+  const { balance } = account;
+  if (balance === 0n) return { balance, canSellNow: 0n, moreOpens: null };
   const quote = parseSellQuote(await chain.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() }));
-  return { balance, canSellNow: quote.tokensFilled };
+  const { plan } = yourPlanView(
+    { accountId, ...coin, totalSupply: null, account: { kind: "value", value: account }, asked: null, quote: null },
+    { nowNs: BigInt(Date.now()) * 1_000_000n },
+  );
+  return { balance, canSellNow: quote.tokensFilled, moreOpens: plan.kind === "card" ? plan.bigSub : null };
 }
 
 /** The factory launch from the form, with the fixed storage deposit plus the opening buy. */

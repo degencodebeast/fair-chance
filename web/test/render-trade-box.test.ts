@@ -28,7 +28,7 @@ function noActions(over: Partial<TradeActions> = {}): TradeActions & { traded: n
     traded: 0,
     buy: vi.fn(async (): Promise<TradeOutcome> => ({ kind: "not-sent", text: "x" })),
     sell: vi.fn(async (): Promise<TradeOutcome> => ({ kind: "not-sent", text: "x" })),
-    sellLimit: vi.fn(async () => ({ balance: 2n * 10n ** 24n, canSellNow: 10n ** 24n })),
+    sellLimit: vi.fn(async () => ({ balance: 2n * 10n ** 24n, canSellNow: 10n ** 24n, moreOpens: null })),
     onTraded: () => void a.traded++,
     ...over,
   };
@@ -211,6 +211,21 @@ describe("a buy from the trade box", () => {
 });
 
 describe("a sell from the trade box", () => {
+  it("has no link to Your plan and says to connect a wallet when signed out", () => {
+    const { root } = box();
+    expect(root.querySelector('a[href="#your-plan"]')).toBeNull();
+    expect(root.textContent).not.toContain("Your plan");
+    expect(root.querySelector("#trade-sell-limit")?.textContent).toBe("Connect a wallet to sell.");
+  });
+
+  it("adds when more opens up to the sell limit", async () => {
+    const actions = noActions({
+      sellLimit: vi.fn(async () => ({ balance: 2n * 10n ** 24n, canSellNow: 10n ** 24n, moreOpens: "Allowance this window: 1.0M. It resets at 10:00." })),
+    });
+    const { root } = box({}, await signedIn(), actions);
+    await vi.waitFor(() => expect(root.querySelector("#trade-sell-limit")?.textContent).toBe("You can sell up to 1.0M MOTH now. You hold 2.0M MOTH. Allowance this window: 1.0M. It resets at 10:00."));
+  });
+
   it("says how much the account can sell now", async () => {
     const actions = noActions();
     const { root } = box({}, await signedIn(), actions);

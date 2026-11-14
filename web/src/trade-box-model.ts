@@ -51,8 +51,6 @@ export interface TradeBoxModel {
   sell: {
     amountLabel: string;
     button: TradeButton;
-    /** Where the sell preview is. */
-    pointer: string;
   };
 }
 
@@ -117,7 +115,6 @@ export function tradeBoxModel(input: TradeBoxInput): TradeBoxModel {
     sell: {
       amountLabel: `Amount to sell (${symbol})`,
       button: sellButton(input),
-      pointer: "To preview a sell, type an account and an amount in Your plan.",
     },
   };
 }

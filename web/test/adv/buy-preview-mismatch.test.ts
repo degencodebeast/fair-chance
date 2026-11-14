@@ -31,7 +31,7 @@ async function setup(quoteAtClick: string) {
     symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value", value: 1n }, wallet,
     loadQuote: (acc, n) => loadBuyQuote(chain, acc, n),
     blocked: null,
-    actions: { buy: (s, b) => sendBuy({ chain, session: s, coin: COIN }, b), sell: async () => ({ kind: "not-sent", text: "" }), sellLimit: async () => ({ balance: 0n, canSellNow: 0n }), onTraded: () => {} },
+    actions: { buy: (s, b) => sendBuy({ chain, session: s, coin: COIN }, b), sell: async () => ({ kind: "not-sent", text: "" }), sellLimit: async () => ({ balance: 0n, canSellNow: 0n, moreOpens: null }), onTraded: () => {} },
   });
   document.body.replaceChildren(root);
   root.querySelector<HTMLInputElement>("#trade-buy-amount")!.value = "1";

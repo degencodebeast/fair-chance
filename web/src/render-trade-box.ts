@@ -126,7 +126,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     const s = session();
     const mine = ++latestLimit;
     if (s === null) {
-      sellLimit.textContent = "";
+      sellLimit.textContent = "Connect a wallet to sell.";
       return;
     }
     sellLimit.textContent = "Reading what you can sell now.";
@@ -134,7 +134,9 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
       (l) => {
         if (mine !== latestLimit) return;
         const t = (units: bigint) => `${compactTokens(units.toString(), deps.decimals)} ${deps.symbol}`;
-        sellLimit.textContent = l.balance === 0n ? `This account holds no ${deps.symbol}.` : `You can sell up to ${t(l.canSellNow)} now. You hold ${t(l.balance)}.`;
+        sellLimit.textContent = l.balance === 0n
+            ? `This account holds no ${deps.symbol}.`
+            : `You can sell up to ${t(l.canSellNow)} now. You hold ${t(l.balance)}.${l.moreOpens === null ? "" : ` ${l.moreOpens}`}`;
       },
       (e: unknown) => {
         if (mine === latestLimit) sellLimit.textContent = `What you can sell now cannot load. ${e instanceof Error ? e.message : String(e)}`;
@@ -262,8 +264,6 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     sellLimit,
     sellForm,
     sellStatus,
-    el("p", { class: "muted" }, first.sell.pointer),
-    el("a", { class: "text-link", href: "#your-plan" }, "Go to Your plan"),
   );
   sellPanel.hidden = true;
 

@@ -4,7 +4,8 @@ import { chainReader, configFromUrl } from "./chain.ts";
 import type { CoinReads } from "./coin-page.ts";
 import { el } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
-import { loadAccountPlan } from "./your-plan.ts";
+import { loadAccountPlan, type AccountPlanReads } from "./your-plan.ts";
+import type { WalletControl } from "./wallet-session.ts";
 import { yourPlanView, type PlanView, type PreviewView } from "./your-plan-model.ts";
 import { parseTokenAmount } from "./token-amount.ts";
 
@@ -12,7 +13,7 @@ const DEFAULT_DECIMALS = 18;
 
 function drawPlan(p: PlanView): HTMLElement {
   if (p.kind === "unavailable") {
-    return el("div", { class: "plan-card" }, el("h3", { class: "plan-title" }, "Your plan"), el("p", { class: "note" }, p.text));
+    return el("div", { class: "plan-card" }, el("h3", { class: "plan-title" }, "Your sell limit"), el("p", { class: "note" }, p.text));
   }
   if (p.kind === "small") {
     return el(
@@ -25,7 +26,7 @@ function drawPlan(p: PlanView): HTMLElement {
   return el(
     "div",
     { class: "plan-card", id: "plan-card" },
-    el("div", { class: "plan-head" }, el("b", {}, "Your plan"), el("span", { class: "num muted" }, p.accountId)),
+    el("div", { class: "plan-head" }, el("b", {}, "Your sell limit"), el("span", { class: "num muted" }, p.accountId)),
     el("div", { class: "chips" }, ...p.tags.map((t) => el("span", { class: `chip chip-tag-${t.tone}` }, t.label))),
     el("p", { class: "num muted plan-balance" }, p.balance),
     el("div", { class: "plan-big" }, el("span", { class: `num-big tone-${p.bigTone}` }, p.big), el("span", {}, p.bigLabel)),
@@ -61,14 +62,19 @@ function drawPreview(v: PreviewView): HTMLElement {
   );
 }
 
-export function drawYourPlan(reads: CoinReads): HTMLElement {
+export type PlanLoader = (ask: { accountId: string; asked: bigint | null }) => Promise<AccountPlanReads>;
+
+const chainPlanLoader: PlanLoader = (ask) => loadAccountPlan(chainReader(configFromUrl(location.href)), ask);
+
+export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: PlanLoader = chainPlanLoader): HTMLElement {
   const result = el("div", { id: "plan-result", role: "status", "aria-live": "polite" });
   const accountInput = el("input", { id: "plan-account", name: "account", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "you.testnet" });
-  const amountInput = el("input", { id: "plan-amount", name: "amount", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "30,000,000" });
+  const amountInput = el("input", { id: "plan-amount", name: "amount", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "Amount" });
   const decimals = reads.metadata.kind === "value" ? reads.metadata.value.decimals : DEFAULT_DECIMALS;
   const symbol = reads.metadata.kind === "value" ? reads.metadata.value.symbol : "tokens";
   const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
 
+  let latest = 0;
   const show = async (): Promise<void> => {
     const accountId = accountInput.value.trim();
     if (accountId === "") {
@@ -84,8 +90,9 @@ export function drawYourPlan(reads: CoinReads): HTMLElement {
     result.replaceChildren(el("p", { class: "note" }, "Reading the chain."));
     const nowNs = BigInt(Date.now()) * 1_000_000n;
     try {
-      const chain = chainReader(configFromUrl(location.href));
-      const loaded = await loadAccountPlan(chain, { accountId, asked });
+      const mine = ++latest;
+      const loaded = await load({ accountId, asked });
+      if (mine !== latest) return;
       const view = yourPlanView({ accountId, symbol, decimals, totalSupply: supply, ...loaded }, { nowNs });
       result.replaceChildren(
         el("p", { class: "as-of num muted", id: "plan-as-of" }, view.asOf),
@@ -107,16 +114,38 @@ export function drawYourPlan(reads: CoinReads): HTMLElement {
     amountInput,
     el("button", { type: "submit", class: "button button-dark" }, "Show plan and preview"),
   );
+  // The field follows the connected account until the visitor types in it.
+  let typed = false;
+  listen(accountInput, "input", () => {
+    typed = true;
+  });
+  const followWallet = (): void => {
+    if (typed) return;
+    const state = wallet.state();
+    const next = state.kind === "signed-in" ? state.session.accountId : "";
+    if (accountInput.value === next) return;
+    accountInput.value = next;
+    if (next === "") result.replaceChildren();
+    else void show();
+  };
+  let shown = false;
+  const stop = wallet.subscribe(() => {
+    if (section.isConnected) shown = true;
+    else if (shown) return stop();
+    followWallet();
+  });
   listen(form, "submit", (event) => {
     event.preventDefault();
     void show();
   });
-  return el(
+  const section = el(
     "section",
-    { id: "your-plan", "aria-label": "Your plan", class: "card" },
-    el("h2", {}, "Your plan"),
-    el("p", { class: "muted" }, "Type any account to see what it can sell now. Add an amount to preview a sell. The coin works these out, not this page."),
+    { id: "your-plan", "aria-label": "Your sell limit", class: "card" },
+    el("h2", {}, "Your sell limit"),
+    el("p", { class: "muted" }, "How much this account can sell now, and when more opens up."),
     form,
     result,
   );
+  followWallet();
+  return section;
 }

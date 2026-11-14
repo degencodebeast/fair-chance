@@ -151,13 +151,13 @@ describe("what the account can sell now", () => {
 
   it("is the part of the whole balance the coin quotes as filled now", async () => {
     const chain = fakeChain({ fc_account: account, fc_quote_sell: { ...fullQuote, tokens_filled: "1000000000000000000000000", fill: "partial", limit_reason: "allowance" } });
-    expect(await loadSellLimit(chain, SELLER)).toEqual({ balance: 2709426042412763046439220n, canSellNow: 1000000000000000000000000n });
+    expect(await loadSellLimit(chain, SELLER, { symbol: "BAG", decimals: 24 })).toEqual({ balance: 2709426042412763046439220n, canSellNow: 1000000000000000000000000n, moreOpens: null });
     expect(chain.calls[1]).toEqual(["fc_quote_sell", { account_id: SELLER, amount: "2709426042412763046439220" }]);
   });
 
   it("is zero without a quote when the account holds none", async () => {
     const chain = fakeChain({ fc_account: { ...account, balance: "0" } });
-    expect(await loadSellLimit(chain, SELLER)).toEqual({ balance: 0n, canSellNow: 0n });
+    expect(await loadSellLimit(chain, SELLER, { symbol: "BAG", decimals: 24 })).toEqual({ balance: 0n, canSellNow: 0n, moreOpens: null });
     expect(chain.calls).toHaveLength(1);
   });
 });
