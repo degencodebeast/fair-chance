@@ -230,8 +230,8 @@ async fn run_on_app_coin(
                 let _ = ready.send(());
             })
             .await;
-            let launched = stand_in.await??;
-            let report = outcome?;
+            let (report, launched) =
+                fair_chance_sandbox_tests::app_coin::join_app_coin_run(outcome, stand_in).await?;
             if report.launch_tx != launched {
                 anyhow::bail!(
                     "the run read launch tx {} from the chain, not the stand-in's {launched}",

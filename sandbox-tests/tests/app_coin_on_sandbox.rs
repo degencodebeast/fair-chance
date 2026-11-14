@@ -8,7 +8,9 @@
 
 use std::time::Duration;
 
-use fair_chance_sandbox_tests::app_coin::{run_app_coin, stand_in_launch, AppCoinRequest};
+use fair_chance_sandbox_tests::app_coin::{
+    join_app_coin_run, run_app_coin, stand_in_launch, AppCoinRequest,
+};
 use fair_chance_sandbox_tests::option_t::OptionTSetup;
 use fair_chance_sandbox_tests::pass_list::PassList;
 use fair_chance_sandbox_tests::World;
@@ -49,8 +51,9 @@ async fn a_coin_launched_from_another_account_gets_the_burst_and_passes_the_seve
         let _ = ready.send(());
     })
     .await;
-    let launched = stand_in.await.unwrap().unwrap();
-    let report = report.unwrap_or_else(|e| panic!("{e:#}\n{list:?}"));
+    let (report, launched) = join_app_coin_run(report, stand_in)
+        .await
+        .unwrap_or_else(|e| panic!("{e:#}\n{list:?}"));
     assert_eq!(list.lines().len(), 7, "{list:?}");
     assert!(
         list.lines().iter().all(|l| l.starts_with("PASS ")),

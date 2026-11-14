@@ -595,6 +595,25 @@ pub async fn stand_in_launch(
     Ok(hash)
 }
 
+/// Joins a rehearsal: the runner's outcome first. When the runner stopped, the stand-in is
+/// stopped too (it may not have launched yet) and the runner's own reason is the error, so a
+/// runner that stops before it waits is never reported as the stand-in's "channel closed". When
+/// the runner ended well, the stand-in's answer follows: its launch hash, or its own error.
+pub async fn join_app_coin_run<T>(
+    runner: Result<T>,
+    stand_in: tokio::task::JoinHandle<Result<CryptoHash>>,
+) -> Result<(T, CryptoHash)> {
+    let run = match runner {
+        Ok(run) => run,
+        Err(stopped) => {
+            stand_in.abort();
+            return Err(stopped);
+        }
+    };
+    let launched = stand_in.await.context("the stand-in task ended badly")??;
+    Ok((run, launched))
+}
+
 /// A delay from 0 up to `max`, from the clock's nanoseconds: enough spread for a rehearsal.
 fn random_delay(max: Duration) -> Duration {
     let millis = max.as_millis();
