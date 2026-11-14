@@ -55,7 +55,7 @@ func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
 	case command == "/check" && b.Public != nil:
 		b.handlePublicCheck(ctx, msg.ChatID, fields)
 	case (command == "/start" || command == "/help") && b.Public != nil:
-		if own || b.Public.takeReplySlot(msg.ChatID) {
+		if own || b.Public.takeHelpSlot(msg.ChatID) {
 			b.reply(ctx, msg.ChatID, b.Public.helpLine())
 		}
 	}

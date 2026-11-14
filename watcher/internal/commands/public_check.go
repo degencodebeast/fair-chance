@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	perChatGap       = 10 * time.Second
+	perChatGap       = 3 * time.Second
 	totalPerMinute   = 30 // reads for all strangers together
 	repliesPerMinute = 60 // sends to all strangers together
 	window           = time.Minute
 	busyText         = "Busy. Try again in a minute."
 	refusedText      = "I check only Fair Chance coins on testnet."
+	waitText         = "Please wait a few seconds, then send it again."
 )
 
 // PublicCheck lets any chat run /check on a coin of one factory. It holds the rate limits, the back off
@@ -28,12 +29,19 @@ type PublicCheck struct {
 	pageURL string
 	now     func() time.Time
 
-	mu              sync.Mutex
-	lastReplyByChat map[int64]time.Time
-	replies         []time.Time // sends to strangers in the last minute
-	recent          []time.Time // starts of reads in the last minute
-	backoffTo       time.Time
-	counts          PublicCounts
+	mu          sync.Mutex
+	checkByChat map[int64]checkSlot // chats inside the /check gap
+	helpByChat  map[int64]time.Time // chats inside the /start and /help gap
+	replies     []time.Time         // sends to strangers in the last minute
+	recent      []time.Time         // starts of reads in the last minute
+	backoffTo   time.Time
+	counts      PublicCounts
+}
+
+// checkSlot is the last /check reply to a chat and whether the wait line went out in this gap.
+type checkSlot struct {
+	at     time.Time
+	waited bool
 }
 
 var factoryName = regexp.MustCompile(`^([a-z0-9]+[-_])*[a-z0-9]+(\.([a-z0-9]+[-_])*[a-z0-9]+)+$`)
@@ -49,7 +57,7 @@ func NewPublicCheck(factory, pageURL string, now func() time.Time) (*PublicCheck
 	if now == nil {
 		now = time.Now
 	}
-	return &PublicCheck{factory: factory, pageURL: pageURL, now: now, lastReplyByChat: map[int64]time.Time{}}, nil
+	return &PublicCheck{factory: factory, pageURL: pageURL, now: now, checkByChat: map[int64]checkSlot{}, helpByChat: map[int64]time.Time{}}, nil
 }
 
 func (p *PublicCheck) Counts() PublicCounts {
@@ -93,21 +101,16 @@ func (p *PublicCheck) admit() bool {
 	return true
 }
 
-// takeReplySlot says whether the bot may send one message to the chat now: one per chat every ten
-// seconds and a cap for all strangers together. Beyond that the bot stays silent.
-func (p *PublicCheck) takeReplySlot(chat int64) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	now := p.now()
-	for id, at := range p.lastReplyByChat {
-		if now.Sub(at) >= perChatGap {
-			delete(p.lastReplyByChat, id)
-		}
-	}
-	if _, waiting := p.lastReplyByChat[chat]; waiting {
-		p.counts.Silent++
-		return false
-	}
+type slotResult int
+
+const (
+	slotGranted slotResult = iota
+	slotWait               // inside the gap: send the wait line
+	slotSilent             // over a cap or the wait line went already: send nothing
+)
+
+// takeGlobalReply says whether all strangers together may get one more send. The caller holds p.mu.
+func (p *PublicCheck) takeGlobalReply(now time.Time) bool {
 	keep := p.replies[:0]
 	for _, at := range p.replies {
 		if now.Sub(at) < window {
@@ -116,11 +119,57 @@ func (p *PublicCheck) takeReplySlot(chat int64) bool {
 	}
 	p.replies = keep
 	if len(p.replies) >= repliesPerMinute {
+		return false
+	}
+	p.replies = append(p.replies, now)
+	return true
+}
+
+// takeCheckSlot decides the reply to a /check: one per chat every three seconds. A /check inside the gap
+// gets one wait line per gap and then silence. All strangers together stay under the send cap.
+func (p *PublicCheck) takeCheckSlot(chat int64) slotResult {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	now := p.now()
+	for id, slot := range p.checkByChat {
+		if now.Sub(slot.at) >= perChatGap {
+			delete(p.checkByChat, id)
+		}
+	}
+	slot, inGap := p.checkByChat[chat]
+	if inGap && slot.waited {
+		p.counts.Silent++
+		return slotSilent
+	}
+	if !p.takeGlobalReply(now) {
+		p.counts.Silent++
+		return slotSilent
+	}
+	if inGap {
+		slot.waited = true
+		p.checkByChat[chat] = slot
+		return slotWait
+	}
+	p.checkByChat[chat] = checkSlot{at: now}
+	return slotGranted
+}
+
+// takeHelpSlot says whether /start or /help may get a reply now. It has its own per chat gap, so it does
+// not use the /check slot.
+func (p *PublicCheck) takeHelpSlot(chat int64) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	now := p.now()
+	for id, at := range p.helpByChat {
+		if now.Sub(at) >= perChatGap {
+			delete(p.helpByChat, id)
+		}
+	}
+	if _, waiting := p.helpByChat[chat]; waiting || !p.takeGlobalReply(now) {
 		p.counts.Silent++
 		return false
 	}
-	p.lastReplyByChat[chat] = now
-	p.replies = append(p.replies, now)
+	p.helpByChat[chat] = now
 	return true
 }
 
@@ -141,7 +190,11 @@ func (b Bot) handlePublicCheck(ctx context.Context, chat int64, fields []string)
 	if b.Checker == nil {
 		return
 	}
-	if !p.takeReplySlot(chat) { // no send slot: no read and no reply
+	switch p.takeCheckSlot(chat) { // no send slot: no read
+	case slotWait:
+		b.reply(ctx, chat, waitText)
+		return
+	case slotSilent:
 		return
 	}
 	if len(fields) != 2 || !nearAccount.MatchString(fields[1]) {
