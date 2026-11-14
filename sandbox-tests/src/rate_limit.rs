@@ -55,14 +55,16 @@ impl Waits {
         )
     }
 
-    /// The next wait, or `None` when it would pass the total limit.
+    /// The next wait, or `None` when it would pass the total limit (a wait too large to add
+    /// passes it too).
     pub fn next(&mut self, retry_after: Option<Duration>) -> Option<Duration> {
         let wait = retry_after.map_or(self.next, |r| r.max(self.next));
-        if self.waits >= self.max_waits || self.waited + wait > self.total {
+        let waited = self.waited.checked_add(wait)?;
+        if self.waits >= self.max_waits || waited > self.total {
             return None;
         }
         self.waits += 1;
-        self.waited += wait;
+        self.waited = waited;
         self.next = (self.next * 2).min(self.max);
         Some(wait)
     }
@@ -136,28 +138,47 @@ fn status_codes(error: &str) -> Vec<u16> {
         .collect()
 }
 
-/// The Retry-After header of the answer, in whole seconds, when the text has one.
-fn retry_after(error: &str) -> Option<Duration> {
-    error
-        .split(r#""retry-after": ""#)
-        .nth(1)
-        .and_then(|rest| rest.split('"').next())
-        .and_then(|secs| secs.parse::<u64>().ok())
-        .map(Duration::from_secs)
+/// The Retry-After header of an answer, as the text shows it.
+enum RetryAfter {
+    Missing,
+    Seconds(Duration),
+    /// Present, but not whole seconds (ASCII digits within u64): an HTTP date, a sign, an
+    /// exponent, a space, an empty value or too many digits.
+    Unreadable(String),
+}
+
+fn retry_after(error: &str) -> RetryAfter {
+    let Some(rest) = error.split(r#""retry-after": ""#).nth(1) else {
+        return RetryAfter::Missing;
+    };
+    let value = rest.split('"').next().unwrap_or_default();
+    let digits = !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit());
+    match value.parse::<u64>() {
+        Ok(secs) if digits => RetryAfter::Seconds(Duration::from_secs(secs)),
+        _ => RetryAfter::Unreadable(value.to_string()),
+    }
 }
 
 /// The one rule for every read error, in this order: any 4xx but 429 (a 403 first) stops, wherever
 /// it is in the text; then a 429 waits; then a 5xx waits; anything else stops. A wait takes the
-/// Retry-After of the answer when it has one.
+/// Retry-After of the answer when it has one in whole seconds; a Retry-After the runner cannot
+/// read stops, as any answer it does not understand.
 pub fn read_fault(error: &str) -> ReadFault {
-    let codes = status_codes(error);
-    if codes.iter().any(|c| (400..500).contains(c) && *c != 429) {
+    if !asks_to_wait(error) {
         return ReadFault::Stop;
     }
-    if codes.iter().any(|c| *c == 429 || (500..600).contains(c)) {
-        return ReadFault::Busy(retry_after(error));
+    match retry_after(error) {
+        RetryAfter::Missing => ReadFault::Busy(None),
+        RetryAfter::Seconds(wait) => ReadFault::Busy(Some(wait)),
+        RetryAfter::Unreadable(_) => ReadFault::Stop,
     }
-    ReadFault::Stop
+}
+
+/// No 4xx but 429 anywhere in the text, and a 429 or a 5xx.
+fn asks_to_wait(error: &str) -> bool {
+    let codes = status_codes(error);
+    !codes.iter().any(|c| (400..500).contains(c) && *c != 429)
+        && codes.iter().any(|c| *c == 429 || (500..600).contains(c))
 }
 
 /// `Some(retry_after)` when the error text is an HTTP 429 that [`read_fault`] waits on, with its
@@ -188,6 +209,14 @@ where
             Err(e) => format!("{e:?}"),
         };
         let ReadFault::Busy(retry_after) = read_fault(&error) else {
+            if let (true, RetryAfter::Unreadable(value)) =
+                (asks_to_wait(&error), self::retry_after(&error))
+            {
+                bail!(
+                    "{what} got a Retry-After the runner does not read ({value:?}, not whole seconds); stopped, no retry: {}",
+                    without_urls(&error)
+                );
+            }
             bail!(
                 "unknown result of {what}: {}; stopped, no retry",
                 without_urls(&error)
