@@ -21,6 +21,8 @@ export interface LaunchFormInput {
   openingBuy: string;
   /** The picture as a WebP data URL from `iconToWebp`; absent or null for no picture. */
   icon?: string | null;
+  /** The state of the chosen file. A launch waits for "ready" or "none"; a pending or refused picture blocks it. */
+  picture?: { state: "none" } | { state: "pending" } | { state: "ready" } | { state: "refused"; reason: string };
 }
 
 /** The arguments of the factory's `launch`, field by field (contracts/factory/src/lib.rs). `opening_buy` is yoctoNEAR text. */
@@ -65,6 +67,8 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   }
   const icon = input.icon ?? null;
   if (icon !== null && !iconFits(icon)) errors.push("The picture must be a WebP image under 8 KB. Choose it again.");
+  if (input.picture?.state === "pending") errors.push("The picture is still being shrunk. Wait for it.");
+  if (input.picture?.state === "refused") errors.push(input.picture.reason);
   const openingBuyUnits = buy === "" ? null : parseTokenAmount(buy, NEAR_DECIMALS);
   const shownTicker = ticker.toUpperCase();
   const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker.toLowerCase()) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;

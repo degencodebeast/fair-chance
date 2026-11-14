@@ -110,3 +110,21 @@ describe("launch form picture", () => {
     expect(m.launchArgs).toBeNull();
   });
 });
+
+describe("launch form picture state", () => {
+  it("gives no launch arguments while the picture is being shrunk", () => {
+    const m = launchFormModel({ ...ok, picture: { state: "pending" } });
+    expect(m.launchArgs).toBeNull();
+    expect(m.errors).toContain("The picture is still being shrunk. Wait for it.");
+  });
+
+  it("gives no launch arguments and shows the refusal when the picture was refused", () => {
+    const m = launchFormModel({ ...ok, picture: { state: "refused", reason: "This picture does not fit in 8 KB, even at 64 px. Choose a simpler picture." } });
+    expect(m.launchArgs).toBeNull();
+    expect(m.errors).toContain("This picture does not fit in 8 KB, even at 64 px. Choose a simpler picture.");
+  });
+
+  it("gives valid arguments with no icon when no file is chosen", () => {
+    expect(launchFormModel({ ...ok, picture: { state: "none" } }).launchArgs?.icon).toBeNull();
+  });
+});

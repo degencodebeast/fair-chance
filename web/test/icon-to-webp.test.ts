@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ICON_MAX_CHARS, ICON_PREFIX, iconFits, iconToWebp, type IconEncoder } from "../src/icon-to-webp.ts";
+import { ICON_MAX_CHARS, ICON_PREFIX, blobToDataUrl, iconFits, iconToWebp, type IconEncoder } from "../src/icon-to-webp.ts";
 import { copyViolations } from "./copy-rules.ts";
 
 const webp = (length: number) => ICON_PREFIX + "A".repeat(length - ICON_PREFIX.length);
@@ -95,5 +95,19 @@ describe("iconToWebp", () => {
     });
     expect(loaded).toBe(false);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("a failed encode", () => {
+  it("says the file could not be read as a picture, not that WebP is missing", async () => {
+    const encoder: IconEncoder = async () => {
+      throw new Error("no blob");
+    };
+    const result = await iconToWebp(file, loader(encoder));
+    expect(result).toEqual({ ok: false, reason: expect.stringMatching(/not read this file as a picture/) });
+  });
+
+  it("makes a null blob from the canvas throw", async () => {
+    await expect(blobToDataUrl(null)).rejects.toThrow();
   });
 });

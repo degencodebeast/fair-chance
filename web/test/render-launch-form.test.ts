@@ -220,7 +220,39 @@ describe("launch form picture", () => {
     choose(app);
     await vi.waitFor(() => expect(status(app)).toContain("does not fit in 8 KB"));
     expect(app.querySelector("#launch-picture-preview")).toBeNull();
-    expect(seen.at(-1)?.icon).toBeNull();
+    expect(seen.at(-1)).toBeNull();
+    expect(app.querySelector("#launch-errors")?.textContent).toContain("does not fit in 8 KB");
+  });
+
+  it("gives no launch arguments while the picture is being shrunk", () => {
+    const { app, seen } = withPicture(() => new Promise(() => undefined));
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    choose(app);
+    expect(seen.at(-1)).toBeNull();
+    expect(app.querySelector("#launch-errors")?.textContent).toContain("still being shrunk");
+  });
+
+  it("gives no launch arguments when the conversion throws", async () => {
+    const { app, seen } = withPicture(async () => { throw new Error("boom"); });
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    choose(app);
+    await vi.waitFor(() => expect(status(app)).toMatch(/not read this file/));
+    expect(seen.at(-1)).toBeNull();
+    expect(app.querySelector("#launch-errors")?.textContent).toMatch(/not read this file/);
+  });
+
+  it("gives valid arguments with no icon after the file is cleared", async () => {
+    const { app, seen } = withPicture(async () => ({ ok: true, dataUrl: icon }));
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    choose(app);
+    await vi.waitFor(() => expect(seen.at(-1)?.icon).toBe(icon));
+    const input = app.querySelector<HTMLInputElement>("#launch-picture-input")!;
+    Object.defineProperty(input, "files", { value: [], configurable: true });
+    input.dispatchEvent(new Event("change"));
+    expect(seen.at(-1)).toMatchObject({ name: "Moth Lamp", icon: null });
   });
 
   it("drops an older conversion that finishes after a newer choice", async () => {

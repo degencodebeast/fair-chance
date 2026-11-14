@@ -52,7 +52,9 @@ export async function iconToWebp(file: File, load: IconLoader = browserIconLoade
   return { ok: false, reason: TOO_BIG };
 }
 
-function readDataUrl(blob: Blob): Promise<string> {
+/** The data URL of a canvas blob. A canvas that gives no blob is a failure, not a missing WebP. */
+export function blobToDataUrl(blob: Blob | null): Promise<string> {
+  if (blob === null) return Promise.reject(new Error("the canvas gave no image"));
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -85,7 +87,6 @@ export const browserIconLoader: IconLoader = async (file) => {
     if (context === null) throw new Error("no canvas");
     context.drawImage(image, sx, sy, side, side, 0, 0, size, size);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
-    if (blob === null) return "";
-    return readDataUrl(blob);
+    return blobToDataUrl(blob);
   };
 };

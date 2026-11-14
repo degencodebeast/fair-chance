@@ -24,6 +24,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const convert = picture.convert ?? iconToWebp;
   let icon: string | null = null;
   let latestPicture = 0;
+  let pictureState: NonNullable<Parameters<typeof launchFormModel>[0]["picture"]> = { state: "none" };
   const pictureInput = el("input", { id: "launch-picture-input", type: "file", accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml", "aria-describedby": "launch-picture-status" });
   const pictureStatus = el("span", { id: "launch-picture-status", class: "muted", role: "status" }, "Any picture. It is shrunk to a WebP image under 8 KB.");
   const name = field("Name", "launch-name", LAUNCH_LIMITS.name);
@@ -38,7 +39,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const previewBox = el("section", { id: "launch-preview", "aria-label": "Launch preview", class: "card" });
 
   const refresh = (): void => {
-    const m = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value, icon });
+    const m = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value, icon, picture: pictureState });
     picture.onArgs?.(m.launchArgs);
     name.count.textContent = m.counts.name;
     ticker.count.textContent = m.counts.ticker;
@@ -82,6 +83,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     const file = pictureInput.files?.[0];
     const mine = ++latestPicture;
     icon = null;
+    pictureState = file === undefined ? { state: "none" } : { state: "pending" };
     refresh();
     if (file === undefined) {
       pictureStatus.textContent = "No picture. The coin gets none.";
@@ -92,12 +94,16 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
       (result) => {
         if (mine !== latestPicture) return;
         icon = result.ok ? result.dataUrl : null;
+        pictureState = result.ok ? { state: "ready" } : { state: "refused", reason: result.reason };
         pictureStatus.textContent = result.ok ? `Picture ready: ${result.dataUrl.length} of 8191 characters.` : result.reason;
         refresh();
       },
       () => {
         if (mine !== latestPicture) return;
-        pictureStatus.textContent = "This page could not read this file as a picture. Choose a PNG, JPEG, GIF, WebP or SVG file.";
+        const reason = "This page could not read this file as a picture. Choose a PNG, JPEG, GIF, WebP or SVG file.";
+        pictureState = { state: "refused", reason };
+        pictureStatus.textContent = reason;
+        refresh();
       },
     );
   });
