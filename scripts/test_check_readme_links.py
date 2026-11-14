@@ -167,6 +167,32 @@ class Testnet(unittest.TestCase):
         root = make({"README.md": tx_line("launch", sender="creator.testnet")})
         self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
 
+    def test_a_claim_without_a_sender_takes_it_from_the_evidence_files(self):
+        record = {"network": "testnet", "creator": "maker.testnet",
+                  "launch": {"tx": H}, "buys": [{"tx_hash": "8" * 44, "account": "buyer.testnet"}]}
+        root = make({"README.md": f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'
+                                  f'[b](https://explorer.testnet.near.org/transactions/{"8" * 44} "claim: full_fill")\n',
+                     "evidence/run.json": json.dumps(record)})
+        seen = []
+        event = {"standard": "fair_chance_factory", "version": "1.0.0", "event": "fc_launch", "data": [{}]}
+
+        def rpc(method, params):
+            seen.append(params.get("sender_account_id"))
+            if method == "query":
+                return {"result": {}}
+            log = "EVENT_JSON:" + json.dumps(event) if params["tx_hash"] == H else sell_log("full")
+            return tx_reply([log])
+
+        self.assertEqual(c.check_testnet(root, [root / "README.md"], rpc), [])
+        self.assertIn("maker.testnet", seen)
+        self.assertIn("buyer.testnet", seen)
+
+    def test_a_claim_without_a_sender_and_no_evidence_is_reported(self):
+        root = make({"README.md": f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'})
+        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([])))
+        self.assertEqual(len(out), 1)
+        self.assertIn("sender", out[0])
+
     def test_a_tx_link_with_no_claim_is_reported(self):
         root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{H}) alice.testnet\n"})
         out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("partial")])))

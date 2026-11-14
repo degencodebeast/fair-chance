@@ -13,8 +13,8 @@ reported and never asked again. Exit 0 when nothing is wrong, 1 otherwise, 2 on 
 
 A transaction link carries its claim in the link title:
   [tx](https://explorer.../transactions/<hash> "claim: partial_fill by buyer.testnet")
-The claim is partial_fill, full_fill, launch or refusal:<FC_CODE>, and the account after "by" is the
-sender. The check reads the receipt and compares what it finds with the claim.
+The claim is partial_fill, full_fill, launch or refusal:<FC_CODE>. The account after "by" is the
+sender. Without "by", the sender comes from the JSON files in evidence/ (the entry with that hash). The check reads the receipt and compares what it finds with the claim.
 """
 import argparse
 import json
@@ -28,7 +28,7 @@ from pathlib import Path
 DEFAULT_FILES = ["README.md", "docs/evidence.md", "docs/model/README.md"]
 RPC_URL = "https://rpc.testnet.near.org"
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"([^\"]*)\")?\)")
-CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|launch|refusal:FC_[A-Z_]+)\s+by\s+(\S+)")
+CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|launch|refusal:FC_[A-Z_]+)(?:\s+by\s+(\S+))?")
 FC_CODE = re.compile(r"FC_[A-Z_]+")
 ACCOUNT = re.compile(r"(?<![A-Za-z0-9_.@-])([a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet)(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
 TX_HASH = re.compile(r"/(?:transactions|txns|txn)/([1-9A-HJ-NP-Za-km-z]{43,44})\b")
@@ -205,8 +205,40 @@ def receipt_outcome(reply):
     return None
 
 
+def evidence_senders(root):
+    """Transaction hash -> sender account, read from the JSON files in evidence/. An entry with
+    "tx" or "tx_hash" and "account" gives its account. A "launch" entry with no account of its
+    own belongs to the top-level "creator"."""
+    senders = {}
+
+    def walk(node, creator):
+        if isinstance(node, dict):
+            for key in ("tx", "tx_hash"):
+                if isinstance(node.get(key), str) and isinstance(node.get("account"), str):
+                    senders[node[key]] = node["account"]
+            for key, child in node.items():
+                if key == "launch" and isinstance(child, dict) and isinstance(creator, str):
+                    for tx_key in ("tx", "tx_hash"):
+                        if isinstance(child.get(tx_key), str):
+                            senders.setdefault(child[tx_key], child.get("account", creator))
+                walk(child, creator)
+        elif isinstance(node, list):
+            for child in node:
+                walk(child, creator)
+
+    folder = root / "evidence"
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        try:
+            data = json.loads(path.read_text())
+        except ValueError:
+            continue
+        walk(data, data.get("creator") if isinstance(data, dict) else None)
+    return senders
+
+
 def check_testnet(root, files, rpc=rpc_call):
     problems, accounts = [], {}
+    senders = evidence_senders(root)
     for path in files:
         text = path.read_text()
         for number, line in prose_lines_keep_code(text):
@@ -226,7 +258,11 @@ def check_testnet(root, files, rpc=rpc_call):
             if not claim:
                 problems.append(f"{where}: transaction {tx.group(1)} has no claim in its link title")
                 continue
-            reply = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx.group(1), "sender_account_id": claim.group(2), "wait_until": "FINAL"})
+            sender = claim.group(2) or senders.get(tx.group(1))
+            if not sender:
+                problems.append(f"{where}: transaction {tx.group(1)} has no sender in its claim or in evidence/")
+                continue
+            reply = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx.group(1), "sender_account_id": sender, "wait_until": "FINAL"})
             found = receipt_outcome(reply)
             if found != claim.group(1):
                 problems.append(f"{where}: transaction {tx.group(1)} claims {claim.group(1)} but the receipt shows {found}")
