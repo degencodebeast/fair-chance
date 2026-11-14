@@ -174,3 +174,22 @@ fn the_cabal2_run_file_holds_no_rpc_url_and_no_key() {
         );
     }
 }
+
+/// The early-supply total the run used was read from the chain after the run, before the window
+/// ended (the value goes back to 0 at the window's end). The exact value, the block height and the
+/// block hash of the read are kept next to the rounded log lines.
+#[test]
+fn the_early_supply_total_is_kept_as_an_exact_chain_read() {
+    let (_, run) = evidence();
+    let read = &run["chain_read"];
+    assert_eq!(read["method"], "fc_early_window");
+    assert_eq!(read["finality"], "final");
+    assert_eq!(read["account"], run["coin"]);
+    assert!(read["block_height"].as_u64().is_some_and(|h| h > 0));
+    assert!(read["block_hash"].as_str().is_some_and(|h| h.len() >= 43));
+    assert_eq!(read["shared_allowance_used"], "2980578954847226559757284");
+    for field in ["shared_allowance_used", "shared_allowance", "early_supply_total", "window_end_ns"] {
+        let text = read[field].as_str().unwrap_or_else(|| panic!("{field} is a decimal string"));
+        assert!(!text.is_empty() && text.chars().all(|c| c.is_ascii_digit()), "{field}");
+    }
+}

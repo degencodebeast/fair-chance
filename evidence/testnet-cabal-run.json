@@ -1,6 +1,18 @@
 {
   "network": "testnet",
   "coin": "cabal.factory.fairchance.testnet",
+  "chain_read": {
+    "method": "fc_early_window",
+    "account": "cabal.factory.fairchance.testnet",
+    "finality": "final",
+    "read_at_utc": "2026-11-14T10:40Z",
+    "block_height": 277645858,
+    "block_hash": "5HjRdqcFLjDJGtE2mazTRevkhi5maNgnwagzyJEJJf6W",
+    "shared_allowance_used": "6912014798715522765922994",
+    "shared_allowance": "8790526951096121854533701",
+    "early_supply_total": "127243279384952313268498427",
+    "window_end_ns": "1794733416835610175"
+  },
   "runner_commit": "5dafb73",
   "source": "Copied from the run log. Token amounts in M or K and NEAR amounts with 4 decimals are rounded as the log printed them. Spend-check balances are exact, in NEAR, as logged. Block numbers after the launch count from the launch block.",
   "creator": "cabal-creator.fairchance.testnet",
