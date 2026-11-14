@@ -35,6 +35,8 @@ Deeper pages: [evidence](docs/evidence.md), [TLA+ model](docs/model/README.md), 
 
 A new memecoin launches, and in the first minutes the creator and a few large wallets sell into the pool. Later buyers take the loss. Tools that warn a buyer act after the damage. A high fee on early buys is paid once, and it does not limit the later sells. [OVERVIEW](docs/OVERVIEW.md) has the full case.
 
+One preprint measured pump.fun on Solana from 8 August to 18 September 2026: retail buyers got back 0.754 per unit they put in, token creators 1.56, and launch-block buyers 1.49 ([Gatto, SSRN 7676458](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7676458), abstract). The author says the 2026 figures describe that market in that window, not memecoins in general.
+
 ## What it does
 
 The sell limits live in the coin contract, so no off-chain part can lift them. Each coin has its own pool and the same fixed rules. A sell above a limit fills in part, and the rest stays in the wallet. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
