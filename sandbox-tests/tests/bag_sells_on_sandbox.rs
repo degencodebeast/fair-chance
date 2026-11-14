@@ -35,6 +35,15 @@ async fn balance_of(
 
 /// Launch BAG and let all 20 buyers buy 1 NEAR, then wait for the end of the early window.
 async fn launched_bag(world: &World) -> Result<(OptionTSetup, near_api::types::AccountId)> {
+    launched_bag_with(world, false).await
+}
+
+/// As [`launched_bag`]. With `buy_after_window` the buyers buy only after the early window, as
+/// on testnet (the testnet buys landed at launch + 23), so their tokens are not marked.
+async fn launched_bag_with(
+    world: &World,
+    buy_after_window: bool,
+) -> Result<(OptionTSetup, near_api::types::AccountId)> {
     let setup = OptionTSetup::sandbox_defaults(world, "BAG", 20);
     let (creator, buyers) = make_accounts(&setup).await?;
     let launch = world
@@ -46,6 +55,9 @@ async fn launched_bag(world: &World) -> Result<(OptionTSetup, near_api::types::A
         .await?;
     assert!(launch.is_success(), "{launch:?}");
     let coin = world.coin_for("bag")?;
+    if buy_after_window {
+        world.wait_until_after_the_early_window(&coin).await?;
+    }
     let bounds = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
     let storage: u128 = bounds["min"].as_str().unwrap().parse()?;
     for buyer in &buyers {
@@ -226,11 +238,10 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
         fixed_accounts, plan_from_balances, plan_json, run_continue,
     };
     let world = World::launch_for_fast_forward().await?;
-    let (setup, coin) = launched_bag(&world).await?;
+    let (setup, coin) = launched_bag_with(&world, true).await?;
     let (sellers, keepers) = fixed_accounts("BAG", &setup.funder.id)?;
-    // On testnet the buys were hours before the sells. Here they are in the same 1-hour cap
-    // window, and tokens bought in the window count toward its cap when sold, so the hand sells
-    // would fill only in part. About 2.5 h of block time puts them in a later window.
+    // As on testnet: the buys land after the early window (not marked), and the sells come
+    // hours later, in another 1-hour cap window (about 2.5 h of block time).
     world.sandbox.fast_forward(100).await?;
     // The plan file a sells run wrote before it stopped after sell 3.
     let mut balances = Vec::new();
@@ -244,6 +255,13 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
         format!("{}\n", serde_json::to_string_pretty(&plan_json(&plan))?),
     )?;
     let sha = sha256_of(&path);
+    let account_01 = view_on(
+        &setup.network,
+        &coin,
+        "fc_account",
+        json!({ "account_id": sellers[0] }),
+    )
+    .await?;
     for step in &plan.steps[..3] {
         let seller = fair_chance_sandbox_tests::Account {
             id: step.account.clone(),
@@ -261,11 +279,20 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
         )
         .await?;
         assert!(sold.is_success(), "{sold:?}");
+        let sell = fair_chance_sandbox_tests::events(&sold, "fair_chance", "fc_sell")
+            .pop()
+            .map(|e| e.event["data"][0].clone())
+            .unwrap_or_default();
         assert_eq!(
             balance_of(&setup, &coin, &step.account).await?,
             0,
-            "the hand sell of {} did not fill in full",
-            step.account
+            "the hand sell of {} did not fill in full: fill {}, limit_reason {}; fc_account of bag-buyer-01 before the hand sells: class {}, marked {}, unmarked {}",
+            step.account,
+            sell["fill"],
+            sell["limit_reason"],
+            account_01["class"],
+            account_01["marked_balance"],
+            account_01["unmarked_balance"]
         );
     }
     let mut kept = Vec::new();
