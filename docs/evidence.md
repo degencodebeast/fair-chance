@@ -80,6 +80,15 @@ Each limit has an owner decision in an ADR. The tests above show the rule works.
 | Borrowed NEAR can fake pool depth for the creator fee. | The fake costs a 24 hour hold with price risk plus about 1.4% to 1.7% of the minimum in fees. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |
 | A deleted creator account can be created again, and the new owner claims the creator balance. | The optional value D is off. | [ADR 0010](adr/0010-creator-fee-share-after-24h-depth.md) |
 
+## Terminal checks of the BAG coin
+
+Recorded read-only calls on the public testnet RPC, 14 November 2026, for `bag.factory.fairchance.testnet`. The commands are in the README section "Check it from a terminal". A reply from the chain is shown as it came, with `...` where it is cut.
+
+1. Access keys: `{"jsonrpc":"2.0","result":{"block_hash":"81zskvnA1j4dWWEEHWfs4RWxqysYDL33DsTf5cFEkiCE","block_height":277644204,"keys":[]},"id":1}`. The coin has no access keys.
+2. The chain's code hash: `{"jsonrpc":"2.0","result":{"amount":"7265684998033816547910958","block_hash":"zg7fLcpH5TYisgxCyD8btZMJa7dFRTxdRh2qciafyMR","block_height":277644215,"code_hash":"11111111111111111111111111111111","global_contract_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3","locked":"0","storage_paid_at":0,"storage_usage":6486},"id":1}`. The coin uses a global contract by hash, so `code_hash` holds the empty value and `global_contract_hash` holds the hash.
+3. The coin's rules (`result.result` decoded): `{"launch_block":277565791,"p_bps":200,"window_unmarked_s":3600,"window_early_s":86400,"early_blocks":17,"large_threshold_bps":200,"creator_cap_bps":400,"real_cap_c_bps":500,"floor_bps":10,"penalty_bps":1000,"virtual_near":"100000000000000000000000000","swap_fee_bps":100,"early_fee_start_bps":5000,"brake_drop_bps":null,"creator_fee_share_bps":3000,"claim_min_real_near":"10000000000000000000000000","claim_depth_hold_s":86400,"unclaimed_to_pool_s":null,"code_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3", ...}`.
+4. The source metadata (decoded): `{"version":"1.0.0-rc.7","link":"https://github.com/degencodebeast/fair-chance/tree/b42fddecd94f75904636f912c4ce0dccb7e437d9","standards":[...],"build_info":{"build_environment":"sourcescan/cargo-near:0.22.0-rust-1.97.1@sha256:7467038bdddc86484b73b416eeadce926ff59013e128e53dec5a19e1cb4b2234","contract_path":"contracts/coin","source_code_snapshot":"git+https://github.com/degencodebeast/fair-chance?rev=b42fddecd94f75904636f912c4ce0dccb7e437d9", ...}}`. It names the commit and the pinned build image.
+
 ## Replay and simulation
 
 [analysis/FINDINGS.md](../analysis/FINDINGS.md) holds the NEAR launch replay and the 60-day synthetic simulation, with method and rerun commands. These are simulation, not demand. A Solana-proxy number is a proxy for how sellers behave. It does not show that NEAR users want these rules.

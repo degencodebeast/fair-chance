@@ -25,7 +25,6 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 - [Architecture](#architecture)
 - [The rules](#the-rules)
 - [How this differs from a per-sell cap](#how-this-differs-from-a-per-sell-cap)
-- [What the contract enforces, and what the page merely shows](#what-the-contract-enforces-and-what-the-page-merely-shows)
 - [Network](#network)
 - [Check it yourself](#check-it-yourself)
 - [Check it from a terminal](#check-it-from-a-terminal)
@@ -178,15 +177,21 @@ When a step fails, the contract refuses with its code, and the call changes no s
 
 ## Architecture
 
-| Part | Where it runs | What it does |
-| --- | --- | --- |
-| Factory (`contracts/factory/`) | NEAR, one account <!-- waits on: the testnet deploy (the factory account, and the line that says its keys are deleted) --> | Launches each coin in one batch and records the one coin code hash. |
-| Coin (`contracts/coin/`) | NEAR, one account per coin, no access keys | Token, pool and every rule. Calls into `rule-engine/`. |
-| Rule engine (`rule-engine/`) | Compiled into the coin; also run by tests as plain Rust | The rules as pure functions. |
-| Coin page (`web/`) | Static files in a browser | Reads views and events from public RPC and shows limits, receipts and refusals. |
-| Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts, answers `/check`. |
+| Part | Where it runs | What it does | Can it move funds or change a limit? |
+| --- | --- | --- | --- |
+| Factory (`contracts/factory/`) | NEAR, one account <!-- waits on: the testnet deploy (the factory account, and the line that says its keys are deleted) --> | Launches each coin in one batch and records the one coin code hash. | Calls `new` once. No coin method gives it a special right. |
+| Coin (`contracts/coin/`) | NEAR, one account per coin, no access keys | Token, pool and every rule. Calls into `rule-engine/`. Hard refusals return an `FC_` code. | Yes. It is the rule. |
+| Rule engine (`rule-engine/`) | Compiled into the coin; also run by tests as plain Rust | The rules as pure functions. | Only through the coin. |
+| Coin page (`web/`) | Static files in a browser | Reads views and events from public RPC and shows limits, receipts and refusals. | No. |
+| Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts to the builder's private chat, answers `/check`. | No. |
 
 There is no backend server. The rules run on chain. Each coin holds no key, and the factory holds none after its key is deleted <!-- waits on: the testnet deploy (the factory key deletion) -->. The page is static and only reads. The watcher and the page can go offline, and the coin still enforces every rule.
+
+Nobody can change a coin after launch. These three lines are the claim ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)):
+
+- The coin account has no access keys.
+- Its code is a global contract used by a stated code hash.
+- The contract has no owner, pause, setter or upgrade method (`coin_method_list` test).
 
 ## The rules
 
@@ -219,29 +224,6 @@ Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin 
 
 In facts, against [meme.cooking](https://docs.meme.cooking/): its docs describe an auction where every depositor buys at the same price, then a pool on Ref Finance with locked LP shares. Fair Chance has no auction and no outside pool. The coin holds its own pool, and sells face the limits above.
 
-## What the contract enforces, and what the page merely shows
-
-| Part | Role | Can it move funds or change a limit? |
-| --- | --- | --- |
-| Coin contract | Token, pool and every rule. Hard refusals return an `FC_` code. | Yes. It is the rule. |
-| Factory | Launches each coin in one batch with no key. | Calls `new` once. No coin method gives it a special right. |
-| Coin page | Reads state and events, explains limits and refusals. | No. |
-| Watcher and Telegram bot | Read events, send alerts to the builder's private chat. | No. |
-
-Nobody can change a coin after launch. These three lines are the claim ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)):
-
-- The coin account has no access keys.
-- Its code is a global contract used by a stated code hash.
-- The contract has no owner, pause, setter or upgrade method (`coin_method_list` test).
-
-```mermaid
-flowchart LR
-  F[Factory] -- launch, one batch --> C[Coin: token + pool + rules]
-  U[Trader wallet] -- buy, sell, send --> C
-  C -- fair_chance events --> W[Watcher + Telegram bot]
-  C -- events and views --> P[Coin page]
-```
-
 ## Network
 
 Testnet only. Testnet NEAR and these tokens have no value.
@@ -255,7 +237,7 @@ Testnet only. Testnet NEAR and these tokens have no value.
 
 <!-- waits on: the line that says the factory keys are deleted -->
 
-The coin's source metadata lists a non-reproducible build command, so the match between a reproducible build of that commit and the hash above is not shown yet. <!-- waits on: the reproducible build of that commit and the hash it prints (match or no match) -->
+The coin's source metadata names commit `b42fdde` and the pinned build image, by digest. That is the NEP-330 record of a reproducible build. A local rebuild that prints the same hash is not shown yet. <!-- waits on: a local Docker rebuild of that commit and the hash it prints (match or no match) -->
 
 ### Recorded testnet runs
 
@@ -284,67 +266,33 @@ scripts/build-coin-reproducible.sh
 
 The script builds from a clone of the committed source, checks the hash against the wasm file, and prints `build-coin-reproducible: commit <commit> code hash <hash>`. It also leaves the hash in `target/near-reproducible/fair_chance_coin/cargo-near-sha256-base58.txt`.
 
-Read the code hash the chain holds for a deployed coin, from any machine:
-
-```sh
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"bag.factory.fairchance.testnet"}}'
-```
-
-```json
-{"result":{"code_hash":"11111111111111111111111111111111","global_contract_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3","storage_usage":6486, ...}}
-```
-
-A coin runs a global contract used by hash, so the field to read is `global_contract_hash` in the reply, not `code_hash`. The chain sets that field when the factory's launch batch runs. It must equal the hash the build prints for the deployed commit. If it differs, the deployed code is not that commit.
-
-The coin also reports a hash itself. This read shows what the coin says, not what the chain holds. The factory passes that hash to `new` at launch.
-
-```sh
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"fc_rules","args_base64":"e30="}}'
-```
-
-For BAG the reply gives `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3` in both reads. The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_hash` field is the hash the coin reports. It should equal the chain's `global_contract_hash`.
-
-The coin's source metadata names commit `b42fdde`. A reproducible build of that commit must print the hash above. <!-- waits on: the result of that reproducible build -->
-
 Open `docs/evidence.md` for what each test proves. Sandbox tests need `NEAR_SANDBOX_BIN_PATH` and a built wasm (`scripts/build-contracts.sh`).
 
 ## Check it from a terminal
 
-These calls only read. They need no wallet and no key. They use the demo coin `bag.factory.fairchance.testnet`. Each output is cut to the fields that matter, and `...` marks a cut.
+These calls only read. They need no wallet and no key. They use the demo coin. The recorded output of each call is in [docs/evidence.md](docs/evidence.md#terminal-checks-of-the-bag-coin).
 
 ```sh
-# The coin has no access keys: "keys" must be an empty list.
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"bag.factory.fairchance.testnet"}}'
+COIN=bag.factory.fairchance.testnet
+RPC=https://rpc.testnet.near.org
+call() { curl -s $RPC -H 'content-type: application/json' -d "$1"; echo; }
+
+# 1. The coin has no access keys: "keys" must be an empty list.
+call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"'$COIN'"}}'
+
+# 2. The code hash the chain holds: read global_contract_hash (code_hash stays at the empty value).
+call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"'$COIN'"}}'
+
+# 3. The coin's fixed rules and the hash the coin reports (JSON bytes in result.result).
+call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"'$COIN'","method_name":"fc_rules","args_base64":"e30="}}'
+
+# 4. Where the code comes from: the source link, commit and build image the coin names.
+call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"'$COIN'","method_name":"contract_source_metadata","args_base64":"e30="}}'
 ```
 
-```json
-{"jsonrpc":"2.0","result":{"block_hash":"...","block_height":277644204,"keys":[]},"id":1}
-```
+For BAG, call 2 gives `global_contract_hash` `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, and call 3 gives the same `code_hash`. The hash from call 2 is what the chain holds. The hash from call 3 is what the coin reports; the factory passed it to `new` at launch. The two must match each other, and the hash a reproducible build of the deployed commit prints. If they differ, the deployed code is not that commit. <!-- waits on: a local Docker rebuild of the deployed commit and the hash it prints -->
 
-```sh
-# The coin's fixed rules (the reply holds the bytes of a JSON text in result.result).
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"bag.factory.fairchance.testnet","method_name":"fc_rules","args_base64":"e30="}}'
-```
-
-```json
-{"launch_block":277565791,"p_bps":200,"window_unmarked_s":3600,"window_early_s":86400,"early_blocks":17,"large_threshold_bps":200,"creator_cap_bps":400,"real_cap_c_bps":500,"floor_bps":10,"penalty_bps":1000,"swap_fee_bps":100,"creator_fee_share_bps":3000,"code_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3", ...}
-```
-
-```sh
-# Where the code comes from: the source link and commit the coin names.
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"bag.factory.fairchance.testnet","method_name":"contract_source_metadata","args_base64":"e30="}}'
-```
-
-```json
-{"version":"1.0.0-rc.7","link":"https://github.com/degencodebeast/fair-chance/tree/b42fddecd94f75904636f912c4ce0dccb7e437d9", ...}
-```
-
-The factory account still has an access key. Its keys are deleted after the runs, and the same call on the factory then returns an empty list. <!-- waits on: the factory key deletion and the real output of the call on the factory account -->
+The factory account still has an access key, so call 1 on the factory does not return an empty list yet. <!-- waits on: the factory key deletion and the real output of call 1 on the factory account -->
 
 The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill") and in `evidence/testnet-run.json`.
 
