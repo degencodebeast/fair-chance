@@ -10,7 +10,10 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 SUPPLY, VIRTUAL, FEE, CAP, FLOOR = 1e9, 100., .01, .05, .001
 ALLOWANCE = 1 / math.sqrt(1 - .02) - 1
+TOKEN_BASE = 10**18
 def token_floor(value): return int((Decimal(str(value))*Decimal('1e18')).quantize(Decimal('1'),rounding=ROUND_DOWN))/1e18
+def token_base_floor(value): return int((Decimal(str(value))*Decimal('1e18')).quantize(Decimal('1'),rounding=ROUND_DOWN))
+def token_amount(base_units): return Decimal(base_units)/Decimal(TOKEN_BASE)
 def near_floor(value): return int((Decimal(str(value))*Decimal('1e24')).quantize(Decimal('1'),rounding=ROUND_DOWN))/1e24
 def near_ceil(value): return int((Decimal(str(value))*Decimal('1e24')).quantize(Decimal('1'),rounding='ROUND_CEILING'))/1e24
 
@@ -21,6 +24,7 @@ class Policy:
 @dataclass
 class Pool:
     token: float = SUPPLY; near: float = VIRTUAL; real: float = 0.; creator_fees: float = 0.
+    last_buy_tokens_base: int = 0
     def price(self): return self.near / self.token
     def gross(self, tokens):
         if tokens<=0:return 0.
@@ -29,8 +33,13 @@ class Pool:
             return near_floor(Decimal(str(self.near))*Decimal(str(tokens))/(Decimal(str(self.token))+Decimal(str(tokens))))
     def buy(self, near, share, extra=0.):
         creator = near * FEE * share; effective = near * (1 - FEE - extra)
-        out = self.token - self.token * self.near / (self.near + effective)
-        out = token_floor(out)
+        with localcontext() as ctx:
+            ctx.prec=80
+            token_reserve,near_reserve=Decimal(str(self.token)),Decimal(str(self.near))
+            effective_near=Decimal(str(near))*(1-Decimal(str(FEE))-Decimal(str(extra)))
+            output=token_reserve*effective_near/(near_reserve+effective_near)
+            self.last_buy_tokens_base=int((output*Decimal('1e18')).to_integral_value(rounding=ROUND_DOWN))
+        out = self.last_buy_tokens_base / 1e18
         self.token -= out; self.near += near - creator; self.real += near - creator; self.creator_fees += creator
         return out
     def sell(self, tokens, share, penalty=0.):
@@ -57,6 +66,7 @@ class Pool:
 @dataclass
 class Wallet:
     name: str; tokens: float = 0.; marked: float = 0.; creator: bool = False; ever_large: bool = False; received: float = 0.
+    tokens_base: int | None = None; marked_base: int | None = None
 
 @dataclass
 class Engine:
@@ -67,11 +77,15 @@ class Engine:
     cap_net: dict = field(default_factory=lambda: defaultdict(float))
     cap_marked_gross: dict = field(default_factory=lambda: defaultdict(float))
     class_floors: dict = field(default_factory=dict); last_limit_reason: dict = field(default_factory=dict); last_refusal_code: dict = field(default_factory=dict)
-    last_counted_near: dict = field(default_factory=dict)
+    last_counted_near: dict = field(default_factory=dict); last_sell_tokens_base: dict = field(default_factory=dict)
     snaps: dict = field(default_factory=dict); reserve_snaps: dict = field(default_factory=dict); prices: dict = field(default_factory=dict); brakes: int = 0; penalties: float = 0.; band_penalties: float = 0.; max_drawdown: float = 0.
     def __post_init__(self): self.initial_price = self.pool.price()
     def wallet(self, name, creator=False):
         w = self.wallets.setdefault(name, Wallet(name)); w.creator |= creator; return w
+    def wallet_base(self,name,marked=False):
+        w=self.wallet(name);attr='marked_base' if marked else 'tokens_base'
+        if getattr(w,attr) is None:setattr(w,attr,token_base_floor(w.marked if marked else w.tokens))
+        return getattr(w,attr)
     def bucket(self, hour, marked=False): return int(hour // (24 if marked else self.policy.window))
     def cap_bucket(self, hour): return int(hour // self.policy.window)
     def price(self): return self.pool.price()
@@ -100,6 +114,7 @@ class Engine:
     def reserve_snapshot(self, hour):
         return self.reserve_snaps.setdefault(self.bucket(hour), self.pool.token)
     def buy(self, name, near, hour, early=False, block=10_000, creator=False):
+        self.pool.last_buy_tokens_base=0
         self.snapshot(hour, block); self.reserve_snapshot(hour); self.class_floor(name,hour); marked = block <= self.policy.n or creator or self.wallet(name).creator
         b=max(0,block)
         extra=.49*max(0.,18-min(18,b))/18 if b < 18 else 0.
@@ -107,7 +122,10 @@ class Engine:
         group = creator or self.wallet(name).creator
         if group and self.creator_tokens() + estimate > .04 * SUPPLY: return 0.
         out = self.pool.buy(near, self.policy.creator_fee_share, extra); w = self.wallet(name, group)
-        w.tokens += out; w.marked += out if marked or group else 0.; w.ever_large |= w.tokens >= self.policy.threshold * SUPPLY
+        w.tokens_base=self.wallet_base(name)+self.pool.last_buy_tokens_base
+        w.marked_base=self.wallet_base(name,True)+(self.pool.last_buy_tokens_base if marked or group else 0)
+        w.tokens=w.tokens_base/TOKEN_BASE;w.marked=w.marked_base/TOKEN_BASE
+        w.ever_large |= w.tokens >= self.policy.threshold * SUPPLY
         if marked or group:self.marked_bought[name,self.bucket(hour,True)]+=out
         self.raise_class_floor(name,hour)
         if not marked and not group: self.unmarked_bought[name, self.bucket(hour)] += out
@@ -117,9 +135,15 @@ class Engine:
     def transfer(self, source, target, amount, block, target_creator=False, hour=0.):
         self.reserve_snapshot(hour)
         a,b = self.wallet(source),self.wallet(target,target_creator)
+        a_tokens=self.wallet_base(source);a_marked=self.wallet_base(source,True)
+        b_tokens=self.wallet_base(target);b_marked=self.wallet_base(target,True)
         self.class_floor(source,hour);self.class_floor(target,hour)
         if a.ever_large or amount > a.tokens or (not b.ever_large and b.tokens+amount>=self.policy.threshold*SUPPLY) or (b.creator and self.creator_tokens() + amount > .04*SUPPLY): return False
-        marked=min(amount,a.marked); a.tokens-=amount; a.marked-=marked; b.tokens+=amount; b.marked+=amount if b.creator else marked
+        amount_base=token_base_floor(amount);marked_base=min(amount_base,a_marked)
+        a.tokens_base=a_tokens-amount_base;a.marked_base=a_marked-marked_base
+        b.tokens_base=b_tokens+amount_base;b.marked_base=b_marked+(amount_base if b.creator else marked_base)
+        a.tokens=a.tokens_base/TOKEN_BASE;a.marked=a.marked_base/TOKEN_BASE
+        b.tokens=b.tokens_base/TOKEN_BASE;b.marked=b.marked_base/TOKEN_BASE
         self.raise_class_floor(source,hour);self.raise_class_floor(target,hour);return True
     def cap_key(self, name, hour): return name, self.cap_bucket(hour)
     def record_cap_buy(self, name, hour, near):
@@ -143,13 +167,13 @@ class Engine:
     def record_marked_sell(self,name,hour,paid):
         self.cap_marked_gross[self.cap_key(name,hour)]+=paid
     def search_fill(self, allowed, most, fits):
-        lo=max(0,int(unit_floor(allowed,1e18)));hi=max(lo,int(unit_floor(most,1e18)))
-        if hi==lo or fits(hi/1e18):return hi/1e18
+        lo=max(0,allowed);hi=max(lo,most)
+        if hi==lo or fits(hi):return hi
         while hi-lo>1:
             mid=(lo+hi)//2
-            if fits(mid/1e18):lo=mid
+            if fits(mid):lo=mid
             else:hi=mid
-        return lo/1e18
+        return lo
     def floor_tokens(self, name, hour, marked):
         reserve=self.reserve_snapshot(hour);cap_bucket=self.cap_bucket(hour)
         if marked:
@@ -162,6 +186,10 @@ class Engine:
         return max(0.,allowance-used)
     def quote_sell(self, name, marked, unmarked, bought_not_sold, never_counted,
                    penalty_free, hour):
+        marked,unmarked=token_amount(marked),token_amount(unmarked)
+        bought_not_sold=Decimal(str(bought_not_sold))
+        never_counted=Decimal('Infinity') if never_counted==math.inf else token_amount(never_counted)
+        penalty_free=Decimal('Infinity') if penalty_free==math.inf else token_amount(penalty_free)
         tokens=marked+unmarked
         gross=min(self.pool.gross(tokens),self.pool.real)
         fee=near_ceil(gross*FEE)
@@ -186,50 +214,53 @@ class Engine:
         return {'tokens':tokens,'gross':gross,'fee':fee,'creator':creator,'penalty':penalty,
                 'payout':payout,'marked_out':marked_out,'counted':counted,'bought_sold':bought,
                 'cap':cap}
-    def sell(self, name, wanted, hour, block=10_000):
+    def sell(self, name, wanted, hour, block=10_000, wanted_base=None):
         self.reserve_snapshot(hour);self.snapshot(hour,block);w=self.wallet(name)
         self.class_floor(name,hour);account_class=self.account_class(name,hour)
-        requested=min(token_floor(wanted),token_floor(w.tokens))
+        requested_base=(min(token_base_floor(wanted),self.wallet_base(name)) if wanted_base is None
+                        else min(wanted_base,self.wallet_base(name)))
+        requested=requested_base/1e18
         self.last_refusal_code[name]=None
         if block<=self.policy.n and w.marked>0:
             self.last_refusal_code[name]='FC_EARLY_WINDOW'
-            self.last_limit_reason[name]=None;self.last_counted_near[name]=0.
+            self.last_limit_reason[name]=None;self.last_counted_near[name]=0.;self.last_sell_tokens_base[name]=0
             return 0.,0.
         cap_bucket=self.cap_bucket(hour);marked_bucket=self.bucket(hour,True)
         marked_asked=min(requested,w.marked)
         marked_amounts,marked_supply,marked_reserve=self.snaps.get(
             marked_bucket,({},0.,self.pool.token))
         marked_allowance=ALLOWANCE*marked_reserve*marked_amounts.get(name,0.)/marked_supply if marked_supply else 0.
-        marked_most=min(marked_asked,max(0.,marked_allowance-self.marked_sold[name,marked_bucket]))
-        unmarked_balance=max(0.,w.tokens-w.marked)
-        unmarked_asked=min(max(0.,requested-marked_most),unmarked_balance)
+        marked_most_base=min(requested_base,self.wallet_base(name,True),token_base_floor(max(0.,marked_allowance-self.marked_sold[name,marked_bucket])))
+        unmarked_balance_base=max(0,self.wallet_base(name)-self.wallet_base(name,True))
+        unmarked_asked_base=min(max(0,requested_base-marked_most_base),unmarked_balance_base)
 
         allowance=ALLOWANCE*self.reserve_snapshot(hour);window_bucket=self.bucket(hour)
         bought_key=(name,cap_bucket);bought_not_sold=self.cap_bought_tokens[bought_key]
         room=max(0.,allowance+self.unmarked_bought[name,window_bucket]-self.unmarked_sold[name,window_bucket])
-        floor_left=self.floor_tokens(name,hour,False)
+        room_base=token_base_floor(room)
+        floor_left_base=token_base_floor(self.floor_tokens(name,hour,False))
         if account_class=='large':
-            unmarked_most=min(unmarked_asked,room)
-            unmarked_always=min(unmarked_most,floor_left)
-            penalty_free=float('inf');never_counted=0.
-            floor_before=floor_left
+            unmarked_most_base=min(unmarked_asked_base,room_base)
+            unmarked_always_base=min(unmarked_most_base,floor_left_base)
+            penalty_free=math.inf;never_counted=0
+            floor_before_base=floor_left_base
         elif account_class=='band':
-            unmarked_always=min(unmarked_asked,room);unmarked_most=unmarked_asked
+            unmarked_always_base=min(unmarked_asked_base,room_base);unmarked_most_base=unmarked_asked_base
             start=self.prices.setdefault(cap_bucket,self.price())
-            if unmarked_most>unmarked_always and self.policy.brake is not None and 1-self.price()/start>=self.policy.brake:
-                self.brakes+=1;unmarked_most=unmarked_always
-            penalty_free=room;never_counted=max(0.,allowance-self.unmarked_sold[name,window_bucket])
-            floor_before=None
+            if unmarked_most_base>unmarked_always_base and self.policy.brake is not None and 1-self.price()/start>=self.policy.brake:
+                self.brakes+=1;unmarked_most_base=unmarked_always_base
+            penalty_free=room_base;never_counted=token_base_floor(max(0.,allowance-self.unmarked_sold[name,window_bucket]))
+            floor_before_base=None
         else:
-            unmarked_most=unmarked_asked
-            unmarked_always=0. if bought_not_sold>0 else unmarked_asked
-            penalty_free=float('inf');never_counted=float('inf');floor_before=None
+            unmarked_most_base=unmarked_asked_base
+            unmarked_always_base=0 if bought_not_sold>0 else unmarked_asked_base
+            penalty_free=math.inf;never_counted=math.inf;floor_before_base=None
 
-        marked_floor=self.floor_tokens(name,hour,True) if marked_most else 0.
-        marked_always=min(marked_most,marked_floor)
-        def unmarked_after_marked(marked):
-            if floor_before is not None:return min(unmarked_most,max(0.,floor_before-marked))
-            return unmarked_always
+        marked_floor_base=token_base_floor(self.floor_tokens(name,hour,True)) if marked_most_base else 0
+        marked_always_base=min(marked_most_base,marked_floor_base)
+        def unmarked_after_marked(marked_base):
+            if floor_before_base is not None:return min(unmarked_most_base,max(0,floor_before_base-marked_base))
+            return unmarked_always_base
         def fits(marked,unmarked):
             out=self.quote_sell(name,marked,unmarked,bought_not_sold,never_counted,penalty_free,hour)
             with localcontext() as ctx:
@@ -237,40 +268,46 @@ class Engine:
                 real_after=Decimal(str(self.pool.real))-Decimal(str(out['payout']))-Decimal(str(out['creator']))
                 return Decimal(str(out['cap']))<=Decimal(str(CAP))*real_after
         marked_filled=self.search_fill(
-            marked_always,marked_most,
+            marked_always_base,marked_most_base,
             lambda m:fits(m,unmarked_after_marked(m)))
-        always_after_marked=unmarked_after_marked(marked_filled)
-        used_by_marked=self.quote_sell(name,marked_filled,0.,bought_not_sold,
+        always_after_marked_base=unmarked_after_marked(marked_filled)
+        used_by_marked=self.quote_sell(name,marked_filled,0,bought_not_sold,
                                        never_counted,penalty_free,hour)['cap']
         unmarked_filled=self.search_fill(
-            always_after_marked,unmarked_most,
+            always_after_marked_base,unmarked_most_base,
             lambda u:fits(marked_filled,u) or
                 (account_class=='small' and self.quote_sell(
                     name,marked_filled,u,bought_not_sold,never_counted,
                     penalty_free,hour)['cap']<=used_by_marked))
         result=self.quote_sell(name,marked_filled,unmarked_filled,bought_not_sold,
                                never_counted,penalty_free,hour)
-        total=result['tokens'];payout=result['payout']
+        marked_filled_base,unmarked_filled_base=marked_filled,unmarked_filled
+        total_base=marked_filled_base+unmarked_filled_base
+        marked_filled,unmarked_filled=marked_filled_base/TOKEN_BASE,unmarked_filled_base/TOKEN_BASE
+        total=total_base/TOKEN_BASE;payout=result['payout']
+        self.last_sell_tokens_base[name]=total_base
         if total:
             self.pool.token+=total;self.pool.near-=payout+result['creator']
             self.pool.real-=payout+result['creator'];self.pool.creator_fees+=result['creator']
-            w.tokens-=total;w.marked-=marked_filled;w.received+=payout
+            w.tokens_base-=total_base;w.marked_base-=marked_filled_base
+            w.tokens=w.tokens_base/TOKEN_BASE;w.marked=w.marked_base/TOKEN_BASE;w.received+=payout
             self.marked_sold[name,marked_bucket]+=marked_filled
             self.marked_sold_hour[name,cap_bucket]+=marked_filled
             self.unmarked_sold[name,window_bucket]+=unmarked_filled
-            self.cap_bought_tokens[bought_key]=max(0.,bought_not_sold-result['bought_sold'])
+            self.cap_bought_tokens[bought_key]=max(0.,bought_not_sold-float(result['bought_sold']))
             if marked_filled:self.record_marked_sell(name,hour,result['marked_out'])
             if result['counted']:self.record_cap_sell(name,hour,result['counted'])
             self.penalties+=result['fee']-result['creator']+result['penalty']
             if account_class=='band':self.band_penalties+=result['penalty']
             if w.tokens==0:w.ever_large=False
         self.raise_class_floor(name,hour)
-        unmarked_floor_used=(account_class=='large' and floor_before is not None and
-                             abs(unmarked_filled-max(0.,floor_before-marked_filled))<=1e-9 and unmarked_filled>0)
-        if total>=requested-1e-18:limit_reason=None
-        elif marked_filled<marked_most:
-            limit_reason='floor' if marked_filled==marked_always and (marked_filled>0 or unmarked_floor_used) else 'cap_full'
-        elif unmarked_filled==unmarked_most:limit_reason='allowance'
+        unmarked_floor_left_base=max(0,floor_before_base-marked_filled_base) if floor_before_base is not None else 0
+        unmarked_floor_used=(account_class=='large' and floor_before_base is not None and
+                             unmarked_filled_base==unmarked_floor_left_base and unmarked_filled_base>0)
+        if total_base>=requested_base:limit_reason=None
+        elif marked_filled_base<marked_most_base:
+            limit_reason='floor' if marked_filled_base==marked_always_base and (marked_filled_base>0 or unmarked_floor_used) else 'cap_full'
+        elif unmarked_filled_base==unmarked_most_base:limit_reason='allowance'
         elif unmarked_floor_used:limit_reason='floor'
         else:limit_reason='cap_full'
         self.last_limit_reason[name]=limit_reason
@@ -279,9 +316,12 @@ class Engine:
     def split(self, source,count):
         w=self.wallet(source)
         if w.ever_large:return []
-        names=[f'{source}-{i}' for i in range(count)];each=w.tokens/count
-        for n in names:self.wallet(n).tokens+=each
-        w.tokens=0.;return names
+        names=[f'{source}-{i}' for i in range(count)];units=self.wallet_base(source);each=units//count
+        for i,n in enumerate(names):
+            target=self.wallet(n);part=each+(1 if i<units%count else 0)
+            target.tokens_base=self.wallet_base(n)+part;target.marked_base=self.wallet_base(n,True)
+            target.tokens=target.tokens_base/TOKEN_BASE;target.marked=target.marked_base/TOKEN_BASE
+        w.tokens_base=0;w.marked_base=0;w.tokens=0.;w.marked=0.;return names
 
 def seed(policy, early_near=3.):
     e=Engine(policy)
@@ -354,6 +394,7 @@ def cap_cases(output=None):
     def start(e,hour=0):
         for w in e.wallets.values():
             w.tokens=token_floor(w.tokens);w.marked=min(token_floor(w.marked),w.tokens)
+            w.tokens_base=token_base_floor(w.tokens);w.marked_base=token_base_floor(w.marked)
         holder_units={n:int(unit(w.tokens,1e18)) for n,w in e.wallets.items()}
         reserve_base=int(unit(SUPPLY,1e18))-sum(holder_units.values())
         e.pool.token=reserve_base/1e18
@@ -380,14 +421,16 @@ def cap_cases(output=None):
     def case(name,state,actions,**extra):cases.append({'name':name,'start_state':state,'actions':actions,**extra})
     def buy(e,actions,name,near,block,second=0,creator=False):
         h=second/3600;class_before=e.account_class(name,h);large_before=e.wallet(name).ever_large;cap_left_before=e.cap_left(h);out=e.buy(name,near,h,block=block,creator=creator)
-        actions.append({'account':name,'kind':'buy','amount_near_yocto':unit(near,1e24),'time_s':second,'block':block,'result':{'tokens_filled_base':unit(out,1e18),'large_before':large_before,'large_after':e.wallet(name).ever_large,'class_before':class_before,'class_after':e.account_class(name,h),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24)}})
+        actions.append({'account':name,'kind':'buy','amount_near_yocto':unit(near,1e24),'time_s':second,'block':block,'result':{'tokens_filled_base':str(e.pool.last_buy_tokens_base),'large_before':large_before,'large_after':e.wallet(name).ever_large,'class_before':class_before,'class_after':e.account_class(name,h),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24)}})
         return out
-    def sell(e,actions,name,amount,second=0,block=100):
+    def sell(e,actions,name,amount,second=0,block=100,amount_base=None):
         h=second/3600;e.reserve_snapshot(h);e.snapshot(h,block);w=e.wallet(name);class_before=e.account_class(name,h);all_balance=amount=='all'
         requested=w.tokens if all_balance else amount
-        prior_penalty=e.band_penalties;cap_left_before=e.cap_left(h);filled,paid=e.sell(name,requested,h,block);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
-        action={'account':name,'kind':'sell','amount':'all' if all_balance else unit(requested,1e18),'time_s':second,'block':block,
-                'result':{'tokens_filled_base':unit(filled,1e18),'near_out_yocto':unit(paid,1e24),'counted_near_yocto':unit(e.last_counted_near.get(name,0.),1e24),'fill':'full' if int(unit(filled,1e18))>=int(unit(requested,1e18)) else ('none' if int(unit(filled,1e18))==0 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24),'class_before':class_before,'class_after':class_after}}
+        requested_base=token_base_floor(requested) if amount_base is None else amount_base
+        prior_penalty=e.band_penalties;cap_left_before=e.cap_left(h);filled,paid=e.sell(name,requested,h,block,wanted_base=amount_base);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
+        filled_base=e.last_sell_tokens_base.get(name,0)
+        action={'account':name,'kind':'sell','amount':'all' if all_balance else (str(amount_base) if amount_base is not None else unit(requested,1e18)),'time_s':second,'block':block,
+                'result':{'tokens_filled_base':str(filled_base),'near_out_yocto':unit(paid,1e24),'counted_near_yocto':unit(e.last_counted_near.get(name,0.),1e24),'fill':'full' if filled_base>=requested_base else ('none' if filled_base==0 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24),'class_before':class_before,'class_after':class_after}}
         if e.last_refusal_code.get(name):action['result']['refusal_code']=e.last_refusal_code[name]
         actions.append(action)
     p=Policy(17,.02,None,.1)
@@ -467,7 +510,7 @@ def cap_cases(output=None):
     # The same account's resale and another marked holder compete for one cap.
     e=Engine(p,Pool(token=SUPPLY-20_000_000.,near=200.,real=100.));e.wallet('a').tokens=10_000_000;e.wallet('a').marked=10_000_000
     e.wallet('b').tokens=10_000_000;e.wallet('b').marked=10_000_000;state=start(e);actions=[]
-    sell(e,actions,'a','all',1);bought=buy(e,actions,'a',.1,100,2);sell(e,actions,'a',token_floor(bought),3);sell(e,actions,'b','all',4)
+    sell(e,actions,'a','all',1);buy(e,actions,'a',.1,100,2);bought_base=e.pool.last_buy_tokens_base;sell(e,actions,'a',bought_base/1e18,3,amount_base=bought_base);sell(e,actions,'b','all',4)
     case('marked-resale-two-account-cap',state,actions)
     # Buying while the cap is full creates only the room attributable to that buy.
     e=Engine(p,Pool(near=110.,real=10.));e.wallet('cap-other');e.wallet('small-buyer');e.cap_net['cap-other',0]=CAP*e.pool.real

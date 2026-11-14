@@ -58,7 +58,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "37329742208541624000000000",
+            "tokens_filled_base": "37329742208541746825702193",
             "large_before": false,
             "large_after": true,
             "class_before": "band",
@@ -75,7 +75,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "47279235869708010000000000",
+            "tokens_filled_base": "47279235869708136000000000",
             "near_out_yocto": "3960000000000000000000000",
             "counted_near_yocto": "3960000000000000000000000",
             "fill": "partial",
@@ -146,7 +146,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "923129620643377300000000",
+            "tokens_filled_base": "923129620643393371963577",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
@@ -159,19 +159,19 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "20923129620643377000000000",
+          "amount": "20923129620643392000000000",
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "12911252650806658000000000",
+            "tokens_filled_base": "12911252650806659844417354",
             "near_out_yocto": "1333104832905148300000000",
-            "counted_near_yocto": "288344758354742500000000",
+            "counted_near_yocto": "288344758354742270000000",
             "fill": "partial",
             "limit_reason": "cap_full",
-            "penalty_near": "21148202867270360000000",
-            "cap_used_yocto": "188344758354742500000000",
+            "penalty_near": "21148202867270188000000",
+            "cap_used_yocto": "188344758354742260000000",
             "cap_left_before_yocto": "242857142857142850000000",
-            "cap_left_yocto": "76190476",
+            "cap_left_yocto": "304761904",
             "class_before": "band",
             "class_after": "band"
           }
@@ -309,7 +309,7 @@
           "time_s": 0,
           "block": 0,
           "result": {
-            "tokens_filled_base": "4975124378109455000000000",
+            "tokens_filled_base": "4975124378109452736318407",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -362,7 +362,7 @@
           "time_s": 0,
           "block": 1,
           "result": {
-            "tokens_filled_base": "5244571674891829500000000",
+            "tokens_filled_base": "5244571674891820127272230",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -415,7 +415,7 @@
           "time_s": 0,
           "block": 2,
           "result": {
-            "tokens_filled_base": "5513873081470489500000000",
+            "tokens_filled_base": "5513873081470513739081988",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -468,7 +468,7 @@
           "time_s": 0,
           "block": 3,
           "result": {
-            "tokens_filled_base": "5783028716300130000000000",
+            "tokens_filled_base": "5783028716300187573685387",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -521,7 +521,7 @@
           "time_s": 0,
           "block": 4,
           "result": {
-            "tokens_filled_base": "6052038697707295000000000",
+            "tokens_filled_base": "6052038697707293775412759",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -574,7 +574,7 @@
           "time_s": 0,
           "block": 5,
           "result": {
-            "tokens_filled_base": "6320903143890142000000000",
+            "tokens_filled_base": "6320903143890253554480764",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -627,7 +627,7 @@
           "time_s": 0,
           "block": 6,
           "result": {
-            "tokens_filled_base": "6589622172919512000000000",
+            "tokens_filled_base": "6589622172919633166224734",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -680,7 +680,7 @@
           "time_s": 0,
           "block": 7,
           "result": {
-            "tokens_filled_base": "6858195902738333000000000",
+            "tokens_filled_base": "6858195902738313090444013",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -733,7 +733,7 @@
           "time_s": 0,
           "block": 8,
           "result": {
-            "tokens_filled_base": "7126624451161742000000000",
+            "tokens_filled_base": "7126624451161661575559490",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -786,7 +786,7 @@
           "time_s": 0,
           "block": 9,
           "result": {
-            "tokens_filled_base": "7394907935877800000000000",
+            "tokens_filled_base": "7394907935877711052657700",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -839,7 +839,7 @@
           "time_s": 0,
           "block": 10,
           "result": {
-            "tokens_filled_base": "7663046474447370000000000",
+            "tokens_filled_base": "7663046474447323621780597",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -892,7 +892,7 @@
           "time_s": 0,
           "block": 11,
           "result": {
-            "tokens_filled_base": "7931040184304357000000000",
+            "tokens_filled_base": "7931040184304367008389443",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -945,7 +945,7 @@
           "time_s": 0,
           "block": 12,
           "result": {
-            "tokens_filled_base": "8198889182755947000000000",
+            "tokens_filled_base": "8198889182755884719379830",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -998,7 +998,7 @@
           "time_s": 0,
           "block": 13,
           "result": {
-            "tokens_filled_base": "8466593586982250000000000",
+            "tokens_filled_base": "8466593586982267891878042",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1051,7 +1051,7 @@
           "time_s": 0,
           "block": 14,
           "result": {
-            "tokens_filled_base": "8734153514037369000000000",
+            "tokens_filled_base": "8734153514037425880080256",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1104,7 +1104,7 @@
           "time_s": 0,
           "block": 15,
           "result": {
-            "tokens_filled_base": "9001569080848932000000000",
+            "tokens_filled_base": "9001569080848955289751476",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1157,7 +1157,7 @@
           "time_s": 0,
           "block": 16,
           "result": {
-            "tokens_filled_base": "9268840404218316000000000",
+            "tokens_filled_base": "9268840404218313158703294",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1210,7 +1210,7 @@
           "time_s": 0,
           "block": 17,
           "result": {
-            "tokens_filled_base": "9535967600820899000000000",
+            "tokens_filled_base": "9535967600820984653100186",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1263,7 +1263,7 @@
           "time_s": 0,
           "block": 0,
           "result": {
-            "tokens_filled_base": "4975124378109455000000000",
+            "tokens_filled_base": "4975124378109452736318407",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1280,7 +1280,7 @@
           "time_s": 0,
           "block": 0,
           "result": {
-            "tokens_filled_base": "42441819339322330000000000",
+            "tokens_filled_base": "42441819339322343601895734",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -1297,15 +1297,15 @@
           "time_s": 1,
           "block": 18,
           "result": {
-            "tokens_filled_base": "1014724487728707000000000",
-            "near_out_yocto": "115880614386910270000000",
-            "counted_near_yocto": "115880614386910270000000",
+            "tokens_filled_base": "1014724487728706200000000",
+            "near_out_yocto": "115880614386910190000000",
+            "counted_near_yocto": "115880614386910190000000",
             "fill": "partial",
             "limit_reason": "allowance",
             "penalty_near": "0",
-            "cap_used_yocto": "115880614386910270000000",
+            "cap_used_yocto": "115880614386910190000000",
             "cap_left_before_yocto": "476190476190476160000000",
-            "cap_left_yocto": "360309861803565950000000",
+            "cap_left_yocto": "360309861803566000000000",
             "class_before": "small",
             "class_after": "small"
           }
@@ -1444,7 +1444,7 @@
           "time_s": 3600,
           "block": 100,
           "result": {
-            "tokens_filled_base": "25238558909444932000000000",
+            "tokens_filled_base": "25238558909444985394352482",
             "large_before": false,
             "large_after": true,
             "class_before": "band",
@@ -1461,7 +1461,7 @@
           "time_s": 3601,
           "block": 100,
           "result": {
-            "tokens_filled_base": "25758099782048915000000000",
+            "tokens_filled_base": "25758099782048913020151045",
             "near_out_yocto": "3000000000000000000000000",
             "counted_near_yocto": "3000000000000000000000000",
             "fill": "partial",
@@ -1485,7 +1485,7 @@
             "near_out_yocto": "0",
             "counted_near_yocto": "0",
             "fill": "partial",
-            "limit_reason": "floor",
+            "limit_reason": "cap_full",
             "penalty_near": "0",
             "cap_used_yocto": "500000000000000000000000",
             "cap_left_before_yocto": "0",
@@ -1537,7 +1537,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "26290165530671835000000000",
+            "tokens_filled_base": "26290165530671859785783836",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -1550,11 +1550,11 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount": "26290165530671835000000000",
+          "amount": "26290165530671860000000000",
           "time_s": 3600,
           "block": 100,
           "result": {
-            "tokens_filled_base": "5418135681278818000000000",
+            "tokens_filled_base": "5418135681278818665100354",
             "near_out_yocto": "619047619047619000000000",
             "counted_near_yocto": "619047619047619000000000",
             "fill": "partial",
@@ -1610,7 +1610,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "473684210526315800000000000",
+            "tokens_filled_base": "473684210526315789473684210",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -1627,10 +1627,10 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "473684210526315800000000000",
+            "tokens_filled_base": "473684210526315789473684210",
             "near_out_yocto": "98478947368421060000000000",
             "counted_near_yocto": "98478947368421060000000000",
-            "fill": "full",
+            "fill": "partial",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
@@ -1683,7 +1683,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "26290165530671835000000000",
+            "tokens_filled_base": "26290165530671859785783836",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -1696,11 +1696,11 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount": "26290165530671835000000000",
+          "amount": "26290165530671860000000000",
           "time_s": 3600,
           "block": 100,
           "result": {
-            "tokens_filled_base": "5414011884498481000000000",
+            "tokens_filled_base": "5414011884498481663032779",
             "near_out_yocto": "618529793680565500000000",
             "counted_near_yocto": "618529793680565500000000",
             "fill": "partial",
@@ -1756,7 +1756,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "473684210526315800000000000",
+            "tokens_filled_base": "473684210526315789473684210",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -1773,10 +1773,10 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "473684210526315800000000000",
+            "tokens_filled_base": "473684210526315789473684210",
             "near_out_yocto": "98338263157894740000000000",
             "counted_near_yocto": "98338263157894740000000000",
-            "fill": "full",
+            "fill": "partial",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
@@ -1843,7 +1843,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "2444200603506326700000000",
+            "tokens_filled_base": "2444200603506321853412803",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -1882,7 +1882,7 @@
           "result": {
             "tokens_filled_base": "5000000000000000000000000",
             "near_out_yocto": "989945027189598100000000",
-            "counted_near_yocto": "485167876559719050000000",
+            "counted_near_yocto": "485167876559718160000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
@@ -1990,7 +1990,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "2493514968890190000000000",
+            "tokens_filled_base": "2493514968890195196492931",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -2057,7 +2057,7 @@
           "time_s": 0,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001989820957180000000",
+            "tokens_filled_base": "89001989820916117549420",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
@@ -2070,19 +2070,19 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001989820957180000000",
+          "amount": "89001989820916100000000",
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001989820957180000000",
-            "near_out_yocto": "9801008909202694000000",
-            "counted_near_yocto": "9801008909202694000000",
+            "tokens_filled_base": "89001989820916100000000",
+            "near_out_yocto": "9801008909198170000000",
+            "counted_near_yocto": "9801008909198170000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
             "cap_left_before_yocto": "476666666666666700000000",
-            "cap_left_yocto": "476199951956704560000000",
+            "cap_left_yocto": "476199951956704840000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2094,32 +2094,32 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001828830242160000000",
+            "tokens_filled_base": "89001828830214344261210",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476199951956704560000000",
-            "cap_left_yocto": "476676142432895000000000"
+            "cap_left_before_yocto": "476199951956704840000000",
+            "cap_left_yocto": "476676142432895300000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001828830242160000000",
+          "amount": "89001828830214350000000",
           "time_s": 3,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001828830242160000000",
-            "near_out_yocto": "9801008909185120000000",
-            "counted_near_yocto": "9801008909185120000000",
+            "tokens_filled_base": "89001828830214350000000",
+            "near_out_yocto": "9801008909182060000000",
+            "counted_near_yocto": "9801008909182060000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476676142432895000000000",
-            "cap_left_yocto": "476209427722933800000000",
+            "cap_left_before_yocto": "476676142432895300000000",
+            "cap_left_yocto": "476209427722934300000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2131,32 +2131,32 @@
           "time_s": 4,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001667840123180000000",
+            "tokens_filled_base": "89001667840094967819969",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476209427722933800000000",
-            "cap_left_yocto": "476685618199124300000000"
+            "cap_left_before_yocto": "476209427722934300000000",
+            "cap_left_yocto": "476685618199124700000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001667840123180000000",
+          "amount": "89001667840094960000000",
           "time_s": 5,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001667840123180000000",
-            "near_out_yocto": "9801008909169047000000",
-            "counted_near_yocto": "9801008909169047000000",
+            "tokens_filled_base": "89001667840094960000000",
+            "near_out_yocto": "9801008909165942000000",
+            "counted_near_yocto": "9801008909165942000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476685618199124300000000",
-            "cap_left_yocto": "476218903489163800000000",
+            "cap_left_before_yocto": "476685618199124700000000",
+            "cap_left_yocto": "476218903489164400000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2168,32 +2168,32 @@
           "time_s": 6,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001506850600240000000",
+            "tokens_filled_base": "89001506850557993155675",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476218903489163800000000",
-            "cap_left_yocto": "476695093965354300000000"
+            "cap_left_before_yocto": "476218903489164400000000",
+            "cap_left_yocto": "476695093965354870000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001506850600240000000",
+          "amount": "89001506850557980000000",
           "time_s": 7,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001506850600240000000",
-            "near_out_yocto": "9801008909154477000000",
-            "counted_near_yocto": "9801008909154477000000",
+            "tokens_filled_base": "89001506850557980000000",
+            "near_out_yocto": "9801008909149827000000",
+            "counted_near_yocto": "9801008909149827000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476695093965354300000000",
-            "cap_left_yocto": "476228379255394600000000",
+            "cap_left_before_yocto": "476695093965354870000000",
+            "cap_left_yocto": "476228379255395350000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2205,32 +2205,32 @@
           "time_s": 8,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001345861554160000000",
+            "tokens_filled_base": "89001345861603417107967",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476228379255394600000000",
-            "cap_left_yocto": "476704569731585040000000"
+            "cap_left_before_yocto": "476228379255395350000000",
+            "cap_left_yocto": "476704569731585800000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001345861554160000000",
+          "amount": "89001345861603420000000",
           "time_s": 9,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001345861554160000000",
-            "near_out_yocto": "9801008909128288000000",
-            "counted_near_yocto": "9801008909128288000000",
+            "tokens_filled_base": "89001345861603420000000",
+            "near_out_yocto": "9801008909133714000000",
+            "counted_near_yocto": "9801008909133714000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476704569731585040000000",
-            "cap_left_yocto": "476237855021626500000000",
+            "cap_left_before_yocto": "476704569731585800000000",
+            "cap_left_yocto": "476237855021627000000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2242,32 +2242,32 @@
           "time_s": 10,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001184873223290000000",
+            "tokens_filled_base": "89001184873231228426293",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476237855021626500000000",
-            "cap_left_yocto": "476714045497817000000000"
+            "cap_left_before_yocto": "476237855021627000000000",
+            "cap_left_yocto": "476714045497817540000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001184873223290000000",
+          "amount": "89001184873231240000000",
           "time_s": 11,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001184873223290000000",
-            "near_out_yocto": "9801008909116723000000",
-            "counted_near_yocto": "9801008909116723000000",
+            "tokens_filled_base": "89001184873231240000000",
+            "near_out_yocto": "9801008909117597000000",
+            "counted_near_yocto": "9801008909117597000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476714045497817000000000",
-            "cap_left_yocto": "476247330787859000000000",
+            "cap_left_before_yocto": "476714045497817540000000",
+            "cap_left_yocto": "476247330787859500000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2279,32 +2279,32 @@
           "time_s": 12,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001023885488510000000",
+            "tokens_filled_base": "89001023885441423950425",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476247330787859000000000",
-            "cap_left_yocto": "476723521264049540000000"
+            "cap_left_before_yocto": "476247330787859500000000",
+            "cap_left_yocto": "476723521264049930000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001023885488510000000",
+          "amount": "89001023885441420000000",
           "time_s": 13,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001023885488510000000",
-            "near_out_yocto": "9801008909106667000000",
-            "counted_near_yocto": "9801008909106667000000",
+            "tokens_filled_base": "89001023885441420000000",
+            "near_out_yocto": "9801008909101480000000",
+            "counted_near_yocto": "9801008909101480000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476723521264049540000000",
-            "cap_left_yocto": "476256806554092100000000",
+            "cap_left_before_yocto": "476723521264049930000000",
+            "cap_left_yocto": "476256806554092700000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2316,32 +2316,32 @@
           "time_s": 14,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000862898230550000000",
+            "tokens_filled_base": "89000862898234016700473",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476256806554092100000000",
-            "cap_left_yocto": "476732997030282550000000"
+            "cap_left_before_yocto": "476256806554092700000000",
+            "cap_left_yocto": "476732997030283200000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000862898230550000000",
+          "amount": "89000862898234030000000",
           "time_s": 15,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000862898230550000000",
-            "near_out_yocto": "9801008909084984000000",
-            "counted_near_yocto": "9801008909084984000000",
+            "tokens_filled_base": "89000862898234030000000",
+            "near_out_yocto": "9801008909085368000000",
+            "counted_near_yocto": "9801008909085368000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476732997030282550000000",
-            "cap_left_yocto": "476266282320326200000000",
+            "cap_left_before_yocto": "476732997030283200000000",
+            "cap_left_yocto": "476266282320326750000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2353,32 +2353,32 @@
           "time_s": 16,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000701911687850000000",
+            "tokens_filled_base": "89000701911608971155570",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476266282320326200000000",
-            "cap_left_yocto": "476742472796516660000000"
+            "cap_left_before_yocto": "476266282320326750000000",
+            "cap_left_yocto": "476742472796517200000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000701911687850000000",
+          "amount": "89000701911608970000000",
           "time_s": 17,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000701911687850000000",
-            "near_out_yocto": "9801008909077938000000",
-            "counted_near_yocto": "9801008909077938000000",
+            "tokens_filled_base": "89000701911608970000000",
+            "near_out_yocto": "9801008909069252000000",
+            "counted_near_yocto": "9801008909069252000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476742472796516660000000",
-            "cap_left_yocto": "476275758086560600000000",
+            "cap_left_before_yocto": "476742472796517200000000",
+            "cap_left_yocto": "476275758086561600000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2390,32 +2390,32 @@
           "time_s": 18,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000540925502780000000",
+            "tokens_filled_base": "89000540925566308426028",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
             "class_after": "band",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476275758086560600000000",
-            "cap_left_yocto": "476751948562751050000000"
+            "cap_left_before_yocto": "476275758086561600000000",
+            "cap_left_yocto": "476751948562752050000000"
           }
         },
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000540925502780000000",
+          "amount": "89000540925566300000000",
           "time_s": 19,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000540925502780000000",
-            "near_out_yocto": "9801008909046140000000",
-            "counted_near_yocto": "9801008909046140000000",
+            "tokens_filled_base": "89000540925566300000000",
+            "near_out_yocto": "9801008909053137000000",
+            "counted_near_yocto": "9801008909053137000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476751948562751050000000",
-            "cap_left_yocto": "476285233852796500000000",
+            "cap_left_before_yocto": "476751948562752050000000",
+            "cap_left_yocto": "476285233852797140000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -2427,14 +2427,14 @@
           "time_s": 20,
           "block": 100,
           "result": {
-            "tokens_filled_base": "10566886470098734000000000",
+            "tokens_filled_base": "10566886470098761551150987",
             "large_before": false,
             "large_after": true,
             "class_before": "band",
             "class_after": "large",
             "cap_used_yocto": "0",
-            "cap_left_before_yocto": "476285233852796500000000",
-            "cap_left_yocto": "533428090995653600000000"
+            "cap_left_before_yocto": "476285233852797140000000",
+            "cap_left_yocto": "533428090995654200000000"
           }
         },
         {
@@ -2444,15 +2444,15 @@
           "time_s": 21,
           "block": 100,
           "result": {
-            "tokens_filled_base": "15145836692655975000000000",
-            "near_out_yocto": "1678180387099204000000000",
-            "counted_near_yocto": "1678180387099204000000000",
+            "tokens_filled_base": "15145836692656114096440076",
+            "near_out_yocto": "1678180387099219400000000",
+            "counted_near_yocto": "1678180387099219400000000",
             "fill": "partial",
             "limit_reason": "cap_full",
             "penalty_near": "0",
-            "cap_used_yocto": "476190476190476050000000",
-            "cap_left_before_yocto": "533428090995653600000000",
-            "cap_left_yocto": "47619047",
+            "cap_used_yocto": "476190476190475830000000",
+            "cap_left_before_yocto": "533428090995654200000000",
+            "cap_left_yocto": "161904761",
             "class_before": "large",
             "class_after": "large"
           }
@@ -2796,7 +2796,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "864000000000000100000000",
+            "tokens_filled_base": "864000000000000000000000",
             "near_out_yocto": "97902395584617370000000",
             "counted_near_yocto": "97902395584617370000000",
             "fill": "partial",
@@ -2884,7 +2884,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "3158961579129794000000000",
+            "tokens_filled_base": "3158961579129794002916469",
             "near_out_yocto": "380897417400086540000000",
             "counted_near_yocto": "380897417400086540000000",
             "fill": "partial",
@@ -2908,7 +2908,7 @@
             "near_out_yocto": "0",
             "counted_near_yocto": "0",
             "fill": "partial",
-            "limit_reason": "floor",
+            "limit_reason": "cap_full",
             "penalty_near": "0",
             "cap_used_yocto": "480897417400086500000000",
             "cap_left_before_yocto": "0",
@@ -2928,7 +2928,7 @@
             "near_out_yocto": "0",
             "counted_near_yocto": "0",
             "fill": "partial",
-            "limit_reason": "floor",
+            "limit_reason": "cap_full",
             "penalty_near": "0",
             "cap_used_yocto": "480897417400086500000000",
             "cap_left_before_yocto": "0",
@@ -3012,7 +3012,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "11247222281040635000000000",
+            "tokens_filled_base": "11247222281040635263929474",
             "near_out_yocto": "1232857276475188600000000",
             "counted_near_yocto": "138357136176240570000000",
             "fill": "partial",
@@ -3102,7 +3102,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "900081007290601700000000",
+            "tokens_filled_base": "900081007290656069046214",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -3115,19 +3115,19 @@
         {
           "account": "marked",
           "kind": "sell",
-          "amount": "900081007290601700000000",
+          "amount": "900081007290656100000000",
           "time_s": 3,
           "block": 100,
           "result": {
-            "tokens_filled_base": "900081007290601700000000",
-            "near_out_yocto": "98010891080191290000000",
-            "counted_near_yocto": "98010891080191290000000",
-            "fill": "full",
+            "tokens_filled_base": "900081007290656069046214",
+            "near_out_yocto": "98010891080197210000000",
+            "counted_near_yocto": "98010891080197210000000",
+            "fill": "partial",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "108900000000000000000000",
             "cap_left_before_yocto": "372052380952380970000000",
-            "cap_left_yocto": "367385195662848000000000",
+            "cap_left_yocto": "367385195662847800000000",
             "class_before": "small",
             "class_after": "small"
           }
@@ -3201,11 +3201,11 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "4974746830583191500000000",
+            "tokens_filled_base": "4974746830583192000000000",
             "near_out_yocto": "1000025508902608700000000",
             "counted_near_yocto": "1000025508902608700000000",
             "fill": "partial",
-            "limit_reason": "cap_full",
+            "limit_reason": "allowance",
             "penalty_near": "0",
             "cap_used_yocto": "1000025508902608700000000",
             "cap_left_before_yocto": "4761904761904762000000000",
@@ -3221,7 +3221,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "489768971364498140000000",
+            "tokens_filled_base": "489768971364480604316068",
             "large_before": false,
             "large_after": false,
             "class_before": "band",
@@ -3234,19 +3234,19 @@
         {
           "account": "a",
           "kind": "sell",
-          "amount": "489768971364498140000000",
+          "amount": "489768971364480604316068",
           "time_s": 3,
           "block": 100,
           "result": {
-            "tokens_filled_base": "489768971364498140000000",
-            "near_out_yocto": "98010492267732410000000",
-            "counted_near_yocto": "98010492267732410000000",
+            "tokens_filled_base": "489768971364480604316068",
+            "near_out_yocto": "98010492267728890000000",
+            "counted_near_yocto": "98010492267728890000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
-            "cap_used_yocto": "1000025508902608900000000",
+            "cap_used_yocto": "1000025508902608700000000",
             "cap_left_before_yocto": "3766641157764057300000000",
-            "cap_left_yocto": "3761973991465594000000000",
+            "cap_left_yocto": "3761973991465594300000000",
             "class_before": "band",
             "class_after": "band"
           }
@@ -3258,14 +3258,14 @@
           "time_s": 4,
           "block": 100,
           "result": {
-            "tokens_filled_base": "4974746830583191500000000",
-            "near_out_yocto": "990034897802205800000000",
-            "counted_near_yocto": "990034897802205800000000",
+            "tokens_filled_base": "4974746830583192000000000",
+            "near_out_yocto": "990034897802206000000000",
+            "counted_near_yocto": "990034897802206000000000",
             "fill": "partial",
-            "limit_reason": "cap_full",
+            "limit_reason": "allowance",
             "penalty_near": "0",
             "cap_used_yocto": "1990060406704814700000000",
-            "cap_left_before_yocto": "3761973991465594000000000",
+            "cap_left_before_yocto": "3761973991465594300000000",
             "cap_left_yocto": "2771939093663388300000000",
             "class_before": "band",
             "class_after": "band"
@@ -3346,7 +3346,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "899190728344559700000000",
+            "tokens_filled_base": "899190728344489959036866",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -3363,15 +3363,15 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "899190728344559700000000",
-            "near_out_yocto": "98010890198828670000000",
-            "counted_near_yocto": "98010890198828670000000",
+            "tokens_filled_base": "899190728344489900000000",
+            "near_out_yocto": "98010890198821050000000",
+            "counted_near_yocto": "98010890198821050000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "500000000000000000000000",
             "cap_left_before_yocto": "4761904761904762000000",
-            "cap_left_yocto": "94719514341428580000",
+            "cap_left_yocto": "94719514341809530000",
             "class_before": "small",
             "class_after": "small"
           }
@@ -3475,7 +3475,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "719352582675576200000000",
+            "tokens_filled_base": "719352582675591967229493",
             "large_before": false,
             "large_after": false,
             "class_before": "small",
@@ -3492,7 +3492,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "65940653411929250000000000",
+            "tokens_filled_base": "65940653411929263000000000",
             "large_before": false,
             "large_after": true,
             "class_before": "small",
@@ -3525,11 +3525,11 @@
         {
           "account": "small-buyer",
           "kind": "sell",
-          "amount": "719352582675576200000000",
+          "amount": "719352582675591900000000",
           "time_s": 4,
           "block": 100,
           "result": {
-            "tokens_filled_base": "671081342185015300000000",
+            "tokens_filled_base": "671081342185015387208047",
             "near_out_yocto": "107855282765119760000000",
             "counted_near_yocto": "107855282765119760000000",
             "fill": "partial",
@@ -3599,7 +3599,7 @@
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "4260178312618033000000000",
+            "tokens_filled_base": "4260178312618033372859671",
             "near_out_yocto": "476190476190476160000000",
             "counted_near_yocto": "476190476190476160000000",
             "fill": "partial",
@@ -3619,7 +3619,7 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "879851173965811600000000",
+            "tokens_filled_base": "879851173965764377498814",
             "large_before": true,
             "large_after": true,
             "class_before": "large",
@@ -3632,11 +3632,11 @@
         {
           "account": "mixed",
           "kind": "sell",
-          "amount": "879851173965811600000000",
+          "amount": "879851173965764500000000",
           "time_s": 3,
           "block": 100,
           "result": {
-            "tokens_filled_base": "42711246007034490000000",
+            "tokens_filled_base": "42711246007034493838461",
             "near_out_yocto": "4761904761904773000000",
             "counted_near_yocto": "4761904761904773000000",
             "fill": "partial",

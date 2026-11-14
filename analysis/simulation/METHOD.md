@@ -72,9 +72,10 @@ checks. Test 11 scales marked early supply to 9%, 23%, and 41%, retaining a
 It includes both one-floor sell orders, a marked sell held at the cap with the
 unmarked floor tested separately, `cap_left` before and after sells at s=30%,
 and a band sell stopped below the full `cap_left` amount. The file records the creator fee share. Pool state uses binary floats; sell
-fill searches use integer token base units, and gross output, fees and penalties
-are quantized to yoctoNEAR. `cap_left` is serialized by rounding down; other
-amounts are rounded to the nearest base unit.
+fills and limit comparisons use integer token base units. Buy outputs are
+floored from a high-precision decimal quote; gross output, fees and penalties
+are quantized to yoctoNEAR. `cap_left` is calculated from binary-float pool and
+cap state, then serialized by rounding down.
 
 The simulation is derived from the published rules. Contract code was consulted
 only to settle implementation details: class is large while its large flag
@@ -83,14 +84,19 @@ a marked sell in blocks 0 to N refuses the whole sell, each sell is one swap,
 and the cap check uses real NEAR after the actual net payout, including the
 penalty retained in the pool. The rc.7 `cap_left` formula was implemented from
 the interface text and checked against the pool's post-sell equation. These
-details are implemented independently in Python. No rule-text/code
-disagreement remains in the rc.7 comparison cases; rc.6 resolved the earlier
-band allowance wording difference.
+details are implemented independently in Python. In the Rust cross-check of
+commit `5165885`, the remaining accepted numeric differences are `cap_left_yocto`
+after cap-stopped sells in `full-cap-floor-and-second-sell` action 2 and
+`cap-left-s-30` actions 1 and 2. These fields can differ by up to 1e9 yoctoNEAR
+because pool reserves and cap records remain binary floats; the reviewer
+accepted that tolerance. The rule behavior in those cases is `cap_full`. This
+is a numeric representation difference, not a rule-text/code disagreement.
+rc.6 resolved the earlier band allowance wording difference.
 
 The model stores reserve state as binary floats and uses high-precision decimal
-arithmetic when converting swap quotes to yoctoNEAR. It searches limited fills
-in integer token base units; values are rounded only at the documented output
-boundaries.
+arithmetic when converting swap quotes to base units. It searches limited
+fills in integer token base units; NEAR values are rounded at the documented
+yoctoNEAR boundaries.
 
 Run
 `python3 analysis/simulation/charts.py`
