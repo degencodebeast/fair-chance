@@ -60,16 +60,15 @@ describe("hero buttons", () => {
 });
 
 describe("README pitch line", () => {
-  it("is its own plain paragraph right after the bold headline", () => {
+  it("is the bold headline, then one story paragraph that says what Fair Chance is and that it slows the dump", () => {
     const lines = readFileSync(new URL("../../README.md", import.meta.url), "utf8").split("\n");
     const head = lines.indexOf(`**${landingCopy.headline}**`);
     expect(head).toBeGreaterThan(-1);
     expect(lines[head + 1]).toBe("");
-    expect(lines[head + 2]).toBe(
-      "The coin cannot know who is in a cabal, so it gives a tighter limit to whoever bought in the first blocks.",
-    );
+    const story = lines[head + 2]!;
+    expect(story).toMatch(/^A new memecoin goes live/);
+    expect(story).toContain("Fair Chance is a memecoin launchpad on NEAR.");
+    expect(story).toContain("slows the dump at launch");
     expect(lines[head + 3]).toBe("");
-    expect(lines[head + 4]).toBe(landingCopy.subheadline);
-    expect(lines[head + 5]).toBe("");
   });
 });

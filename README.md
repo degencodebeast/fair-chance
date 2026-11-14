@@ -2,15 +2,9 @@
 
 **You buy. The cabal dumps on you. You're left holding the bag.**
 
-The coin cannot know who is in a cabal, so it gives a tighter limit to whoever bought in the first blocks.
-
-Fair Chance slows the dump at launch, inside the coin contract.
-
-Fair Chance is a memecoin launchpad on NEAR where that story needs a different ending. Every coin it launches has sell limits written into the coin contract. The creator, early buyers and large holders can sell into the pool at the pace the pool's depth allows, and no faster. A large holder cannot split a bag by sending it to other wallets.
+A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their bags and the price crashes. You're left holding the bag. Fair Chance is a memecoin launchpad on NEAR. Every coin it launches slows the dump at launch, inside the coin itself, so snipers, the creator and whales sell a bit at a time.
 
 Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-rc.7 (the version becomes 1.0.0 when every rule passes its sandbox tests).
-
-<!-- waits on: the testnet deploy (links row: live page, demo video with its length, "no login, no key") -->
 
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
