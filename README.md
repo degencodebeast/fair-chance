@@ -10,9 +10,9 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 
 ## Contents
 
-- [Why memecoins](#why-memecoins)
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
+- [Why memecoins](#why-memecoins)
 - [Try it in 90 seconds](#try-it-in-90-seconds)
 - [Run the sniper scene yourself](#run-the-sniper-scene-yourself)
 - [For judges](#for-judges)
@@ -32,12 +32,6 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 
 Deeper pages: [evidence](docs/evidence.md), [TLA+ model](docs/model/README.md), [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), [GLOSSARY](GLOSSARY.md), [ADRs](docs/adr/).
 
-## Why memecoins
-
-People buy memecoins for more than the price. In Kraken's 2025 survey of US crypto holders, the top reasons people first became interested in memecoins were the price swings, a tip from friends or family, and the fun, satirical nature of the coins. 23% said they bought memecoins as a source of entertainment ([Kraken](https://www.kraken.com/learn/memecoin-survey)). A memecoin is a joke that a crowd shares, with a ticker, a picture and a price, and anyone can join with one buy.
-
-NEAR already has memecoin launchpads, such as meme.cooking and nearly.trade ([neartrade analytics](https://www.neartrade.lol/analytics)), and this hackathon has a track for them. The fun ends when each new buyer is the exit for the insiders. A token is the right place for the fix, because every buy and sell goes through the token's own contract, so the rule runs on every trade and needs no app or server to enforce it.
-
 ## The problem
 
 A new memecoin launches, and in the first minutes the creator and a few large wallets sell into the pool. Later buyers take the loss. Tools that warn a buyer act after the damage. A high fee on early buys is paid once, and it does not limit the later sells. [OVERVIEW](docs/OVERVIEW.md) has the full case.
@@ -47,6 +41,12 @@ One preprint measured pump.fun on Solana from 8 August to 18 September 2026: ret
 ## What it does
 
 The sell limits live in the coin contract, so no off-chain part can lift them. Each coin has its own pool and the same fixed rules. A sell above a limit fills in part, and the rest stays in the wallet. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
+
+## Why memecoins
+
+People buy memecoins for more than the price. In Kraken's 2025 survey of US crypto holders, the top reasons people first became interested in memecoins were the price swings, a tip from friends or family, and the fun, satirical nature of the coins. 23% said they bought memecoins as a source of entertainment ([Kraken](https://www.kraken.com/learn/memecoin-survey)). A memecoin is a joke that a crowd shares, with a ticker, a picture and a price, and anyone can join with one buy.
+
+NEAR already has memecoin launchpads, such as meme.cooking and nearly.trade ([neartrade analytics](https://www.neartrade.lol/analytics)), and this hackathon has a track for them. The fun ends when each new buyer is the exit for the insiders. A token is the right place for the fix, because every buy and sell goes through the token's own contract, so the rule runs on every trade and needs no app or server to enforce it.
 
 ## Try it in 90 seconds
 
