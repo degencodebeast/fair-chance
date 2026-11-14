@@ -301,9 +301,9 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
       : na,
   );
   large.lines.push(
-    line(`Large from ${percentOfBps(r.rules.largeThresholdBps)} of supply. Large accounts cannot send tokens until their balance is zero.`),
+    line(`Large from ${percentOfBps(r.rules.largeThresholdBps)} of supply. A large account cannot send tokens to other wallets. It can sell, and it stays large until it holds none.`),
   );
-  large.lines.push(line(`Each account has its own allowance every ${hoursText(r.rules.windowUnmarkedS)}.`));
+  large.lines.push(line(`Each account has its own sell allowance, new every ${hoursText(r.rules.windowUnmarkedS)}.`));
 
   const cap: Card = { id: "cap", title: "Pool cap this hour", chip: null, lines: [], meter: null };
   if (r.cap.kind === "value" && ctx.nowNs >= r.cap.value.windowEndNs) {
