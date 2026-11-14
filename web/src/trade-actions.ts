@@ -1,20 +1,15 @@
 // The steps of a buy and a sell from the page: read the coin's quote, build the transaction, ask the
 // wallet to sign and send it, and read the result from the final outcome. The page signs nothing:
-// the visitor approves each transaction in the wallet. The minimum of each trade is the quote minus
-// a fixed 1% margin, so a small price move between the quote and the block does not refuse it.
+// the visitor approves each transaction in the wallet. The builders set each minimum from the quote
+// with their fixed margin (tx-builders.ts); this file does no price math.
 import { parseAccount, parseSellQuote } from "./account-views.ts";
 import { loadBuyQuote } from "./buy-quote.ts";
 import type { ChainReader } from "./chain.ts";
 import type { LaunchFormInput } from "./launch-form-model.ts";
 import { buildBuy, buildLaunch, buildSell, LAUNCH_STORAGE_DEPOSIT, readBuyerStorage } from "./tx-builders.ts";
-import { REASON_SENTENCE } from "./your-plan-model.ts";
 import { parseTxOutcome, type TxResult } from "./tx-outcome.ts";
 import type { TxRequest, WalletSession } from "./tx-types.ts";
-
-/** The quote minus the fixed 1% margin, rounded down. */
-export function withMargin(quoted: bigint): bigint {
-  return (quoted * 99n) / 100n;
-}
+import { REASON_SENTENCE } from "./your-plan-model.ts";
 
 export type TradeOutcome =
   /** The wallet sent the transaction and the chain gave a final outcome. */
@@ -60,7 +55,7 @@ export async function sendBuy(deps: TradeDeps, nearIn: bigint): Promise<TradeOut
     const quote = await loadBuyQuote(deps.chain, account, nearIn);
     if (quote.kind === "unavailable") return { kind: "not-sent", text: "This coin gives no buy quote, so nothing was sent." };
     const storage = await readBuyerStorage(deps.chain, account);
-    txs = buildBuy(deps.coin, { nearIn, quote: quote.value, storage, minTokensOut: withMargin(quote.value.tokensOut) });
+    txs = buildBuy(deps.coin, { nearIn, quote: quote.value, storage });
   } catch (e) {
     return { kind: "not-sent", text: `The buy quote could not load, so nothing was sent. ${message(e)}` };
   }
@@ -78,8 +73,9 @@ export async function sendSell(deps: TradeDeps, amount: bigint): Promise<TradeOu
       const why = quote.limitReason === null ? "" : ` ${REASON_SENTENCE[quote.limitReason]}`;
       return { kind: "not-sent", text: `None of it can sell now, so nothing was sent.${why}` };
     }
-    // For a quote that fills in part, near_out is the NEAR of the part that fills: the margin applies to that.
-    txs = buildSell(deps.coin, { amount, quote, minNearOut: withMargin(quote.nearOut) });
+    const sell = buildSell(deps.coin, { amount, quote });
+    if (sell.kind === "nothing-fills") return { kind: "not-sent", text: sell.text };
+    txs = sell.txs;
   } catch (e) {
     return { kind: "not-sent", text: `The sell quote could not load, so nothing was sent. ${message(e)}` };
   }

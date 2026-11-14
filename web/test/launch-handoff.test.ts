@@ -39,6 +39,13 @@ describe("the launch result handed to the new coin page", () => {
     expect(takeLaunched(broken, coin.coin)).toBeNull();
   });
 
+  it("draws no explorer link when the launch has none", () => {
+    expect(drawJustLaunched({ ...coin, explorerUrl: null }).querySelector("a")).toBeNull();
+    const store = memory();
+    saveLaunched(store, { ...coin, explorerUrl: null });
+    expect(takeLaunched(store, coin.coin)?.explorerUrl).toBeNull();
+  });
+
   it("draws the coin at once: tile, name, ticker, creator and launch block", () => {
     const node = drawJustLaunched(coin);
     expect(node.id).toBe("just-launched");

@@ -11,7 +11,8 @@ export interface LaunchedCoin {
   icon: string | null;
   creator: string;
   launchBlock: number;
-  explorerUrl: string;
+  /** Null when the page knows no explorer for the network: then no link shows. */
+  explorerUrl: string | null;
 }
 
 const key = (coin: string) => `fc-launched:${coin}`;
@@ -30,7 +31,7 @@ function isLaunched(v: unknown, coin: string): v is LaunchedCoin {
     typeof c === "object" && c !== null && c.coin === coin &&
     typeof c.name === "string" && typeof c.ticker === "string" && typeof c.creator === "string" &&
     (c.icon === null || typeof c.icon === "string") && Number.isSafeInteger(c.launchBlock) &&
-    typeof c.explorerUrl === "string" && c.explorerUrl.startsWith("https://")
+    (c.explorerUrl === null || (typeof c.explorerUrl === "string" && c.explorerUrl.startsWith("https://")))
   );
 }
 
@@ -64,7 +65,7 @@ export function drawJustLaunched(c: LaunchedCoin): HTMLElement {
         el("span", { class: "chip" }, `Launched at block ${c.launchBlock}`),
       ),
       el("p", {}, "You launched this coin. The rest of the page loads from the chain."),
-      el("a", { class: "text-link", href: c.explorerUrl, target: "_blank", rel: "noopener noreferrer" }, "See the launch on the testnet explorer"),
+      c.explorerUrl !== null && el("a", { class: "text-link", href: c.explorerUrl, target: "_blank", rel: "noopener noreferrer" }, "See the launch on the testnet explorer"),
     ),
   );
 }

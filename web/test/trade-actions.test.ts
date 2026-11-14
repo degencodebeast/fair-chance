@@ -48,7 +48,7 @@ function fakeSession(answer: () => Promise<FinalOutcome[]>, accountId = BUYER): 
 }
 
 describe("a buy", () => {
-  it("sets min_tokens_out to the quote minus 1% and pays the storage deposit on a first buy", async () => {
+  it("sends the builder's min_tokens_out (the quote minus 1%) and pays the storage deposit on a first buy", async () => {
     const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: null, storage_balance_bounds: { min: "1250000000000000000000", max: null } });
     const session = fakeSession(async () => [fixture("bag-buy")]);
     const out = await sendBuy({ chain, session, coin: COIN }, 1_000_000_000_000_000_000_000_000n);
@@ -102,7 +102,7 @@ const COIN2 = "cabal2.factory.fairchance.testnet";
 const fullQuote = { tokens_filled: "2709426042412763046439220", near_out: "292223155027538688590017", penalty_near: "0", fill: "full", limit_reason: null };
 
 describe("a sell", () => {
-  it("sets min_near_out to the quoted NEAR minus 1% and attaches 1 yoctoNEAR", async () => {
+  it("sends the builder's min_near_out (the quoted NEAR minus 1%) and attaches 1 yoctoNEAR", async () => {
     const chain = fakeChain({ fc_quote_sell: fullQuote });
     const session = fakeSession(async () => [fixture("cabal2-sell-full")], SELLER);
     const out = await sendSell({ chain, session, coin: COIN2 }, 2709426042412763046439220n);
@@ -114,12 +114,12 @@ describe("a sell", () => {
     expect(out).toMatchObject({ kind: "result", result: { kind: "sold", fill: "full" } });
   });
 
-  it("applies the margin to the quoted part when the quote fills in part", async () => {
+  it("sends the builder's floor for a quote that fills in part: the filled price, scaled to all of amount, minus 1%", async () => {
     const partial = { tokens_filled: "1000", near_out: "500", penalty_near: "0", fill: "partial", limit_reason: "allowance" };
     const chain = fakeChain({ fc_quote_sell: partial });
     const session = fakeSession(async () => [fixture("cabal2-sell-partial")], SELLER);
     await sendSell({ chain, session, coin: COIN2 }, 5000n);
-    expect(session.sent[0]![0]!.actions[0]!.params.args).toEqual({ amount: "5000", min_near_out: "495" });
+    expect(session.sent[0]![0]!.actions[0]!.params.args).toEqual({ amount: "5000", min_near_out: "2475" });
   });
 
   it("sends nothing when no part can sell now, and says why", async () => {
@@ -150,13 +150,13 @@ describe("what the account can sell now", () => {
 describe("a launch", () => {
   const form = { name: "Cabal Two", ticker: "cabal2", description: "", openingBuy: "" };
 
-  it("calls the factory with the 1 NEAR deposit plus the opening buy, and reads the launch", async () => {
+  it("calls the factory with the 0.25 NEAR deposit plus the opening buy, and reads the launch", async () => {
     const session = fakeSession(async () => [fixture("cabal2-launch")], "cabal2-creator.fairchance.testnet");
     const out = await sendLaunch(session, "factory.fairchance.testnet", { ...form, openingBuy: "0.5" }, null);
     const [tx] = session.sent[0]!;
     expect(tx!.receiverId).toBe("factory.fairchance.testnet");
     expect(tx!.actions[0]!.params.methodName).toBe("launch");
-    expect(tx!.actions[0]!.params.deposit).toBe("1500000000000000000000000");
+    expect(tx!.actions[0]!.params.deposit).toBe("750000000000000000000000");
     expect(tx!.actions[0]!.params.args).toMatchObject({ name: "Cabal Two", ticker: "CABAL2", opening_buy: "500000000000000000000000" });
     expect(out).toMatchObject({ kind: "result", result: { kind: "launched", coin: "cabal2.factory.fairchance.testnet", creator: "cabal2-creator.fairchance.testnet" } });
   });

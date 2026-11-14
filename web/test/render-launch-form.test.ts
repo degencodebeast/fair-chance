@@ -42,7 +42,7 @@ describe("launch form", () => {
   it("shows the total NEAR and that the deposit stays in the coin account, beside the button", () => {
     const app = form();
     type(app, "#launch-buy", "4.4");
-    expect(app.querySelector("#launch-deposit")?.textContent).toBe("You attach 5.4 NEAR: a 1 NEAR deposit and a 4.4 NEAR opening buy. The deposit stays in the coin account. Nobody can take it out.");
+    expect(app.querySelector("#launch-deposit")?.textContent).toBe("You attach 4.65 NEAR: a 0.25 NEAR deposit and a 4.4 NEAR opening buy. The deposit stays in the coin account. Nobody can take it out.");
   });
 
   it("updates the count, the preview and the button label as the visitor types", () => {
