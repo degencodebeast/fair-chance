@@ -14,6 +14,8 @@ import { loadBuyQuote } from "./buy-quote.ts";
 import { claimPanelModel } from "./claim-panel-model.ts";
 import { drawClaimPanel } from "./render-claim-panel.ts";
 import { drawTradeBox } from "./render-trade-box.ts";
+import { loadSellLimit, sendBuy, sendSell } from "./trade-actions.ts";
+import { pageWallet } from "./page-wallet.ts";
 import {
   coinPageModel,
   type Banner,
@@ -253,7 +255,22 @@ function scheduleRefresh(view: CoinPageView, reload: () => void): void {
 function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
   const chain = chainReader(configFromUrl(location.href));
   const decimals = reads.metadata.kind === "value" ? reads.metadata.value.decimals : 18;
-  return drawTradeBox({ symbol, decimals, largeThresholdBps: reads.rules.largeThresholdBps, storageMin: reads.storageMin, loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn) });
+  const coin = reads.coin;
+  return drawTradeBox({
+    symbol,
+    decimals,
+    largeThresholdBps: reads.rules.largeThresholdBps,
+    storageMin: reads.storageMin,
+    loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn),
+    wallet: pageWallet(),
+    actions: {
+      buy: (session, nearIn) => sendBuy({ chain, session, coin }, nearIn),
+      sell: (session, amount) => sendSell({ chain, session, coin }, amount),
+      sellLimit: (accountId) => loadSellLimit(chain, accountId),
+      // The trade changed the coin: read it again now, not at the next refresh.
+      onTraded: () => void refreshOnce().catch(() => {}),
+    },
+  });
 }
 
 function claimPanel(reads: CoinReads): HTMLElement {

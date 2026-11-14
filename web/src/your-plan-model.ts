@@ -60,7 +60,7 @@ export type PreviewView =
       bar: { fillPct: number; fills: string; stays: string } | null;
     };
 
-const REASON_SENTENCE = {
+export const REASON_SENTENCE = {
   allowance: "This is all your allowance lets through.",
   cap_full: "The pool cap is full for this hour.",
   floor: "The pool cap is full for this hour, so just a small floor fills.",

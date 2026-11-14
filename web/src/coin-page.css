@@ -150,6 +150,10 @@ p { margin: 0; }
 .trade-panel[hidden] { display: none; }
 .warning-box { border: 2px solid var(--limit); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .text-link { color: var(--ink); font-weight: 700; text-underline-offset: 3px; }
+.trade-result { border: 2px solid var(--ink); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.trade-result:empty { display: none; }
+.trade-result p { margin: 0; }
+.trade-result-limit, .trade-result-refused { border-color: var(--limit); }
 .claim-panel { display: flex; flex-direction: column; gap: 10px; }
 .claim-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .claim-amount { font-size: 18px; font-weight: 600; }

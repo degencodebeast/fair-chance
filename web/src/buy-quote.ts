@@ -33,7 +33,7 @@ export function parseBuyQuote(value: unknown): BuyQuote {
 }
 
 /** Reads the quote for one buy. A coin without the view gives "unavailable"; any other failure is thrown. */
-export async function loadBuyQuote(chain: ChainReader, accountId: string, nearIn: bigint): Promise<Reading<BuyQuote>> {
+export async function loadBuyQuote(chain: Pick<ChainReader, "view">, accountId: string, nearIn: bigint): Promise<Reading<BuyQuote>> {
   try {
     return { kind: "value", value: parseBuyQuote(await chain.view("fc_quote_buy", { account_id: accountId, near_in: nearIn.toString() })) };
   } catch (e) {

@@ -1,0 +1,148 @@
+// The buy and sell steps on fake chain reads and a fake wallet that returns real testnet outcomes.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { loadSellLimit, sendBuy, sendSell } from "../src/trade-actions.ts";
+import type { FinalOutcome, TxRequest, WalletSession } from "../src/tx-types.ts";
+
+const fixture = (name: string) => JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/tx-outcomes", `${name}.json`), "utf8")) as FinalOutcome;
+
+const COIN = "bag.factory.fairchance.testnet";
+const BUYER = "bag-buyer-01.fairchance.testnet";
+
+const buyQuote = {
+  tokens_out: "7308624762134838070425063",
+  fee_near: "10000000000000000000000",
+  creator_fee_near: "3000000000000000000000",
+  marked_tokens: "0",
+  class_after: "small",
+  becomes_large: false,
+  allowance_after: "7100000000000000000000000",
+};
+
+function fakeChain(views: Record<string, unknown>) {
+  const calls: [string, unknown][] = [];
+  return {
+    calls,
+    async view<T>(method: string, args?: unknown): Promise<T> {
+      calls.push([method, args]);
+      if (!(method in views)) throw new Error(`no view ${method}`);
+      const v = views[method];
+      if (v instanceof Error) throw v;
+      return v as T;
+    },
+  };
+}
+
+function fakeSession(answer: () => Promise<FinalOutcome[]>, accountId = BUYER): WalletSession & { sent: TxRequest[][] } {
+  const sent: TxRequest[][] = [];
+  return {
+    accountId,
+    sent,
+    async send(txs) {
+      sent.push(txs);
+      return answer();
+    },
+    signOut: async () => {},
+  };
+}
+
+describe("a buy", () => {
+  it("sets min_tokens_out to the quote minus 1% and pays the storage deposit on a first buy", async () => {
+    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: null, storage_balance_bounds: { min: "1250000000000000000000", max: null } });
+    const session = fakeSession(async () => [fixture("bag-buy")]);
+    const out = await sendBuy({ chain, session, coin: COIN }, 1_000_000_000_000_000_000_000_000n);
+    expect(chain.calls[0]).toEqual(["fc_quote_buy", { account_id: BUYER, near_in: "1000000000000000000000000" }]);
+    expect(session.sent).toHaveLength(1);
+    const [tx] = session.sent[0]!;
+    expect(tx!.receiverId).toBe(COIN);
+    expect(tx!.actions.map((a) => a.params.methodName)).toEqual(["storage_deposit", "buy"]);
+    expect(tx!.actions[0]!.params.deposit).toBe("1250000000000000000000");
+    expect(tx!.actions[1]!.params.args).toEqual({ min_tokens_out: "7235538514513489689720812" });
+    expect(tx!.actions[1]!.params.deposit).toBe("1000000000000000000000000");
+    expect(out).toMatchObject({ kind: "result", result: { kind: "bought", tokensOut: 7308624762134838070425063n } });
+  });
+
+  it("sends only the buy when the account already has a storage record", async () => {
+    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1250000000000000000000", available: "0" } });
+    const session = fakeSession(async () => [fixture("bag-buy")]);
+    await sendBuy({ chain, session, coin: COIN }, 1_000_000_000_000_000_000_000_000n);
+    expect(session.sent[0]![0]!.actions.map((a) => a.params.methodName)).toEqual(["buy"]);
+  });
+
+  it("says in one sentence that nothing was sent when the visitor closes the wallet", async () => {
+    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1", available: "0" } });
+    const session = fakeSession(async () => {
+      throw new Error("User rejected");
+    });
+    expect(await sendBuy({ chain, session, coin: COIN }, 1n)).toEqual({ kind: "not-sent", text: "The wallet closed and sent nothing." });
+  });
+
+  it("does not claim nothing was sent when the wallet fails in another way", async () => {
+    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1", available: "0" } });
+    const session = fakeSession(async () => {
+      throw new Error("RPC timeout");
+    });
+    const out = await sendBuy({ chain, session, coin: COIN }, 1n);
+    expect(out.kind).toBe("unknown");
+    expect(out.kind === "unknown" && out.text).toBe("The wallet gave no result (RPC timeout). Check your wallet activity before you try again.");
+  });
+
+  it("sends nothing when the quote cannot be read", async () => {
+    const chain = fakeChain({ fc_quote_buy: new Error("network down") });
+    const session = fakeSession(async () => []);
+    const out = await sendBuy({ chain, session, coin: COIN }, 1n);
+    expect(session.sent).toHaveLength(0);
+    expect(out).toEqual({ kind: "not-sent", text: "The buy quote could not load, so nothing was sent. network down" });
+  });
+});
+
+const SELLER = "cabal2-later-buyer.fairchance.testnet";
+const COIN2 = "cabal2.factory.fairchance.testnet";
+const fullQuote = { tokens_filled: "2709426042412763046439220", near_out: "292223155027538688590017", penalty_near: "0", fill: "full", limit_reason: null };
+
+describe("a sell", () => {
+  it("sets min_near_out to the quoted NEAR minus 1% and attaches 1 yoctoNEAR", async () => {
+    const chain = fakeChain({ fc_quote_sell: fullQuote });
+    const session = fakeSession(async () => [fixture("cabal2-sell-full")], SELLER);
+    const out = await sendSell({ chain, session, coin: COIN2 }, 2709426042412763046439220n);
+    expect(chain.calls[0]).toEqual(["fc_quote_sell", { account_id: SELLER, amount: "2709426042412763046439220" }]);
+    const action = session.sent[0]![0]!.actions[0]!;
+    expect(action.params.methodName).toBe("sell");
+    expect(action.params.args).toEqual({ amount: "2709426042412763046439220", min_near_out: "289300923477263301704116" });
+    expect(action.params.deposit).toBe("1");
+    expect(out).toMatchObject({ kind: "result", result: { kind: "sold", fill: "full" } });
+  });
+
+  it("applies the margin to the quoted part when the quote fills in part", async () => {
+    const partial = { tokens_filled: "1000", near_out: "500", penalty_near: "0", fill: "partial", limit_reason: "allowance" };
+    const chain = fakeChain({ fc_quote_sell: partial });
+    const session = fakeSession(async () => [fixture("cabal2-sell-partial")], SELLER);
+    await sendSell({ chain, session, coin: COIN2 }, 5000n);
+    expect(session.sent[0]![0]!.actions[0]!.params.args).toEqual({ amount: "5000", min_near_out: "495" });
+  });
+
+  it("sends nothing when no part can sell now, and says why", async () => {
+    const none = { tokens_filled: "0", near_out: "0", penalty_near: "0", fill: "none", limit_reason: "cap_full" };
+    const chain = fakeChain({ fc_quote_sell: none });
+    const session = fakeSession(async () => [], SELLER);
+    expect(await sendSell({ chain, session, coin: COIN2 }, 5000n)).toEqual({ kind: "not-sent", text: "None of it can sell now, so nothing was sent. The pool cap is full for this hour." });
+    expect(session.sent).toHaveLength(0);
+  });
+});
+
+describe("what the account can sell now", () => {
+  const account = { class: "small", balance: "2709426042412763046439220", is_large: false, can_send: true };
+
+  it("is the part of the whole balance the coin quotes as filled now", async () => {
+    const chain = fakeChain({ fc_account: account, fc_quote_sell: { ...fullQuote, tokens_filled: "1000000000000000000000000", fill: "partial", limit_reason: "allowance" } });
+    expect(await loadSellLimit(chain, SELLER)).toEqual({ balance: 2709426042412763046439220n, canSellNow: 1000000000000000000000000n });
+    expect(chain.calls[1]).toEqual(["fc_quote_sell", { account_id: SELLER, amount: "2709426042412763046439220" }]);
+  });
+
+  it("is zero without a quote when the account holds none", async () => {
+    const chain = fakeChain({ fc_account: { ...account, balance: "0" } });
+    expect(await loadSellLimit(chain, SELLER)).toEqual({ balance: 0n, canSellNow: 0n });
+    expect(chain.calls).toHaveLength(1);
+  });
+});

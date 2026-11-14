@@ -12,31 +12,49 @@ const quoteView = {
   becomes_large: false,
   allowance_after: "7100000000000000000000000",
 };
-const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value" as const, value: 1_250_000_000_000_000_000_000n } };
+const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value" as const, value: 1_250_000_000_000_000_000_000n }, signedIn: null, pending: false };
 const asked = (over: object = {}) => ({
   ...base,
   preview: { kind: "quote" as const, accountId: "you.testnet", nearIn: 10n ** 24n, quote: { kind: "value" as const, value: parseBuyQuote({ ...quoteView, ...over }) } },
 });
 
-describe("trade box with no wallet", () => {
-  it("turns off connect, buy and sell, each with a reason", () => {
+describe("trade box buttons", () => {
+  it("asks for a wallet before a buy or a sell", () => {
     const m = tradeBoxModel({ ...base, preview: { kind: "none" } });
-    for (const b of [m.connect, m.buy.button, m.sell.button]) {
-      expect(b.reason.length).toBeGreaterThan(10);
-    }
-    expect(m.connect.label).toBe("Connect");
+    expect(m.connect.label).toBe("Connect wallet");
+    expect(m.buy.button.reason).toBe("Connect a wallet to buy.");
+    expect(m.sell.button.reason).toBe("Connect a wallet to sell.");
   });
 
-  it("says in the buy reason, from the coin's storage bounds, what a buy from an account that never held the coin also pays", () => {
+  it("turns the buy on for a signed-in account with a quote for that account", () => {
+    const m = tradeBoxModel({ ...asked(), signedIn: "you.testnet" });
+    expect(m.buy.button).toEqual({ label: "Buy 5.6M MOTH", reason: null });
+    expect(m.sell.button.reason).toBeNull();
+  });
+
+  it("keeps the buy off while the quote is for another account", () => {
+    const m = tradeBoxModel({ ...asked(), signedIn: "lamp.testnet" });
+    expect(m.buy.button.reason).toBe("Preview the buy for lamp.testnet first.");
+    expect(tradeBoxModel({ ...base, signedIn: "lamp.testnet", preview: { kind: "none" } }).buy.button.reason).toBe("Preview the buy for lamp.testnet first.");
+  });
+
+  it("turns both buttons off while the wallet is open", () => {
+    const m = tradeBoxModel({ ...asked(), signedIn: "you.testnet", pending: true });
+    for (const b of [m.buy.button, m.sell.button]) expect(b).toEqual({ label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." });
+  });
+});
+
+describe("the storage note", () => {
+  it("says, from the coin's storage bounds, what a buy from an account that never held the coin also pays", () => {
     const m = tradeBoxModel({ ...base, preview: { kind: "none" } });
-    expect(m.buy.button.reason).toContain("If this account never held this coin, the buy also pays a storage deposit of 0.00125 NEAR.");
+    expect(m.buy.storageNote).toBe("If this account never held this coin, the buy also pays a storage deposit of 0.00125 NEAR.");
     const other = tradeBoxModel({ ...base, storageMin: { kind: "value", value: 5n * 10n ** 21n }, preview: { kind: "none" } });
-    expect(other.buy.button.reason).toContain("a storage deposit of 0.005 NEAR.");
+    expect(other.buy.storageNote).toContain("a storage deposit of 0.005 NEAR.");
   });
 
   it("says the amount is not available when the coin has no storage bounds", () => {
     const m = tradeBoxModel({ ...base, storageMin: { kind: "unavailable" }, preview: { kind: "none" } });
-    expect(m.buy.button.reason).toContain("If this account never held this coin, the buy also pays a storage deposit. The amount is not available from this coin.");
+    expect(m.buy.storageNote).toBe("If this account never held this coin, the buy also pays a storage deposit. The amount is not available from this coin.");
   });
 
   it("shows no quote lines before a preview is asked for", () => {
@@ -77,7 +95,7 @@ describe("buy preview", () => {
   });
 
   it("follows the copy rules", () => {
-    for (const m of [tradeBoxModel({ ...base, preview: { kind: "none" } }), tradeBoxModel(asked({ becomes_large: true }))]) {
+    for (const m of [tradeBoxModel({ ...base, preview: { kind: "none" } }), tradeBoxModel(asked({ becomes_large: true })), tradeBoxModel({ ...asked(), signedIn: "you.testnet", pending: true })]) {
       for (const t of allText(m)) expect(copyViolations(t), t).toEqual([]);
     }
   });

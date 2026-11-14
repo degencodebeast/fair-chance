@@ -1,5 +1,5 @@
-// The text of the trade box (buy and sell), as plain data. Pure. Every button that would build or
-// send a transaction is turned off in this version and carries the reason the page shows beside it.
+// The text of the trade box (buy and sell), as plain data. Pure. A button that cannot act now is
+// turned off and carries the reason the page shows beside it; the wallet signs, never the page.
 // The numbers of a buy preview come from fc_quote_buy; this file does no buy math and does not
 // decide "large" itself: it reads `becomes_large` from the view.
 import type { Reading } from "./coin-page.ts";
@@ -8,10 +8,10 @@ import { compactTokens, exactNear, nearAmount, percentOfBps } from "./format.ts"
 
 export const NOT_AVAILABLE_FROM_COIN = "Not available from this coin";
 
-export interface TurnedOffButton {
+export interface TradeButton {
   label: string;
-  /** Why the button is turned off. Shown next to the button. */
-  reason: string;
+  /** Why the button is turned off, shown next to it; null when it is on. */
+  reason: string | null;
 }
 
 export type BuyPreview =
@@ -26,10 +26,14 @@ export interface TradeBoxInput {
   /** `storage_balance_bounds().min` of the coin, for the buy reason. */
   storageMin: Reading<bigint>;
   preview: BuyPreview;
+  /** The signed-in testnet account; null when no wallet is connected. */
+  signedIn: string | null;
+  /** True while the wallet is open for a buy or a sell. */
+  pending: boolean;
 }
 
 export interface TradeBoxModel {
-  connect: TurnedOffButton;
+  connect: { label: string };
   /** Shown above the tabs while no wallet is connected. */
   connectPrompt: string;
   buy: {
@@ -38,25 +42,40 @@ export interface TradeBoxModel {
     /** Set when the coin has no buy quote view. */
     note: string | null;
     largeWarning: string | null;
-    button: TurnedOffButton;
+    /** What a first buy also pays for the account's storage record. */
+    storageNote: string;
+    button: TradeButton;
   };
   sell: {
     amountLabel: string;
-    button: TurnedOffButton;
-    /** Where the sell preview is, since this box does not send. */
+    button: TradeButton;
+    /** Where the sell preview is. */
     pointer: string;
   };
 }
 
-const WALLET_REASON = "Wallet connect is turned off in this version. Nothing on this page signs or sends a transaction.";
-function buyReason(storageMin: Reading<bigint>): string {
+function storageNote(storageMin: Reading<bigint>): string {
   const deposit =
     storageMin.kind === "value"
       ? `a storage deposit of ${exactNear(storageMin.value.toString())} NEAR.`
       : "a storage deposit. The amount is not available from this coin.";
-  return `Buying is turned off in this version. If this account never held this coin, the buy also pays ${deposit}`;
+  return `If this account never held this coin, the buy also pays ${deposit}`;
 }
-const SELL_REASON = "Selling is turned off in this version. A sell needs your wallet to confirm it with 1 yoctoNEAR attached.";
+const WAITING: TradeButton = { label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." };
+
+function buyButton(input: TradeBoxInput, label: string): TradeButton {
+  if (input.pending) return WAITING;
+  if (input.signedIn === null) return { label, reason: "Connect a wallet to buy." };
+  const p = input.preview;
+  if (p.kind !== "quote" || p.quote.kind !== "value" || p.accountId !== input.signedIn) return { label, reason: `Preview the buy for ${input.signedIn} first.` };
+  return { label, reason: null };
+}
+
+function sellButton(input: TradeBoxInput): TradeButton {
+  if (input.pending) return WAITING;
+  if (input.signedIn === null) return { label: "Sell", reason: "Connect a wallet to sell." };
+  return { label: "Sell", reason: null };
+}
 
 export function tradeBoxModel(input: TradeBoxInput): TradeBoxModel {
   const { symbol, decimals } = input;
@@ -88,12 +107,12 @@ export function tradeBoxModel(input: TradeBoxInput): TradeBoxModel {
     }
   }
   return {
-    connect: { label: "Connect", reason: WALLET_REASON },
-    connectPrompt: "Connect a NEAR wallet to buy or sell",
-    buy: { amountLabel: "You pay (NEAR)", lines, note, largeWarning, button: { label: buyLabel, reason: buyReason(input.storageMin) } },
+    connect: { label: "Connect wallet" },
+    connectPrompt: "Connect a NEAR testnet wallet to buy or sell",
+    buy: { amountLabel: "You pay (NEAR)", lines, note, largeWarning, storageNote: storageNote(input.storageMin), button: buyButton(input, buyLabel) },
     sell: {
       amountLabel: `Amount to sell (${symbol})`,
-      button: { label: "Sell", reason: SELL_REASON },
+      button: sellButton(input),
       pointer: "To preview a sell, type an account and an amount in Your plan.",
     },
   };
