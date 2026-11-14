@@ -6,6 +6,8 @@ A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their b
 
 Built for NEAR HACKATHON, track Memecoins With Mechanics.
 
+**[Watch the 3-minute demo video](https://vimeo.com/1246907899).** It shows a launch in the live app and our test cabal selling into it, on NEAR testnet. Testnet only, not audited.
+
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
 ## Contents
@@ -135,7 +137,7 @@ So the quick flip is gone for the early buy. This is a local sandbox run, not te
 
 ## For judges
 
-Each judging criterion, and where to check it.
+Each judging criterion, and where to check it. The [demo video](https://vimeo.com/1246907899) shows the app and the attack in 3 minutes.
 
 | What is judged | Where you see it |
 | --- | --- |
