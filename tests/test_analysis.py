@@ -360,6 +360,19 @@ class SimulationTests(unittest.TestCase):
         for name in ('marked-sell-buy-resell','marked-resale-two-account-cap','small-buy-sell-at-full-cap',
                      'small-buy-price-rise-cap','marked-and-unmarked-old-plus-buy-resell','marked-sale-reduces-unmarked-floor'):
             self.assertIn(name,{c['name'] for c in data['cases']})
+        for name in ('same-account-round-trip-s-0','same-account-round-trip-s-30'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][1]['amount'],'all')
+            self.assertEqual(c['actions'][1]['result']['fill'],'full')
+            self.assertEqual(c['actions'][1]['result']['tokens_filled_base'],c['actions'][0]['result']['tokens_filled_base'])
+        for name in ('post-sell-cap-s-0','post-sell-cap-s-30'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][1]['amount'],'all')
+            self.assertEqual(c['actions'][1]['result']['fill'],'partial')
+            self.assertEqual(c['actions'][1]['result']['limit_reason'],'cap_full')
+        marked_resell=next(c for c in data['cases'] if c['name']=='marked-sell-buy-resell')
+        self.assertEqual(marked_resell['actions'][2]['amount'],marked_resell['actions'][1]['result']['tokens_filled_base'])
+        self.assertEqual(marked_resell['actions'][2]['result']['fill'],'full')
         small_round=next(c for c in data['cases'] if c['name']=='small-buy-sell-at-full-cap')
         self.assertEqual(small_round['actions'][-1]['result']['fill'],'full')
         price_rise=next(c for c in data['cases'] if c['name']=='small-buy-price-rise-cap')

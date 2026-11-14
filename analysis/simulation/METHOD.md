@@ -84,13 +84,13 @@ a marked sell in blocks 0 to N refuses the whole sell, each sell is one swap,
 and the cap check uses real NEAR after the actual net payout, including the
 penalty retained in the pool. The rc.7 `cap_left` formula was implemented from
 the interface text and checked against the pool's post-sell equation. These
-details are implemented independently in Python. In the Rust cross-check of
-commit `5165885`, the remaining accepted numeric differences are `cap_left_yocto`
-after cap-stopped sells in `full-cap-floor-and-second-sell` action 2 and
-`cap-left-s-30` actions 1 and 2. These fields can differ by up to 1e9 yoctoNEAR
-because pool reserves and cap records remain binary floats; the reviewer
-accepted that tolerance. The rule behavior in those cases is `cap_full`. This
-is a numeric representation difference, not a rule-text/code disagreement.
+details are implemented independently in Python. After the sell-amount fixes,
+the remaining differences reported by the reviewer are numeric only: the
+`cap_left_yocto` field can differ by up to 1e9 yoctoNEAR because pool reserves
+and cap records remain binary floats. The affected cases are
+`band-sell-above-allowance`, `post-sell-cap-s-0`, `post-sell-cap-s-30`,
+`band-round-trip-credit`, `small-buy-price-rise-cap`, and
+`marked-and-unmarked-old-plus-buy-resell`; the reviewer accepts this tolerance.
 rc.6 resolved the earlier band allowance wording difference.
 
 The model stores reserve state as binary floats and uses high-precision decimal

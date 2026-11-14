@@ -426,8 +426,9 @@ def cap_cases(output=None):
     def sell(e,actions,name,amount,second=0,block=100,amount_base=None):
         h=second/3600;e.reserve_snapshot(h);e.snapshot(h,block);w=e.wallet(name);class_before=e.account_class(name,h);all_balance=amount=='all'
         requested=w.tokens if all_balance else amount
-        requested_base=token_base_floor(requested) if amount_base is None else amount_base
-        prior_penalty=e.band_penalties;cap_left_before=e.cap_left(h);filled,paid=e.sell(name,requested,h,block,wanted_base=amount_base);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
+        requested_base=(e.wallet_base(name) if all_balance else
+                        token_base_floor(requested) if amount_base is None else amount_base)
+        prior_penalty=e.band_penalties;cap_left_before=e.cap_left(h);filled,paid=e.sell(name,requested,h,block,wanted_base=requested_base);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
         filled_base=e.last_sell_tokens_base.get(name,0)
         action={'account':name,'kind':'sell','amount':'all' if all_balance else (str(amount_base) if amount_base is not None else unit(requested,1e18)),'time_s':second,'block':block,
                 'result':{'tokens_filled_base':str(filled_base),'near_out_yocto':unit(paid,1e24),'counted_near_yocto':unit(e.last_counted_near.get(name,0.),1e24),'fill':'full' if filled_base>=requested_base else ('none' if filled_base==0 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24),'class_before':class_before,'class_after':class_after}}
@@ -449,7 +450,7 @@ def cap_cases(output=None):
     case('full-cap-floor-and-second-sell',state,actions)
     for share in (0.,.3):
         policy=Policy(17,.02,None,.1,share);e=Engine(policy,Pool(token=SUPPLY,near=110.,real=10.));state=start(e);actions=[]
-        buy(e,actions,'large',3.,100);sell(e,actions,'large',e.wallet('large').tokens,3600);case(f'post-sell-cap-s-{int(share*100)}',state,actions)
+        buy(e,actions,'large',3.,100);sell(e,actions,'large','all',3600);case(f'post-sell-cap-s-{int(share*100)}',state,actions)
         e=Engine(policy,Pool(token=SUPPLY,near=110.,real=10.));state=start(e);actions=[]
         buy(e,actions,'round-trip',100.,100);sell(e,actions,'round-trip','all',1);case(f'same-account-round-trip-s-{int(share*100)}',state,actions)
     # The two action orders leave the same account cap contribution: buys first
@@ -505,7 +506,7 @@ def cap_cases(output=None):
     sell(e,actions,'band',25_000_000,1);case('band-above-allowance-cap-left',state,actions)
     # Marked payout is gross; a later unmarked resale is netted separately.
     e=Engine(p,Pool(token=SUPPLY-1_000_000.,near=110.,real=10.));e.wallet('marked').tokens=1_000_000;e.wallet('marked').marked=1_000_000
-    state=start(e);actions=[];sell(e,actions,'marked','all',1);bought=buy(e,actions,'marked',.1,100,2);sell(e,actions,'marked',bought,3)
+    state=start(e);actions=[];sell(e,actions,'marked','all',1);buy(e,actions,'marked',.1,100,2);bought_base=e.pool.last_buy_tokens_base;sell(e,actions,'marked',bought_base/1e18,3,amount_base=bought_base)
     case('marked-sell-buy-resell',state,actions)
     # The same account's resale and another marked holder compete for one cap.
     e=Engine(p,Pool(token=SUPPLY-20_000_000.,near=200.,real=100.));e.wallet('a').tokens=10_000_000;e.wallet('a').marked=10_000_000

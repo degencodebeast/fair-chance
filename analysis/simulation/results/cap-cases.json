@@ -1550,7 +1550,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount": "26290165530671860000000000",
+          "amount": "all",
           "time_s": 3600,
           "block": 100,
           "result": {
@@ -1630,7 +1630,7 @@
             "tokens_filled_base": "473684210526315789473684210",
             "near_out_yocto": "98478947368421060000000000",
             "counted_near_yocto": "98478947368421060000000000",
-            "fill": "partial",
+            "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
@@ -1696,7 +1696,7 @@
         {
           "account": "large",
           "kind": "sell",
-          "amount": "26290165530671860000000000",
+          "amount": "all",
           "time_s": 3600,
           "block": 100,
           "result": {
@@ -1776,7 +1776,7 @@
             "tokens_filled_base": "473684210526315789473684210",
             "near_out_yocto": "98338263157894740000000000",
             "counted_near_yocto": "98338263157894740000000000",
-            "fill": "partial",
+            "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "0",
@@ -3115,14 +3115,14 @@
         {
           "account": "marked",
           "kind": "sell",
-          "amount": "900081007290656100000000",
+          "amount": "900081007290656069046214",
           "time_s": 3,
           "block": 100,
           "result": {
             "tokens_filled_base": "900081007290656069046214",
             "near_out_yocto": "98010891080197210000000",
             "counted_near_yocto": "98010891080197210000000",
-            "fill": "partial",
+            "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
             "cap_used_yocto": "108900000000000000000000",
@@ -3363,8 +3363,8 @@
           "time_s": 2,
           "block": 100,
           "result": {
-            "tokens_filled_base": "899190728344489900000000",
-            "near_out_yocto": "98010890198821050000000",
+            "tokens_filled_base": "899190728344489959036866",
+            "near_out_yocto": "98010890198821060000000",
             "counted_near_yocto": "98010890198821050000000",
             "fill": "full",
             "limit_reason": null,
