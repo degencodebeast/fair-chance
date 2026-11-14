@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { optionsFromConfig, scanBuildOutput, type ScanOptions } from "../scripts/scan-build-output.ts";
 import { FAUCET_URL } from "../src/try-it-copy.ts";
 import { WALLET_MANIFEST } from "../src/wallet-manifest.ts";
+import { landingCopy } from "../src/landing-copy.ts";
 
 // Every bad value below is an obvious fake planted in a temporary folder. Parts are joined at run
 // time so this file holds no private-looking string of its own.
@@ -297,6 +298,30 @@ describe("the bot link", () => {
     expect(await scanBuildOutput(dir, optionsFromConfig({}))).toEqual([]);
     for (const other of [`${bot}?start=x`, `${bot}2`, "https://t.me/other_bot", "https://t.me/", `${bot}/extra`]) {
       plant("assets/app.js", `const b="${other}";`);
+      expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule), other).toContain("private-endpoint");
+    }
+  });
+});
+
+describe("the repository link of the landing footer", () => {
+  it("passes for exactly that repository and no other GitHub path, query or host", async () => {
+    const repo = landingCopy.githubUrl;
+    expect(repo).toBe("https://github.com/degencodebeast/fair-chance");
+    plant("assets/render-landing-AbCd1234.js", `const g="${repo}";`);
+    expect(await scanBuildOutput(dir, optionsFromConfig({}))).toEqual([]);
+    plant("assets/render-landing-AbCd1234.js", `const g="${repo}/";`);
+    expect(await scanBuildOutput(dir, optionsFromConfig({}))).toEqual([]);
+    for (const other of [
+      "https://github.com/degencodebeast/other-repo",
+      "https://github.com/someone-else/fair-chance",
+      `${repo}/blob/main/README.md`,
+      `${repo}?tab=readme`,
+      `${repo}2`,
+      "https://github.com/",
+      "https://github.com.evil.example/degencodebeast/fair-chance",
+      "https://gist.github.com/degencodebeast/fair-chance",
+    ]) {
+      plant("assets/render-landing-AbCd1234.js", `const g="${other}";`);
       expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule), other).toContain("private-endpoint");
     }
   });

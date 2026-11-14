@@ -10,6 +10,7 @@ import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { KNOWN_NETWORKS, type KnownNetwork } from "../src/known-deployments.ts";
 import { BOT_URL } from "../src/telegram-button.ts";
+import { landingCopy } from "../src/landing-copy.ts";
 import { FAUCET_URL } from "../src/try-it-copy.ts";
 
 export interface ScanOptions {
@@ -425,6 +426,8 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     "www.w3.org": { path: /^\/2000\/svg$/ },
     // The alert bot link: that host and exactly that path, no query.
     [new URL(BOT_URL).hostname]: { path: new RegExp(`^${new URL(BOT_URL).pathname}/?$`) },
+    // The repository link of the landing footer: that host and exactly that /<owner>/<repo> path, no query.
+    [new URL(landingCopy.githubUrl).hostname]: { path: new RegExp(`^${new URL(landingCopy.githubUrl).pathname.replace(/\/$/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`) },
     // The faucet link of the how to try it box: that host and exactly that path, no query.
     [new URL(FAUCET_URL).hostname]: { path: new RegExp(`^${new URL(FAUCET_URL).pathname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`) },
   };
