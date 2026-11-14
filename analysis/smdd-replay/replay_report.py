@@ -443,10 +443,7 @@ def readme_section(limits_off: Run, limits_on: Run, precision: Precision, creato
         "Under the row:\n\n"
         f"{creator_check_line(creator)}\n\n"
         + (f"{counts}\n\n" if counts else "")
-        + f"{DIRECT_FUNDING_LINE}\n\n"
-        "Under the results table:\n\n"
-        "![SMDD replay: price at the end of each minute, limits off and on.]"
-        "(analysis/smdd-replay/results/replay-price-path.svg)\n"
+        + f"{DIRECT_FUNDING_LINE}\n"
     )
 
 

@@ -313,8 +313,6 @@ Real coin: the creator sold 7.331% of supply. Replay with limits off: 6.77%. The
 
 The same-funder check sees direct funding only, so wallets funded through other wallets can sit in "other".
 
-![SMDD replay: price at the end of each minute, limits off and on.](analysis/smdd-replay/results/replay-price-path.svg)
-
 Numbers from a replay or a simulation show how the rules behave. They are simulation, not demand.
 
 ## Known limits
