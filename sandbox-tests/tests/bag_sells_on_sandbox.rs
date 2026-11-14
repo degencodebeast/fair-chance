@@ -136,6 +136,15 @@ async fn an_existing_plan_file_stops_the_step_before_any_signature() -> Result<(
     Ok(())
 }
 
+/// The sha256 of the plan file, as the operator passes it with --plan-sha256.
+fn sha256_of(path: &std::path::Path) -> String {
+    near_api::types::CryptoHash::hash(&std::fs::read(path).unwrap())
+        .0
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 async fn near_of(setup: &OptionTSetup, who: &near_api::types::AccountId) -> Result<u128> {
     Ok(fair_chance_sandbox_tests::account_view(&setup.network, who)
         .await?
@@ -153,12 +162,13 @@ async fn after_the_sells_buyers_01_to_18_return_their_near_once_and_19_and_20_ar
         fair_chance_sandbox_tests::sells_only::fixed_accounts("BAG", &setup.funder.id)?;
     let path = plan_path("return");
     let missing = plan_path("return-missing");
-    let error = run_returns(&setup, &missing, &mut PassList::default())
+    let error = run_returns(&setup, &missing, &"0".repeat(64), &mut PassList::default())
         .await
         .unwrap_err();
     assert!(error.to_string().contains("nothing was signed"), "{error}");
 
     run_sells(&setup, &path, &mut PassList::default()).await?;
+    let sha = sha256_of(&path);
     let mut kept_before = Vec::new();
     for k in &keepers {
         kept_before.push((
@@ -168,7 +178,7 @@ async fn after_the_sells_buyers_01_to_18_return_their_near_once_and_19_and_20_ar
     }
     let funder_before = near_of(&setup, &setup.funder.id).await?;
 
-    let returns = run_returns(&setup, &path, &mut PassList::default()).await?;
+    let returns = run_returns(&setup, &path, &sha, &mut PassList::default()).await?;
 
     assert_eq!(returns.len(), 18);
     let mut sent = 0;
@@ -200,7 +210,7 @@ async fn after_the_sells_buyers_01_to_18_return_their_near_once_and_19_and_20_ar
     }
 
     // A second run finds every seller at the keep: it sends nothing.
-    let again = run_returns(&setup, &path, &mut PassList::default()).await?;
+    let again = run_returns(&setup, &path, &sha, &mut PassList::default()).await?;
     assert!(again.is_empty(), "{again:?}");
     assert_eq!(
         near_of(&setup, &setup.funder.id).await?,

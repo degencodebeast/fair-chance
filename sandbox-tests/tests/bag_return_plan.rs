@@ -67,7 +67,11 @@ const SELLS_ONLY: [&str; 7] = [
 #[test]
 fn the_return_flag_runs_only_with_the_sells_only_step() {
     let mut with_return = SELLS_ONLY.to_vec();
-    with_return.push("--return-to-funder");
+    with_return.extend([
+        "--return-to-funder",
+        "--plan-sha256",
+        "ae04e7eeb1c003d8550b3a15eb2243ebf5cd3201467600456581161431b03aa7",
+    ]);
     assert!(return_request(&parse_arguments(&args(&with_return)).unwrap()).unwrap());
     assert!(!return_request(&parse_arguments(&args(&SELLS_ONLY)).unwrap()).unwrap());
     assert!(!return_request(&parse_arguments(&[]).unwrap()).unwrap());
