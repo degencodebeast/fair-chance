@@ -51,6 +51,9 @@ async function open(): Promise<void> {
     (await import("./render-alerts-screen.ts")).drawAlertsScreen(app, href);
   } else {
     (await import("./render-landing.ts")).drawLanding(app, href);
+    // The landing is drawn after the page loads, so the browser cannot jump to a link such as
+    // "#how" by itself. Jump once the sections exist.
+    if (location.hash.length > 1) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: "start" });
   }
 }
 
