@@ -76,7 +76,7 @@ impl Budget {
         Self(Mutex::new(waits))
     }
 
-    fn next(&self, retry_after: Option<Duration>) -> Option<Duration> {
+    pub(crate) fn next(&self, retry_after: Option<Duration>) -> Option<Duration> {
         self.0
             .lock()
             .unwrap_or_else(|e| e.into_inner())

@@ -3,10 +3,14 @@
 //! burst at once. The launch transaction and the creator come from the chain, never from the
 //! runner, and the run refuses a coin its own funder launched or a coin with unknown code.
 
+use std::future::Future;
+use std::time::{Duration, Instant};
+
 use anyhow::{bail, Result};
 use near_api::types::AccountId;
 
 use crate::option_t::OptionTArguments;
+use crate::rate_limit::{without_urls, Budget};
 
 /// What `--coin` asks for: the coin account and its label, the first part of its name, which
 /// names the runner's accounts (`<label>-buyer-01`, `<label>-later-buyer`).
@@ -119,4 +123,72 @@ pub fn check_detection(
         );
     }
     Ok(())
+}
+
+/// One read of the coin: not there yet, or there with what the read found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Probe<T> {
+    Missing,
+    Found(T),
+}
+
+/// `Some(retry_after)` for an HTTP 429 or 5xx (the RPC is busy or failed for a moment), `None`
+/// for anything else.
+fn busy_wait(error: &str) -> Option<Option<Duration>> {
+    if let Some(wait) = crate::rate_limit::rate_limit_wait(error) {
+        return Some(wait);
+    }
+    let after = error.split("status: 5").nth(1)?;
+    let code = after.as_bytes();
+    let three_digits = code.len() >= 2
+        && code[..2].iter().all(u8::is_ascii_digit)
+        && !code.get(2).is_some_and(u8::is_ascii_digit);
+    three_digits.then_some(None)
+}
+
+/// Reads the coin with `probe` every `interval` until it is found, for `deadline` at most. A 429 or
+/// a 5xx waits as `budget` allows (the shared rule: 2 s doubling, at most two waits in the run); a
+/// 403, any other answer, or a busy answer past the budget stops it with no retry. The error
+/// texts carry no URL.
+pub async fn wait_for_app_coin<T, F, Fut>(
+    mut probe: F,
+    interval: Duration,
+    budget: &Budget,
+    deadline: Duration,
+) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = std::result::Result<Probe<T>, String>>,
+{
+    let started = Instant::now();
+    loop {
+        match probe().await {
+            Ok(Probe::Found(found)) => return Ok(found),
+            Ok(Probe::Missing) => {}
+            Err(error) => {
+                let error = without_urls(&error);
+                let Some(retry_after) = busy_wait(&error) else {
+                    bail!("unknown result of the read of the coin: {error}; stopped, no retry");
+                };
+                let Some(wait) = budget.next(retry_after) else {
+                    bail!(
+                        "the read of the coin got a 429 or 5xx past the run's wait limit; stopped: {error}"
+                    );
+                };
+                println!(
+                    "app-coin: the read of the coin got a 429 or 5xx; waiting {} s",
+                    wait.as_secs_f64()
+                );
+                tokio::time::sleep(wait).await;
+                continue;
+            }
+        }
+        if started.elapsed() >= deadline {
+            bail!(
+                "the coin did not appear within {} s; stopped, no buy was sent",
+                deadline.as_secs()
+            );
+        }
+        tokio::time::sleep(interval).await;
+    }
 }
