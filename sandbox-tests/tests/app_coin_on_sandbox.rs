@@ -19,9 +19,8 @@ use std::time::Duration;
 use base64::Engine;
 
 use fair_chance_sandbox_tests::app_coin::{
-    join_app_coin_run, run_app_coin, stand_in_launch, AppCoinRequest,
+    join_app_coin_run, run_app_coin, stand_in_launch, AppCoinRequest, APP_COIN_BUYER_GAS,
 };
-use fair_chance_sandbox_tests::buyer_funding::{buyer_extra_for, gas_price};
 use fair_chance_sandbox_tests::option_t::OptionTSetup;
 use fair_chance_sandbox_tests::pass_list::PassList;
 use fair_chance_sandbox_tests::World;
@@ -32,18 +31,13 @@ const STAND_IN_MAX_DELAY: Duration = Duration::from_secs(8);
 /// About one block every 577 ms, as testnet on 14 Nov, so the burst guard sees testnet timing.
 const TESTNET_BLOCK_MS: u64 = 577;
 
-/// The testnet buys, with the extra the runner's funding check needs at the sandbox's own gas
-/// price (ten times testnet's), read from the node.
-async fn setup(world: &World, label: &str) -> (OptionTSetup, AppCoinRequest) {
+/// The testnet plan: 0.5 NEAR buys, 0.2 NEAR extra, a 0.3 NEAR later buy, 100 Tgas per buy.
+fn setup(world: &World, label: &str) -> (OptionTSetup, AppCoinRequest) {
     let mut setup = OptionTSetup::sandbox_defaults(world, label, 10);
     setup.buy_near = NearToken::from_millinear(500);
+    setup.buyer_extra = NearToken::from_millinear(200);
     setup.later_buy = NearToken::from_millinear(300);
-    let price = gas_price(&world.network).await.unwrap();
-    setup.buyer_extra = buyer_extra_for(setup.buy_near, setup.later_buy, setup.buyer_gas, price);
-    println!(
-        "sandbox gas price {price} yoctoNEAR per gas; buyer extra {}",
-        setup.buyer_extra.exact_amount_display()
-    );
+    setup.buyer_gas = APP_COIN_BUYER_GAS;
     let request = AppCoinRequest {
         coin: format!("{label}.{}", world.factory.id).parse().unwrap(),
         label: label.to_string(),
@@ -54,7 +48,7 @@ async fn setup(world: &World, label: &str) -> (OptionTSetup, AppCoinRequest) {
 #[tokio::test]
 async fn a_coin_launched_from_another_account_gets_the_burst_and_passes_the_seven_checks() {
     let world = World::launch_with_block_ms(TESTNET_BLOCK_MS).await.unwrap();
-    let (mut setup, request) = setup(&world, "cabal3").await;
+    let (mut setup, request) = setup(&world, "cabal3");
     let fake = common::start(common::Mode::Forward(common::host_port(&world.network))).await;
     setup.send_network.rpc_endpoints[0].url = fake.url.parse().unwrap();
     let (ready, go) = tokio::sync::oneshot::channel();
@@ -93,7 +87,7 @@ async fn a_coin_launched_from_another_account_gets_the_burst_and_passes_the_seve
 #[tokio::test]
 async fn a_coin_the_funder_launched_gets_no_buy() {
     let world = World::launch_with_block_ms(TESTNET_BLOCK_MS).await.unwrap();
-    let (setup, request) = setup(&world, "cabal3f").await;
+    let (setup, request) = setup(&world, "cabal3f");
     let (ready, go) = tokio::sync::oneshot::channel();
     // The funder of the sandbox run is bob: a coin bob launches is refused.
     let stand_in = tokio::spawn(stand_in_launch(

@@ -58,7 +58,7 @@ use fair_chance_sandbox_tests::option_t::{
 };
 use fair_chance_sandbox_tests::pass_list::{print_and_exit, PassList};
 use fair_chance_sandbox_tests::World;
-use near_api::types::{NearGas, NearToken};
+use near_api::types::NearToken;
 
 const BUYERS: usize = 20;
 
@@ -273,7 +273,7 @@ async fn testnet_setup(ticker: &str, buyers: usize) -> Result<OptionTSetup> {
         buyers,
         buy_near: NearToken::from_near(1),
         buyer_extra: NearToken::from_millinear(500),
-        buyer_gas: NearGas::from_tgas(300),
+        buyer_gas: near_api::types::NearGas::from_tgas(300),
         launch_deposit: fair_chance_sandbox_tests::LAUNCH_DEPOSIT,
         limits: None,
         later_buy: NearToken::from_yoctonear(0),

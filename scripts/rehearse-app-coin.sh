@@ -3,9 +3,9 @@
 # about one block every 577 ms, with a 3,700 ms wait before each burst send (the public testnet
 # RPC on 14 Nov). The runner makes 10 buyers and a later buyer, signs the burst and waits; a
 # stand-in launches the coin from alice at a random time up to 20 s later; the runner sends the
-# burst when it finds the coin. The testnet buys: 0.5 NEAR, a 0.3 NEAR later buy. The extra per
-# buyer is 0.847 NEAR, not testnet's 0.2: the sandbox gas price is ten times testnet's, and the
-# runner's funding check needs that much there (buyer_extra_for at 1e9 yoctoNEAR per gas).
+# burst when it finds the coin. The same amounts as the testnet plan: 0.5 NEAR buys, 0.2 NEAR
+# extra per buyer, a 0.3 NEAR later buy, and the app coin default of 100 Tgas per buy. Both nodes
+# buy reserved gas at 1e9 yoctoNEAR per gas; the runner's funding check proves the amounts first.
 #
 #   scripts/rehearse-app-coin.sh [runs]     (default 5)
 #
@@ -25,7 +25,7 @@ in_window=0
 for i in $(seq 1 "$runs"); do
   log="$logs/run-$i.log"
   scripts/option-t.sh --coin cabal3.factory.sandbox --buyers 10 --buy-millinear 500 \
-    --buyer-extra-millinear 847 --later-buy-millinear 300 \
+    --buyer-extra-millinear 200 --later-buy-millinear 300 \
     --sandbox-block-ms 577 --sandbox-send-delay-ms 3700 > "$log" 2>&1
   code=$?
   buys="$(grep -o 'landed in blocks [0-9]* to [0-9]* after the launch' "$log" | head -1)"
