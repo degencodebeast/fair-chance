@@ -1,6 +1,6 @@
 # Every sell needs exactly 1 yoctoNEAR attached
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

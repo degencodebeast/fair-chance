@@ -1,6 +1,6 @@
 # Snipers are early supply, plus a falling buy fee in blocks 0 to N
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

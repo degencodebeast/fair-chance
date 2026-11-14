@@ -1,6 +1,6 @@
 # Token and pool in one contract
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

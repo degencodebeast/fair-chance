@@ -1,6 +1,6 @@
 # Large holders cannot send, and early supply shares one allowance
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

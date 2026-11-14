@@ -1,6 +1,6 @@
 # Zero access keys, global contract by hash, one batch, no factory trust
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

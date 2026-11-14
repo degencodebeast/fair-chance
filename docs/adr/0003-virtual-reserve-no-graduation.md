@@ -1,6 +1,6 @@
 # Virtual NEAR reserve, no graduation, whole supply in the pool
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

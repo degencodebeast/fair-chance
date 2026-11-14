@@ -1,6 +1,6 @@
 # Live pool-wide cap on real NEAR paid out
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

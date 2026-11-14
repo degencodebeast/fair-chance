@@ -1,6 +1,6 @@
 # Creator fee share, claimable after 24 hours of pool depth
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 

@@ -195,7 +195,7 @@ Nobody can change a coin after launch. These three lines are the claim ([ADR 000
 
 ## The rules
 
-Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin gets the same ones. Some values are not final ([ADR status lines](docs/adr/)).
+Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin gets the same ones. The creator fee share and its minimum depth are not final ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)).
 
 | Rule | What it means for a trader |
 | --- | --- |

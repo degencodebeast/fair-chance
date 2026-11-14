@@ -1,6 +1,6 @@
 # Partial fill for large and marked sells, penalty for band sells, one window per class
 
-Status: Accepted; may change after the sandbox skeleton and testnet
+Status: Accepted
 
 ## Context
 
