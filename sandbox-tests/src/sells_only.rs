@@ -235,6 +235,121 @@ pub fn sells_only_request(args: &OptionTArguments) -> Result<Option<PathBuf>> {
     }
 }
 
+/// What each seller keeps after the return step: 0.05 NEAR. It pays for the account's own storage
+/// (about 0.002 NEAR for a plain account) and the fee of a later delete, with a wide margin.
+pub const RETURN_KEEP_YOCTO: u128 = 50_000_000_000_000_000_000_000;
+/// The storage price: 10^19 yoctoNEAR per byte.
+const YOCTO_PER_STORAGE_BYTE: u128 = 10_000_000_000_000_000_000;
+
+/// One seller as read just before the return step.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SellerState {
+    pub account: AccountId,
+    /// BAG it holds now.
+    pub bag: u128,
+    /// NEAR it holds now (view_account amount), in yoctoNEAR.
+    pub near: u128,
+    pub storage_bytes: u64,
+}
+
+/// One transfer of the return step.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReturnStep {
+    pub account: AccountId,
+    /// yoctoNEAR sent to the funder: `near_before` minus [`RETURN_KEEP_YOCTO`].
+    pub amount: u128,
+    /// The NEAR read before the step; the transfer goes out only while the account still holds it.
+    pub near_before: u128,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReturnPlan {
+    pub steps: Vec<ReturnStep>,
+    /// Sellers that hold the keep or less, with the reason: nothing to send.
+    pub skipped: Vec<(AccountId, String)>,
+}
+
+/// The return step's transfers, from the sells plan (read back from its file) and the sellers'
+/// state now. It refuses, before any signature, a list that is not bag-buyer-01 to -18 of the plan
+/// in order (so buyers 19 and 20 are never in it), a seller that still holds its whole planned
+/// BAG (its sell did not run), and a seller whose storage costs more than half the keep. A seller
+/// with the keep or less is skipped. A partly filled sell counts as sold: the seller holds less
+/// BAG than planned.
+pub fn plan_returns(
+    plan: &SellPlan,
+    funder: &AccountId,
+    states: &[SellerState],
+) -> Result<ReturnPlan> {
+    let (sellers, keepers) = fixed_accounts(SELLS_ONLY_TICKER, funder)?;
+    let planned: Vec<&AccountId> = plan.steps.iter().map(|s| &s.account).collect();
+    let given: Vec<&AccountId> = states.iter().map(|s| &s.account).collect();
+    if planned != sellers.iter().collect::<Vec<_>>() || plan.keepers != keepers {
+        bail!("the plan file is not bag-buyer-01 to -18 selling and 19 and 20 keeping; nothing was signed");
+    }
+    if given != planned {
+        bail!("the accounts read are not bag-buyer-01 to -18 of the plan in order; nothing was signed");
+    }
+    let mut out = ReturnPlan {
+        steps: Vec::new(),
+        skipped: Vec::new(),
+    };
+    for (state, step) in states.iter().zip(&plan.steps) {
+        let account = &state.account;
+        if state.bag >= step.amount {
+            bail!(
+                "{account} holds {} BAG, not less than its planned sell of {}: its sell did not run; nothing was signed",
+                state.bag,
+                step.amount
+            );
+        }
+        let storage = u128::from(state.storage_bytes) * YOCTO_PER_STORAGE_BYTE;
+        if storage > RETURN_KEEP_YOCTO / 2 {
+            bail!(
+                "{account} uses {} bytes of storage, more than the keep covers with margin; nothing was signed",
+                state.storage_bytes
+            );
+        }
+        if state.near <= RETURN_KEEP_YOCTO {
+            out.skipped.push((
+                account.clone(),
+                format!("holds {} yoctoNEAR, not more than the keep", state.near),
+            ));
+            continue;
+        }
+        out.steps.push(ReturnStep {
+            account: account.clone(),
+            amount: state.near - RETURN_KEEP_YOCTO,
+            near_before: state.near,
+        });
+    }
+    Ok(out)
+}
+
+/// Refuses a transfer when the seller no longer holds exactly the NEAR read before the step.
+pub fn check_return_step(step: &ReturnStep, near_now: u128) -> Result<()> {
+    if near_now != step.near_before {
+        bail!(
+            "{} holds {near_now} yoctoNEAR now, not the {} read before the step; nothing more was signed",
+            step.account,
+            step.near_before
+        );
+    }
+    Ok(())
+}
+
+/// Whether the arguments ask for the return step. `--return-to-funder` runs only with the
+/// sells-only step, so it has all of that step's conditions (testnet, `--ticker BAG`, a plan file).
+pub fn return_request(args: &OptionTArguments) -> Result<bool> {
+    if !args.return_to_funder {
+        return Ok(false);
+    }
+    if !args.sells_only {
+        bail!("--return-to-funder needs --sells-only; nothing was run");
+    }
+    sells_only_request(args)?;
+    Ok(true)
+}
+
 /// The coin of the sells-only step, from the FC_TESTNET_FACTORY value. It refuses any factory that
 /// is not exactly [`SELLS_ONLY_FACTORY`], before any read or signature.
 pub fn check_sells_only_factory(factory: Option<&str>) -> Result<AccountId> {
@@ -468,6 +583,169 @@ pub async fn run_sells(
         Ok(format!(
             "{} sells by bag-buyer-01 to -18 in order, {filled} sold tokens; bag-buyer-19 and -20 kept theirs",
             outcomes.len()
+        )),
+    )?;
+    Ok(outcomes)
+}
+
+/// What one transfer of the return step did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReturnOutcome {
+    pub account: AccountId,
+    pub tx_hash: String,
+    /// yoctoNEAR sent to the funder.
+    pub amount: u128,
+}
+
+async fn near_and_storage(setup: &OptionTSetup, who: &AccountId) -> Result<(u128, u64)> {
+    let view = account_view(&setup.network, who)
+        .await?
+        .with_context(|| format!("{who} does not exist; nothing more was signed"))?;
+    Ok((view.amount.as_yoctonear(), view.storage_usage))
+}
+
+/// The return step, after the sells. It reads the existing plan file back, reads the BAG and NEAR
+/// of bag-buyer-01 to -18 and of the two keepers, plans every transfer with [`plan_returns`], and
+/// only then signs. Before each transfer it reads the seller again ([`check_return_step`]) and runs
+/// the spend check; each transfer goes out once ([`crate::send_once`]). At the end it checks that
+/// buyers 19 and 20 hold the same NEAR and BAG as before. It returns one outcome per transfer.
+pub async fn run_returns(
+    setup: &OptionTSetup,
+    plan_path: &Path,
+    list: &mut PassList,
+) -> Result<Vec<ReturnOutcome>> {
+    let coin = coin_account_id(&setup.ticker, &setup.factory)?;
+    say(&format!(
+        "return step on {coin}: bag-buyer-01 to -18 send their NEAR minus {RETURN_KEEP_YOCTO} yoctoNEAR to {}",
+        setup.funder.id
+    ));
+    let text = std::fs::read_to_string(plan_path).with_context(|| {
+        format!(
+            "the return step reads the plan file {} of the sells; nothing was signed",
+            plan_path.display()
+        )
+    })?;
+    let plan = plan_from_file(&text)?;
+    if plan.coin != coin {
+        bail!(
+            "the plan file names {}, not {coin}; nothing was signed",
+            plan.coin
+        );
+    }
+    if account_view(&setup.network, &coin).await?.is_none() {
+        bail!("{coin} does not exist; nothing was signed");
+    }
+
+    let mut states = Vec::new();
+    for (i, step) in plan.steps.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(READ_SPACING).await;
+        }
+        let bag = token_balance(setup, &coin, &step.account).await?;
+        let (near, storage_bytes) = near_and_storage(setup, &step.account).await?;
+        say(&format!(
+            "read {}: {bag} BAG (planned sell {}), {near} yoctoNEAR, {storage_bytes} bytes",
+            step.account, step.amount
+        ));
+        states.push(SellerState {
+            account: step.account.clone(),
+            bag,
+            near,
+            storage_bytes,
+        });
+    }
+    let mut kept = Vec::new();
+    for account in &plan.keepers {
+        tokio::time::sleep(READ_SPACING).await;
+        let held = (
+            near_and_storage(setup, account).await?.0,
+            token_balance(setup, &coin, account).await?,
+        );
+        say(&format!(
+            "read {account}: {} yoctoNEAR, {} BAG (never touched)",
+            held.0, held.1
+        ));
+        kept.push(held);
+    }
+    let returns = plan_returns(&plan, &setup.funder.id, &states)?;
+    for (account, why) in &returns.skipped {
+        say(&format!("{account}: skipped, {why}"));
+    }
+    let total: u128 = returns.steps.iter().map(|s| s.amount).sum();
+    say(&format!(
+        "plan: {} transfers, {total} yoctoNEAR in all, before any signature",
+        returns.steps.len()
+    ));
+
+    let count = returns.steps.len();
+    let mut outcomes = Vec::new();
+    for (index, step) in returns.steps.iter().enumerate() {
+        let n = index + 1;
+        let (near_now, _) = near_and_storage(setup, &step.account).await?;
+        check_return_step(step, near_now)?;
+        check_funder(
+            setup.limits.as_ref(),
+            &setup.network,
+            &setup.funder.id,
+            NearToken::from_yoctonear(0),
+            &format!("return {n} of {count}"),
+        )
+        .await?;
+        say(&format!(
+            "return {n} of {count}: {} sends {} yoctoNEAR",
+            step.account, step.amount
+        ));
+        let transfer = near_api::Tokens::account(step.account.clone())
+            .send_to(setup.funder.id.clone())
+            .near(NearToken::from_yoctonear(step.amount))
+            .with_signer(setup.funder.signer.clone());
+        let result = crate::send_once(transfer, &step.account, &setup.network, &setup.send_network)
+            .await
+            .with_context(|| {
+                format!(
+                    "return {n} of {count} by {}; nothing more was signed",
+                    step.account
+                )
+            })?;
+        let tx_hash = transaction_hash(&result)?.to_string();
+        if !result.is_success() {
+            bail!(
+                "return {n} of {count} by {} failed, tx {tx_hash}; nothing more was signed",
+                step.account
+            );
+        }
+        say(&format!(
+            "return {n} of {count}: {} tx {tx_hash}",
+            step.account
+        ));
+        outcomes.push(ReturnOutcome {
+            account: step.account.clone(),
+            tx_hash,
+            amount: step.amount,
+        });
+    }
+
+    for (account, before) in plan.keepers.iter().zip(&kept) {
+        let now = (
+            near_and_storage(setup, account).await?.0,
+            token_balance(setup, &coin, account).await?,
+        );
+        if now != *before {
+            bail!("{account} held {before:?} (NEAR, BAG) before the return step and {now:?} after; it must not be touched");
+        }
+        say(&format!(
+            "{account} still holds {} yoctoNEAR and {} BAG",
+            now.0, now.1
+        ));
+    }
+    let sent: u128 = outcomes.iter().map(|o| o.amount).sum();
+    list.check(
+        "returns to the funder",
+        Ok(format!(
+            "{} transfers to {}, {sent} yoctoNEAR; {} skipped; bag-buyer-19 and -20 untouched",
+            outcomes.len(),
+            setup.funder.id,
+            returns.skipped.len()
         )),
     )?;
     Ok(outcomes)

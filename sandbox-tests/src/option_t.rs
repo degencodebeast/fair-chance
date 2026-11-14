@@ -56,6 +56,9 @@ pub struct OptionTArguments {
     /// The BAG sells-only step ([`crate::sells_only`]); needs `--sell-plan` and `--ticker`.
     pub sells_only: bool,
     pub sell_plan: Option<String>,
+    /// The return step after the BAG sells ([`crate::sells_only::run_returns`]); needs
+    /// `--sells-only`.
+    pub return_to_funder: bool,
 }
 
 /// Parses the arguments after the program name. It refuses any argument it does not know, a flag
@@ -77,6 +80,13 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
                 bail!("{flag} is given twice");
             }
             parsed.sells_only = true;
+            continue;
+        }
+        if flag == "--return-to-funder" {
+            if parsed.return_to_funder {
+                bail!("{flag} is given twice");
+            }
+            parsed.return_to_funder = true;
             continue;
         }
         let taken = match flag.as_str() {
