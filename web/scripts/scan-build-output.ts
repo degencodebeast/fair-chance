@@ -273,6 +273,26 @@ function isBuildName(name: string): boolean {
   return PUBLIC_FILES.includes(name) || BUILT_ASSET.test(name);
 }
 
+const RECORDED_RUN_FILE = "recorded-run.json";
+const TX_HASH = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+
+/**
+ * The recorded run file holds public transaction hashes, which look like keys. Only the `tx_hash` values of its
+ * `transactions` list pass, and only in that file. A file that is not valid JSON passes nothing.
+ */
+function withTransactionHashes(options: ScanOptions, text: string): ScanOptions {
+  let hashes: string[] = [];
+  try {
+    const list = (JSON.parse(text) as { transactions?: unknown }).transactions;
+    if (Array.isArray(list)) {
+      hashes = list.flatMap((tx) => (typeof tx === "object" && tx !== null && typeof (tx as { tx_hash?: unknown }).tx_hash === "string" ? [(tx as { tx_hash: string }).tx_hash] : [])).filter((h) => TX_HASH.test(h));
+    }
+  } catch {
+    return options;
+  }
+  return { ...options, allowedValues: [...options.allowedValues, ...hashes] };
+}
+
 /** Scans every file under `dir`. Throws when the folder is missing or empty, so a missing build never passes. */
 export async function scanBuildOutput(dir: string, options: ScanOptions): Promise<Finding[]> {
   const files = walk(dir);
@@ -290,10 +310,11 @@ export async function scanBuildOutput(dir: string, options: ScanOptions): Promis
   );
   return files.flatMap((path, i) => {
     const name = names[i]!;
+    const fileOptions = name === RECORDED_RUN_FILE ? withTransactionHashes(options, readFileSync(path, "utf8")) : options;
     // A file name is text too. When the name itself is a finding, every finding of the file shows the name masked.
     const inName = scanText(unescaped(name), "", options, buildNames);
     const shown = inName.length > 0 ? hint(name) : name;
-    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, options, buildNames)].map((f) => ({ ...f, file: shown }));
+    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, fileOptions, buildNames)].map((f) => ({ ...f, file: shown }));
   });
 }
 
