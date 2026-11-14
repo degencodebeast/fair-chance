@@ -1,7 +1,7 @@
 //! The relaunch rehearsal on a sandbox close to testnet: about 0.6 s per block and a 3.3 s wait
 //! before each burst send (the public testnet RPC answered each call in about 3.4 s on 14 Nov).
-//! Five snipers sign their buys and early sells before the launch. The buys and the early sells
-//! land in the early window, every early sell is refused with FC_EARLY_WINDOW, the snipers'
+//! Ten snipers (1.9 NEAR each, the testnet plan) sign their buys and early sells before the
+//! launch. The buys and the early sells land in the early window, every early sell is refused with FC_EARLY_WINDOW, the snipers'
 //! dump after the window is mostly held back by one shared allowance and the cap, and one ordinary
 //! later buyer sells all of its tokens.
 
@@ -16,8 +16,9 @@ use near_api::types::{NearGas, NearToken};
 #[tokio::test]
 async fn presigned_snipers_land_in_the_early_window_and_their_dump_is_held_back() -> Result<()> {
     let world = World::launch_with_block_ms(600).await?;
-    let mut setup = OptionTSetup::sandbox_defaults(&world, "relaunch", 5);
+    let mut setup = OptionTSetup::sandbox_defaults(&world, "relaunch", 10);
     setup.launch_deposit = NearToken::from_near(1);
+    setup.buy_near = NearToken::from_millinear(1900);
     setup.buyer_extra = NearToken::from_millinear(200);
     setup.buyer_gas = NearGas::from_tgas(100);
     setup.later_buy = NearToken::from_millinear(300);
@@ -35,7 +36,7 @@ async fn presigned_snipers_land_in_the_early_window_and_their_dump_is_held_back(
     );
     let lines = list.lines().join("\n");
     for check in [
-        "5 buyers bought in blocks 0 to 17",
+        "10 buyers bought in blocks 0 to 17",
         "every early sell is refused with FC_EARLY_WINDOW",
         "one shared allowance",
         "most of the dump is held back",
