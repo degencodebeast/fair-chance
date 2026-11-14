@@ -244,6 +244,7 @@ Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin 
 
 Words used here (full list in [GLOSSARY](GLOSSARY.md)):
 
+- **Cabal**: a group of wallets that one person or team controls, such as snipers funded by one wallet. The coin cannot see who controls a wallet, so it limits early supply, the creator group and large accounts instead. Our test cabal is wallets we funded to attack our own coins.
 - **Early supply**, also called marked tokens: tokens any account buys in blocks 0 to 17 after launch, and tokens the creator group buys or receives.
 - **Window**: the time one allowance lasts. It is 1 hour for normal tokens and 24 hours for early supply. All windows count from the launch, so every account resets at the same moment.
 - **Allowance**: the most an account may sell in one window. Pool depth sets its size. All early supply shares one allowance, split by balance.

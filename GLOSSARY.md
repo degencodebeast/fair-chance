@@ -36,6 +36,8 @@ _Avoid_: small account (a small account's bag fits inside one allowance).
 
 **Floor**: the minimum sell room per window that every limited sell gets (`floor_bps`, `floor_left`). Each unmarked account has its own floor. Marked accounts share one floor, split pro rata. Every token an account sells in the window, marked or unmarked, uses its own floor once; a buy gives no floor room back. Its unmarked and marked floors together give one floor per 1 h window, in either order.
 
+**Cabal**: a group of wallets that one person or one team controls and sells together, such as snipers funded by one wallet, or the creator's friends. The coin cannot see who controls a wallet, so no rule names a cabal. The rules reach a cabal through what the coin can see: early supply, the creator group, large accounts and the real NEAR cap. A cabal that buys after block N through many small wallets is a late splitter. **Test cabal**: the wallets we funded from one wallet to attack our own coins on testnet and on a sandbox.
+
 **Late splitter**: a person who buys after block N through many small accounts, so no account is large. A known limit.
 
 **Account handover**: a holder gives a buyer control of its whole account, so no token moves. A known limit.
