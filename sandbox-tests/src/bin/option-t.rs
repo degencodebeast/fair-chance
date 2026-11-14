@@ -123,7 +123,7 @@ async fn start(list: &mut PassList) -> Result<()> {
         setup.buy_near = NearToken::from_millinear(args.buy_millinear.unwrap_or(1000).into());
         setup.buyer_extra =
             NearToken::from_millinear(args.buyer_extra_millinear.unwrap_or(500).into());
-        setup.buyer_gas = NearGas::from_tgas(args.buyer_tgas.unwrap_or(300));
+        setup.buyer_gas = fair_chance_sandbox_tests::app_coin::buyer_gas(&args);
         setup.launch_deposit =
             NearToken::from_millinear(args.launch_deposit_millinear.unwrap_or(5000).into());
         setup.later_buy = NearToken::from_millinear(args.later_buy_millinear.unwrap_or(0).into());

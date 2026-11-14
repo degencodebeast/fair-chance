@@ -8,13 +8,13 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use near_api::types::transaction::result::TransactionResult;
-use near_api::types::{AccountId, CryptoHash, NearToken, Reference};
+use near_api::types::{AccountId, CryptoHash, NearGas, NearToken, Reference};
 use near_api::NetworkConfig;
 use near_openapi_client::types;
 use serde_json::{json, Value};
 
 use crate::burst::{send_burst, BurstSettings};
-use crate::buyer_funding::{buyer_need, check_buyer_funding, gas_price};
+use crate::buyer_funding::{buyer_need, check_buyer_funding, gas_prices};
 use crate::option_t::{
     balance, burst_guard, check_after_burst, make_buyer_accounts, measured_block_s,
     presign_snipers, send_call_s, AfterBurst, OptionTArguments, OptionTReport, OptionTSetup,
@@ -28,6 +28,23 @@ use crate::spend_guard::check_funder;
 use crate::{
     account_view, events, launch_args, transaction_hash, view_on, Account, LAUNCH_DEPOSIT,
 };
+
+/// The gas each buy (and each sell after the window) reserves in the run on a coin the app
+/// launches: a CABAL2 buy burnt 5.04 Tgas of 100. The node buys the reserved gas at 1e9
+/// yoctoNEAR per gas, so 300 Tgas costs 0.3 NEAR a buy.
+pub const APP_COIN_BUYER_GAS: NearGas = NearGas::from_tgas(100);
+/// The gas the run that launches reserves per buy unless `--buyer-tgas` says otherwise.
+const LAUNCHING_RUN_BUYER_GAS: NearGas = NearGas::from_tgas(300);
+
+/// `--buyer-tgas` when given; else [`APP_COIN_BUYER_GAS`] with `--coin`, and the launching run's
+/// 300 Tgas without it.
+pub fn buyer_gas(args: &OptionTArguments) -> NearGas {
+    match (args.buyer_tgas, &args.coin) {
+        (Some(tgas), _) => NearGas::from_tgas(tgas),
+        (None, Some(_)) => APP_COIN_BUYER_GAS,
+        (None, None) => LAUNCHING_RUN_BUYER_GAS,
+    }
+}
 
 /// What `--coin` asks for: the coin account and its label, the first part of its name, which
 /// names the runner's accounts (`<label>-buyer-01`, `<label>-later-buyer`).
@@ -351,17 +368,21 @@ pub async fn run_app_coin(
     if account_view(&setup.network, &coin).await?.is_some() {
         bail!("{coin} exists already; the run must wait before the app launches it. Nothing was signed");
     }
-    let price = gas_price(&setup.network).await?;
+    let prices = gas_prices(&setup.network).await?;
     check_buyer_funding(
         setup.buy_near,
         setup.later_buy,
         setup.buyer_extra,
         setup.buyer_gas,
-        price,
+        prices.used,
     )?;
     say(&format!(
-        "funding check before any signature: gas price {price} yoctoNEAR per gas; each early buyer needs {}, holds {}",
-        buyer_need(setup.buy_near, setup.buyer_gas, price).exact_amount_display(),
+        "funding check before any signature: gas price {}, min_gas_purchase_price {}, used {} yoctoNEAR per gas, {} Tgas per buy; each early buyer needs {}, holds {}",
+        prices.gas_price,
+        prices.min_purchase,
+        prices.used,
+        setup.buyer_gas.as_tgas(),
+        buyer_need(setup.buy_near, setup.buyer_gas, prices.used).exact_amount_display(),
         setup.buy_near.saturating_add(setup.buyer_extra).exact_amount_display()
     ));
     let (buyers, later) = make_buyer_accounts(setup).await?;
