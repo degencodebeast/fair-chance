@@ -14,6 +14,8 @@ export interface RpcRoute {
   post(fetchFn: typeof fetch, rpcUrl: string, init: RequestInit): Promise<Response>;
   /** True while reads of the known testnet RPC go to the relay. */
   relayOn(): boolean;
+  /** The host a read of `rpcUrl` goes to now: the relay's host and path, or `rpcHost` itself. */
+  readHost(rpcUrl: string, rpcHost: string): string;
 }
 
 /** The page's own relay URL; null on the visitor's own machine or outside a browser. */
@@ -46,6 +48,12 @@ export function createRpcRoute(origin: () => string | null): RpcRoute {
 
   return {
     relayOn: () => relayUrl() !== null,
+    readHost(rpcUrl, rpcHost) {
+      const via = rpcUrl === PUBLIC_RPC ? relayUrl() : null;
+      if (via === null) return rpcHost;
+      const u = new URL(via);
+      return `${u.host}${u.pathname}`;
+    },
     async post(fetchFn, rpcUrl, init) {
       const via = rpcUrl === PUBLIC_RPC ? relayUrl() : null;
       if (via === null) return fetchFn(rpcUrl, init);

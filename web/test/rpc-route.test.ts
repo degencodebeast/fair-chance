@@ -110,6 +110,23 @@ describe("RPC route", () => {
   });
 });
 
+describe("the host the checks list names", () => {
+  it("is the relay on a hosted origin, for reads of the known testnet RPC", () => {
+    expect(createRpcRoute(() => HOSTED).readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("fair-chance.example/api/rpc");
+  });
+  it("is the public RPC on the visitor's own machine", () => {
+    expect(createRpcRoute(() => "http://localhost:5191").readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("test.rpc.fastnear.com");
+  });
+  it("is the RPC of the link for any other RPC URL", () => {
+    expect(createRpcRoute(() => HOSTED).readHost("http://127.0.0.1:3030", "127.0.0.1:3030")).toBe("127.0.0.1:3030");
+  });
+  it("is the public RPC again after the relay is off", async () => {
+    const route = createRpcRoute(() => HOSTED);
+    await route.post(fetchBy((u) => (u === RELAY ? new Response("", { status: 404 }) : ok())), PUBLIC, init);
+    expect(route.readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("test.rpc.fastnear.com");
+  });
+});
+
 describe("page links stay the same", () => {
   it("still name the public testnet RPC; only the route sends it to the relay", () => {
     expect(resolvePageLink(`${HOSTED}/?coin=bag.factory.fairchance.testnet&network=testnet`).rpcUrl).toBe(PUBLIC);

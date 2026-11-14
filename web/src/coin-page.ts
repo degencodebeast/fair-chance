@@ -5,6 +5,7 @@ import { HttpStatusError } from "./refresher.ts";
 import { parseCreatorFees, type CreatorFees } from "./creator-fees.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
 import { resolvePageLink, sourceLabel } from "./page-link.ts";
+import { pageRpcRoute } from "./rpc-route.ts";
 import {
   parseCap,
   parseEarlyWindow,
@@ -79,7 +80,7 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
       runCoinChecks(reader, cfg.coin, link.known),
       eventsFromLaunch(reader, rules.launchBlock),
     ]);
-    const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
+    const reads: CoinReads = { coin: cfg.coin, rpcHost: pageRpcRoute.readHost(link.rpcUrl, link.rpcHost), loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
     return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href), ...(e instanceof HttpStatusError ? { failure: e } : {}) };
