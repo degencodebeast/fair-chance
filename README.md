@@ -30,22 +30,12 @@ Built for NEAR HACKATHON, track Memecoins With Mechanics.
 
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
-## What is new here
-
-A falling fee on early buys is not new, and Fair Chance uses one. A fixed cap per sell is not new either: it refuses any sell above the cap. These parts are what Fair Chance adds, all inside the coin contract:
-
-- **A limited sell fills in part.** It does not fail. The seller gets what the limit allows, and the rest stays in the wallet.
-- **The limit follows the pool's depth.** One allowance moves the price by 2% at most, at any pool size.
-- **All early supply shares one allowance per 24 hours.** That is every wallet that bought in blocks 0 to 17, plus the creator group. In our testnet runs, 10 sniper wallets shared one allowance and sold 5.2% to 7.8% of what they asked.
-- **A large holder cannot send tokens.** Large means 2% of supply or more. A send that would make the receiver large is refused too, so a big bag cannot be split across new wallets.
-- **One cap per window on real NEAR.** Large, band and early-supply sells together can take out at most 5% of the pool's real NEAR per window.
-
 ## Contents
 
 - [Judge path, 2 minutes, no install](#judge-path-2-minutes-no-install)
-- [What is new here](#what-is-new-here)
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
+- [What is new here](#what-is-new-here)
 - [Why memecoins](#why-memecoins)
 - [Try it in 90 seconds](#try-it-in-90-seconds)
 - [Run the sniper scene yourself](#run-the-sniper-scene-yourself)
@@ -75,6 +65,17 @@ One preprint measured pump.fun on Solana from 8 August to 18 September 2026: ret
 ## What it does
 
 Fair Chance is a launchpad where each coin limits its own sells, so snipers, the creator and whales cannot dump a whole bag on later buyers at once. Every holder can sell part of their bag at a time, and the amount follows how deep the pool is. Wallets that bought in the first blocks get a tighter limit, and their tokens cannot be sold while those blocks are open. A sell above a limit fills in part, and the rest stays in the wallet. The limits live in the coin contract, so no off-chain part can lift them. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
+
+
+## What is new here
+
+A falling fee on early buys is not new, and Fair Chance uses one. A fixed cap per sell is not new either: it refuses any sell above the cap. These parts are what Fair Chance adds, all inside the coin contract:
+
+- **A limited sell fills in part.** It does not fail. The seller gets what the limit allows, and the rest stays in the wallet.
+- **The limit follows the pool's depth.** One allowance moves the price by 2% at most, at any pool size.
+- **All early supply shares one allowance per 24 hours.** That is every wallet that bought in blocks 0 to 17, plus the creator group. In our testnet runs, 10 sniper wallets shared one allowance and sold 5.2% to 7.8% of what they asked.
+- **A large holder cannot send tokens.** Large means 2% of supply or more. A send that would make the receiver large is refused too, so a big bag cannot be split across new wallets.
+- **One cap per window on real NEAR.** Large, band and early-supply sells together can take out at most 5% of the pool's real NEAR per window.
 
 ## Why memecoins
 
