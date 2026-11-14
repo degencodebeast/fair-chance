@@ -64,3 +64,22 @@ fn the_access_key_answer_of_one_account_is_found_among_the_recorded_pairs() {
     );
     assert_eq!(common::access_key_answer(&pairs, "c.sandbox"), None);
 }
+
+#[test]
+fn the_first_failed_send_skips_reads_and_sends_that_passed() {
+    let send = |n: u64| {
+        json!({ "jsonrpc": "2.0", "id": "0", "method": "send_tx",
+                "params": { "signed_tx_base64": format!("tx{n}"), "wait_until": "FINAL" } })
+        .to_string()
+    };
+    let read = json!({ "jsonrpc": "2.0", "id": "0", "method": "query", "params": {} }).to_string();
+    let passed = r#"{"jsonrpc":"2.0","result":{"final_execution_status":"FINAL"},"id":"0"}"#;
+    let pairs = vec![
+        (send(1), passed.to_string()),
+        (read.clone(), INVALID_TX_ANSWER.to_string()),
+        (send(2), INVALID_TX_ANSWER.to_string()),
+        (send(3), INVALID_TX_ANSWER.to_string()),
+    ];
+    assert_eq!(common::first_failed_send(&pairs), Some(&pairs[2]));
+    assert_eq!(common::first_failed_send(&pairs[..2]), None);
+}
