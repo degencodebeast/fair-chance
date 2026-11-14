@@ -14,6 +14,7 @@ use near_openapi_client::types;
 use serde_json::{json, Value};
 
 use crate::burst::{send_burst, BurstSettings};
+use crate::buyer_funding::{buyer_need, check_buyer_funding, gas_price};
 use crate::option_t::{
     balance, burst_guard, check_after_burst, make_buyer_accounts, measured_block_s,
     presign_snipers, send_call_s, AfterBurst, OptionTArguments, OptionTReport, OptionTSetup,
@@ -350,6 +351,19 @@ pub async fn run_app_coin(
     if account_view(&setup.network, &coin).await?.is_some() {
         bail!("{coin} exists already; the run must wait before the app launches it. Nothing was signed");
     }
+    let price = gas_price(&setup.network).await?;
+    check_buyer_funding(
+        setup.buy_near,
+        setup.later_buy,
+        setup.buyer_extra,
+        setup.buyer_gas,
+        price,
+    )?;
+    say(&format!(
+        "funding check before any signature: gas price {price} yoctoNEAR per gas; each early buyer needs {}, holds {}",
+        buyer_need(setup.buy_near, setup.buyer_gas, price).exact_amount_display(),
+        setup.buy_near.saturating_add(setup.buyer_extra).exact_amount_display()
+    ));
     let (buyers, later) = make_buyer_accounts(setup).await?;
     check_funder(
         setup.limits.as_ref(),

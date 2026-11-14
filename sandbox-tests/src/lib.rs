@@ -7,6 +7,7 @@
 pub mod amount_text;
 pub mod app_coin;
 pub mod burst;
+pub mod buyer_funding;
 pub mod factory_deploy;
 pub mod option_t;
 pub mod page_and_watcher_reads;
