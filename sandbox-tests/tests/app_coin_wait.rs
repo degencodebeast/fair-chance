@@ -121,3 +121,32 @@ async fn no_rpc_url_is_in_the_stop_text() {
         "{text}"
     );
 }
+
+#[tokio::test]
+async fn a_403_with_a_later_5xx_or_429_stops_at_once() {
+    for answer in [
+        "status: 403 Forbidden; then status: 503 Service Unavailable",
+        "status: 403 Forbidden; then status: 429 Too Many Requests",
+    ] {
+        let (stopped, calls) = run(&[Err(answer), Ok(Some(1))], LONG).await;
+        let text = stopped.unwrap_err().to_string();
+        assert!(text.contains("no retry"), "{answer}: {text}");
+        assert_eq!(calls, 1, "{answer}");
+    }
+}
+
+#[tokio::test]
+async fn a_5xx_takes_its_retry_after_so_a_long_one_passes_the_budget_and_stops() {
+    // The budget allows 1 s in all: a 503 that asks for 2 s must stop, not wait 1 ms and read again.
+    let (stopped, calls) = run(
+        &[
+            Err(r#"Response { status: 503, headers: {"retry-after": "2"} }"#),
+            Ok(Some(1)),
+        ],
+        LONG,
+    )
+    .await;
+    let text = stopped.unwrap_err().to_string();
+    assert!(text.contains("wait limit"), "{text}");
+    assert_eq!(calls, 1);
+}
