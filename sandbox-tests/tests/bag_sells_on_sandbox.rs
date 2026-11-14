@@ -225,34 +225,13 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
     use fair_chance_sandbox_tests::sells_only::{
         fixed_accounts, plan_from_balances, plan_json, run_continue,
     };
-    let world = World::launch().await?;
+    let world = World::launch_for_fast_forward().await?;
     let (setup, coin) = launched_bag(&world).await?;
     let (sellers, keepers) = fixed_accounts("BAG", &setup.funder.id)?;
-    // A buyer outside the plan adds 100 NEAR, so the pool holds about 120 NEAR as on testnet and
-    // the hourly cap (5% of it) lets the hand sells of 01 to 03 fill in full, as they did there.
-    let bounds = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
-    let storage: u128 = bounds["min"].as_str().unwrap().parse()?;
-    let big = batch_once(
-        &setup.network,
-        &setup.send_network,
-        &world.alice,
-        &coin,
-        vec![
-            FunctionCall::new(
-                "storage_deposit",
-                json!({}),
-                NearToken::from_yoctonear(storage),
-            ),
-            FunctionCall::new(
-                "buy",
-                json!({ "min_tokens_out": "0" }),
-                NearToken::from_near(100),
-            ),
-        ],
-        NearGas::from_tgas(300),
-    )
-    .await?;
-    assert!(big.is_success(), "{big:?}");
+    // On testnet the buys were hours before the sells. Here they are in the same 1-hour cap
+    // window, and tokens bought in the window count toward its cap when sold, so the hand sells
+    // would fill only in part. About 2.5 h of block time puts them in a later window.
+    world.sandbox.fast_forward(100).await?;
     // The plan file a sells run wrote before it stopped after sell 3.
     let mut balances = Vec::new();
     for a in &sellers {
