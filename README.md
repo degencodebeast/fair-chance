@@ -57,7 +57,7 @@ One preprint measured pump.fun on Solana from 8 August to 18 September 2026: ret
 
 ## What it does
 
-Fair Chance is a launchpad where each coin limits its own sells. Every holder can sell part of their bag at a time, and the amount follows how deep the pool is. Wallets that bought in the first blocks get a tighter limit, and their tokens cannot be sold while those blocks are open. A sell above a limit fills in part, and the rest stays in the wallet. The limits live in the coin contract, so no off-chain part can lift them. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
+Fair Chance is a launchpad where each coin limits its own sells, so snipers, the creator and whales cannot dump a whole bag on later buyers at once. Every holder can sell part of their bag at a time, and the amount follows how deep the pool is. Wallets that bought in the first blocks get a tighter limit, and their tokens cannot be sold while those blocks are open. A sell above a limit fills in part, and the rest stays in the wallet. The limits live in the coin contract, so no off-chain part can lift them. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
 
 ## Why memecoins
 
