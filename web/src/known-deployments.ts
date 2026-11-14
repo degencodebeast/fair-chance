@@ -24,19 +24,20 @@ export interface KnownNetwork extends KnownDeployment {
 }
 
 /**
- * Fill `factory` and `codeHash` after the testnet deploy. Until then the checks show "not checked".
+ * Values read from the testnet chain by view calls: the factory's `coin_code_hash`, the coin's
+ * global contract hash, and the block of the factory's first `fc_launch` transaction.
  * The RPC URL is the public FastNEAR testnet endpoint from the NEAR RPC providers list.
  */
 export const KNOWN_NETWORKS = {
   testnet: {
     rpcUrl: "https://test.rpc.fastnear.com",
     fastNearUrl: "https://tx.test.fastnear.com",
-    factoryFromBlock: 0,
-    demoCoin: null,
+    factoryFromBlock: 277565789,
+    demoCoin: "bag.factory.fairchance.testnet",
     explorerTxUrl: "https://testnet.nearblocks.io/txns/",
-    recordedRunFile: null,
-    factory: null,
-    codeHash: null,
+    recordedRunFile: "recorded-run.json",
+    factory: "factory.fairchance.testnet",
+    codeHash: "6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3",
   },
 } as const satisfies Record<string, KnownNetwork>;
 

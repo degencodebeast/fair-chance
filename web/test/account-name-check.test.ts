@@ -1,3 +1,4 @@
+import { KNOWN_NETWORKS } from "../src/known-deployments.ts";
 import { describe, expect, it, vi } from "vitest";
 import { checkAccountName, launchNameCheckFromLink } from "../src/account-name-check.ts";
 
@@ -32,9 +33,13 @@ describe("launch name check from the page link", () => {
     expect(c.factory).toBe("factory.sandbox");
     expect(c.checkName).not.toBeNull();
   });
-  it("checks nothing when the link names no factory, or the network has none yet", () => {
+  it("uses the fixed testnet factory for a testnet link", () => {
+    const c = launchNameCheckFromLink("http://localhost/?view=launch&network=testnet");
+    expect(c.factory).toBe(KNOWN_NETWORKS.testnet.factory);
+    expect(c.checkName).not.toBeNull();
+  });
+  it("checks nothing when the link names no factory or network, or a host that is not ours", () => {
     expect(launchNameCheckFromLink("http://localhost/?view=launch").checkName).toBeNull();
-    expect(launchNameCheckFromLink("http://localhost/?view=launch&network=testnet").checkName).toBeNull();
     expect(launchNameCheckFromLink("http://localhost/?view=launch&rpc=https%3A%2F%2Fevil.example").checkName).toBeNull();
   });
 });
