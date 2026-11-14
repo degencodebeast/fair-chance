@@ -1,10 +1,11 @@
 //! On sandbox: the sells-only step sells the full balance of buyers 01 to 18, one after another in
 //! that order, writes the plan file before the first signature, and leaves buyers 19 and 20 alone.
+//! The return step then sends the NEAR of buyers 01 to 18, minus the keep, back to the funder, once.
 
 use anyhow::Result;
 use fair_chance_sandbox_tests::option_t::{make_accounts, OptionTSetup};
 use fair_chance_sandbox_tests::pass_list::PassList;
-use fair_chance_sandbox_tests::sells_only::run_sells;
+use fair_chance_sandbox_tests::sells_only::{run_returns, run_sells, RETURN_KEEP_YOCTO};
 use fair_chance_sandbox_tests::{batch_once, launch_args, view_on, FunctionCall, World};
 use near_api::types::{NearGas, NearToken};
 use serde_json::json;
@@ -132,5 +133,78 @@ async fn an_existing_plan_file_stops_the_step_before_any_signature() -> Result<(
     assert!(error.to_string().contains("nothing was signed"), "{error}");
     assert_eq!(balance_of(&setup, &coin, first).await?, before);
     assert_eq!(std::fs::read_to_string(&path)?, "{}");
+    Ok(())
+}
+
+async fn near_of(setup: &OptionTSetup, who: &near_api::types::AccountId) -> Result<u128> {
+    Ok(fair_chance_sandbox_tests::account_view(&setup.network, who)
+        .await?
+        .expect("account exists")
+        .amount
+        .as_yoctonear())
+}
+
+#[tokio::test]
+async fn after_the_sells_buyers_01_to_18_return_their_near_once_and_19_and_20_are_untouched(
+) -> Result<()> {
+    let world = World::launch().await?;
+    let (setup, coin) = launched_bag(&world).await?;
+    let (sellers, keepers) =
+        fair_chance_sandbox_tests::sells_only::fixed_accounts("BAG", &setup.funder.id)?;
+    let path = plan_path("return");
+    let missing = plan_path("return-missing");
+    let error = run_returns(&setup, &missing, &mut PassList::default())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("nothing was signed"), "{error}");
+
+    run_sells(&setup, &path, &mut PassList::default()).await?;
+    let mut kept_before = Vec::new();
+    for k in &keepers {
+        kept_before.push((
+            near_of(&setup, k).await?,
+            balance_of(&setup, &coin, k).await?,
+        ));
+    }
+    let funder_before = near_of(&setup, &setup.funder.id).await?;
+
+    let returns = run_returns(&setup, &path, &mut PassList::default()).await?;
+
+    assert_eq!(returns.len(), 18);
+    let mut sent = 0;
+    for (i, r) in returns.iter().enumerate() {
+        assert_eq!(r.account, sellers[i], "return {} out of order", i + 1);
+        assert!(r.amount > 0);
+        sent += r.amount;
+        let left = near_of(&setup, &sellers[i]).await?;
+        // The keep minus the transfer fee, which the seller pays.
+        assert!(
+            left <= RETURN_KEEP_YOCTO && left > RETURN_KEEP_YOCTO - RETURN_KEEP_YOCTO / 10,
+            "{} holds {left}",
+            sellers[i]
+        );
+    }
+    assert_eq!(
+        near_of(&setup, &setup.funder.id).await?,
+        funder_before + sent
+    );
+    for (k, before) in keepers.iter().zip(&kept_before) {
+        assert_eq!(
+            (
+                near_of(&setup, k).await?,
+                balance_of(&setup, &coin, k).await?
+            ),
+            *before,
+            "{k} was touched"
+        );
+    }
+
+    // A second run finds every seller at the keep: it sends nothing.
+    let again = run_returns(&setup, &path, &mut PassList::default()).await?;
+    assert!(again.is_empty(), "{again:?}");
+    assert_eq!(
+        near_of(&setup, &setup.funder.id).await?,
+        funder_before + sent
+    );
     Ok(())
 }
