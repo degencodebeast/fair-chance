@@ -18,7 +18,7 @@ i=0
 while [ "$i" -lt "${#args[@]}" ]; do
   arg="${args[$i]}"
   case "$arg" in
-    --delete-buyers|--sells-only) ;;
+    --delete-buyers|--sells-only|--return-to-funder) ;;
     --network|--ticker|--name|--description|--start-balance|--spend-cap|--keep|--buy-millinear|--buyer-extra-millinear|--buyer-tgas|--launch-deposit-millinear|--sell-plan)
       i=$((i + 1))
       [ "$i" -lt "${#args[@]}" ] || refuse "$arg"
