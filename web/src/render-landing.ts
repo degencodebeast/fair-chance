@@ -85,7 +85,7 @@ export function drawLanding(app: HTMLElement, href: string): void {
       el("h2", { id: "wont-h" }, copy.wontTitle),
       el("p", {}, copy.wontLead),
       el("ul", {}, ...copy.wont.map((w) => el("li", {}, w))),
-      el("a", { class: "text-link text-link-light", href: coins }, copy.wontLink),
+      el("a", { class: "text-link text-link-light", id: "known-limits", href: `${copy.githubUrl}#known-limits`, target: "_blank", rel: "noopener noreferrer" }, copy.wontLink),
     ),
     el("footer", { class: "landing-footer" }, `${copy.footer} `, el("a", { class: "text-link", href: copy.githubUrl, target: "_blank", rel: "noopener noreferrer" }, copy.githubLabel)),
   ];
