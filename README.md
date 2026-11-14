@@ -122,6 +122,15 @@ Conditions:
 - It binds before the 5% real NEAR cap only when the pool's real NEAR is above about a quarter of its virtual NEAR.
 - The ordinary buyers' full fill is a same-hour round trip. A buyer who sells in a later hour is limited by its own allowance.
 
+### Two buys, the same size (local sandbox)
+
+The scene ends with one more test on a second coin. Two accounts make the same buy: one in block 10 after launch, inside the early window, and one in block 23, after it. Both then sell their whole bag in the same hour as their buy.
+
+- The early buy sold 16.3% of its bag. Its limit was the allowance. It also paid the early buy fee, so it got about 17.7% fewer tokens for the same NEAR.
+- The late buy sold 100% of its bag, with no limit, because a round trip inside one hour fills in full.
+
+So the quick flip is gone for the early buy. This is a local sandbox run, not testnet, and it says nothing about price. Command, commit and condition are in [`evidence/sniper-scene-local.md`](evidence/sniper-scene-local.md).
+
 ## For judges
 
 The hackathon FAQ names how projects are judged: Claude Code and Codex screen each project by checking that it runs and does what the README says. Human judges then decide. The FAQ also lists the criteria earlier NEAR hackathons used. The track prompt says "Judged on the mechanic, not the chart." Sources: [nearhackathon.com](https://nearhackathon.com), [HACKATHON.md](https://nearhackathon.com/HACKATHON.md). The track's example prompt is linked from HACKATHON.md.
