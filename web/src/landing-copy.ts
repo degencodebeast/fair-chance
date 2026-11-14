@@ -15,9 +15,13 @@ export const landingCopy = {
   // The demo video link. Until it is set, the first hero button opens the app instead.
   demoUrl: null as string | null,
   openAppLabel: "Open app",
+  // A real result from the CABAL2 testnet run (evidence/testnet-cabal2-run.json): group totals read
+  // from the chain, fc_early_window.shared_allowance_used.
   proof: {
-    label: "Sample data. An example receipt, not a trade on chain.",
-    sentence: "A big holder tried to sell 3% of a coin. 0.7% went through. It can sell up to 0.7% more after 15:02.",
+    source: "From the Cabal Test 2 coin · 14 Nov, 10:12 UTC · NEAR testnet",
+    sentence: "Our test cabal of 10 wallets bought in block 12 and tried to sell 39.5M CABAL2. 2.98M went through, 7.5%. The rest stayed in their wallets.",
+    coin: "cabal2.factory.fairchance.testnet",
+    link: "See the coin",
   },
   problem:
     "On most launchpads, the creator and the people who buy in the opening seconds often sell into you within minutes. A warning tool can tell you it happened. It can't stop it.",

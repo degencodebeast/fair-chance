@@ -9,9 +9,9 @@ import { screenLink } from "./screen-route.ts";
 import { watcherScreenModel, type ChatMessage } from "./watcher-screen-model.ts";
 
 function openControl(m: ChatMessage): Node | null {
-  if (m.receipt === null) return null;
-  if (m.openHref !== null) return el("a", { class: "open-on-fair-chance", href: m.openHref }, "Open on Fair Chance");
-  return el("button", { type: "button", class: "open-on-fair-chance", disabled: "", title: "Sample alert: no real receipt" }, "Open on Fair Chance");
+  // A sample alert has no receipt on chain, so it shows no link.
+  if (m.receipt === null || m.openHref === null) return null;
+  return el("a", { class: "open-on-fair-chance", href: m.openHref }, "Open on Fair Chance");
 }
 
 /** A hosted page has no made-up chat to show: it says where alerts go and links to the coin screens. */

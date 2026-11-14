@@ -46,6 +46,6 @@ export function watcherScreenModel(_href: string): WatcherScreenModel {
       { label: "Reply to /check", text: sample.check_reply },
     ],
     checkCard: sample.check_reply,
-    openNote: "Open on Fair Chance is turned off here: a sample alert has no real receipt on the chain, so there is nothing to open.",
+    openNote: null,
   };
 }

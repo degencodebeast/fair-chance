@@ -1,10 +1,8 @@
 // Draws the landing screen from landing-copy.ts. Text goes in as text nodes only.
 import { el, type Child } from "./dom-elements.ts";
 import { landingCopy as copy } from "./landing-copy.ts";
-import { sampleLabel } from "./sample-label.ts";
 import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
-import { isOwnMachineHost } from "./local-host.ts";
 
 function itemCard(id: string, block: { kicker: string; title: string; items: { b: string; t: string }[]; note?: string }): HTMLElement {
   return el(
@@ -36,8 +34,13 @@ export function drawLanding(app: HTMLElement, href: string): void {
         el("a", { class: "button button-big", id: "launch-coin", href: screenLink(href, "launch") }, copy.actions[1].label),
         el("a", { class: "text-link", id: "see-rules", href: coins }, copy.actions[2].label),
       ),
-      // The example receipt is made up, so only the visitor's own machine shows it.
-      isOwnMachineHost(new URL(href).hostname) && el("div", { class: "proof", id: "proof" }, sampleLabel(copy.proof.label), el("p", {}, copy.proof.sentence)),
+      el(
+        "div",
+        { class: "proof", id: "proof" },
+        el("p", { class: "proof-source" }, copy.proof.source),
+        el("p", {}, copy.proof.sentence),
+        el("a", { class: "text-link text-link-light", href: screenLink(href, "coin", { coin: copy.proof.coin }) }, copy.proof.link),
+      ),
     ),
     el("section", { "aria-label": "The problem", class: "problem" }, el("p", {}, copy.problem)),
     itemCard("buyers-h", copy.buyers),

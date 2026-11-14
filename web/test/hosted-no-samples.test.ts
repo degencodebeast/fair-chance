@@ -41,7 +41,7 @@ describe("the landing screen", () => {
     expect(document.body.innerHTML).toBeDefined();
     const t = text("https://fc.example/?network=testnet");
     expect(t).not.toMatch(/sample data/i);
-    expect(document.querySelector("#proof")).toBeNull();
+    expect(document.querySelector("#proof .proof-source")?.textContent).toMatch(/NEAR testnet/);
   });
   it("links the footer to the project on GitHub", () => {
     text("https://fc.example/?network=testnet");
@@ -49,8 +49,10 @@ describe("the landing screen", () => {
     expect(link.textContent).toBe("GitHub");
     expect(link.getAttribute("href")).toBe("https://github.com/degencodebeast/fair-chance");
   });
-  it("keeps the labeled example receipt on the local machine", () => {
-    expect(text("http://localhost:5173/")).toMatch(/Sample data/);
+  it("shows the same real testnet result on the local machine, with no sample label", () => {
+    const t = text("http://localhost:5173/");
+    expect(t).not.toMatch(/sample data/i);
+    expect(t).toContain("2.98M went through");
   });
 });
 

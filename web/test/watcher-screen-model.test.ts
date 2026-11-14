@@ -41,11 +41,11 @@ describe("the alerts screen", () => {
     expect(m.preBuyLabel).toMatch(/^Sample data/);
   });
 
-  it("keeps Open on Fair Chance off for sample alerts even when the page link names a coin, because no sample receipt exists on chain", () => {
+  it("gives sample alerts no Open on Fair Chance link and no note about it, because no sample receipt exists on chain", () => {
     for (const href of [bare, withCoin]) {
       const m = watcherScreenModel(href);
       expect(m.chat.every((c) => c.openHref === null)).toBe(true);
-      expect(m.openNote).toMatch(/no real receipt/);
+      expect(m.openNote).toBeNull();
     }
   });
 
