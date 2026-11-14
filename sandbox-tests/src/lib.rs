@@ -793,16 +793,32 @@ pub async fn transact_once(
     send_once(transaction, &who.id, read, send).await
 }
 
+/// The account that signs `transaction`.
+fn transaction_signer(
+    transaction: &near_api::advanced::ExecuteSignedTransaction,
+) -> Result<AccountId> {
+    use near_api::advanced::TransactionableOrSigned;
+    match &transaction.transaction {
+        TransactionableOrSigned::Transactionable(t) => Ok(t
+            .prepopulated()
+            .map_err(|e| anyhow::anyhow!("the transaction is not valid: {e}; nothing was sent"))?
+            .signer_id),
+        TransactionableOrSigned::Signed((signed, _)) => Ok(signed.transaction.signer_id().clone()),
+    }
+}
+
 /// Signs `transaction` without sending it. The nonce and a final block hash come from `send`; when
 /// that read fails, nothing went out, so they come from one read on the first endpoint of `read`
 /// (FastNEAR on testnet) instead. When that fails too, it stops with "nothing was sent". No error
 /// text carries an RPC URL.
 pub async fn presign_once(
     transaction: near_api::advanced::ExecuteSignedTransaction,
-    signer_id: &AccountId,
     read: &NetworkConfig,
     send: &NetworkConfig,
 ) -> Result<near_api::advanced::ExecuteSignedTransaction> {
+    // The nonce belongs to the account that signs, so it comes from the transaction itself, as in
+    // near-api's presign_with; no caller can name another account.
+    let signer_id = &transaction_signer(&transaction)?;
     let failed = |what: &str, e: &dyn std::fmt::Display| {
         anyhow::anyhow!(
             "signing for {signer_id} failed before any send: {what}: {}; nothing was sent",
@@ -852,7 +868,11 @@ pub async fn send_once(
     read: &NetworkConfig,
     send: &NetworkConfig,
 ) -> Result<TransactionResult> {
-    let signed = presign_once(transaction, signer_id, read, send).await?;
+    let signs = transaction_signer(&transaction)?;
+    if &signs != signer_id {
+        bail!("the transaction is signed by {signs}, not {signer_id}; nothing was sent");
+    }
+    let signed = presign_once(transaction, read, send).await?;
     let hash = match &signed.transaction {
         near_api::advanced::TransactionableOrSigned::Signed((tx, _)) => tx.get_hash(),
         near_api::advanced::TransactionableOrSigned::Transactionable(_) => {

@@ -566,14 +566,10 @@ pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
         let transaction = near_api::Account(id.clone())
             .delete_account_with_beneficiary(setup.funder.id.clone())
             .with_signer(setup.funder.signer.clone());
-        let result = send_once(
-            transaction,
-            &setup.funder.id,
-            &setup.network,
-            &setup.send_network,
-        )
-        .await
-        .with_context(|| format!("deleting {id}; nothing more deleted"))?;
+        // The buyer signs its own delete (with the funder's key), so its nonce is the buyer's.
+        let result = send_once(transaction, &id, &setup.network, &setup.send_network)
+            .await
+            .with_context(|| format!("deleting {id}; nothing more deleted"))?;
         if !result.is_success() {
             bail!("deleting {id} failed: {result:?}");
         }
