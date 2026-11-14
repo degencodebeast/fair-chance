@@ -169,3 +169,26 @@ fn sorted<T>(mut items: Vec<(usize, AccountId, T)>) -> Vec<(usize, AccountId, T)
     items.sort_by_key(|(index, _, _)| *index);
     items
 }
+
+/// Blocks from sending the launch to the coin's launch block: one to get the launch into a block,
+/// one for the factory's receipt that makes the coin.
+const LAUNCH_TO_COIN_BLOCKS: u64 = 2;
+
+/// Checks the launch answer against the plan of [`check_burst_timing`]: it may take one send call
+/// plus the blocks to the coin, the tail and the spare blocks of the estimate. A later answer
+/// means the burst would land later than estimated, so the run stops before any buy is sent.
+pub fn check_launch_answer(
+    timing: &BurstTiming,
+    early_blocks: u64,
+    launch_answer_s: f64,
+) -> Result<()> {
+    let spare = early_blocks.saturating_sub(check_burst_timing(timing, early_blocks)?);
+    let blocks = LAUNCH_TO_COIN_BLOCKS + timing.launch_tail_blocks + spare;
+    let allowed = timing.send_s + blocks as f64 * timing.block_s;
+    if launch_answer_s > allowed {
+        bail!(
+            "the launch answer took {launch_answer_s:.1} s, more than the {allowed:.1} s the burst plan allows; the coin exists, but no buy was sent"
+        );
+    }
+    Ok(())
+}

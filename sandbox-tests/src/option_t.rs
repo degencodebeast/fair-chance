@@ -21,7 +21,9 @@ use serde_json::json;
 use tokio::task::JoinSet;
 
 use crate::amount_text::{amount, near, tokens};
-use crate::burst::{check_burst_timing, send_burst, BurstSettings, BurstTiming, SniperTxs};
+use crate::burst::{
+    check_burst_timing, check_launch_answer, send_burst, BurstSettings, BurstTiming, SniperTxs,
+};
 use crate::pass_list::PassList;
 use crate::rate_limit::{run_budget, with_rate_limit_backoff};
 use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
@@ -875,11 +877,17 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         .gas(NearGas::from_tgas(300))
         .with_signer(creator.id.clone(), creator.signer.clone())
         // Back as soon as every receipt ran, with no finality wait: the coin exists then.
-        .wait_until(near_api::types::TxExecutionStatus::ExecutedOptimistic);
+        .wait_until(near_api::types::TxExecutionStatus::ExecutedOptimistic)
+        // Signed now, so the timed send below holds no nonce read.
+        .presign_with(&setup.send_network)
+        .await?;
+    let launch_sent = Instant::now();
     let launched = send_once(launch, &creator.id, &setup.network, &setup.send_network).await?;
+    let launch_answer_s = launch_sent.elapsed().as_secs_f64();
     if !launched.is_success() || events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
         bail!("the launch logged no fc_launch; nothing more was signed: {launched:?}");
     }
+    check_launch_answer(&burst_timing, early_blocks, launch_answer_s)?;
     let started = Instant::now();
     let burst = send_burst(
         &setup.network,
@@ -892,7 +900,10 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     )
     .await?;
     let seconds = started.elapsed().as_secs_f64();
-    say(&format!("launch tx {}", transaction_hash(&launched)?));
+    say(&format!(
+        "launch tx {}; its answer took {launch_answer_s:.1} s",
+        transaction_hash(&launched)?
+    ));
 
     let rules = view_on(&setup.network, &coin, "fc_rules", json!({})).await?;
     let launch_block = rules["launch_block"]
