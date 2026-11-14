@@ -36,7 +36,7 @@ function sparkline(c: CoinCard): Node {
 function cardBody(c: CoinCard): Child[] {
   return [
     el("div", { class: "coin-card-head" }, drawCoinTile({ account: c.account, ticker: c.ticker, icon: c.icon, small: true }), el("div", { class: "coin-card-title" }, el("div", {}, el("span", { class: "coin-card-name" }, c.name), " ", el("span", { class: "num" }, c.ticker)), el("div", { class: "num muted" }, c.age))),
-    el("div", { class: "spark-row" }, sparkline(c), el("span", { class: "num" }, c.change ? `Trades ${c.change}` : "Fewer than 2 trades")),
+    el("div", { class: "spark-row" }, sparkline(c), el("span", { class: "num" }, c.change ? `Price ${c.change} since launch` : "Fewer than 2 trades")),
     el("span", { class: `chip cap-chip cap-${c.cap.tone}` }, c.cap.label),
     el("div", { class: "coin-card-facts" }, el("div", {}, el("div", { class: "muted" }, "Market cap"), el("div", { class: "num" }, c.marketCap)), el("div", {}, el("div", { class: "muted" }, "Early supply"), el("div", { class: "num" }, c.early))),
     el("div", { class: "latest" }, el("b", {}, "Latest receipt. "), c.latest.account && el("span", { class: "num" }, `${c.latest.account} `), c.latest.text),
@@ -57,7 +57,7 @@ function topNode(c: CoinCard, href: string): HTMLElement {
       { class: "top-coin-text" },
       el("div", { class: "top-coin-name" }, el("b", {}, c.name), " ", el("span", { class: "num top-coin-ticker" }, c.ticker)),
       el("span", { class: "num top-coin-cap" }, c.marketCap),
-      el("span", { class: "num top-coin-change" }, c.change ? `Trades ${c.change}` : "Fewer than 2 trades"),
+      el("span", { class: "num top-coin-change" }, c.change ? `Price ${c.change} since launch` : "Fewer than 2 trades"),
       c.source === "sample" && sampleLabel("Sample data"),
     ),
   ];
