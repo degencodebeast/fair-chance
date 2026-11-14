@@ -157,6 +157,16 @@ class Testnet(unittest.TestCase):
         self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply(failure=failure)))), 1)
         self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
 
+    def test_a_launch_claim_matches_an_fc_launch_event(self):
+        root = make({"README.md": tx_line("launch", sender="creator.testnet")})
+        event = {"standard": "fair_chance_factory", "version": "1.0.0", "event": "fc_launch", "data": [{"coin": "bag.f.testnet"}]}
+        reply = tx_reply(["EVENT_JSON:" + json.dumps(event)])
+        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(reply)), [])
+
+    def test_a_launch_claim_fails_without_an_fc_launch_event(self):
+        root = make({"README.md": tx_line("launch", sender="creator.testnet")})
+        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
+
     def test_a_tx_link_with_no_claim_is_reported(self):
         root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{H}) alice.testnet\n"})
         out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("partial")])))

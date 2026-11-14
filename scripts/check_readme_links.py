@@ -13,7 +13,7 @@ reported and never asked again. Exit 0 when nothing is wrong, 1 otherwise, 2 on 
 
 A transaction link carries its claim in the link title:
   [tx](https://explorer.../transactions/<hash> "claim: partial_fill by buyer.testnet")
-The claim is partial_fill, full_fill or refusal:<FC_CODE>, and the account after "by" is the
+The claim is partial_fill, full_fill, launch or refusal:<FC_CODE>, and the account after "by" is the
 sender. The check reads the receipt and compares what it finds with the claim.
 """
 import argparse
@@ -28,7 +28,7 @@ from pathlib import Path
 DEFAULT_FILES = ["README.md", "docs/evidence.md", "docs/model/README.md"]
 RPC_URL = "https://rpc.testnet.near.org"
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"([^\"]*)\")?\)")
-CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|refusal:FC_[A-Z_]+)\s+by\s+(\S+)")
+CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|launch|refusal:FC_[A-Z_]+)\s+by\s+(\S+)")
 FC_CODE = re.compile(r"FC_[A-Z_]+")
 ACCOUNT = re.compile(r"(?<![A-Za-z0-9_.@-])([a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet)(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
 TX_HASH = re.compile(r"/(?:transactions|txns|txn)/([1-9A-HJ-NP-Za-km-z]{43,44})\b")
@@ -192,6 +192,8 @@ def receipt_outcome(reply):
                 event = json.loads(log[len("EVENT_JSON:"):])
             except ValueError:
                 continue
+            if event.get("event") == "fc_launch":
+                return "launch"
             if event.get("event") == "fc_sell":
                 fill = (event.get("data") or [{}])[0].get("fill")
                 return {"partial": "partial_fill", "full": "full_fill", "none": "no_fill"}.get(fill)
