@@ -23,6 +23,8 @@ export interface ScanOptions {
   providerHosts: string[];
   /** Whole-name patterns for the test accounts of our own testnet run. Each must match the full account. */
   ownTestAccounts?: RegExp[];
+  /** Transaction hashes of the committed evidence files. Only the tx_hash fields of the top-level recorded-run.json may hold one. */
+  evidenceTxHashes?: ReadonlySet<string>;
 }
 
 export interface HostRule {
@@ -274,23 +276,50 @@ function isBuildName(name: string): boolean {
 }
 
 const RECORDED_RUN_FILE = "recorded-run.json";
-const TX_HASH = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+const TX_HASH_FIELD = /"tx_hash"\s*:\s*"([1-9A-HJ-NP-Za-km-z]{43,44})"/g;
 
 /**
- * The recorded run file holds public transaction hashes, which look like keys. Only the `tx_hash` values of its
- * `transactions` list pass, and only in that file. A file that is not valid JSON passes nothing.
+ * The recorded run file holds public transaction hashes, which look like keys. A `"tx_hash": "<value>"` field
+ * passes only when the value is a transaction hash of a committed evidence file. The scan reads the file text
+ * with exactly those field values removed, so the same value anywhere else in the file is still a finding, and
+ * so is any value that is not in the evidence. A file that is not valid JSON passes nothing. Only the file at the top of the build gets this.
  */
-function withTransactionHashes(options: ScanOptions, text: string): ScanOptions {
-  let hashes: string[] = [];
+function withoutEvidenceTxHashes(text: string, evidence: ReadonlySet<string>): string {
   try {
-    const list = (JSON.parse(text) as { transactions?: unknown }).transactions;
-    if (Array.isArray(list)) {
-      hashes = list.flatMap((tx) => (typeof tx === "object" && tx !== null && typeof (tx as { tx_hash?: unknown }).tx_hash === "string" ? [(tx as { tx_hash: string }).tx_hash] : [])).filter((h) => TX_HASH.test(h));
-    }
+    JSON.parse(text);
   } catch {
-    return options;
+    return text;
   }
-  return { ...options, allowedValues: [...options.allowedValues, ...hashes] };
+  return text.replace(TX_HASH_FIELD, (field, hash: string) => (evidence.has(hash) ? '"tx_hash":""' : field));
+}
+
+const EVIDENCE_FOLDER = new URL("../../evidence/", import.meta.url);
+
+/** The values of the `tx_hash` and `tx` fields of the committed evidence files (evidence/*.json at the repo root). */
+export function evidenceTxHashes(folder: URL = EVIDENCE_FOLDER): Set<string> {
+  const found = new Set<string>();
+  const visit = (node: unknown): void => {
+    if (Array.isArray(node)) node.forEach(visit);
+    else if (typeof node === "object" && node !== null) {
+      for (const [key, value] of Object.entries(node)) {
+        if ((key === "tx_hash" || key === "tx") && typeof value === "string") found.add(value);
+        else visit(value);
+      }
+    }
+  };
+  let names: string[] = [];
+  try {
+    names = readdirSync(folder).filter((n) => n.endsWith(".json"));
+  } catch {
+    return found;
+  }
+  for (const name of names) visit(JSON.parse(readFileSync(new URL(name, folder), "utf8")));
+  return found;
+}
+
+function fileText(path: string, name: string, options: ScanOptions): string {
+  const text = readFileSync(path, "latin1");
+  return name === RECORDED_RUN_FILE && options.evidenceTxHashes ? withoutEvidenceTxHashes(text, options.evidenceTxHashes) : text;
 }
 
 /** Scans every file under `dir`. Throws when the folder is missing or empty, so a missing build never passes. */
@@ -310,11 +339,10 @@ export async function scanBuildOutput(dir: string, options: ScanOptions): Promis
   );
   return files.flatMap((path, i) => {
     const name = names[i]!;
-    const fileOptions = name === RECORDED_RUN_FILE ? withTransactionHashes(options, readFileSync(path, "utf8")) : options;
     // A file name is text too. When the name itself is a finding, every finding of the file shows the name masked.
     const inName = scanText(unescaped(name), "", options, buildNames);
     const shown = inName.length > 0 ? hint(name) : name;
-    return [...inName, ...scanText(unescaped(readFileSync(path, "latin1")), name, fileOptions, buildNames)].map((f) => ({ ...f, file: shown }));
+    return [...inName, ...scanText(unescaped(fileText(path, name, options)), name, options, buildNames)].map((f) => ({ ...f, file: shown }));
   });
 }
 
@@ -345,6 +373,7 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     allowedValues: networks.flatMap((n) => [n.factory, n.demoCoin, n.codeHash]).filter((v): v is string => v !== null),
     sampleAccounts: SAMPLE_ACCOUNTS,
     ownTestAccounts: OWN_TEST_ACCOUNTS,
+    evidenceTxHashes: evidenceTxHashes(),
     allowedHosts,
     providerHosts: (env.FC_PRIVATE_HOSTS ?? "").split(",").map((h) => h.trim()).filter((h) => h !== ""),
   };
