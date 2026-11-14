@@ -5,6 +5,7 @@
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
 pub mod amount_text;
+pub mod burst;
 pub mod factory_deploy;
 pub mod option_t;
 pub mod page_and_watcher_reads;
@@ -34,6 +35,20 @@ pub fn fast_forward_config() -> Value {
     json!({
         "gc_num_epochs_to_keep": 10_000,
         "consensus": { "max_block_production_delay": { "secs": 200, "nanos": 0 } },
+    })
+}
+
+/// Sandbox `config.json` patch for a block about every `block_ms` milliseconds: a single
+/// validator makes each block at the min block production delay. The max delay is twice that, and
+/// all blocks are kept, as in [`World::launch_with_coin_code`].
+pub fn block_time_config(block_ms: u64) -> Value {
+    let delay = |ms: u64| json!({ "secs": ms / 1000, "nanos": (ms % 1000) * 1_000_000 });
+    json!({
+        "gc_num_epochs_to_keep": 10_000,
+        "consensus": {
+            "min_block_production_delay": delay(block_ms),
+            "max_block_production_delay": delay(2 * block_ms),
+        },
     })
 }
 
@@ -247,6 +262,12 @@ impl World {
         // The sandbox makes blocks fast and by default drops blocks older than a few epochs of 60
         // blocks. The block scan reads from the launch block, so keep all.
         Self::launch_on(coin_code, json!({ "gc_num_epochs_to_keep": 10_000 })).await
+    }
+
+    /// As [`World::launch`], on a sandbox that makes one block about every `block_ms`
+    /// milliseconds ([`block_time_config`]), for a rehearsal close to testnet (0.58 s per block).
+    pub async fn launch_with_block_ms(block_ms: u64) -> Result<Self> {
+        Self::launch_on(wasm("fair_chance_coin")?, block_time_config(block_ms)).await
     }
 
     async fn launch_on(coin_code: Vec<u8>, sandbox_config: Value) -> Result<Self> {
@@ -737,7 +758,7 @@ pub async fn batch_on_with_gas(
 }
 
 /// One function-call action per call, with `total_gas` split evenly.
-fn function_call_actions(
+pub(crate) fn function_call_actions(
     calls: Vec<FunctionCall>,
     total_gas: near_api::types::NearGas,
 ) -> Result<Vec<near_api::types::Action>> {

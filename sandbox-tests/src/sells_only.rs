@@ -276,7 +276,7 @@ fn amount(value: &Value) -> Result<u128> {
 }
 
 /// The first `FC_...` code in a failure text.
-fn refusal_code(text: &str) -> Option<String> {
+pub(crate) fn refusal_code(text: &str) -> Option<String> {
     let start = text.find("FC_")?;
     let code: String = text[start..]
         .chars()

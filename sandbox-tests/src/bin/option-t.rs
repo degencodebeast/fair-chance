@@ -16,6 +16,12 @@
 //!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
 //!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
 //!   --launch-deposit-millinear <n>    NEAR the creator attaches to launch (default 5000)
+//!   --buyers <n>                      buyer accounts that buy in the early window (default 20)
+//!   --later-buy-millinear <n>         NEAR one later buyer pays after the early window, then it
+//!                                     sells every token after the dump (default 0: no later buyer)
+//!   --sandbox-block-ms <n>            sandbox only: about one block every n ms (testnet: 581)
+//!   --sandbox-send-delay-ms <n>       sandbox only: a wait before each burst send, standing in
+//!                                     for the public testnet RPC (about 3,400 ms on 14 Nov)
 //!   --ticker <ticker>                 coin ticker, kept as given for the symbol; accounts use it
 //!                                     in lowercase (default optiont)
 //!   --name <name>                     coin name (default "Option T")
@@ -81,7 +87,12 @@ async fn start(list: &mut PassList) -> Result<()> {
             std::env::var(DELETE_BUYERS_YES_FLAG).ok().as_deref(),
         )?;
     }
+    fair_chance_sandbox_tests::option_t::check_sandbox_only_flags(&args, network)?;
     let limits = fair_chance_sandbox_tests::option_t::choose_spend_limits(&args, network)?;
+    let buyers = args.buyers.map_or(BUYERS, |n| n as usize);
+    if buyers == 0 {
+        anyhow::bail!("--buyers takes 1 or more; nothing was run");
+    }
     let ticker = args.ticker.clone().unwrap_or_else(|| "optiont".to_string());
     let tune = |setup: &mut OptionTSetup| {
         setup.buy_near = NearToken::from_millinear(args.buy_millinear.unwrap_or(1000).into());
@@ -90,6 +101,9 @@ async fn start(list: &mut PassList) -> Result<()> {
         setup.buyer_gas = NearGas::from_tgas(args.buyer_tgas.unwrap_or(300));
         setup.launch_deposit =
             NearToken::from_millinear(args.launch_deposit_millinear.unwrap_or(5000).into());
+        setup.later_buy = NearToken::from_millinear(args.later_buy_millinear.unwrap_or(0).into());
+        setup.send_delay =
+            std::time::Duration::from_millis(args.sandbox_send_delay_ms.unwrap_or(0));
         if let Some(name) = &args.name {
             setup.name = name.clone();
         }
@@ -101,10 +115,13 @@ async fn start(list: &mut PassList) -> Result<()> {
     let mut setup = match network {
         DemoNetwork::Sandbox => {
             println!("option-t: start a fresh sandbox with the factory");
-            world = World::launch().await?;
-            OptionTSetup::sandbox_defaults(&world, &ticker, BUYERS)
+            world = match args.sandbox_block_ms {
+                Some(ms) => World::launch_with_block_ms(ms).await?,
+                None => World::launch().await?,
+            };
+            OptionTSetup::sandbox_defaults(&world, &ticker, buyers)
         }
-        DemoNetwork::Testnet => testnet_setup(&ticker).await?,
+        DemoNetwork::Testnet => testnet_setup(&ticker, buyers).await?,
     };
     tune(&mut setup);
     setup.limits = limits;
@@ -140,7 +157,7 @@ async fn start(list: &mut PassList) -> Result<()> {
 }
 
 #[cfg(feature = "testnet-keychain")]
-async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
+async fn testnet_setup(ticker: &str, buyers: usize) -> Result<OptionTSetup> {
     use anyhow::Context;
     use fair_chance_sandbox_tests::option_t::funder_signer_from_keychain;
     let read = |name: &str| std::env::var(name).with_context(|| format!("set {name}"));
@@ -165,17 +182,19 @@ async fn testnet_setup(ticker: &str) -> Result<OptionTSetup> {
         ticker: ticker.to_string(),
         name: fair_chance_sandbox_tests::option_t::DEFAULT_NAME.to_string(),
         description: fair_chance_sandbox_tests::option_t::DEFAULT_DESCRIPTION.to_string(),
-        buyers: BUYERS,
+        buyers,
         buy_near: NearToken::from_near(1),
         buyer_extra: NearToken::from_millinear(500),
         buyer_gas: NearGas::from_tgas(300),
         launch_deposit: fair_chance_sandbox_tests::LAUNCH_DEPOSIT,
         limits: None,
+        later_buy: NearToken::from_yoctonear(0),
+        send_delay: std::time::Duration::ZERO,
     })
 }
 
 #[cfg(not(feature = "testnet-keychain"))]
-async fn testnet_setup(_ticker: &str) -> Result<OptionTSetup> {
+async fn testnet_setup(_ticker: &str, _buyers: usize) -> Result<OptionTSetup> {
     anyhow::bail!(
         "the testnet path loads the funder key from the keychain; build with --features testnet-keychain (scripts/option-t.sh does this for --network testnet). Nothing was signed"
     )

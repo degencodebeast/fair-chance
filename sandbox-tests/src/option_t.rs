@@ -1,5 +1,8 @@
 //! Option T: one creator launches a coin, 20 buyer accounts buy in blocks 0 to N, then all of
 //! them try to sell. Their sells share one early-supply allowance, and the real NEAR cap fills.
+//! Each buy, and one early sell per buyer, is signed before the launch and sent the moment the
+//! launch result is back ([`crate::burst`]); with a later buyer set, one ordinary account buys
+//! after the early window and sells every token after the dump.
 //!
 //! The network is a parameter. Sandbox is the default. Testnet signs real transactions, so it
 //! runs only when the builder sets [`TESTNET_YES_FLAG`] to `yes` for that run.
@@ -8,7 +11,7 @@
 //! one full-access key, so the funder's signer signs for all of them and no other key exists. The
 //! separate delete step ([`delete_buyers`]) uses the same key to delete the buyers later.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use near_api::types::transaction::result::TransactionResult;
@@ -18,12 +21,13 @@ use serde_json::json;
 use tokio::task::JoinSet;
 
 use crate::amount_text::{amount, near, tokens};
+use crate::burst::{check_burst_timing, send_burst, BurstSettings, BurstTiming, SniperTxs};
 use crate::pass_list::PassList;
 use crate::rate_limit::{run_budget, with_rate_limit_backoff};
 use crate::spend_guard::{check_funder, limits_from, SpendLimits, GAS_MARGIN};
 use crate::{
-    account_view, batch_once, events, launch_args, send_once, transact_once, transaction_hash,
-    view_on, wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
+    account_view, batch_once, events, function_call_actions, launch_args, send_once, transact_once,
+    transaction_hash, view_on, wait_for_final_height, Account, FunctionCall, World, LAUNCH_DEPOSIT,
 };
 
 /// The environment variable the builder sets to `yes` to let Option T sign on testnet.
@@ -52,6 +56,14 @@ pub struct OptionTArguments {
     pub buyer_extra_millinear: Option<u64>,
     pub buyer_tgas: Option<u64>,
     pub launch_deposit_millinear: Option<u64>,
+    /// Snipers: the buyer accounts that buy in the early window.
+    pub buyers: Option<u64>,
+    /// NEAR the one ordinary buyer pays after the early window, in milliNEAR.
+    pub later_buy_millinear: Option<u64>,
+    /// Sandbox only: milliseconds per block, close to testnet for a rehearsal.
+    pub sandbox_block_ms: Option<u64>,
+    /// Sandbox only: a wait before each burst send, standing in for the slow testnet RPC.
+    pub sandbox_send_delay_ms: Option<u64>,
     pub delete_buyers: bool,
     /// The BAG sells-only step ([`crate::sells_only`]); needs `--sell-plan` and `--ticker`.
     pub sells_only: bool,
@@ -91,6 +103,10 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear.is_some(),
             "--buyer-tgas" => parsed.buyer_tgas.is_some(),
             "--launch-deposit-millinear" => parsed.launch_deposit_millinear.is_some(),
+            "--buyers" => parsed.buyers.is_some(),
+            "--later-buy-millinear" => parsed.later_buy_millinear.is_some(),
+            "--sandbox-block-ms" => parsed.sandbox_block_ms.is_some(),
+            "--sandbox-send-delay-ms" => parsed.sandbox_send_delay_ms.is_some(),
             "--sell-plan" => parsed.sell_plan.is_some(),
             _ => bail!("unknown argument {flag}; nothing was run"),
         };
@@ -119,6 +135,10 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,
+            "--buyers" => parsed.buyers = number()?,
+            "--later-buy-millinear" => parsed.later_buy_millinear = number()?,
+            "--sandbox-block-ms" => parsed.sandbox_block_ms = number()?,
+            "--sandbox-send-delay-ms" => parsed.sandbox_send_delay_ms = number()?,
             _ => parsed.launch_deposit_millinear = number()?,
         }
     }
@@ -139,6 +159,25 @@ pub fn choose_network(
         ),
         Some(other) => bail!("unknown network {other:?}: use sandbox or testnet"),
     }
+}
+
+/// The rehearsal flags change the sandbox only; on testnet they are refused, so a testnet run
+/// never waits on purpose before a send.
+pub fn check_sandbox_only_flags(args: &OptionTArguments, network: DemoNetwork) -> Result<()> {
+    if network == DemoNetwork::Testnet {
+        for (flag, given) in [
+            ("--sandbox-block-ms", args.sandbox_block_ms.is_some()),
+            (
+                "--sandbox-send-delay-ms",
+                args.sandbox_send_delay_ms.is_some(),
+            ),
+        ] {
+            if given {
+                bail!("{flag} is for a sandbox rehearsal only; nothing was run");
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The spend limits of the run: testnet needs all three of `--start-balance`, `--spend-cap` and
@@ -201,6 +240,11 @@ pub struct OptionTSetup {
     pub launch_deposit: NearToken,
     /// Checked against the funder balance before each step that signs; none on a plain sandbox run.
     pub limits: Option<SpendLimits>,
+    /// NEAR the one ordinary buyer pays after the early window; zero means no later buyer.
+    pub later_buy: NearToken,
+    /// Sandbox rehearsal only: a wait before each burst send that stands in for the slow public
+    /// testnet RPC. Zero on testnet.
+    pub send_delay: Duration,
 }
 
 /// NEAR the creator gets on top of the launch deposit, for the gas of `launch` (300 TGas).
@@ -242,6 +286,8 @@ impl OptionTSetup {
             buyer_gas: NearGas::from_tgas(300),
             launch_deposit: LAUNCH_DEPOSIT,
             limits: None,
+            later_buy: NearToken::from_yoctonear(0),
+            send_delay: Duration::ZERO,
         }
     }
 
@@ -252,12 +298,18 @@ impl OptionTSetup {
     /// NEAR the run moves from the funder into the new accounts: the creator's launch deposit and
     /// gas, and each buyer's buy and extra. Gas the funder burns itself is not in it.
     pub fn funding(&self) -> NearToken {
+        let later = if self.later_buy.is_zero() {
+            NearToken::from_yoctonear(0)
+        } else {
+            self.later_buy.saturating_add(self.buyer_extra)
+        };
         funding(
             self.launch_deposit,
             self.buy_near,
             self.buyer_extra,
             self.buyers,
         )
+        .saturating_add(later)
     }
 }
 
@@ -303,6 +355,11 @@ pub fn buyer_account_ids(ticker: &str, funder: &AccountId, n: usize) -> Result<V
     (1..=n)
         .map(|i| sub_account(&format!("{ticker}-buyer-{i:02}"), funder))
         .collect()
+}
+
+/// The one ordinary buyer that buys after the early window: `<lowercase ticker>-later-buyer.<funder>`.
+pub fn later_buyer_account_id(ticker: &str, funder: &AccountId) -> Result<AccountId> {
+    sub_account(&format!("{}-later-buyer", ticker.to_lowercase()), funder)
 }
 
 /// Loads the funder's signer from the system keychain (the near CLI keychain entry for the
@@ -458,6 +515,12 @@ async fn survey(setup: &OptionTSetup) -> Result<Vec<(SurveyEntry, AccountPlan)>>
     for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
         names.push((id, setup.buy_near.saturating_add(setup.buyer_extra)));
     }
+    if !setup.later_buy.is_zero() {
+        names.push((
+            later_buyer_account_id(&setup.ticker, &setup.funder.id)?,
+            setup.later_buy.saturating_add(setup.buyer_extra),
+        ));
+    }
     let mut entries = Vec::new();
     for (i, (id, planned)) in names.into_iter().enumerate() {
         if i > 0 {
@@ -494,6 +557,14 @@ async fn survey(setup: &OptionTSetup) -> Result<Vec<(SurveyEntry, AccountPlan)>>
 /// run before anything is signed. Then it waits until the accounts are final (the signer reads
 /// each key at the final block).
 pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account>)> {
+    let (creator, buyers, _later) = make_all_accounts(setup).await?;
+    Ok((creator, buyers))
+}
+
+/// As [`make_accounts`], with the later buyer too when [`OptionTSetup::later_buy`] is not zero.
+pub async fn make_all_accounts(
+    setup: &OptionTSetup,
+) -> Result<(Account, Vec<Account>, Option<Account>)> {
     let plan = survey(setup).await?;
     let mut accounts = Vec::new();
     for (entry, decision) in &plan {
@@ -519,15 +590,23 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
     .await?;
     wait_for_final_height(&setup.network, head).await?;
     let creator = accounts.remove(0);
-    Ok((creator, accounts))
+    let later = if setup.later_buy.is_zero() {
+        None
+    } else {
+        accounts.pop()
+    };
+    Ok((creator, accounts, later))
 }
 
-/// The delete step: deletes each buyer account that exists, with its NEAR going to the funder,
-/// and returns the deleted accounts. It never touches the creator, the coin or the factory: it
-/// builds only the buyer names from [`buyer_account_ids`]. Check [`choose_buyer_deletion`] first.
+/// The delete step: deletes each buyer account that exists, and the later buyer, with its NEAR
+/// going to the funder, and returns the deleted accounts. It never touches the creator, the coin
+/// or the factory: it builds only the names from [`buyer_account_ids`] and
+/// [`later_buyer_account_id`]. Check [`choose_buyer_deletion`] first.
 pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
     let mut deleted = Vec::new();
-    for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
+    let mut ids = buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)?;
+    ids.push(later_buyer_account_id(&setup.ticker, &setup.funder.id)?);
+    for id in ids {
         // Only the node's own answer that the account does not exist counts as absent; any other
         // error stops the step.
         if account_view(&setup.network, &id)
@@ -568,23 +647,163 @@ async fn balance(network: &NetworkConfig, account: &AccountId) -> Result<NearTok
         .amount)
 }
 
-/// Option T, start to end. Prints one line per buy and per sell, adds one PASS line per check
-/// to `list`, and returns the early-buy timing and the funder's cost.
+/// NEAR each buyer attaches to `storage_deposit` in its pre-signed buy. The coin's
+/// `storage_balance_bounds.min` is 0.0032 NEAR (read from the testnet BAG coin on 14 Nov; one
+/// record has one fixed size); the coin refunds the rest. Fixed before the launch, so the buy can
+/// be signed with no read of the new coin.
+pub const BUY_STORAGE_DEPOSIT: NearToken = NearToken::from_millinear(5);
+/// The tokens each sniper's pre-signed early sell asks for: 1 token, so the balance check passes
+/// and the early-window rule is the one that refuses it.
+pub const EARLY_SELL_TOKENS: u128 = 1_000_000_000_000_000_000;
+/// Prepaid gas of each pre-signed early sell. The coin refuses it early, so it burns little; a
+/// small value keeps the NEAR the chain holds for its gas low, after the buy took most of the
+/// sniper's NEAR.
+pub const EARLY_SELL_GAS: NearGas = NearGas::from_tgas(50);
+/// Blocks from the coin's launch block to the launch transaction's last receipt (the factory's
+/// callbacks), counted on the sandbox rehearsal; the burst guard uses it.
+pub const LAUNCH_TAIL_BLOCKS: u64 = 3;
+/// Time from sending the buys to sending the early sells: about two testnet blocks, so each buy is
+/// in a block before the early sell with the next nonce of the same key reaches the node.
+pub const EARLY_SELL_GAP: Duration = Duration::from_millis(1200);
+/// Blocks back from the head over which the run measures seconds per block before the launch.
+const BLOCK_TIME_SPAN: u64 = 100;
+
+/// Seconds per block over the last [`BLOCK_TIME_SPAN`] final blocks. Two reads, before the launch.
+pub async fn measured_block_s(network: &NetworkConfig) -> Result<f64> {
+    let head = with_rate_limit_backoff("the final block", run_budget(), || {
+        near_api::Chain::block()
+            .at(near_api::Reference::Final)
+            .fetch_from(network)
+    })
+    .await?;
+    let from = head.header.height.saturating_sub(BLOCK_TIME_SPAN);
+    let earlier = with_rate_limit_backoff("an earlier block", run_budget(), || {
+        near_api::Chain::block()
+            .at(near_api::Reference::AtBlock(from))
+            .fetch_from(network)
+    })
+    .await?;
+    let blocks = head.header.height - earlier.header.height;
+    if blocks == 0 {
+        bail!("no blocks to measure the block time; nothing was signed");
+    }
+    Ok((head.header.timestamp - earlier.header.timestamp) as f64 / 1e9 / blocks as f64)
+}
+
+/// Signs each sniper's buy (storage deposit and buy in one transaction) and its early sell (the
+/// next nonce) before the launch, from one nonce read per sniper on the send RPC. Returns them
+/// with the longest time one of those reads took: the send RPC's time per call.
+pub async fn presign_snipers(
+    setup: &OptionTSetup,
+    coin: &AccountId,
+    buyers: &[Account],
+) -> Result<(Vec<SniperTxs>, f64)> {
+    let public_key = setup.funder.signer.get_public_key().await?;
+    let mut snipers = Vec::new();
+    let mut send_s: f64 = 0.0;
+    for (i, buyer) in buyers.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(SURVEY_SPACING).await;
+        }
+        let started = Instant::now();
+        let (nonce, block_hash, _) =
+            with_rate_limit_backoff(&format!("the nonce of {}", buyer.id), run_budget(), || {
+                buyer
+                    .signer
+                    .fetch_tx_nonce(buyer.id.clone(), public_key, &setup.send_network)
+            })
+            .await?;
+        send_s = send_s.max(started.elapsed().as_secs_f64());
+        let calls = vec![
+            FunctionCall::new("storage_deposit", json!({}), BUY_STORAGE_DEPOSIT),
+            FunctionCall::new("buy", json!({ "min_tokens_out": "0" }), setup.buy_near),
+        ];
+        let buy = near_api::Transaction::construct(buyer.id.clone(), coin.clone())
+            .add_actions(function_call_actions(calls, setup.buyer_gas)?)
+            .with_signer(buyer.signer.clone())
+            .presign_offline(public_key, block_hash, nonce)
+            .await?;
+        let early_sell = near_api::Contract(coin.clone())
+            .call_function(
+                "sell",
+                json!({ "amount": EARLY_SELL_TOKENS.to_string(), "min_near_out": "0" }),
+            )
+            .transaction()
+            .deposit(NearToken::from_yoctonear(1))
+            .gas(EARLY_SELL_GAS)
+            .with_signer(buyer.id.clone(), buyer.signer.clone())
+            .presign_offline(public_key, block_hash, nonce + 1)
+            .await?;
+        snipers.push(SniperTxs {
+            buyer: buyer.id.clone(),
+            buy,
+            early_sell,
+        });
+    }
+    Ok((snipers, send_s))
+}
+
+/// The height of a block by its hash.
+async fn height_of(network: &NetworkConfig, hash: near_api::types::CryptoHash) -> Result<u64> {
+    Ok(
+        with_rate_limit_backoff("a block by its hash", run_budget(), || {
+            near_api::Chain::block()
+                .at(near_api::Reference::AtBlockHash(hash))
+                .fetch_from(network)
+        })
+        .await?
+        .header
+        .height,
+    )
+}
+
+/// The block of the coin's receipt in a transaction, counted from the launch block, and the
+/// transaction's refusal code when it failed.
+async fn coin_receipt(
+    network: &NetworkConfig,
+    coin: &AccountId,
+    launch_block: u64,
+    result: &TransactionResult,
+) -> Result<(u64, Option<String>)> {
+    let TransactionResult::Full(full) = result else {
+        bail!("the transaction has no execution result yet")
+    };
+    let outcome = full
+        .receipt_outcomes()
+        .iter()
+        .find(|o| &o.executor_id == coin)
+        .context("no receipt ran on the coin")?;
+    let block = height_of(network, outcome.block_hash).await?;
+    let code = (!result.is_success())
+        .then(|| crate::sells_only::refusal_code(&format!("{result:?}")))
+        .flatten();
+    Ok((block.saturating_sub(launch_block), code))
+}
+
+/// Option T, start to end. Before the launch it signs every sniper buy and early sell and checks
+/// that the burst fits the early window; after the launch result it sends them with no read in
+/// between. Prints one line per buy and per sell, adds one PASS line per check to `list`, and
+/// returns the early-buy timing and the funder's cost.
 pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTReport> {
     let say = |text: &str| println!("option-t: {text}");
     let coin = setup.coin()?;
     let funder_before = balance(&setup.network, &setup.funder.id).await?;
 
     say(&format!(
-        "make the creator and {} buyer accounts under {}",
-        setup.buyers, setup.funder.id
+        "make the creator, {} buyer accounts{} under {}",
+        setup.buyers,
+        if setup.later_buy.is_zero() {
+            ""
+        } else {
+            " and one later buyer"
+        },
+        setup.funder.id
     ));
-    let (creator, buyers) = make_accounts(setup).await?;
+    let (creator, buyers, later) = make_all_accounts(setup).await?;
 
     if account_view(&setup.network, &coin).await?.is_some() {
         bail!("{coin} exists already; a rerun resumes only before the launch. Nothing more was signed");
     }
-    say(&format!("{} launches {coin}", creator.id));
     check_funder(
         setup.limits.as_ref(),
         &setup.network,
@@ -593,90 +812,86 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         "the launch",
     )
     .await?;
-    let launched = transact_once(
+
+    // Everything the burst needs, before the launch: the block time, one nonce per sniper and a
+    // recent block hash, all buys and early sells signed, and the guard.
+    let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
+    let block_s = measured_block_s(&setup.network).await?;
+    let (snipers, send_s) = presign_snipers(setup, &coin, &buyers).await?;
+    let burst_timing = BurstTiming {
+        block_s,
+        send_s: send_s + setup.send_delay.as_secs_f64(),
+        launch_tail_blocks: LAUNCH_TAIL_BLOCKS,
+        early_sell_gap_s: EARLY_SELL_GAP.as_secs_f64(),
+    };
+    let estimate = check_burst_timing(&burst_timing, early_blocks)?;
+    say(&format!(
+        "signed {} buys and {} early sells before the launch; {block_s:.4} s per block, {:.2} s per send call; the last early sell lands by block {estimate} of 0 to {early_blocks} (estimate)",
+        snipers.len(),
+        snipers.len(),
+        burst_timing.send_s
+    ));
+
+    say(&format!("{} launches {coin}", creator.id));
+    let launch = near_api::Contract(setup.factory.clone())
+        .call_function(
+            "launch",
+            launch_args(
+                &setup.name,
+                &setup.ticker,
+                None,
+                Some(&setup.description),
+                None,
+            ),
+        )
+        .transaction()
+        .deposit(setup.launch_deposit)
+        .gas(NearGas::from_tgas(300))
+        .with_signer(creator.id.clone(), creator.signer.clone())
+        // Back as soon as every receipt ran, with no finality wait: the coin exists then.
+        .wait_until(near_api::types::TxExecutionStatus::ExecutedOptimistic);
+    let launched = send_once(launch, &creator.id, &setup.network, &setup.send_network).await?;
+    if !launched.is_success() || events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
+        bail!("the launch logged no fc_launch; nothing more was signed: {launched:?}");
+    }
+    let started = Instant::now();
+    let burst = send_burst(
         &setup.network,
         &setup.send_network,
-        &creator,
-        &setup.factory,
-        "launch",
-        launch_args(
-            &setup.name,
-            &setup.ticker,
-            None,
-            Some(&setup.description),
-            None,
-        ),
-        setup.launch_deposit,
-        near_api::types::NearGas::from_tgas(300),
+        snipers,
+        BurstSettings {
+            early_sell_gap: EARLY_SELL_GAP,
+            send_delay: setup.send_delay,
+        },
     )
     .await?;
-    if events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {
-        bail!("the launch logged no fc_launch: {launched:?}");
-    }
-    say(&format!("launch tx {}", transaction_hash(&launched)?));
-    let storage = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
-    let storage_min: u128 = storage["min"].as_str().context("storage min")?.parse()?;
-
-    say(&format!(
-        "{} buyers each pay storage and buy {} at once",
-        setup.buyers,
-        near(setup.buy_near.as_yoctonear())
-    ));
-    // Buyers sign their own buys from NEAR they already hold, so the funder balance cannot change
-    // during the batch: one spend check before it covers every buy, with no reads in the batch.
-    check_funder(
-        setup.limits.as_ref(),
-        &setup.network,
-        &setup.funder.id,
-        NearToken::from_yoctonear(0),
-        &format!("the {} buys", setup.buyers),
-    )
-    .await?;
-    let started = Instant::now();
-    let mut tasks = JoinSet::new();
-    for (index, buyer) in buyers.iter().cloned().enumerate() {
-        let network = setup.network.clone();
-        let send_network = setup.send_network.clone();
-        let coin = coin.clone();
-        let buy_near = setup.buy_near;
-        let gas = setup.buyer_gas;
-        tasks.spawn(async move {
-            let calls = vec![
-                FunctionCall::new(
-                    "storage_deposit",
-                    json!({}),
-                    NearToken::from_yoctonear(storage_min),
-                ),
-                FunctionCall::new("buy", json!({ "min_tokens_out": "0" }), buy_near),
-            ];
-            (
-                index,
-                batch_once(&network, &send_network, &buyer, &coin, calls, gas).await,
-            )
-        });
-    }
-    let mut bought: Vec<Option<TransactionResult>> = vec![None; buyers.len()];
-    while let Some(joined) = tasks.join_next().await {
-        let (index, result) = joined?;
-        bought[index] = Some(result?);
-    }
     let seconds = started.elapsed().as_secs_f64();
-    let bought: Vec<TransactionResult> = bought
-        .into_iter()
-        .map(|b| b.expect("every task reports"))
-        .collect();
+    say(&format!("launch tx {}", transaction_hash(&launched)?));
 
     let rules = view_on(&setup.network, &coin, "fc_rules", json!({})).await?;
     let launch_block = rules["launch_block"]
         .as_u64()
         .context("fc_rules.launch_block")?;
-    let early_blocks = rules["early_blocks"]
-        .as_u64()
-        .context("fc_rules.early_blocks")?;
+    if rules["early_blocks"].as_u64() != Some(early_blocks) {
+        bail!(
+            "fc_rules.early_blocks is {}, not {early_blocks}",
+            rules["early_blocks"]
+        );
+    }
+    if let TransactionResult::Full(full) = &launched {
+        let mut last = 0;
+        for outcome in full.receipt_outcomes() {
+            last = last.max(height_of(&setup.network, outcome.block_hash).await?);
+        }
+        say(&format!(
+            "the launch's last receipt ran in block {} after the launch block {launch_block}",
+            last.saturating_sub(launch_block)
+        ));
+    }
 
     let mut buy_blocks = Vec::new();
     let mut buy_events = Vec::new();
-    for (buyer, result) in buyers.iter().zip(&bought) {
+    for (buyer, result) in buyers.iter().zip(&burst.buys) {
         let buy = events(result, "fair_chance", "fc_buy")
             .pop()
             .with_context(|| format!("{} did not buy: {result:?}", buyer.id))?;
@@ -702,6 +917,18 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         setup.buyers, timing.seconds, timing.first_block, timing.last_block
     ));
 
+    let mut early_sells = Vec::new();
+    for (buyer, result) in buyers.iter().zip(&burst.early_sells) {
+        let (block, code) = coin_receipt(&setup.network, &coin, launch_block, result).await?;
+        println!(
+            "option-t:   early sell {} block {block:>2}: {}, tx {}",
+            buyer.id,
+            code.as_deref().unwrap_or("not refused"),
+            transaction_hash(result)?
+        );
+        early_sells.push((buyer.id.clone(), block, code));
+    }
+
     list.check(
         &format!(
             "{} buyers bought in blocks 0 to {early_blocks}",
@@ -717,6 +944,26 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             Ok(format!(
                 "{} buys of {} landed in blocks {} to {} after the launch, {:.1} s from the launch result",
                 setup.buyers, near(setup.buy_near.as_yoctonear()), timing.first_block, timing.last_block, timing.seconds
+            ))
+        })(),
+    )?;
+
+    list.check(
+        "every early sell is refused with FC_EARLY_WINDOW",
+        (|| {
+            for (id, block, code) in &early_sells {
+                if code.as_deref() != Some("FC_EARLY_WINDOW") {
+                    bail!("the early sell of {id} in block {block} gave {code:?}");
+                }
+                if *block > early_blocks {
+                    bail!("the early sell of {id} ran in block {block}, after the early window");
+                }
+            }
+            let blocks: Vec<String> = early_sells.iter().map(|(_, b, _)| b.to_string()).collect();
+            Ok(format!(
+                "{} early sells of 1 token each were refused in blocks {} after the launch",
+                early_sells.len(),
+                blocks.join(", ")
             ))
         })(),
     )?;
@@ -753,6 +1000,50 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
 
     say("wait for the end of the early window");
     wait_for_final_height(&setup.network, launch_block + early_blocks + 1).await?;
+
+    // The ordinary later buyer buys after the early window, so none of its tokens are marked.
+    let mut later_bought = None;
+    if let Some(later) = &later {
+        check_funder(
+            setup.limits.as_ref(),
+            &setup.network,
+            &setup.funder.id,
+            NearToken::from_yoctonear(0),
+            "the later buy",
+        )
+        .await?;
+        let calls = vec![
+            FunctionCall::new("storage_deposit", json!({}), BUY_STORAGE_DEPOSIT),
+            FunctionCall::new("buy", json!({ "min_tokens_out": "0" }), setup.later_buy),
+        ];
+        let result = batch_once(
+            &setup.network,
+            &setup.send_network,
+            later,
+            &coin,
+            calls,
+            setup.buyer_gas,
+        )
+        .await?;
+        let data = events(&result, "fair_chance", "fc_buy")
+            .pop()
+            .with_context(|| format!("{} did not buy: {result:?}", later.id))?
+            .event["data"][0]
+            .clone();
+        println!(
+            "option-t:   later buy {} block {}: {} tokens for {}, {} marked, tx {}",
+            later.id,
+            data["block"]
+                .as_u64()
+                .unwrap_or(0)
+                .saturating_sub(launch_block),
+            tokens(amount(&data["tokens_out"])?),
+            near(setup.later_buy.as_yoctonear()),
+            tokens(amount(&data["marked_tokens"])?),
+            transaction_hash(&result)?
+        );
+        later_bought = Some(data);
+    }
 
     say("every buyer tries to sell every token at once");
     check_funder(
@@ -816,6 +1107,39 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         cap_filled.extend(events(result, "fair_chance", "fc_cap_filled"));
     }
 
+    // After the dump, the later buyer sells every token it bought.
+    let mut later_sold = None;
+    if let (Some(later), Some(bought)) = (&later, &later_bought) {
+        let result = transact_once(
+            &setup.network,
+            &setup.send_network,
+            later,
+            &coin,
+            "sell",
+            json!({ "amount": bought["tokens_out"], "min_near_out": "0" }),
+            NearToken::from_yoctonear(1),
+            setup.buyer_gas,
+        )
+        .await?;
+        let sell = events(&result, "fair_chance", "fc_sell")
+            .pop()
+            .with_context(|| format!("{} logged no fc_sell: {result:?}", later.id))?;
+        let data = sell.event["data"][0].clone();
+        println!(
+            "option-t:   later sell {} tx {}: asked {}, sold {} (marked {}) for {}, class {}, fill {}, limit_reason {}",
+            later.id,
+            transaction_hash(&result)?,
+            tokens(amount(&data["tokens_asked"])?),
+            tokens(amount(&data["tokens_sold"])?),
+            tokens(amount(&data["marked_sold"])?),
+            near(amount(&data["near_out"])?),
+            data["class"].as_str().unwrap_or("?"),
+            data["fill"].as_str().unwrap_or("?"),
+            data["limit_reason"].as_str().unwrap_or("none"),
+        );
+        later_sold = Some(data);
+    }
+
     let early = view_on(&setup.network, &coin, "fc_early_window", json!({})).await?;
     list.check(
         "one shared allowance",
@@ -843,6 +1167,54 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     )?;
 
     list.check(
+        "most of the dump is held back",
+        (|| {
+            let (mut asked, mut sold) = (0u128, 0u128);
+            for data in &sells {
+                asked += amount(&data["tokens_asked"])?;
+                sold += amount(&data["tokens_sold"])?;
+            }
+            if sold.saturating_mul(2) >= asked {
+                bail!("the buyers sold {sold} of {asked} tokens, not less than half");
+            }
+            Ok(format!(
+                "the {} buyers asked to sell {} tokens and sold {} ({:.1}%); {} stay in their wallets",
+                sells.len(),
+                tokens(asked),
+                tokens(sold),
+                sold as f64 * 100.0 / asked as f64,
+                tokens(asked - sold)
+            ))
+        })(),
+    )?;
+
+    if let (Some(bought), Some(sold)) = (&later_bought, &later_sold) {
+        list.check(
+            "the later buyer sells all of its tokens",
+            (|| {
+                if amount(&bought["marked_tokens"])? != 0 {
+                    bail!("the later buy marked {} tokens", bought["marked_tokens"]);
+                }
+                if sold["fill"] != "full" || sold["tokens_sold"] != bought["tokens_out"] {
+                    bail!(
+                        "the later sell sold {} of {}, fill {}",
+                        sold["tokens_sold"],
+                        bought["tokens_out"],
+                        sold["fill"]
+                    );
+                }
+                Ok(format!(
+                    "{} bought after the window with none marked and sold all {} tokens for {} after the dump (class {}, fill full)",
+                    sold["account"].as_str().unwrap_or("?"),
+                    tokens(amount(&sold["tokens_sold"])?),
+                    near(amount(&sold["near_out"])?),
+                    sold["class"].as_str().unwrap_or("?")
+                ))
+            })(),
+        )?;
+    }
+
+    list.check(
         "cap full",
         (|| {
             let filled = cap_filled.first().context("no sell logged fc_cap_filled")?;
@@ -863,7 +1235,10 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     )?;
     let funder_after = balance(&setup.network, &setup.funder.id).await?;
     let mut left = NearToken::from_yoctonear(0);
-    for account in std::iter::once(&creator).chain(&buyers) {
+    for account in std::iter::once(&creator)
+        .chain(&buyers)
+        .chain(later.as_ref())
+    {
         left = left.saturating_add(balance(&setup.network, &account.id).await?);
     }
     let coin_state = account_view(&setup.network, &coin)

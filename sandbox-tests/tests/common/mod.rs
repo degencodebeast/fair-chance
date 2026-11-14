@@ -15,6 +15,8 @@ pub enum Mode {
     DropSends(String),
     /// Answer every request with HTTP 429 and Retry-After 0.
     Always429,
+    /// Answer every request with HTTP 403.
+    Always403,
 }
 
 pub struct FakeRpc {
@@ -101,6 +103,11 @@ async fn serve(
     let target = match mode {
         Mode::Always429 => {
             let reply = "HTTP/1.1 429 Too Many Requests\r\nretry-after: 0\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
+            stream.write_all(reply.as_bytes()).await?;
+            return stream.shutdown().await;
+        }
+        Mode::Always403 => {
+            let reply = "HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
             stream.write_all(reply.as_bytes()).await?;
             return stream.shutdown().await;
         }

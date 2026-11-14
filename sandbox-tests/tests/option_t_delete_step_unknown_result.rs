@@ -31,6 +31,8 @@ async fn an_unreachable_rpc_is_an_unknown_result_not_a_missing_account() {
         buyer_gas: NearGas::from_tgas(300),
         launch_deposit: NearToken::from_near(5),
         limits: None,
+        later_buy: NearToken::from_yoctonear(0),
+        send_delay: std::time::Duration::ZERO,
     };
     let error = delete_buyers(&setup).await.unwrap_err().to_string();
     assert!(
