@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { optionsFromConfig, scanBuildOutput, type ScanOptions } from "../scripts/scan-build-output.ts";
 import { FAUCET_URL } from "../src/try-it-copy.ts";
+import { WALLET_MANIFEST } from "../src/wallet-manifest.ts";
 
 // Every bad value below is an obvious fake planted in a temporary folder. Parts are joined at run
 // time so this file holds no private-looking string of its own.
@@ -297,6 +298,65 @@ describe("the bot link", () => {
     for (const other of [`${bot}?start=x`, `${bot}2`, "https://t.me/other_bot", "https://t.me/", `${bot}/extra`]) {
       plant("assets/app.js", `const b="${other}";`);
       expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule), other).toContain("private-endpoint");
+    }
+  });
+});
+
+describe("the allow list of one chunk", () => {
+  const lib = "https://lib-host.example/docs/manifest.json";
+  const chunk: ScanOptions["chunkAllowances"] = [
+    {
+      file: /^assets\/wallet-lib-[A-Za-z0-9_-]{8}\.js$/,
+      urls: [{ value: lib, reason: "a default the library does not use" }, { value: "https://wallet.other-host.example", reason: "a link" }],
+      values: [{ value: "plugin.near", reason: "an extension object name in library code" }],
+    },
+  ];
+  const withChunk = () => rules({ chunkAllowances: chunk });
+
+  it("passes the exact listed values inside the named chunk", async () => {
+    plant("assets/wallet-lib-AbCd1234.js", `const a="${lib}",b="plugin.near",c="https://wallet.other-host.example";`);
+    expect(await withChunk()).toEqual([]);
+  });
+
+  it("still flags the same values in any other chunk", async () => {
+    plant("assets/index-AbCd1234.js", `const a="${lib}",b="plugin.near";`);
+    expect(await withChunk()).toEqual(["private-endpoint", "wallet"]);
+  });
+
+  it("still flags a value that is not exactly the listed one, inside the chunk", async () => {
+    plant("assets/wallet-lib-AbCd1234.js", `const a="${lib}?key=abc",b="x.plugin.near",c="https://lib-host.example/other";`);
+    expect(await withChunk()).toEqual(["private-endpoint", "private-endpoint", "wallet"]);
+  });
+
+  it("matches the chunk by its whole name only", async () => {
+    plant("assets/wallet-lib-AbCd1234.js.txt", `const b="plugin.near";`);
+    plant("assets/my-wallet-lib-AbCd1234.js", `const b="plugin.near";`);
+    expect(await withChunk()).toEqual(["wallet", "wallet"]);
+  });
+});
+
+describe("the real allow list of the wallet library chunk", () => {
+  const real = optionsFromConfig({}).chunkAllowances ?? [];
+
+  it("names one chunk, the wallet adapter, by its build name", () => {
+    expect(real).toHaveLength(1);
+    expect(real[0]!.file.test("assets/wallet-adapter-NuRaRLKp.js")).toBe(true);
+    expect(real[0]!.file.test("assets/index-NuRaRLKp.js")).toBe(false);
+    expect(real[0]!.file.test("assets/wallet-adapter-NuRaRLKp.css")).toBe(false);
+  });
+
+  it("gives each entry a one-line reason", () => {
+    for (const e of [...real[0]!.urls, ...real[0]!.values]) {
+      expect(e.reason.length, e.value).toBeGreaterThan(10);
+      expect(e.reason).not.toContain("\n");
+    }
+  });
+
+  it("holds every link of the pinned wallet manifest, so the scan passes only the wallet the repo pins", () => {
+    const urls = real[0]!.urls.map((u) => u.value);
+    for (const w of WALLET_MANIFEST.wallets) {
+      expect(urls).toContain(w.executor);
+      for (const open of w.permissions.allowsOpen ?? []) if (open.startsWith("https://")) expect(urls).toContain(open);
     }
   });
 });

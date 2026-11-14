@@ -3,6 +3,7 @@
 import "./screens.css";
 import { screenFor } from "./screen-route.ts";
 import { hostedEntryHref, showNetworkBanner } from "./hosted-entry.ts";
+import { mountWalletBar, pageWallet } from "./page-wallet.ts";
 
 const app = document.querySelector<HTMLElement>("#app")!;
 // A bare hosted address opens the landing screen on the testnet.
@@ -10,6 +11,8 @@ const entry = hostedEntryHref(location.href);
 if (entry !== null) history.replaceState(null, "", entry);
 const href = location.href;
 showNetworkBanner(document, href);
+// The wallet bar sits on every screen, outside the part each screen redraws.
+mountWalletBar(document, pageWallet(href));
 const screen = screenFor(href);
 
 const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", launch: "Launch a coin", coin: "Fair Chance coin" };

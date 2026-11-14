@@ -5,6 +5,7 @@
 import { NearConnector, type NearConnectorOptions } from "@hot-labs/near-connect";
 import { KNOWN_NETWORKS } from "./known-deployments.ts";
 import type { TxRequest } from "./tx-types.ts";
+import { WALLET_MANIFEST } from "./wallet-manifest.ts";
 import type { WalletAccount, WalletLibrary } from "./wallet-session.ts";
 
 /** The part of a near-connect wallet the page uses. */
@@ -31,6 +32,8 @@ export function connectorOptions(): NearConnectorOptions {
   return {
     network: "testnet",
     providers: { testnet: [KNOWN_NETWORKS.testnet.rpcUrl] },
+    // The wallet list from the repo; the library then fetches no list at run time.
+    manifest: WALLET_MANIFEST,
     // Show only wallets that say they work on testnet and can send a list of transactions.
     features: { testnet: true, signAndSendTransactions: true },
     // Nothing signs in without the visitor's click.

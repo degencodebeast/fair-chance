@@ -27,6 +27,23 @@ export interface ScanOptions {
   ownTestAccounts?: RegExp[];
   /** Transaction hashes of the committed evidence files. Only the tx_hash fields of the top-level recorded-run.json may hold one. */
   evidenceTxHashes?: ReadonlySet<string>;
+  /** Exact values that one build file may hold, such as the wallet library's own links. No other file gets them. */
+  chunkAllowances?: ChunkAllowance[];
+}
+
+/** One reviewed value and why the page may hold it. */
+export interface AllowedValue {
+  value: string;
+  reason: string;
+}
+
+export interface ChunkAllowance {
+  /** Matched against the whole build name of the file, such as "assets/wallet-adapter-AbCd1234.js". */
+  file: RegExp;
+  /** Exact URLs. Nothing inside one of them is a finding: a host that reads like an account, a commit hash. */
+  urls: AllowedValue[];
+  /** Exact whole matches of a rule, such as an object name in library code that reads like an account. */
+  values: AllowedValue[];
 }
 
 export interface HostRule {
@@ -239,7 +256,16 @@ function textMask(text: string): { mask: Uint8Array; ok: boolean } {
 
 function scanText(text: string, file: string, options: ScanOptions, buildNames: ReadonlySet<string>): Finding[] {
   const found: Finding[] = [];
-  const add = (rule: Finding["rule"], match: string) => found.push({ file, rule, hint: hint(match) });
+  // The reviewed values of this one file. A value matches only as a whole, and only in this file.
+  const chunk = (options.chunkAllowances ?? []).filter((a) => a.file.test(file));
+  const chunkUrls = new Set(chunk.flatMap((a) => a.urls.map((u) => u.value)));
+  const chunkValues = new Set(chunk.flatMap((a) => a.values.map((v) => v.value)));
+  const chunkUrlRanges = [...text.matchAll(URL_PATTERN)].filter((u) => chunkUrls.has(u[0])).map((u) => [u.index!, u.index! + u[0].length] as const);
+  const add = (rule: Finding["rule"], match: string, at?: number) => {
+    if (chunkValues.has(match)) return;
+    if (at !== undefined && chunkUrlRanges.some(([from, to]) => at >= from && at < to)) return;
+    found.push({ file, rule, hint: hint(match) });
+  };
   // One or two characters before ".testnet" in code (not in a string or a comment) is a property read of a minified script.
   const lexed = /\.(?:js|mjs)$/.test(file) ? textMask(text) : null;
   if (lexed !== null && !lexed.ok) add("unreadable-file", file);
@@ -251,22 +277,22 @@ function scanText(text: string, file: string, options: ScanOptions, buildNames: 
     if (options.sampleAccounts.includes(m[0]) || isAllowedAccount(m[0], options.allowedAccounts)) continue;
     if (options.ownTestAccounts?.some((p) => p.test(m[0]))) continue;
     if (mask !== null && mask[m.index!] === 0 && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(m[0])) continue;
-    add("wallet", m[0]);
+    add("wallet", m[0], m.index);
   }
-  for (const m of text.matchAll(IMPLICIT_ACCOUNT)) add("wallet", m[0]);
-  for (const pattern of WORKSPACE_PATHS) for (const m of text.matchAll(pattern)) add("workspace-path", m[0]);
-  for (const pattern of KEYS) for (const m of text.matchAll(pattern)) add("key", m[0]);
-  for (const m of text.matchAll(URL_PATTERN)) if (!isAllowedUrl(m[0], options.allowedHosts)) add("private-endpoint", m[0]);
+  for (const m of text.matchAll(IMPLICIT_ACCOUNT)) add("wallet", m[0], m.index);
+  for (const pattern of WORKSPACE_PATHS) for (const m of text.matchAll(pattern)) add("workspace-path", m[0], m.index);
+  for (const pattern of KEYS) for (const m of text.matchAll(pattern)) add("key", m[0], m.index);
+  for (const m of text.matchAll(URL_PATTERN)) if (!isAllowedUrl(m[0], options.allowedHosts)) add("private-endpoint", m[0], m.index);
   const known = (value: string) => options.allowedValues.includes(value) || buildNames.has(value);
-  for (const m of text.matchAll(HEX_KEY)) if (m[0].length !== 64 && !known(m[0]) && entropy(m[0]) >= 3.0) add("key", m[0]);
-  for (const m of text.matchAll(BARE_TOKEN)) if (!known(m[0]) && looksLikeSecret(m[0])) add("key", m[0]);
-  for (const m of text.matchAll(ETH_ACCOUNT)) add("wallet", m[0]);
+  for (const m of text.matchAll(HEX_KEY)) if (m[0].length !== 64 && !known(m[0]) && entropy(m[0]) >= 3.0) add("key", m[0], m.index);
+  for (const m of text.matchAll(BARE_TOKEN)) if (!known(m[0]) && looksLikeSecret(m[0])) add("key", m[0], m.index);
+  for (const m of text.matchAll(ETH_ACCOUNT)) add("wallet", m[0], m.index);
   const lower = text.toLowerCase();
   for (const host of [...BUILT_IN_PROVIDER_HOSTS, ...options.providerHosts]) {
     if (host === "") continue;
     let at = lower.indexOf(host.toLowerCase());
     while (at !== -1) {
-      add("provider-host", host);
+      add("provider-host", host, at);
       at = lower.indexOf(host.toLowerCase(), at + host.length);
     }
   }
@@ -358,6 +384,37 @@ const SAMPLE_ACCOUNTS = ["moth.factory.testnet", "you.testnet", "bigfish.testnet
 // the one root we own, so no other account and no sub-account of these passes.
 const OWN_TEST_ACCOUNTS = [/^(?:bag-buyer-\d{2}|bag-creator|cabal-[a-z0-9-]+)\.fairchance\.testnet$/];
 
+/**
+ * The reviewed values of the wallet library chunk: @hot-labs/near-connect 0.12.0 with the pinned wallet
+ * list of src/wallet-manifest.ts. Only that chunk gets them; the same value in any other file is a finding.
+ * A new library version or a new wallet changes this list, and the change needs a review.
+ */
+export const WALLET_CHUNK: ChunkAllowance = {
+  file: /^assets\/wallet-adapter-[A-Za-z0-9_-]{8}\.js$/,
+  urls: [
+    { value: "https://raw.githubusercontent.com/Meteor-Wallet/meteor_wallet_sdk/6369ad789d2f3aaf8e6ccb065021723111027174/storage/meteor-near-connect-latest.js", reason: "The Meteor Wallet code, pinned to one commit by the wallet list in the repo." },
+    { value: "https://meteorwallet.app/", reason: "The Meteor Wallet website, which the wallet picker shows by its host name." },
+    { value: "https://meteorwallet.app", reason: "A link the Meteor Wallet code may open, from its pinned allowsOpen list." },
+    { value: "https://wallet.meteorwallet.app", reason: "The Meteor web wallet, which the wallet code may open as a pop-up." },
+    { value: "https://chromewebstore.google.com", reason: "The extension store the Meteor Wallet code may open to install the extension." },
+    { value: "https://raw.githubusercontent.com/hot-dao/near-selector/refs/heads/main/repository/manifest.json", reason: "The library's default wallet list; not fetched, since the page passes its own list." },
+    { value: "https://cdn.jsdelivr.net/gh/azbang/hot-connector/repository/manifest.json", reason: "The library's second default wallet list; not fetched, since the page passes its own list." },
+    { value: "https://wallet.near.org", reason: "The library's default footer link; not shown, since the page turns the footer off." },
+    { value: "https://web.telegram.org", reason: "The message target the library uses only inside a Telegram mini app." },
+    { value: "https://www.mynearwallet.com/images/webclip.png", reason: "The picture of the library's custom wallet form for wallet developers; not opened by the page." },
+    { value: "https://github.com/azbang/hot-connector", reason: "A documentation link in the library's custom wallet form; not opened by the page." },
+  ],
+  values: [
+    { value: "nightly.near", reason: "The name of the Nightly extension object in library code, not an account." },
+    { value: "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", reason: "The base58 alphabet of the library's encoder." },
+    { value: "addFunctionCallKey:e.addFunctionCallKey", reason: "A property read in minified library code, not a key." },
+    { value: "signInWithFunctionCallKey:e.addFunctionCallKey", reason: "A property read in minified library code, not a key." },
+    { value: "publicKey:e.addKey.publicKey.toString", reason: "A property read in minified library code, not a key." },
+    { value: "publicKey:e.deleteKey.publicKey.toString", reason: "A property read in minified library code, not a key." },
+    { value: "publicKey:e.stake.publicKey.toString", reason: "A property read in minified library code, not a key." },
+  ],
+};
+
 /** The accounts and hosts the page may name, from the fixed config. */
 export function optionsFromConfig(env: Record<string, string | undefined> = process.env): ScanOptions {
   const networks: KnownNetwork[] = Object.values(KNOWN_NETWORKS);
@@ -384,6 +441,7 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     ownTestAccounts: OWN_TEST_ACCOUNTS,
     evidenceTxHashes: evidenceTxHashes(),
     allowedHosts,
+    chunkAllowances: [WALLET_CHUNK],
     providerHosts: (env.FC_PRIVATE_HOSTS ?? "").split(",").map((h) => h.trim()).filter((h) => h !== ""),
   };
 }
