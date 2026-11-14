@@ -32,7 +32,9 @@ export interface Card {
   title: string;
   chip: { text: string; tone: Tone } | null;
   lines: Line[];
-  /** The big figure and the bar of the cap card. */
+  /** The main number of the card, shown first and large: "0.22 NEAR" with "room left of 0.23 NEAR this hour". */
+  figure: { value: string; label: string; tone: Tone } | null;
+  /** The bar of the cap card; its text is the bar's accessible name. */
   meter: { text: string; usedPct: number; tone: Tone } | null;
 }
 
@@ -271,7 +273,7 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
   const na: Line = { text: NOT_AVAILABLE, tone: "plain" };
   const line = (text: string, tone: Tone = "plain"): Line => ({ text, tone });
 
-  const early: Card = { id: "early", title: "Creator group and early buyers", chip: null, lines: [], meter: null };
+  const early: Card = { id: "early", title: "Creator group and early buyers", chip: null, figure: null, lines: [], meter: null };
   early.lines.push(
     r.pool.kind === "value"
       ? line(`Creator group: ${percentOfBps(r.pool.value.creatorGroupShareBps)} of supply, limit ${percentOfBps(r.rules.creatorCapBps)}`)
@@ -279,11 +281,11 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
   );
   if (r.earlyWindow.kind === "value") {
     const e = r.earlyWindow.value;
-    early.lines.push(
-      supply !== null && supply > 0n
-        ? line(`Early supply: ${percentOfBps(Number((e.earlySupplyTotal * 10_000n) / supply))} of supply`)
-        : na,
-    );
+    if (supply !== null && supply > 0n) {
+      early.figure = { value: percentOfBps(Number((e.earlySupplyTotal * 10_000n) / supply)), label: "of supply is early supply", tone: "plain" };
+    } else {
+      early.lines.push(na);
+    }
     if (e.blocksLeft > 0) {
       early.lines.push(line(`Early supply cannot sell until block ${e.earlyBlocks} has passed.`, "limit"));
     }
@@ -294,18 +296,18 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
     early.lines.push(na);
   }
 
-  const large: Card = { id: "large", title: "Large holders", chip: null, lines: [], meter: null };
-  large.lines.push(
-    r.pool.kind === "value"
-      ? line(`${r.pool.value.largeHolders} ${r.pool.value.largeHolders === 1 ? "large holder" : "large holders"} now`)
-      : na,
-  );
+  const large: Card = { id: "large", title: "Large holders", chip: null, figure: null, lines: [], meter: null };
+  if (r.pool.kind === "value") {
+    large.figure = { value: String(r.pool.value.largeHolders), label: r.pool.value.largeHolders === 1 ? "large holder now" : "large holders now", tone: "plain" };
+  } else {
+    large.lines.push(na);
+  }
   large.lines.push(
     line(`Large from ${percentOfBps(r.rules.largeThresholdBps)} of supply. A large account cannot send tokens to other wallets. It can sell, and it stays large until it holds none.`),
   );
   large.lines.push(line(`Each account has its own sell allowance, new every ${hoursText(r.rules.windowUnmarkedS)}.`));
 
-  const cap: Card = { id: "cap", title: "Pool cap this hour", chip: null, lines: [], meter: null };
+  const cap: Card = { id: "cap", title: "Pool cap this hour", chip: null, figure: null, lines: [], meter: null };
   if (r.cap.kind === "value" && ctx.nowNs >= r.cap.value.windowEndNs) {
     cap.chip = { text: "Old", tone: "limit" };
     cap.lines.push(
@@ -316,6 +318,7 @@ function whoCanSell(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigi
     const tone: Tone = c.isFull ? "limit" : "plain";
     cap.chip = { text: c.isFull ? "Full" : "Has room", tone };
     cap.lines.push(line(`Pool cap: ${percentOfBps(r.rules.realCapCBps)} of real NEAR per hour, shared by all limited sellers. Now ${nearAmount(c.capTotal.toString())} NEAR.`));
+    cap.figure = { value: `${nearAmount(c.capLeft.toString())} NEAR`, label: `room left of ${nearAmount(c.capTotal.toString())} NEAR this hour`, tone };
     cap.meter = {
       text: `Room left in the pool cap this hour: ${nearAmount(c.capLeft.toString())} of ${nearAmount(c.capTotal.toString())} NEAR`,
       usedPct: c.capTotal === 0n ? 0 : Number((c.capUsed * 100n) / c.capTotal),

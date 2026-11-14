@@ -67,10 +67,10 @@ describe("normal", () => {
     const [early, large, cap] = view.who;
     expect(early!.lines.map((l) => l.text)).toEqual([
       "Creator group: 3.9% of supply, limit 4.0%",
-      "Early supply: 18.4% of supply",
       "Shared allowance per 24 h window: 4.2M MOTH, for all early supply together",
     ]);
-    expect(large!.lines[0]!.text).toBe("2 large holders now");
+    expect(early!.figure).toEqual({ value: "18.4%", label: "of supply is early supply", tone: "plain" });
+    expect(large!.figure).toEqual({ value: "2", label: "large holders now", tone: "plain" });
     expect(cap!.chip).toEqual({ text: "Has room", tone: "plain" });
     expect(cap!.meter).toEqual({ text: "Room left in the pool cap this hour: 1.23 of 2.13 NEAR", usedPct: 42, tone: "plain" });
     expect(cap!.lines.map((l) => l.text)).toContain("Resets 15:02, in 38 min");

@@ -69,14 +69,14 @@ function drawCard(c: Card): HTMLElement {
     "div",
     { class: "who-card", "data-card": c.id },
     el("div", { class: "who-title" }, el("b", {}, c.title), c.chip && el("span", { class: `chip chip-${c.chip.tone}` }, c.chip.text)),
-    ...c.lines.map((l) => el("p", { class: `who-line tone-${l.tone}` }, l.text)),
+    c.figure && el("p", { class: `who-figure tone-${c.figure.tone}` }, el("span", { class: "who-figure-value num" }, c.figure.value), " ", el("span", { class: "who-figure-label" }, c.figure.label)),
     c.meter &&
       el(
         "div",
-        { class: "meter-block" },
-        el("p", { class: "meter-text" }, c.meter.text),
-        el("div", { class: "meter" }, el("div", { class: `meter-used meter-${c.meter.tone}`, style: `width:${Math.min(100, c.meter.usedPct)}%` })),
+        { class: "meter", role: "img", "aria-label": c.meter.text },
+        el("div", { class: `meter-used meter-${c.meter.tone}`, style: `width:${Math.min(100, c.meter.usedPct)}%` }),
       ),
+    ...c.lines.map((l) => el("p", { class: `who-line tone-${l.tone}` }, l.text)),
   );
 }
 
