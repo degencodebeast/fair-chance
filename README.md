@@ -140,7 +140,7 @@ Each judging criterion, and where to check it.
 | What is judged | Where you see it |
 | --- | --- |
 | Technical implementation | The rules run in the coin contract. Run step 2, then `cargo test --workspace --locked` ([evidence](docs/evidence.md)). |
-| Design | The coin page shows limits, receipts and refusals in plain words (`web/`). <!-- waits on: the page link and screenshots --> |
+| Design | The coin page shows limits, receipts and refusals in plain words. Open the [live site](https://fair-chance-rho.vercel.app/) on NEAR testnet. The code is in `web/`. |
 | Impact | The problem is in [OVERVIEW](docs/OVERVIEW.md). Demand is not measured, and the numbers are a replay and a simulation ([measured results](#measured-results)). |
 | Originality | [Differences from a per-sell cap](#how-this-differs-from-a-per-sell-cap) and [credits](#libraries-templates-and-ai-tools). The falling early fee is not new ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md#decision)). |
 | Sustainability | The creator earns a fee share after the pool holds depth for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)). |
@@ -148,7 +148,7 @@ Each judging criterion, and where to check it.
 | Mechanic in the contract, not a backend | One contract holds the token and the pool ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md)). The watcher and the page read and explain. They hold no rule. |
 | Parameters set at launch, no admin key | The coin account has no access keys, and every value is a constant read with `fc_rules` ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)). |
 | Sybil limits written plainly | [Known limits](#known-limits) and [evidence](docs/evidence.md). |
-| A page with live state and a log | The coin page shows state and one receipt row per sell. <!-- waits on: the testnet deploy (a link to a coin page that shows live state) --> |
+| A page with live state and a log | The [Cabal Test 2 coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=cabal2.factory.fairchance.testnet&network=testnet) reads its state from NEAR testnet and shows one receipt row per sell. |
 | A 60-day simulation under a few scenarios | [analysis/FINDINGS.md](analysis/FINDINGS.md) |
 
 ## How it works
