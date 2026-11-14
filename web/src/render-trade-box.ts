@@ -138,6 +138,11 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
         showResult(outcome);
         redraw();
         if (outcome.kind === "result") {
+          // A sent sell empties its field, so a second click cannot send the same amount again.
+          if (outcome.result.kind === "sold") {
+            sellAmount.value = "";
+            sellSlider.value = "0";
+          }
           deps.actions.onTraded();
           loadSellLimit();
         }

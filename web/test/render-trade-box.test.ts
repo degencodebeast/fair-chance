@@ -246,6 +246,7 @@ describe("a sell from the trade box", () => {
     await vi.waitFor(() => expect(root.querySelector("#trade-result")?.textContent).toContain("You sold 1.0 of 1.5 MOTH for 0.1000 NEAR."));
     expect(actions.sell).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), 15n * 10n ** 17n);
     expect(root.querySelector("#trade-result")?.textContent).toContain("This is all your allowance lets through.");
+    expect(root.querySelector<HTMLInputElement>("#trade-sell-amount")!.value).toBe("");
     expect(actions.traded).toBe(1);
     expectNoEnabledControlWithoutHandler(root);
   });

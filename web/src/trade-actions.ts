@@ -79,7 +79,10 @@ export async function sendSell(deps: TradeDeps, amount: bigint): Promise<TradeOu
   const account = deps.session.accountId;
   let txs: TxRequest[];
   try {
-    const quote = parseSellQuote(await deps.chain.view("fc_quote_sell", { account_id: account, amount: amount.toString() }));
+    const raw = await deps.chain.view("fc_quote_sell", { account_id: account, amount: amount.toString() });
+    // The coin gives no quote for more than the account holds, for example after the same sell went through.
+    if (raw === null) return { kind: "not-sent", text: "You hold less than this amount now, so nothing was sent. The Sell tab shows what you hold." };
+    const quote = parseSellQuote(raw);
     if (quote.tokensFilled === 0n) {
       const why = quote.limitReason === null ? "" : ` ${REASON_SENTENCE[quote.limitReason]}`;
       return { kind: "not-sent", text: `None of it can sell now, so nothing was sent.${why}` };
@@ -106,11 +109,18 @@ export async function loadSellLimit(
   chain: Pick<ChainReader, "view">,
   accountId: string,
   coin: { symbol: string; decimals: number },
+  triesLeft = 1,
 ): Promise<SellLimit> {
   const account = parseAccount(await chain.view("fc_account", { account_id: accountId }));
   const { balance } = account;
   if (balance === 0n) return { balance, canSellNow: 0n, moreOpens: null };
-  const quote = parseSellQuote(await chain.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() }));
+  const raw = await chain.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() });
+  // No quote: the balance changed between the two reads (a trade just landed). Read both again once.
+  if (raw === null) {
+    if (triesLeft > 0) return loadSellLimit(chain, accountId, coin, triesLeft - 1);
+    throw new Error("Your balance changed while the page read it. Reload to read it again.");
+  }
+  const quote = parseSellQuote(raw);
   const { plan } = yourPlanView(
     { accountId, ...coin, totalSupply: null, account: { kind: "value", value: account }, asked: null, quote: null },
     { nowNs: BigInt(Date.now()) * 1_000_000n },

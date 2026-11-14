@@ -31,7 +31,7 @@ function fakeChain(views: Record<string, unknown>) {
       if (!(method in views)) throw new Error(`no view ${method}`);
       const v = views[method];
       if (v instanceof Error) throw v;
-      return v as T;
+      return (typeof v === "function" ? v() : v) as T;
     },
   };
 }
@@ -169,6 +169,15 @@ describe("a sell", () => {
   });
 });
 
+describe("a sell of more than the account holds", () => {
+  it("sends nothing and says so when the coin gives no quote (the amount is above the balance)", async () => {
+    const chain = fakeChain({ fc_quote_sell: null });
+    const session = fakeSession(async () => [], SELLER);
+    expect(await sendSell({ chain, session, coin: COIN2 }, 5000n)).toEqual({ kind: "not-sent", text: "You hold less than this amount now, so nothing was sent. The Sell tab shows what you hold." });
+    expect(session.sent).toHaveLength(0);
+  });
+});
+
 describe("what the account can sell now", () => {
   const account = { class: "small", balance: "2709426042412763046439220", is_large: false, can_send: true };
 
@@ -176,6 +185,12 @@ describe("what the account can sell now", () => {
     const chain = fakeChain({ fc_account: account, fc_quote_sell: { ...fullQuote, tokens_filled: "1000000000000000000000000", fill: "partial", limit_reason: "allowance" } });
     expect(await loadSellLimit(chain, SELLER, { symbol: "BAG", decimals: 24 })).toEqual({ balance: 2709426042412763046439220n, canSellNow: 1000000000000000000000000n, moreOpens: null });
     expect(chain.calls[1]).toEqual(["fc_quote_sell", { account_id: SELLER, amount: "2709426042412763046439220" }]);
+  });
+
+  it("reads again once when the balance changed between its two reads", async () => {
+    let n = 0;
+    const chain = fakeChain({ fc_account: () => (n++ === 0 ? account : { ...account, balance: "0" }), fc_quote_sell: null });
+    expect(await loadSellLimit(chain, SELLER, { symbol: "BAG", decimals: 24 })).toEqual({ balance: 0n, canSellNow: 0n, moreOpens: null });
   });
 
   it("is zero without a quote when the account holds none", async () => {
