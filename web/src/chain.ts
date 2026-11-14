@@ -4,6 +4,7 @@ import { httpStatusError } from "./refresher.ts";
 import { fastNearEvents } from "./fastnear-events.ts";
 import { resolvePageLink } from "./page-link.ts";
 import { cleanChainValue } from "./chain-text.ts";
+import { readWithRetry, type RetryOptions } from "./chain-fetch.ts";
 
 export interface ReaderConfig {
   rpcUrl: string;
@@ -96,17 +97,20 @@ const NO_LOCAL_CODE = "11111111111111111111111111111111";
 
 const WATCHED = new Set(["fair_chance", "fair_chance_factory"]);
 
-export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): ChainReader {
+/** Each RPC call and each FastNEAR call is one read with the short retry of chain-fetch.ts. */
+export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch, retry: RetryOptions = {}): ChainReader {
   async function call<T>(method: string, params: object): Promise<T> {
-    const resp = await fetchFn(cfg.rpcUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: "fc", method, params }),
-    });
-    if (!resp.ok) throw httpStatusError(`${method}: HTTP ${resp.status}`, resp);
-    const body = await resp.json();
-    if (body.error) throw new RpcError(String(body.error.cause?.name), String(body.error.data));
-    return body.result as T;
+    return readWithRetry(async () => {
+      const resp = await fetchFn(cfg.rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: "fc", method, params }),
+      });
+      if (!resp.ok) throw httpStatusError(`${method}: HTTP ${resp.status}`, resp);
+      const body = await resp.json();
+      if (body.error) throw new RpcError(String(body.error.cause?.name), String(body.error.data));
+      return body.result as T;
+    }, retry);
   }
 
   async function view<T>(method: string, args: object = {}): Promise<T> {
@@ -155,7 +159,7 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
   async function events(since?: number, launchBlock?: number) {
     const launch = since === undefined ? (await view<{ launch_block: number }>("fc_rules")).launch_block : launchBlock;
     let from = since ?? scanStartBlock(launch!);
-    if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn, ...(cfg.anyLoggedTx ? { anyLoggedTx: true } : {}) });
+    if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn, retry, ...(cfg.anyLoggedTx ? { anyLoggedTx: true } : {}) });
     // A height with no block answers UNKNOWN_BLOCK and the scan skips it. A node that dropped
     // old blocks answers the same way, so check first that the node still has the blocks.
     const status = await call<{ sync_info: { earliest_block_height: number } }>("status", {});

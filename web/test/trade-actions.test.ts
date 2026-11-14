@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBuyQuote } from "../src/buy-quote.ts";
+import { chainReader } from "../src/chain.ts";
 import { loadSellLimit, sendBuy, sendLaunch, sendSell } from "../src/trade-actions.ts";
 import type { FinalOutcome, TxRequest, WalletSession } from "../src/tx-types.ts";
 
@@ -109,6 +110,28 @@ describe("a buy", () => {
     const out = await sendBuy({ chain, session, coin: COIN }, previewed());
     expect(session.sent).toHaveLength(0);
     expect(out).toEqual({ kind: "not-sent", text: "The storage record could not load, so nothing was sent. network down" });
+  });
+});
+
+describe("the reads before a buy", () => {
+  it("reads the storage record again after a request with no readable answer, and asks the wallet once", async () => {
+    let reads = 0;
+    const fetchFn = (async () => {
+      if (reads++ === 0) throw new TypeError("Failed to fetch");
+      const record = { total: "1250000000000000000000", available: "0" };
+      return new Response(JSON.stringify({ result: { result: [...new TextEncoder().encode(JSON.stringify(record))] } }));
+    }) as typeof fetch;
+    const chain = chainReader({ rpcUrl: "http://127.0.0.1:1", coin: COIN }, fetchFn, { sleep: async () => {} });
+    let sends = 0;
+    const session = fakeSession(async () => {
+      sends++;
+      throw new TypeError("Failed to fetch");
+    });
+    const out = await sendBuy({ chain, session, coin: COIN }, previewed());
+    expect(reads).toBe(2);
+    // A send that fails is never sent again: the wallet is asked once.
+    expect(sends).toBe(1);
+    expect(out.kind).toBe("unknown");
   });
 });
 

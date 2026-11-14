@@ -39,11 +39,30 @@ describe("FastNEAR event source", () => {
     expect(events.map((e) => e.name)).toEqual(["fc_sell"]);
   });
 
-  it("passes a 429 with its Retry-After on, so the screen can back off", async () => {
-    const fetchFn = (async () => new Response("slow down", { status: 429, headers: { "Retry-After": "20" } })) as typeof fetch;
-    const err = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn }).catch((e: unknown) => e);
+  it("tries a 429 3 more times, then passes it on with its Retry-After, so the screen can back off", async () => {
+    let calls = 0;
+    const waits: number[] = [];
+    const fetchFn = (async () => {
+      calls++;
+      return new Response("slow down", { status: 429, headers: { "Retry-After": "20" } });
+    }) as typeof fetch;
+    const retry = { sleep: async (ms: number) => void waits.push(ms) };
+    const err = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn, retry }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(HttpStatusError);
     expect([(err as HttpStatusError).status, (err as HttpStatusError).retryAfterMs]).toEqual([429, 20_000]);
+    expect(calls).toBe(4);
+    expect(waits).toEqual([8_000, 8_000, 8_000]);
+  });
+
+  it("reads again after a request with no readable answer", async () => {
+    const { fetchFn: good } = fakeFastNear();
+    let failed = 0;
+    const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (failed++ === 0) throw new TypeError("Failed to fetch");
+      return good(url, init);
+    }) as typeof fetch;
+    const { events } = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn, retry: { sleep: async () => {} } });
+    expect(events).toHaveLength(2);
   });
 
   it("stops on a 403 and does not retry", async () => {

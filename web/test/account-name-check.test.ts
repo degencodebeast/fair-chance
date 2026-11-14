@@ -21,9 +21,21 @@ describe("account name check", () => {
 
   it("throws for any other answer, so the form never shows free by mistake", async () => {
     const cfg = { rpcUrl: "http://127.0.0.1:3030", accountId: "bag.factory.sandbox" };
-    await expect(checkAccountName(cfg, reply({}, 503))).rejects.toThrow(/HTTP 503/);
+    await expect(checkAccountName(cfg, reply({}, 503), { sleep: async () => {} })).rejects.toThrow(/HTTP 503/);
     await expect(checkAccountName(cfg, reply({ error: { cause: { name: "INTERNAL_ERROR" }, data: "boom" } }))).rejects.toThrow();
     await expect(checkAccountName(cfg, reply({ result: {} }))).rejects.toThrow();
+  });
+});
+
+describe("account name check retry", () => {
+  it("reads again after a request with no readable answer", async () => {
+    let n = 0;
+    const f = (async () => {
+      if (n++ === 0) throw new TypeError("Failed to fetch");
+      return new Response(JSON.stringify({ result: { code_hash: "11111111111111111111111111111111" } }));
+    }) as typeof fetch;
+    expect(await checkAccountName({ rpcUrl: "http://127.0.0.1:3030", accountId: "bag.factory.sandbox" }, f, { sleep: async () => {} })).toBe("taken");
+    expect(n).toBe(2);
   });
 });
 

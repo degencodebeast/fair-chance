@@ -1,7 +1,9 @@
 // Event source for NEAR testnet: the FastNEAR transactions API, read only.
 // POST /v0/account lists the transactions that logged events for the coin. POST /v0/transactions
 // gives up to 20 of them with their receipt logs. The public endpoint needs no key. A 403 or any
-// answer this code does not know stops the read with an error and is never retried.
+// answer this code does not know stops the read with an error and is never retried. A 429, a 5xx
+// or no readable answer gets the short retry of chain-fetch.ts.
+import { readWithRetry, type RetryOptions } from "./chain-fetch.ts";
 import { httpStatusError } from "./refresher.ts";
 import { parseLog, type CoinEvent } from "./chain.ts";
 
@@ -36,6 +38,8 @@ export interface FastNearRead {
    * logs are still parsed and filtered by the code below.
    */
   anyLoggedTx?: boolean;
+  /** Tests give their own limiter and wait. */
+  retry?: RetryOptions;
 }
 
 export async function fastNearEvents(read: FastNearRead): Promise<{ events: CoinEvent[]; cursor: number }> {
@@ -98,13 +102,15 @@ async function accountTxsSince(read: FastNearRead): Promise<AccountTx[]> {
 async function post<T>(read: FastNearRead, path: string, body: object): Promise<T> {
   // Call fetch with no receiver: window.fetch throws "Illegal invocation" when called as a method of `read`.
   const { fetchFn } = read;
-  const resp = await fetchFn(read.baseUrl + path, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (resp.status === 403) throw new Error(`${path}: FastNEAR answered 403, stop and report`);
-  if (resp.status === 429) throw httpStatusError(`${path}: FastNEAR answered 429, wait before the next read`, resp);
-  if (!resp.ok) throw httpStatusError(`${path}: HTTP ${resp.status}, an answer this page does not know`, resp);
-  return (await resp.json()) as T;
+  return readWithRetry(async () => {
+    const resp = await fetchFn(read.baseUrl + path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (resp.status === 403) throw new Error(`${path}: FastNEAR answered 403, stop and report`);
+    if (resp.status === 429) throw httpStatusError(`${path}: FastNEAR answered 429, wait before the next read`, resp);
+    if (!resp.ok) throw httpStatusError(`${path}: HTTP ${resp.status}, an answer this page does not know`, resp);
+    return (await resp.json()) as T;
+  }, read.retry);
 }

@@ -77,3 +77,37 @@ describe("block scan guard", () => {
     await expect(reader.events(15)).rejects.toThrow(/no longer has the blocks.*15.*20/);
   });
 });
+
+describe("chain reader retry", () => {
+  const ok = (result: unknown) => new Response(JSON.stringify({ jsonrpc: "2.0", id: "fc", result }));
+  const view = (value: unknown) => ok({ result: [...new TextEncoder().encode(JSON.stringify(value))] });
+  const noWait = { sleep: async () => {} };
+
+  it("reads a view again after a request with no readable answer, a 429 or a 5xx", async () => {
+    const answers: Array<() => Response> = [
+      () => { throw new TypeError("Failed to fetch"); },
+      () => new Response("busy", { status: 429 }),
+      () => new Response("down", { status: 502 }),
+      () => view({ launch_block: 15 }),
+    ];
+    let n = 0;
+    const fetchFn = (async () => answers[n++]!()) as typeof fetch;
+    const reader = chainReader({ rpcUrl, coin }, fetchFn, noWait);
+    expect(await reader.view("fc_rules")).toEqual({ launch_block: 15 });
+    expect(n).toBe(4);
+  });
+
+  it("throws the last error unchanged after 3 more tries", async () => {
+    let n = 0;
+    const fetchFn = (async () => { n++; throw new TypeError("Failed to fetch"); }) as typeof fetch;
+    await expect(chainReader({ rpcUrl, coin }, fetchFn, noWait).view("fc_rules")).rejects.toThrow(/^Failed to fetch$/);
+    expect(n).toBe(4);
+  });
+
+  it("does not read again after an RPC error or a 404", async () => {
+    let n = 0;
+    const fetchFn = (async () => { n++; return new Response("no", { status: 404 }); }) as typeof fetch;
+    await expect(chainReader({ rpcUrl, coin }, fetchFn, noWait).view("fc_rules")).rejects.toThrow("query: HTTP 404");
+    expect(n).toBe(1);
+  });
+});
