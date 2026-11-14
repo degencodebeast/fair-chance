@@ -10,6 +10,7 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 
 ## Contents
 
+- [Why memecoins](#why-memecoins)
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
 - [Try it in 90 seconds](#try-it-in-90-seconds)
@@ -30,6 +31,12 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 - [License](#license)
 
 Deeper pages: [evidence](docs/evidence.md), [TLA+ model](docs/model/README.md), [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), [GLOSSARY](GLOSSARY.md), [ADRs](docs/adr/).
+
+## Why memecoins
+
+People buy memecoins for more than the price. In Kraken's 2025 survey of US crypto holders, the top reasons for buying memecoins were the price swings, a tip from friends or family, and the fun, satirical nature of the coins. 23% of memecoin holders named entertainment as their main reason ([Kraken](https://www.kraken.com/learn/memecoin-survey)). A memecoin is a joke that a crowd shares, with a ticker, a picture and a price, and anyone can join with one buy.
+
+NEAR already has memecoin launchpads, such as meme.cooking and nearly.trade ([neartrade analytics](https://www.neartrade.lol/analytics)), and this hackathon has a track for them. The fun ends when each new buyer is the exit for the insiders. A token is the right place for the fix, because every buy and sell goes through the token's own contract, so the rule runs on every trade and needs no app or server to enforce it.
 
 ## The problem
 
