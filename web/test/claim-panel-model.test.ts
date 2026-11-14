@@ -52,7 +52,7 @@ describe("claim panel", () => {
   it("turns the claim button off and says why, naming the creator", () => {
     const m = model();
     expect(m.button.label).toBe("Claim 0.420 NEAR");
-    expect(m.button.reason).toMatch(/turned off/);
+    expect(m.button.reason).toMatch(/cannot claim yet/);
     expect(m.viewer).toBe("The creator account is lamp.testnet. Only that account can claim.".replace("Only that account", "That account"));
   });
 
@@ -66,7 +66,7 @@ describe("claim panel", () => {
     const m = claimPanelModel({ fees: { kind: "unavailable" }, ...rules, nowNs: now, timeZone: "UTC" });
     expect(m.amount).toBeNull();
     expect(m.message).toBe("Not available from this coin");
-    expect(m.button.reason).toMatch(/turned off/);
+    expect(m.button.reason).toMatch(/cannot claim yet/);
   });
 
   it("follows the copy rules", () => {

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { FAUCET_URL, WALLET_NAME, TRY_IT_NOTE, tryItSteps } from "../src/try-it-copy.ts";
-import { drawTryItBox } from "../src/render-try-it-box.ts";
+import { drawTryItBox, drawTryScreen } from "../src/render-try-it-box.ts";
+import { screenFor } from "../src/screen-route.ts";
 import { drawLanding } from "../src/render-landing.ts";
 import { drawCoinList } from "../src/render-coin-list.ts";
 import { copyViolations } from "./copy-rules.ts";
@@ -36,12 +37,18 @@ describe("the how to try it box", () => {
     expect(box.querySelector("a")?.getAttribute("rel")).toContain("noopener");
     expect(box.textContent).toContain(TRY_IT_NOTE);
   });
-  it("is on the landing screen and the coin list", () => {
+  it("is its own screen, linked from the header, and not on the landing screen or the coin list", () => {
+    expect(screenFor("http://localhost:5173/?view=try")).toBe("try");
+    document.body.innerHTML = '<main id="app"></main>';
+    drawTryScreen(document.querySelector("#app")!, "http://localhost:5173/?view=try");
+    expect(document.querySelector("#try-it")).not.toBeNull();
+    expect(document.querySelector('.screen-nav a[aria-current="page"]')?.textContent).toBe("How to try");
     document.body.innerHTML = '<main id="app"></main>';
     drawLanding(document.querySelector("#app")!, "http://localhost:5173/");
-    expect(document.querySelector("#try-it")).not.toBeNull();
+    expect(document.querySelector("#try-it")).toBeNull();
+    expect(document.querySelector('.screen-nav a[href="?view=try"]')).not.toBeNull();
     document.body.innerHTML = '<main id="app"></main>';
     drawCoinList(document.querySelector("#app")!, "http://localhost:5173/?view=coins");
-    expect(document.querySelector("#try-it")).not.toBeNull();
+    expect(document.querySelector("#try-it")).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
-// The text of the creator fee claim panel. Pure. The claim button is turned off in this version:
-// claiming needs a wallet, and nothing on this page signs. Refusal sentences come from the shared
+// The text of the creator fee claim panel. Pure. The claim button is turned off: this page does not
+// build the claim transaction yet, so the creator claims from their own wallet. Refusal sentences come from the shared
 // refusal text file, never from this file.
 import type { Reading } from "./coin-page.ts";
 import type { CreatorFees } from "./creator-fees.ts";
@@ -30,7 +30,7 @@ export interface ClaimPanelModel {
 }
 
 const BUTTON_REASON =
-  "Claiming is turned off in this version. The creator account claims with its own wallet, and this page cannot connect one.";
+  "This page cannot claim yet. The creator account calls claim_creator_fees on the coin from its own wallet.";
 
 export function claimPanelModel(input: ClaimPanelInput): ClaimPanelModel {
   const refusals = { notReady: refusalText("FC_CLAIM_NOT_READY"), notCreator: refusalText("FC_NOT_CREATOR") };

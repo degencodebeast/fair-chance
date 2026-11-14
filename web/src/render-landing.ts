@@ -5,7 +5,6 @@ import { sampleLabel } from "./sample-label.ts";
 import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
 import { isOwnMachineHost } from "./local-host.ts";
-import { drawTryItBox } from "./render-try-it-box.ts";
 
 function itemCard(id: string, block: { kicker: string; title: string; items: { b: string; t: string }[]; note?: string }): HTMLElement {
   return el(
@@ -40,7 +39,6 @@ export function drawLanding(app: HTMLElement, href: string): void {
       // The example receipt is made up, so only the visitor's own machine shows it.
       isOwnMachineHost(new URL(href).hostname) && el("div", { class: "proof", id: "proof" }, sampleLabel(copy.proof.label), el("p", {}, copy.proof.sentence)),
     ),
-    drawTryItBox(),
     el("section", { "aria-label": "The problem", class: "problem" }, el("p", {}, copy.problem)),
     itemCard("buyers-h", copy.buyers),
     itemCard("creators-h", copy.creators),

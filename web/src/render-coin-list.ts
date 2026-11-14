@@ -7,7 +7,6 @@ import { drawCoinTile } from "./coin-tile.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { resolveListLink, type ListLink } from "./page-link.ts";
 import { fallbackList } from "./list-fallback.ts";
-import { drawTryItBox } from "./render-try-it-box.ts";
 import { sampleLabel } from "./sample-label.ts";
 import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
@@ -95,7 +94,6 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
     screenHeader(href, "coins"),
     el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), el("a", { class: "button", id: "launch-coin", href: screenLink(href, "launch") }, "Launch a coin")),
     noteLine,
-    drawTryItBox(),
     top,
     el("section", { class: "card how-strip", "aria-label": "How it works" }, el("ol", {}, el("li", {}, "Every coin has the same sell rules, fixed at launch."), el("li", {}, "The creator, early buyers and large holders sell one allowance per hour. A bigger sell fills in part."), el("li", {}, "Each limited sell shows as a receipt: asked, filled, and when more can follow.")), el("a", { class: "text-link", href: `${screenLink(href, "landing")}#how` }, "How it works")),
     el("div", { class: "search-field" }, el("label", { for: "coin-search" }, "Search coins"), search),

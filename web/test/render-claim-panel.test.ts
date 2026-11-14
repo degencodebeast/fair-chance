@@ -26,7 +26,7 @@ describe("claim panel", () => {
     expect(root.textContent).toContain("is ready for the creator to claim.");
     const reasons = turnedOffReasons(root);
     expect(Object.keys(reasons)).toEqual(["claim-fees-button"]);
-    expect(reasons["claim-fees-button"]).toMatch(/turned off/);
+    expect(reasons["claim-fees-button"]).toMatch(/cannot claim yet/);
     expect(root.querySelector<HTMLButtonElement>("#claim-fees-button")!.textContent).toBe("Claim 0.420 NEAR");
     expectNoEnabledControlWithoutHandler(root);
   });
