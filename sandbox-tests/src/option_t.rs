@@ -62,6 +62,9 @@ pub struct OptionTArguments {
     /// The sha256 (64 lowercase hex digits) of the existing plan file that the return step or the
     /// continue step reads.
     pub plan_sha256: Option<String>,
+    /// `--continue`: the continue step after a sells run that stopped part way
+    /// ([`crate::sells_only::run_continue`]).
+    pub continue_sells: bool,
 }
 
 /// Parses the arguments after the program name. It refuses any argument it does not know, a flag
@@ -83,6 +86,13 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
                 bail!("{flag} is given twice");
             }
             parsed.sells_only = true;
+            continue;
+        }
+        if flag == "--continue" {
+            if parsed.continue_sells {
+                bail!("{flag} is given twice");
+            }
+            parsed.continue_sells = true;
             continue;
         }
         if flag == "--return-to-funder" {

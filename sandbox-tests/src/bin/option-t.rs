@@ -12,6 +12,9 @@
 //!   option-t --network testnet --ticker BAG --sells-only --sell-plan <new file>
 //!                                     the BAG sells-only step: buyers 01 to 18 sell their full
 //!                                     balance in order; 19 and 20 never sell (sells_only.rs)
+//!   option-t --network testnet --ticker BAG --sells-only --sell-plan <that file> --continue
+//!                                     --plan-sha256 <hex>: after a stopped sells run, sells the
+//!                                     rest from the same plan file, in order
 //!   option-t --network testnet --ticker BAG --sells-only --sell-plan <that file> --return-to-funder
 //!                                     the return step after the sells: buyers 01 to 18 send their
 //!                                     NEAR minus 0.05 NEAR to the funder, once; 19 and 20 untouched
@@ -63,6 +66,7 @@ async fn start(list: &mut PassList) -> Result<()> {
     )?;
     let sell_plan = fair_chance_sandbox_tests::sells_only::sells_only_request(&args)?;
     let return_to_funder = fair_chance_sandbox_tests::sells_only::return_request(&args)?;
+    let continue_sells = fair_chance_sandbox_tests::sells_only::continue_request(&args)?;
     if sell_plan.is_some() && network != DemoNetwork::Testnet {
         anyhow::bail!(
             "--sells-only runs on testnet only (the sandbox check is the bag_sells_on_sandbox test); nothing was run"
@@ -120,9 +124,11 @@ async fn start(list: &mut PassList) -> Result<()> {
                 "the run would sell on {coin}, not on the checked coin; nothing was signed"
             );
         }
+        let sha = args.plan_sha256.as_deref().unwrap_or_default();
         if return_to_funder {
-            let sha = args.plan_sha256.as_deref().unwrap_or_default();
             fair_chance_sandbox_tests::sells_only::run_returns(&setup, &plan, sha, list).await?;
+        } else if continue_sells {
+            fair_chance_sandbox_tests::sells_only::run_continue(&setup, &plan, sha, list).await?;
         } else {
             fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
         }

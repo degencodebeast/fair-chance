@@ -377,6 +377,49 @@ pub fn check_return_step(step: &ReturnStep, near_now: u128) -> Result<()> {
     Ok(())
 }
 
+/// The first seller the continue step sells, from the plan and the BAG each seller holds now. A
+/// seller is done only when it holds 0 BAG and every seller before it holds 0 too; from the first
+/// seller with BAG on, each must hold exactly its planned amount. It refuses anything else (a gap,
+/// a partly sold seller, a list that is not the plan's sellers in order) before any signature. It
+/// gives 18 when every seller is done.
+pub fn continue_from(plan: &SellPlan, now: &[(AccountId, u128)]) -> Result<usize> {
+    let planned: Vec<&AccountId> = plan.steps.iter().map(|s| &s.account).collect();
+    let given: Vec<&AccountId> = now.iter().map(|(a, _)| a).collect();
+    if given != planned {
+        bail!("the accounts read are not the plan's sellers in order; nothing was signed");
+    }
+    let start = now.iter().take_while(|(_, bag)| *bag == 0).count();
+    for (index, ((account, bag), step)) in now.iter().zip(&plan.steps).enumerate().skip(start) {
+        if *bag != step.amount {
+            bail!(
+                "{account} holds {bag} BAG, not its planned {} (sell {} of {SELLERS}; sells 1 to {start} are done); nothing was signed",
+                step.amount,
+                index + 1
+            );
+        }
+    }
+    Ok(start)
+}
+
+/// Whether the arguments ask for the continue step: `--continue` runs only with the sells-only
+/// step and `--plan-sha256`, and not with `--return-to-funder`.
+pub fn continue_request(args: &OptionTArguments) -> Result<bool> {
+    if !args.continue_sells {
+        return Ok(false);
+    }
+    if !args.sells_only {
+        bail!("--continue needs --sells-only; nothing was run");
+    }
+    if args.return_to_funder {
+        bail!("--continue does not mix with --return-to-funder; nothing was run");
+    }
+    if args.plan_sha256.is_none() {
+        bail!("--continue needs --plan-sha256 <sha256 of the plan file>; nothing was run");
+    }
+    sells_only_request(args)?;
+    Ok(true)
+}
+
 /// Whether the arguments ask for the return step. `--return-to-funder` runs only with the
 /// sells-only step, so it has all of that step's conditions (testnet, `--ticker BAG`, a plan file).
 pub fn return_request(args: &OptionTArguments) -> Result<bool> {
@@ -517,118 +560,70 @@ pub async fn run_sells(
         plan_path.display()
     ));
 
-    let mut outcomes = Vec::new();
-    for (index, step) in plan.steps.iter().enumerate() {
-        let n = index + 1;
-        say(&format!(
-            "sell {n} of {SELLERS}: chain check of {}",
-            step.account
-        ));
-        let on_chain = token_balance(setup, &coin, &step.account).await?;
-        check_step(&filed, index, &step.account, step.amount, on_chain)?;
-        check_funder(
-            setup.limits.as_ref(),
-            &setup.network,
-            &setup.funder.id,
-            NearToken::from_yoctonear(0),
-            &format!("sell {n} of {SELLERS}"),
-        )
-        .await?;
-        say(&format!(
-            "sell {n} of {SELLERS}: {} sends {} tokens",
-            step.account, step.amount
-        ));
-        let seller = Account {
-            id: step.account.clone(),
-            signer: setup.funder.signer.clone(),
-        };
-        let result = transact_once(
-            &setup.network,
-            &setup.send_network,
-            &seller,
-            &coin,
-            "sell",
-            json!({ "amount": step.amount.to_string(), "min_near_out": "0" }),
-            NearToken::from_yoctonear(1),
-            setup.buyer_gas,
-        )
-        .await
-        .with_context(|| {
-            format!(
-                "sell {n} of {SELLERS} by {}; nothing more was signed",
-                step.account
-            )
-        })?;
-        let tx_hash = transaction_hash(&result)?.to_string();
-        let cap_filled = !events(&result, "fair_chance", "fc_cap_filled").is_empty();
-        let outcome = match events(&result, "fair_chance", "fc_sell").pop() {
-            Some(sell) => {
-                let data = &sell.event["data"][0];
-                SellOutcome {
-                    account: step.account.clone(),
-                    tx_hash,
-                    tokens_asked: amount(&data["tokens_asked"])?,
-                    tokens_sold: amount(&data["tokens_sold"])?,
-                    near_out: amount(&data["near_out"])?,
-                    fill: data["fill"].as_str().unwrap_or("?").to_string(),
-                    limit_reason: data["limit_reason"].as_str().map(str::to_string),
-                    refusal_code: None,
-                    cap_filled,
-                }
-            }
-            None if !result.is_success() => {
-                let text = crate::rate_limit::without_urls(&format!("{result:?}"));
-                let Some(code) = refusal_code(&text) else {
-                    bail!("sell {n} of {SELLERS} by {} failed with no refusal code, tx {tx_hash}; nothing more was signed", step.account);
-                };
-                SellOutcome {
-                    account: step.account.clone(),
-                    tx_hash,
-                    tokens_asked: step.amount,
-                    tokens_sold: 0,
-                    near_out: 0,
-                    fill: "refused".to_string(),
-                    limit_reason: None,
-                    refusal_code: Some(code),
-                    cap_filled: false,
-                }
-            }
-            None => bail!(
-                "sell {n} of {SELLERS} by {} succeeded but logged no fc_sell, tx {tx_hash}; nothing more was signed",
-                step.account
-            ),
-        };
-        say(&format!(
-            "sell {n} of {SELLERS}: {} tx {}: asked {}, sold {}, near_out {} yocto, fill {}, limit_reason {}, refusal {}{}",
-            outcome.account,
-            outcome.tx_hash,
-            outcome.tokens_asked,
-            outcome.tokens_sold,
-            outcome.near_out,
-            outcome.fill,
-            outcome.limit_reason.as_deref().unwrap_or("none"),
-            outcome.refusal_code.as_deref().unwrap_or("none"),
-            if outcome.cap_filled { ", fc_cap_filled" } else { "" }
-        ));
-        outcomes.push(outcome);
-    }
+    sell_from(setup, &coin, &plan, &filed, 0, &keepers, &kept, list).await
+}
 
-    for (account, before) in keepers.iter().zip(&kept) {
-        let now = token_balance(setup, &coin, account).await?;
-        if now != *before {
-            bail!("{account} held {before} before the sells and {now} after; it must not sell");
-        }
-        say(&format!("{account} still holds {now} tokens"));
+/// The continue step after a sells run that stopped part way. It reads the existing plan file
+/// ([`read_plan_file`]; it writes nothing), reads the BAG of the 18 sellers and of the two keepers,
+/// finds the first seller to sell ([`continue_from`]), and sells from there in order as
+/// [`run_sells`] does. Buyers 19 and 20 are never sold.
+pub async fn run_continue(
+    setup: &OptionTSetup,
+    plan_path: &Path,
+    plan_sha256: &str,
+    list: &mut PassList,
+) -> Result<Vec<SellOutcome>> {
+    let coin = coin_account_id(&setup.ticker, &setup.factory)?;
+    say(&format!("continue on {coin}; the rule: {RULE}"));
+    let bytes = std::fs::read(plan_path).with_context(|| {
+        format!(
+            "the continue step reads the plan file {}; nothing was signed",
+            plan_path.display()
+        )
+    })?;
+    let filed = read_plan_file(&bytes, plan_sha256)?;
+    if filed.coin != coin {
+        bail!(
+            "the plan file names {}, not {coin}; nothing was signed",
+            filed.coin
+        );
     }
-    let filled = outcomes.iter().filter(|o| o.tokens_sold > 0).count();
-    list.check(
-        "eighteen sells in order",
-        Ok(format!(
-            "{} sells by bag-buyer-01 to -18 in order, {filled} sold tokens; bag-buyer-19 and -20 kept theirs",
-            outcomes.len()
-        )),
-    )?;
-    Ok(outcomes)
+    let (sellers, keepers) = fixed_accounts(&setup.ticker, &setup.funder.id)?;
+    if filed.steps.iter().map(|s| &s.account).ne(sellers.iter()) || filed.keepers != keepers {
+        bail!("the plan file is not bag-buyer-01 to -18 selling and 19 and 20 keeping; nothing was signed");
+    }
+    if account_view(&setup.network, &coin).await?.is_none() {
+        bail!("{coin} does not exist; nothing was signed");
+    }
+    let mut now = Vec::new();
+    for (i, step) in filed.steps.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(READ_SPACING).await;
+        }
+        let held = token_balance(setup, &coin, &step.account).await?;
+        say(&format!(
+            "read {}: {held} tokens (planned sell {} of {SELLERS}: {})",
+            step.account,
+            i + 1,
+            step.amount
+        ));
+        now.push((step.account.clone(), held));
+    }
+    let mut kept = Vec::new();
+    for account in &keepers {
+        tokio::time::sleep(READ_SPACING).await;
+        let held = token_balance(setup, &coin, account).await?;
+        say(&format!(
+            "read {account}: {held} tokens (keeps them, never sells)"
+        ));
+        kept.push(held);
+    }
+    let start = continue_from(&filed, &now)?;
+    say(&format!(
+        "sells 1 to {start} are done; the step sells {} to {SELLERS} from the plan file, before any new signature",
+        start + 1
+    ));
+    sell_from(setup, &coin, &filed, &filed, start, &keepers, &kept, list).await
 }
 
 /// What one transfer of the return step did.
@@ -790,6 +785,135 @@ pub async fn run_returns(
             outcomes.len(),
             setup.funder.id,
             returns.skipped.len()
+        )),
+    )?;
+    Ok(outcomes)
+}
+
+/// Sells `sends.steps[start..]` in order. Before each sell it reads the seller's BAG and checks the
+/// step against `filed`, the plan read back from the plan file ([`check_step`]), then runs the
+/// spend check; each sell goes out once. At the end buyers 19 and 20 must hold `kept`.
+#[allow(clippy::too_many_arguments)]
+async fn sell_from(
+    setup: &OptionTSetup,
+    coin: &AccountId,
+    sends: &SellPlan,
+    filed: &SellPlan,
+    start: usize,
+    keepers: &[AccountId],
+    kept: &[u128],
+    list: &mut PassList,
+) -> Result<Vec<SellOutcome>> {
+    let mut outcomes = Vec::new();
+    for (index, step) in sends.steps.iter().enumerate().skip(start) {
+        let n = index + 1;
+        say(&format!(
+            "sell {n} of {SELLERS}: chain check of {}",
+            step.account
+        ));
+        let on_chain = token_balance(setup, coin, &step.account).await?;
+        check_step(filed, index, &step.account, step.amount, on_chain)?;
+        check_funder(
+            setup.limits.as_ref(),
+            &setup.network,
+            &setup.funder.id,
+            NearToken::from_yoctonear(0),
+            &format!("sell {n} of {SELLERS}"),
+        )
+        .await?;
+        say(&format!(
+            "sell {n} of {SELLERS}: {} sends {} tokens",
+            step.account, step.amount
+        ));
+        let seller = Account {
+            id: step.account.clone(),
+            signer: setup.funder.signer.clone(),
+        };
+        let result = transact_once(
+            &setup.network,
+            &setup.send_network,
+            &seller,
+            coin,
+            "sell",
+            json!({ "amount": step.amount.to_string(), "min_near_out": "0" }),
+            NearToken::from_yoctonear(1),
+            setup.buyer_gas,
+        )
+        .await
+        .with_context(|| {
+            format!(
+                "sell {n} of {SELLERS} by {}; nothing more was signed",
+                step.account
+            )
+        })?;
+        let tx_hash = transaction_hash(&result)?.to_string();
+        let cap_filled = !events(&result, "fair_chance", "fc_cap_filled").is_empty();
+        let outcome = match events(&result, "fair_chance", "fc_sell").pop() {
+            Some(sell) => {
+                let data = &sell.event["data"][0];
+                SellOutcome {
+                    account: step.account.clone(),
+                    tx_hash,
+                    tokens_asked: amount(&data["tokens_asked"])?,
+                    tokens_sold: amount(&data["tokens_sold"])?,
+                    near_out: amount(&data["near_out"])?,
+                    fill: data["fill"].as_str().unwrap_or("?").to_string(),
+                    limit_reason: data["limit_reason"].as_str().map(str::to_string),
+                    refusal_code: None,
+                    cap_filled,
+                }
+            }
+            None if !result.is_success() => {
+                let text = crate::rate_limit::without_urls(&format!("{result:?}"));
+                let Some(code) = refusal_code(&text) else {
+                    bail!("sell {n} of {SELLERS} by {} failed with no refusal code, tx {tx_hash}; nothing more was signed", step.account);
+                };
+                SellOutcome {
+                    account: step.account.clone(),
+                    tx_hash,
+                    tokens_asked: step.amount,
+                    tokens_sold: 0,
+                    near_out: 0,
+                    fill: "refused".to_string(),
+                    limit_reason: None,
+                    refusal_code: Some(code),
+                    cap_filled: false,
+                }
+            }
+            None => bail!(
+                "sell {n} of {SELLERS} by {} succeeded but logged no fc_sell, tx {tx_hash}; nothing more was signed",
+                step.account
+            ),
+        };
+        say(&format!(
+            "sell {n} of {SELLERS}: {} tx {}: asked {}, sold {}, near_out {} yocto, fill {}, limit_reason {}, refusal {}{}",
+            outcome.account,
+            outcome.tx_hash,
+            outcome.tokens_asked,
+            outcome.tokens_sold,
+            outcome.near_out,
+            outcome.fill,
+            outcome.limit_reason.as_deref().unwrap_or("none"),
+            outcome.refusal_code.as_deref().unwrap_or("none"),
+            if outcome.cap_filled { ", fc_cap_filled" } else { "" }
+        ));
+        outcomes.push(outcome);
+    }
+
+    for (account, before) in keepers.iter().zip(kept) {
+        let now = token_balance(setup, coin, account).await?;
+        if now != *before {
+            bail!("{account} held {before} before the sells and {now} after; it must not sell");
+        }
+        say(&format!("{account} still holds {now} tokens"));
+    }
+    let filled = outcomes.iter().filter(|o| o.tokens_sold > 0).count();
+    let first = start + 1;
+    list.check(
+        "eighteen sells in order",
+        Ok(format!(
+            "{} sells by bag-buyer-{first:02} to -18 in order, {filled} sold tokens; bag-buyer-19 and -20 kept theirs",
+            outcomes.len()
         )),
     )?;
     Ok(outcomes)
