@@ -8,10 +8,25 @@ Built for NEAR HACKATHON, track Memecoins With Mechanics.
 
 **[Watch the 3-minute demo video](https://vimeo.com/1246907899).** It shows a launch in the live app and our test cabal selling into it, on NEAR testnet. Testnet only, not audited.
 
+- **Live app (NEAR testnet):** https://fair-chance-rho.vercel.app
+- **Demo video (3:03):** https://vimeo.com/1246907899
+- **Launch post:** [the thread on X](https://x.com/magical_vybez/status/2121717721213894667)
+- **The coin from the video:** [Bag Holders Club](https://fair-chance-rho.vercel.app/?view=coin&coin=bagclub.factory.fairchance.testnet&network=testnet) (`bagclub.factory.fairchance.testnet`)
+- **Coin code hash:** `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, the same for every coin, and a local rebuild of `b42fdde` prints it ([Network](#network))
+- **Login:** none to read. A NEAR testnet wallet is needed only to launch, buy or sell.
+
+## Judge path, 2 minutes, no install
+
+1. Open [the Bag Holders Club coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=bagclub.factory.fairchance.testnet&network=testnet). This is the coin launched in the video. The receipts list every sell that went through, with its fill and the reason in plain words: the test cabal's partial fills and the normal buyer's full sell.
+2. On the same page, open **Coin account checks**. The page reads the chain: the coin is a direct sub-account of the factory, runs the known code by hash, and has no access keys.
+3. Open the normal buyer's sell on the explorer: [3BLiLW…](https://testnet.nearblocks.io/txns/3BLiLWMjZzeLvqSDDtAWrMSe31kW9V5afQpg1awAzkwc "claim: full_fill on bagclub.factory.fairchance.testnet"). It sold 2.7M of 2.7M BAGCLUB in full.
+4. To trade yourself, connect a NEAR testnet wallet on the live app and follow the "How to try" box. To rerun the sniper attack with no wallet and no key, see [Run the sniper scene yourself](#run-the-sniper-scene-yourself).
+
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
 ## Contents
 
+- [Judge path, 2 minutes, no install](#judge-path-2-minutes-no-install)
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
 - [Why memecoins](#why-memecoins)
@@ -176,7 +191,7 @@ flowchart LR
 5. **Rule engine.** The engine reads the account's class (small, band or large, with the class floor), then fills as far as these limits allow: the allowance of the window (net of buys), the shared early-supply allowance for marked tokens, the pool-wide NEAR cap, and the floor that always fills. A band account that sells above its first allowance pays a 10% penalty that stays in the pool. Code: `rule-engine/src/actions.rs`, `allowance.rs`, `early_supply.rs`, `real_near_cap.rs`, `creator_group.rs`. Check: `fc_quote_sell` returns the same answer as the real sell, with no state change.
 6. **The result.** The fill is `full`, `partial` or `none`. `FC_SLIPPAGE` refuses when the price per token of the filled part is below `min_near_out` (a partial fill does not fail slippage). The `limit_reason` says why a sell filled less: `allowance`, `cap_full` or `floor`. The coin logs `fc_sell`, and `fc_cap_filled` when the sell fills the cap. Check: the receipt on the coin page, or the event in the transaction on an explorer.
 7. **Watch.** The watcher reads the coin's events with the FastNEAR transactions API on testnet, or by scanning blocks over plain NEAR RPC on a sandbox. It turns each limited-sell event into one plain sentence and sends it. It holds no NEAR key and signs nothing. The `/check` command reads the coin's views and writes a "who can sell now" card for any coin of the factory. Code: `watcher/internal/eventsource/`, `watcher/internal/alerts/`, `watcher/internal/checkcard/`.
-8. **Read.** The coin page reads the same views and events from the chain. It needs no wallet, no login and no key. It cannot buy or sell. Code: `web/src/chain.ts`, `web/src/receipts.ts`.
+8. **Read and trade.** The coin page reads the same views and events from the chain. Reading needs no wallet, no login and no key. To launch, buy or sell, a visitor connects a NEAR testnet wallet and signs each call in that wallet. The page holds no key. Code: `web/src/chain.ts`, `web/src/receipts.ts`, `web/src/page-wallet.ts`.
 
 When a step fails, the contract refuses with its code, and the call changes no state. Refusal texts are in `refusal-texts/`. The code list is in [INTERFACE](docs/INTERFACE.md).
 
@@ -184,13 +199,13 @@ When a step fails, the contract refuses with its code, and the call changes no s
 
 | Part | Where it runs | What it does | Can it move funds or change a limit? |
 | --- | --- | --- | --- |
-| Factory (`contracts/factory/`) | NEAR, one account <!-- waits on: the testnet deploy (the factory account, and the line that says its keys are deleted) --> | Launches each coin in one batch and records the one coin code hash. | Calls `new` once. No coin method gives it a special right. |
+| Factory (`contracts/factory/`) | NEAR, one account (`factory.fairchance.testnet`) | Launches each coin in one batch and records the one coin code hash. | Calls `new` once. No coin method gives it a special right. |
 | Coin (`contracts/coin/`) | NEAR, one account per coin, no access keys | Token, pool and every rule. Calls into `rule-engine/`. Hard refusals return an `FC_` code. | Yes. It is the rule. |
 | Rule engine (`rule-engine/`) | Compiled into the coin; also run by tests as plain Rust | The rules as pure functions. | Only through the coin. |
 | Coin page (`web/`) | Static files in a browser, plus a read-only relay (`web/api/rpc.js`) on the hosted site | Reads views from a NEAR testnet RPC and events from FastNEAR, and shows limits, receipts and refusals. On the hosted site, the views go through the relay. | No. |
 | Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts to the builder's private chat, answers `/check`. | No. |
 
-There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key, and the factory holds none after its key is deleted <!-- waits on: the testnet deploy (the factory key deletion) -->. The page is static. It reads the chain, and it sends a buy, a sell or a launch only when the visitor signs it in their own wallet. The watcher and the page can go offline, and the coin still enforces every rule.
+There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key. The factory account still has one full-access key on testnet. That key cannot change an existing coin, because each coin has no keys and runs its code by a fixed hash. It could change how future coins launch. The page is static. It reads the chain, and it sends a buy, a sell or a launch only when the visitor signs it in their own wallet. The watcher and the page can go offline, and the coin still enforces every rule.
 
 Nobody can change a coin after launch. These three lines are the claim ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)):
 
@@ -239,20 +254,24 @@ Testnet only. Testnet NEAR and these tokens have no value.
 - Launch of BAG: [explorer](https://testnet.nearblocks.io/txns/8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ "claim: launch on factory.fairchance.testnet of bag.factory.fairchance.testnet")
 
 - Deployed commit, from the coin's source metadata: `b42fdde`
-
-<!-- waits on: the line that says the factory keys are deleted -->
+- The coin from the demo video: `bagclub.factory.fairchance.testnet`. Launch: [explorer](https://testnet.nearblocks.io/txns/EJ3oXY3JGefVbW4iQy7bnzg1yykRFB3xoQ9DWtmCJ3Tz "claim: launch on factory.fairchance.testnet of bagclub.factory.fairchance.testnet")
+- The factory account still has one full-access key. It cannot change an existing coin.
 
 The coin's source metadata names commit `b42fdde` and the pinned build image, by digest. That is the NEP-330 record of a reproducible build. A local rebuild matches it: on 14 November 2026, `cargo near build reproducible-wasm` in `contracts/coin/` at a clean checkout of `b42fdde` (host `cargo-near` 0.21.1, pinned image `sourcescan/cargo-near:0.22.0-rust-1.97.1`, Docker on Apple silicon) printed SHA-256 base58 `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`. That is the `global_contract_hash` the chain holds for each coin launched so far (CABAL, CABAL2, BAG, QALAUNCH and BAGCLUB), so the code on chain is the code at `b42fdde` in this repo.
 
 ### Recorded testnet runs
 
-Three runs are recorded, each in a file in `evidence/`. Text here gives group totals and percentages. Each sell and each hash is in the file. The two early-supply totals (6.91M and 2.98M) are the exact `fc_early_window.shared_allowance_used` values read from the chain after each run, with block height and block hash, in the `chain_read` field of each file; the chain resets that value when the early window ends. The other amounts are rounded as the run log printed them.
+The run in the demo video comes first. It was launched from the live app on 14 November 2026.
+
+- **BAGCLUB, the video run** (`bagclub.factory.fairchance.testnet`, launched from the app with no opening buy). One wallet funded 10 sniper wallets. They bought in block 11 after launch, inside the early window, so everything they bought is marked. All 10 early sells (10 of 10) were refused with `FC_EARLY_WINDOW` in blocks 12 and 13. After the window they asked to sell 38.27M and sold 2.99M (7.8%), read on chain from `fc_early_window.shared_allowance_used`; the rest stayed in their wallets. Every limited sell filled above zero, and the smallest was 93.2K. Then a normal buyer, the builder's second account, bought 2.7M BAGCLUB for 0.3 NEAR after the window and sold all 2.7M for 0.294 NEAR, filled in full. Launch: [explorer](https://testnet.nearblocks.io/txns/EJ3oXY3JGefVbW4iQy7bnzg1yykRFB3xoQ9DWtmCJ3Tz "claim: launch on factory.fairchance.testnet of bagclub.factory.fairchance.testnet"). Normal buy: [explorer](https://testnet.nearblocks.io/txns/Hinh2qm2ZgYHA4ipNvhufkpW4Q6LktxMSdE7Ex2aXzTL "claim: buy on bagclub.factory.fairchance.testnet"). Normal sell, in full: [explorer](https://testnet.nearblocks.io/txns/3BLiLWMjZzeLvqSDDtAWrMSe31kW9V5afQpg1awAzkwc "claim: full_fill on bagclub.factory.fairchance.testnet"). The coin page lists every sell receipt with its reason.
+
+Three earlier runs are recorded, each in a file in `evidence/`. Text here gives group totals and percentages. Each sell and each hash is in the file. The two early-supply totals (6.91M and 2.98M) are the exact `fc_early_window.shared_allowance_used` values read from the chain after each run, with block height and block hash, in the `chain_read` field of each file; the chain resets that value when the early window ends. The other amounts are rounded as the run log printed them.
 
 - **BAG** ([`evidence/testnet-run.json`](evidence/testnet-run.json)). 20 buyers bought after the early window, so nothing is marked. 18 of them sold: 17 in full and 1 in part at the pool cap (limit `cap_full`). Together they sold 99.5% of what they asked to sell. Partial fill: [explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill on bag.factory.fairchance.testnet").
 - **CABAL** ([`evidence/testnet-cabal-run.json`](evidence/testnet-cabal-run.json)). 10 wallets funded directly by the same wallet bought in block 12 after launch, inside the early window. Everything they bought is marked. All 10 early sells (10 of 10) were refused with `FC_EARLY_WINDOW`. After the window they asked to sell 134.1M and sold 6.91M (5.2%); the rest stayed in their wallets. The later buy, made after the window with nothing marked, was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA "claim: launch on factory.fairchance.testnet of cabal.factory.fairchance.testnet"). An early sell, refused: [explorer](https://testnet.nearblocks.io/txns/4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm "claim: refusal:FC_EARLY_WINDOW on cabal.factory.fairchance.testnet"). A later sell, in full: [explorer](https://testnet.nearblocks.io/txns/jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8 "claim: full_fill on cabal.factory.fairchance.testnet").
 - **CABAL2** ([`evidence/testnet-cabal2-run.json`](evidence/testnet-cabal2-run.json)). The same test on a second coin with smaller buys. 10 of 10 early sells were refused with `FC_EARLY_WINDOW`. The 10 wallets asked to sell 39.5M and sold 2.98M (7.5%). The later buy was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/BgzcrdkorKb9iLzoS4a4WqVrTkL8ihXssb15wAmpw5RP "claim: launch on factory.fairchance.testnet of cabal2.factory.fairchance.testnet").
 
-In both CABAL runs the 10 wallets share one early-supply allowance. Each partial fill ends at the allowance, the pool cap or the floor, and the sell's `limit_reason` says which.
+In the BAGCLUB run and both CABAL runs the 10 wallets share one early-supply allowance. Each partial fill ends at the allowance, the pool cap or the floor, and the sell's `limit_reason` says which.
 
 The BAG buys landed in block 23 after launch, after the early window, so the BAG run shows no early fee and no marked token. The CABAL runs bought inside the window and show marked tokens and the early-window refusal on testnet. The early window is blocks 0 to 17. It lasts about 10.5 seconds at the measured testnet block time: 0.5812 seconds per block, from 1,000 final blocks in 581.165 seconds ([`evidence/testnet-run.json`](evidence/testnet-run.json)).
 
@@ -295,9 +314,9 @@ call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_fu
 call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"'$COIN'","method_name":"contract_source_metadata","args_base64":"e30="}}'
 ```
 
-For BAG, call 2 gives `global_contract_hash` `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, and call 3 gives the same `code_hash`. The hash from call 2 is what the chain holds. The hash from call 3 is what the coin reports; the factory passed it to `new` at launch. The two must match each other, and the hash a reproducible build of the deployed commit prints. If they differ, the deployed code is not that commit. <!-- waits on: a local Docker rebuild of the deployed commit and the hash it prints -->
+For BAG, call 2 gives `global_contract_hash` `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, and call 3 gives the same `code_hash`. The hash from call 2 is what the chain holds. The hash from call 3 is what the coin reports; the factory passed it to `new` at launch. The two must match each other, and the hash a reproducible build of the deployed commit prints. If they differ, the deployed code is not that commit. The local rebuild of `b42fdde` in [Network](#network) prints this hash.
 
-The factory account still has an access key, so call 1 on the factory does not return an empty list yet. <!-- waits on: the factory key deletion and the real output of call 1 on the factory account -->
+The factory account still has an access key, so call 1 on the factory returns one full-access key. Call 1 on any coin returns an empty list.
 
 The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill on bag.factory.fairchance.testnet") and in `evidence/testnet-run.json`.
 
