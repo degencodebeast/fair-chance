@@ -793,8 +793,55 @@ pub async fn transact_once(
     send_once(transaction, &who.id, read, send).await
 }
 
-/// Signs `transaction` (reading the nonce from `send`), sends it once to `send`, and returns its
-/// result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
+/// Signs `transaction` without sending it. The nonce and a final block hash come from `send`; when
+/// that read fails, nothing went out, so they come from one read on the first endpoint of `read`
+/// (FastNEAR on testnet) instead. When that fails too, it stops with "nothing was sent". No error
+/// text carries an RPC URL.
+pub async fn presign_once(
+    transaction: near_api::advanced::ExecuteSignedTransaction,
+    signer_id: &AccountId,
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+) -> Result<near_api::advanced::ExecuteSignedTransaction> {
+    let failed = |what: &str, e: &dyn std::fmt::Display| {
+        anyhow::anyhow!(
+            "signing for {signer_id} failed before any send: {what}: {}; nothing was sent",
+            rate_limit::without_urls(&format!("{e}"))
+        )
+    };
+    let key = transaction
+        .signer
+        .get_public_key()
+        .await
+        .map_err(|e| failed("the public key", &e))?;
+    let (nonce, block_hash, _) = match transaction
+        .signer
+        .fetch_tx_nonce(signer_id.clone(), key, send)
+        .await
+    {
+        Ok(found) => found,
+        Err(first) => {
+            println!(
+                "send: the nonce read for {signer_id} on the send RPC failed ({}); nothing was sent; reading it once on the read RPC",
+                rate_limit::without_urls(&format!("{first}"))
+            );
+            let mut fallback = read.clone();
+            fallback.rpc_endpoints.truncate(1);
+            transaction
+                .signer
+                .fetch_tx_nonce(signer_id.clone(), key, &fallback)
+                .await
+                .map_err(|e| failed("the nonce read on both RPCs", &e))?
+        }
+    };
+    transaction
+        .presign_offline(key, block_hash, nonce)
+        .await
+        .map_err(|e| failed("signing", &e))
+}
+
+/// Signs `transaction` ([`presign_once`]: the nonce from `send`, or once from `read` when that
+/// read fails), sends it once to `send`, and returns its result. near-api tries a network's endpoints in turn, so `send` must hold one endpoint with one
 /// try ([`rpcs::testnet_rpcs`]). When the send gives no answer or an unknown result, it looks up the
 /// transaction by its hash on `read` and returns what the chain holds; it never sends it again, on
 /// either RPC. A hash the chain does not know stops the run. A failure before the send (signing,
@@ -805,12 +852,7 @@ pub async fn send_once(
     read: &NetworkConfig,
     send: &NetworkConfig,
 ) -> Result<TransactionResult> {
-    let signed = transaction.presign_with(send).await.map_err(|e| {
-        anyhow::anyhow!(
-            "signing for {signer_id} failed before any send: {}; nothing was sent",
-            rate_limit::without_urls(&format!("{e}"))
-        )
-    })?;
+    let signed = presign_once(transaction, signer_id, read, send).await?;
     let hash = match &signed.transaction {
         near_api::advanced::TransactionableOrSigned::Signed((tx, _)) => tx.get_hash(),
         near_api::advanced::TransactionableOrSigned::Transactionable(_) => {

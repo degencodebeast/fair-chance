@@ -124,10 +124,11 @@ async fn the_send_rpc_is_read_first_and_the_read_rpc_is_not_touched_when_it_answ
 #[tokio::test]
 async fn when_both_reads_fail_it_stops_and_says_nothing_was_sent() {
     let (tx, alice) = transfer();
-    let error = presign_once(tx, &alice, &network(DEAD), &network("http://127.0.0.1:7"))
-        .await
-        .unwrap_err()
-        .to_string();
+    let error = match presign_once(tx, &alice, &network(DEAD), &network("http://127.0.0.1:7")).await
+    {
+        Ok(_) => panic!("signed with no nonce read"),
+        Err(e) => e.to_string(),
+    };
     assert!(error.contains("nothing was sent"), "{error}");
     assert!(
         !error.contains("127.0.0.1"),
