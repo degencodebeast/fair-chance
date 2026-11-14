@@ -14,7 +14,7 @@ reported and never asked again. Exit 0 when nothing is wrong, 1 otherwise, 2 on 
 A transaction link carries its claim in the link title:
   [tx](https://explorer.../transactions/<hash> "claim: partial_fill by buyer.testnet")
 The claim is partial_fill, full_fill, launch or refusal:<FC_CODE>. The account after "by" is the
-sender. Without "by", the sender comes from the JSON files in evidence/ (the entry with that hash). The check reads the receipt and compares what it finds with the claim.
+sender. "on <coin>" names the receiver (the factory for a launch) and "of <coin>" the coin a launch started. Without "by", the sender comes from the JSON files in evidence/ (the entry with that hash). The check reads the receipt and compares what it finds with the claim.
 """
 import argparse
 import json
@@ -28,7 +28,7 @@ from pathlib import Path
 DEFAULT_FILES = ["README.md", "docs/evidence.md", "docs/model/README.md"]
 RPC_URL = "https://rpc.testnet.near.org"
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"([^\"]*)\")?\)")
-CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|launch|refusal:FC_[A-Z_]+)(?:\s+by\s+(\S+))?")
+CLAIM = re.compile(r"claim:\s*(partial_fill|full_fill|launch|refusal:FC_[A-Z_]+)(?:\s+by\s+(\S+))?(?:\s+on\s+(\S+))?(?:\s+of\s+(\S+))?")
 FC_CODE = re.compile(r"FC_[A-Z_]+")
 ACCOUNT = re.compile(r"(?<![A-Za-z0-9_.@-])([a-z0-9][a-z0-9_-]*(?:\.[a-z0-9_-]+)*\.testnet)(?![A-Za-z0-9_-]|\.[A-Za-z0-9])")
 TX_HASH = re.compile(r"/(?:transactions|txns|txn)/([1-9A-HJ-NP-Za-km-z]{43,44})\b")
@@ -177,14 +177,20 @@ def rpc_call(method, params):
         return {"error": {"message": f"{type(error).__name__}"}}
 
 
-def receipt_outcome(reply):
-    """What a transaction did, as the claim words: partial_fill, full_fill, no_fill,
-    refusal:FC_CODE, or None when the reply holds no result."""
+def receipt_facts(reply):
+    """What a transaction did, from its reply: who signed it, who received it and what happened,
+    in the claim words (partial_fill, full_fill, no_fill, launch, refusal:FC_CODE, failure or
+    None). An event or a failure counts only when the receiver itself logged it, and an event
+    only with the standard of Fair Chance (fair_chance for a coin, fair_chance_factory for the
+    factory). Returns None when the reply holds no result."""
     result = reply.get("result")
-    if not isinstance(result, dict):
+    if not isinstance(result, dict) or not isinstance(result.get("transaction"), dict):
         return None
-    outcomes = [r.get("outcome", {}) for r in result.get("receipts_outcome", []) if isinstance(r, dict)]
-    for outcome in outcomes:
+    tx = result["transaction"]
+    facts = {"signer": tx.get("signer_id"), "receiver": tx.get("receiver_id"), "outcome": None}
+    own = [r.get("outcome", {}) for r in result.get("receipts_outcome", [])
+           if isinstance(r, dict) and r.get("outcome", {}).get("executor_id") == facts["receiver"]]
+    for outcome in own:
         for log in outcome.get("logs", []):
             if not log.startswith("EVENT_JSON:"):
                 continue
@@ -192,39 +198,48 @@ def receipt_outcome(reply):
                 event = json.loads(log[len("EVENT_JSON:"):])
             except ValueError:
                 continue
-            if event.get("event") == "fc_launch":
-                return "launch"
-            if event.get("event") == "fc_sell":
+            if event.get("event") == "fc_launch" and event.get("standard") == "fair_chance_factory":
+                facts["outcome"] = "launch"
+                facts["coin"] = (event.get("data") or [{}])[0].get("coin")
+                return facts
+            if event.get("event") == "fc_sell" and event.get("standard") == "fair_chance":
                 fill = (event.get("data") or [{}])[0].get("fill")
-                return {"partial": "partial_fill", "full": "full_fill", "none": "no_fill"}.get(fill)
-    for outcome in outcomes + [{"status": result.get("status")}]:
+                facts["outcome"] = {"partial": "partial_fill", "full": "full_fill", "none": "no_fill"}.get(fill)
+                return facts
+    for outcome in own:
         status = outcome.get("status")
         if isinstance(status, dict) and "Failure" in status:
             code = FC_CODE.search(json.dumps(status["Failure"]))
-            return f"refusal:{code.group()}" if code else "failure"
-    return None
+            facts["outcome"] = f"refusal:{code.group()}" if code else "failure"
+            return facts
+    return facts
 
 
-def evidence_senders(root):
-    """Transaction hash -> sender account, read from the JSON files in evidence/. An entry with
-    "tx" or "tx_hash" and "account" gives its account. A "launch" entry with no account of its
-    own belongs to the top-level "creator"."""
-    senders = {}
+def evidence_txs(root):
+    """Transaction hash -> {"sender", "coin", "factory"}, read from the JSON files in evidence/.
+    An entry with "tx" or "tx_hash" and "account" gives its sender. A "launch" entry with no
+    account of its own belongs to the top-level "creator". The coin is the top-level "coin"; the
+    factory is the top-level "factory", or the coin's parent account."""
+    found = {}
 
-    def walk(node, creator):
+    def walk(node, top):
         if isinstance(node, dict):
+            coin = top.get("coin") if isinstance(top.get("coin"), str) else None
+            factory = top.get("factory") if isinstance(top.get("factory"), str) else (coin.split(".", 1)[1] if coin and "." in coin else None)
             for key in ("tx", "tx_hash"):
                 if isinstance(node.get(key), str) and isinstance(node.get("account"), str):
-                    senders[node[key]] = node["account"]
-            for key, child in node.items():
-                if key == "launch" and isinstance(child, dict) and isinstance(creator, str):
-                    for tx_key in ("tx", "tx_hash"):
-                        if isinstance(child.get(tx_key), str):
-                            senders.setdefault(child[tx_key], child.get("account", creator))
-                walk(child, creator)
+                    found[node[key]] = {"sender": node["account"], "coin": coin, "factory": factory}
+            launch = node.get("launch")
+            if isinstance(launch, dict) and node is top:
+                for tx_key in ("tx", "tx_hash"):
+                    if isinstance(launch.get(tx_key), str):
+                        sender = launch.get("account", top.get("creator"))
+                        found.setdefault(launch[tx_key], {"sender": sender, "coin": coin, "factory": factory})
+            for child in node.values():
+                walk(child, top)
         elif isinstance(node, list):
             for child in node:
-                walk(child, creator)
+                walk(child, top)
 
     folder = root / "evidence"
     for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
@@ -232,13 +247,14 @@ def evidence_senders(root):
             data = json.loads(path.read_text())
         except ValueError:
             continue
-        walk(data, data.get("creator") if isinstance(data, dict) else None)
-    return senders
+        if isinstance(data, dict):
+            walk(data, data)
+    return found
 
 
 def check_testnet(root, files, rpc=rpc_call):
     problems, accounts = [], {}
-    senders = evidence_senders(root)
+    known = evidence_txs(root)
     for path in files:
         text = path.read_text()
         for number, line in prose_lines_keep_code(text):
@@ -258,14 +274,29 @@ def check_testnet(root, files, rpc=rpc_call):
             if not claim:
                 problems.append(f"{where}: transaction {tx.group(1)} has no claim in its link title")
                 continue
-            sender = claim.group(2) or senders.get(tx.group(1))
+            outcome, by, on, of = claim.groups()
+            record = known.get(tx.group(1), {})
+            sender = by or record.get("sender")
+            receiver = on or record.get("factory" if outcome == "launch" else "coin")
             if not sender:
                 problems.append(f"{where}: transaction {tx.group(1)} has no sender in its claim or in evidence/")
                 continue
+            if not receiver:
+                problems.append(f"{where}: transaction {tx.group(1)} has no coin in its claim or in evidence/")
+                continue
             reply = rpc("EXPERIMENTAL_tx_status", {"tx_hash": tx.group(1), "sender_account_id": sender, "wait_until": "FINAL"})
-            found = receipt_outcome(reply)
-            if found != claim.group(1):
-                problems.append(f"{where}: transaction {tx.group(1)} claims {claim.group(1)} but the receipt shows {found}")
+            facts = receipt_facts(reply)
+            if facts is None:
+                problems.append(f"{where}: transaction {tx.group(1)} did not resolve")
+                continue
+            if facts["signer"] != sender:
+                problems.append(f"{where}: transaction {tx.group(1)} has signer {facts['signer']}, not {sender}")
+            if facts["receiver"] != receiver:
+                problems.append(f"{where}: transaction {tx.group(1)} has receiver {facts['receiver']}, not {receiver}")
+            if of and facts.get("coin") != of:
+                problems.append(f"{where}: transaction {tx.group(1)} started {facts.get('coin')}, not {of}")
+            if facts["outcome"] != outcome:
+                problems.append(f"{where}: transaction {tx.group(1)} claims {outcome} but the receipt shows {facts['outcome']}")
     return problems
 
 

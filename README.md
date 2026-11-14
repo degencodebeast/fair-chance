@@ -231,7 +231,7 @@ Testnet only. Testnet NEAR and these tokens have no value.
 - Factory: `factory.fairchance.testnet`
 - Demo coin BAG: `bag.factory.fairchance.testnet`
 - Coin code hash: `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`
-- Launch of BAG: [explorer](https://testnet.nearblocks.io/txns/8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ "claim: launch")
+- Launch of BAG: [explorer](https://testnet.nearblocks.io/txns/8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ "claim: launch on factory.fairchance.testnet of bag.factory.fairchance.testnet")
 
 - Deployed commit, from the coin's source metadata: `b42fdde`
 
@@ -243,9 +243,9 @@ The coin's source metadata names commit `b42fdde` and the pinned build image, by
 
 Three runs are recorded, each in a file in `evidence/`. Text here gives group totals and percentages. Each sell and each hash is in the file. The two early-supply totals (6.91M and 2.98M) are the exact `fc_early_window.shared_allowance_used` values read from the chain after each run, with block height and block hash, in the `chain_read` field of each file; the chain resets that value when the early window ends. The other amounts are rounded as the run log printed them.
 
-- **BAG** ([`evidence/testnet-run.json`](evidence/testnet-run.json)). 20 buyers bought after the early window, so nothing is marked. 18 of them sold: 17 in full and 1 in part at the pool cap (limit `cap_full`). Together they sold 99.5% of what they asked to sell. Partial fill: [explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill").
-- **CABAL** ([`evidence/testnet-cabal-run.json`](evidence/testnet-cabal-run.json)). 10 wallets funded directly by the same wallet bought in block 12 after launch, inside the early window. Everything they bought is marked. All 10 early sells (10 of 10) were refused with `FC_EARLY_WINDOW`. After the window they asked to sell 134.1M and sold 6.91M (5.2%); the rest stayed in their wallets. The later buy, made after the window with nothing marked, was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA "claim: launch"). An early sell, refused: [explorer](https://testnet.nearblocks.io/txns/4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm "claim: refusal:FC_EARLY_WINDOW"). A later sell, in full: [explorer](https://testnet.nearblocks.io/txns/jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8 "claim: full_fill").
-- **CABAL2** ([`evidence/testnet-cabal2-run.json`](evidence/testnet-cabal2-run.json)). The same test on a second coin with smaller buys. 10 of 10 early sells were refused with `FC_EARLY_WINDOW`. The 10 wallets asked to sell 39.5M and sold 2.98M (7.5%). The later buy was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/BgzcrdkorKb9iLzoS4a4WqVrTkL8ihXssb15wAmpw5RP "claim: launch").
+- **BAG** ([`evidence/testnet-run.json`](evidence/testnet-run.json)). 20 buyers bought after the early window, so nothing is marked. 18 of them sold: 17 in full and 1 in part at the pool cap (limit `cap_full`). Together they sold 99.5% of what they asked to sell. Partial fill: [explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill on bag.factory.fairchance.testnet").
+- **CABAL** ([`evidence/testnet-cabal-run.json`](evidence/testnet-cabal-run.json)). 10 wallets funded directly by the same wallet bought in block 12 after launch, inside the early window. Everything they bought is marked. All 10 early sells (10 of 10) were refused with `FC_EARLY_WINDOW`. After the window they asked to sell 134.1M and sold 6.91M (5.2%); the rest stayed in their wallets. The later buy, made after the window with nothing marked, was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA "claim: launch on factory.fairchance.testnet of cabal.factory.fairchance.testnet"). An early sell, refused: [explorer](https://testnet.nearblocks.io/txns/4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm "claim: refusal:FC_EARLY_WINDOW on cabal.factory.fairchance.testnet"). A later sell, in full: [explorer](https://testnet.nearblocks.io/txns/jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8 "claim: full_fill on cabal.factory.fairchance.testnet").
+- **CABAL2** ([`evidence/testnet-cabal2-run.json`](evidence/testnet-cabal2-run.json)). The same test on a second coin with smaller buys. 10 of 10 early sells were refused with `FC_EARLY_WINDOW`. The 10 wallets asked to sell 39.5M and sold 2.98M (7.5%). The later buy was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/BgzcrdkorKb9iLzoS4a4WqVrTkL8ihXssb15wAmpw5RP "claim: launch on factory.fairchance.testnet of cabal2.factory.fairchance.testnet").
 
 In both CABAL runs the 10 wallets share one early-supply allowance. Each partial fill ends at the allowance, the pool cap or the floor, and the sell's `limit_reason` says which.
 
@@ -294,7 +294,7 @@ For BAG, call 2 gives `global_contract_hash` `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrw
 
 The factory account still has an access key, so call 1 on the factory does not return an empty list yet. <!-- waits on: the factory key deletion and the real output of call 1 on the factory account -->
 
-The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill") and in `evidence/testnet-run.json`.
+The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill on bag.factory.fairchance.testnet") and in `evidence/testnet-run.json`.
 
 ## Measured results
 

@@ -1,0 +1,118 @@
+{
+ "result": {
+  "status": {
+   "SuccessValue": "dHJ1ZQ=="
+  },
+  "transaction": {
+   "hash": "3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA",
+   "signer_id": "cabal-creator.fairchance.testnet",
+   "receiver_id": "factory.fairchance.testnet"
+  },
+  "receipts_outcome": [
+   {
+    "id": "4AZTW85nBYGFT7HhVngxuFzE2RTmW6VUjWwMsyZhSLvv",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessReceiptId": "5G4VMfX2rPPXKiCVFnK2Chsmiu3nAMYJA16MBWugzRyW"
+     }
+    }
+   },
+   {
+    "id": "2PgTdPY21528BC2fdYSR4TQBNmGLk4gnn4KjRrQsg7XK",
+    "outcome": {
+     "executor_id": "cabal.factory.fairchance.testnet",
+     "logs": [
+      "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_mint\",\"data\":[{\"owner_id\":\"cabal.factory.fairchance.testnet\",\"amount\":\"1000000000000000000000000000\"}]}"
+     ],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "Hm5pE9f4C6bE44ZnsfAoEEBQ9Hume32ceiuuvPsZjTMp",
+    "outcome": {
+     "executor_id": "cabal-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "5G4VMfX2rPPXKiCVFnK2Chsmiu3nAMYJA16MBWugzRyW",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessReceiptId": "669tVutxXHtLHFvKTPkawFB5uCVUJpNEzg2WwPdSLxGy"
+     }
+    }
+   },
+   {
+    "id": "DxQcMB4K35xyeMLDcPiGJhnnjoDSxBKKwyentgLGpvHM",
+    "outcome": {
+     "executor_id": "cabal.factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": "eyJjcmVhdG9yIjoiY2FiYWwtY3JlYXRvci5mYWlyY2hhbmNlLnRlc3RuZXQiLCJsYXVuY2hfYmxvY2siOjI3NzYzNTkwMCwibGF1bmNoX25zIjoiMTc5NDY0NzAxNjgzNTYxMDE3NSIsInBfYnBzIjoyMDAsIndpbmRvd191bm1hcmtlZF9zIjozNjAwLCJ3aW5kb3dfZWFybHlfcyI6ODY0MDAsImVhcmx5X2Jsb2NrcyI6MTcsImxhcmdlX3RocmVzaG9sZF9icHMiOjIwMCwiY3JlYXRvcl9jYXBfYnBzIjo0MDAsInJlYWxfY2FwX2NfYnBzIjo1MDAsImZsb29yX2JwcyI6MTAsInBlbmFsdHlfYnBzIjoxMDAwLCJ2aXJ0dWFsX25lYXIiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJzd2FwX2ZlZV9icHMiOjEwMCwiZWFybHlfZmVlX3N0YXJ0X2JwcyI6NTAwMCwiYnJha2VfZHJvcF9icHMiOm51bGwsImNyZWF0b3JfZmVlX3NoYXJlX2JwcyI6MzAwMCwiY2xhaW1fbWluX3JlYWxfbmVhciI6IjEwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwiY2xhaW1fZGVwdGhfaG9sZF9zIjo4NjQwMCwidW5jbGFpbWVkX3RvX3Bvb2xfcyI6bnVsbCwiY29kZV9oYXNoIjoiNkxkNURGVEoxQlljNnV6YjZZWXZkSzN5QU1IZGZCc3Zyd05FaHNLRTllcjMiLCJkZXNjcmlwdGlvbiI6IlRlc3RuZXQgY29pbiBmb3IgdGhlIEZhaXIgQ2hhbmNlIHNuaXBlciB0ZXN0LiBUZW4gd2FsbGV0cyBmdW5kZWQgYnkgb25lIHdhbGxldCBidXkgaW4gdGhlIGZpcnN0IGJsb2NrcyBhbmQgdHJ5IHRvIHNlbGwgYXQgb25jZS4ifQ=="
+     }
+    }
+   },
+   {
+    "id": "HjG5uqeWrLUWQaLdwP1XaNVupkjqQ7gerabGcdRohVYY",
+    "outcome": {
+     "executor_id": "cabal-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "669tVutxXHtLHFvKTPkawFB5uCVUJpNEzg2WwPdSLxGy",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [
+      "EVENT_JSON:{\"standard\":\"fair_chance_factory\",\"version\":\"1.0.0-rc.7\",\"event\":\"fc_launch\",\"data\":[{\"coin\":\"cabal.factory.fairchance.testnet\",\"creator\":\"cabal-creator.fairchance.testnet\",\"code_hash\":\"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3\",\"launch_block\":277635900,\"description\":\"Testnet coin for the Fair Chance sniper test. Ten wallets funded by one wallet buy in the first blocks and try to sell at once.\"}]}"
+     ],
+     "status": {
+      "SuccessValue": "dHJ1ZQ=="
+     }
+    }
+   },
+   {
+    "id": "AYxvRZeks8CN2oPEhovVpTeSokeLt3FNEi2HMj6tzJmt",
+    "outcome": {
+     "executor_id": "cabal-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "34g7agJdqk8VHXLfLqqvAD4LPSkRHNm4t8HkcYY148KH",
+    "outcome": {
+     "executor_id": "cabal-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "K9BJFjEQboY4Xg2BVg76qavaxNFoj5TUkKf94Q8Z25j",
+    "outcome": {
+     "executor_id": "cabal-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   }
+  ]
+ }
+}

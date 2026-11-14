@@ -90,20 +90,30 @@ class External(unittest.TestCase):
 
 
 H = "9" * 44
+COIN = "coin.factory.testnet"
+FACTORY = "factory.testnet"
+FIXTURES = Path(__file__).resolve().parent / "receipt-fixtures"
 
 
-def tx_line(claim, sender="alice.testnet", h=H):
-    return f'[tx](https://explorer.testnet.near.org/transactions/{h} "claim: {claim} by {sender}")\n'
+def tx_line(claim, sender="alice.testnet", on=COIN, h=H):
+    return f'[tx](https://explorer.testnet.near.org/transactions/{h} "claim: {claim} by {sender} on {on}")\n'
 
 
-def sell_log(fill):
-    event = {"standard": "fair_chance", "version": "1.0.0-rc.7", "event": "fc_sell", "data": [{"fill": fill}]}
+def sell_log(fill, standard="fair_chance"):
+    event = {"standard": standard, "version": "1.0.0-rc.7", "event": "fc_sell", "data": [{"fill": fill}]}
     return "EVENT_JSON:" + json.dumps(event)
 
 
-def tx_reply(logs=(), failure=None):
-    outcome = {"logs": list(logs), "status": {"Failure": failure} if failure else {"SuccessValue": ""}}
-    return {"result": {"status": {"SuccessValue": ""}, "receipts_outcome": [{"outcome": outcome}]}}
+def launch_log(standard="fair_chance_factory"):
+    return "EVENT_JSON:" + json.dumps({"standard": standard, "version": "1.0.0", "event": "fc_launch", "data": [{}]})
+
+
+def tx_reply(logs=(), failure=None, signer="alice.testnet", receiver=COIN, emitter=None):
+    outcome = {"executor_id": emitter or receiver, "logs": list(logs),
+               "status": {"Failure": failure} if failure else {"SuccessValue": ""}}
+    return {"result": {"status": {"SuccessValue": ""},
+                       "transaction": {"signer_id": signer, "receiver_id": receiver},
+                       "receipts_outcome": [{"outcome": outcome}]}}
 
 
 def fake_rpc(tx=None, accounts=True, seen=None):
@@ -114,6 +124,11 @@ def fake_rpc(tx=None, accounts=True, seen=None):
             return {"result": {}} if accounts else {"error": {}}
         return tx
     return rpc
+
+
+def check(readme_text, reply, extra=None):
+    root = make(dict({"README.md": readme_text}, **(extra or {})))
+    return c.check_testnet(root, [root / "README.md"], fake_rpc(reply))
 
 
 class Testnet(unittest.TestCase):
@@ -130,79 +145,144 @@ class Testnet(unittest.TestCase):
         self.assertIn("bad.fc.testnet", out[0])
 
     def test_a_partial_fill_claim_matches_a_partial_fill_receipt(self):
-        root = make({"README.md": tx_line("partial_fill")})
-        seen = []
-        rpc = fake_rpc(tx_reply([sell_log("partial")]), seen=seen)
-        self.assertEqual(c.check_testnet(root, [root / "README.md"], rpc), [])
-        self.assertIn(("EXPERIMENTAL_tx_status", "alice.testnet"), seen)
+        self.assertEqual(check(tx_line("partial_fill"), tx_reply([sell_log("partial")])), [])
 
     def test_a_partial_fill_claim_fails_on_a_full_fill(self):
-        root = make({"README.md": tx_line("partial_fill")})
-        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))
+        out = check(tx_line("partial_fill"), tx_reply([sell_log("full")]))
         self.assertEqual(len(out), 1)
         self.assertIn("full_fill", out[0])
 
     def test_a_full_fill_claim_matches(self):
-        root = make({"README.md": tx_line("full_fill")})
-        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")]))), [])
+        self.assertEqual(check(tx_line("full_fill"), tx_reply([sell_log("full")])), [])
 
     def test_a_refusal_claim_matches_the_code_in_the_receipt(self):
-        root = make({"README.md": tx_line("refusal:FC_CREATOR_CAP")})
         failure = {"ActionError": {"kind": {"FunctionCallError": {"ExecutionError": "Smart contract panicked: FC_CREATOR_CAP"}}}}
-        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply(failure=failure))), [])
+        self.assertEqual(check(tx_line("refusal:FC_CREATOR_CAP"), tx_reply(failure=failure)), [])
 
     def test_a_refusal_claim_fails_on_another_code_or_on_a_fill(self):
-        root = make({"README.md": tx_line("refusal:FC_CREATOR_CAP")})
         failure = {"ActionError": {"kind": {"FunctionCallError": {"ExecutionError": "Smart contract panicked: FC_ONE_YOCTO"}}}}
-        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply(failure=failure)))), 1)
-        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
+        self.assertEqual(len(check(tx_line("refusal:FC_CREATOR_CAP"), tx_reply(failure=failure))), 1)
+        self.assertEqual(len(check(tx_line("refusal:FC_CREATOR_CAP"), tx_reply([sell_log("full")]))), 1)
 
-    def test_a_launch_claim_matches_an_fc_launch_event(self):
-        root = make({"README.md": tx_line("launch", sender="creator.testnet")})
-        event = {"standard": "fair_chance_factory", "version": "1.0.0", "event": "fc_launch", "data": [{"coin": "bag.f.testnet"}]}
-        reply = tx_reply(["EVENT_JSON:" + json.dumps(event)])
-        self.assertEqual(c.check_testnet(root, [root / "README.md"], fake_rpc(reply)), [])
+    def test_the_signer_must_be_the_claimed_sender(self):
+        out = check(tx_line("full_fill", sender="bob.testnet"), tx_reply([sell_log("full")], signer="alice.testnet"))
+        self.assertEqual(len(out), 1)
+        self.assertIn("signer", out[0])
+
+    def test_the_receiver_must_be_the_claimed_coin(self):
+        out = check(tx_line("full_fill", on="other.factory.testnet"), tx_reply([sell_log("full")]))
+        self.assertEqual(len(out), 1)
+        self.assertIn("receiver", out[0])
+
+    def test_a_sell_event_logged_by_another_account_does_not_count(self):
+        out = check(tx_line("full_fill"), tx_reply([sell_log("full")], emitter="other.factory.testnet"))
+        self.assertEqual(len(out), 1)
+
+    def test_an_event_that_is_not_a_fair_chance_event_does_not_count(self):
+        self.assertEqual(len(check(tx_line("full_fill"), tx_reply([sell_log("full", standard="other")]))), 1)
+
+    def test_a_launch_claim_matches_an_fc_launch_event_of_the_factory(self):
+        line = tx_line("launch", sender="creator.testnet", on=FACTORY)
+        reply = tx_reply([launch_log()], signer="creator.testnet", receiver=FACTORY)
+        self.assertEqual(check(line, reply), [])
+
+    def test_a_launch_claim_fails_for_an_fc_launch_event_of_another_standard(self):
+        line = tx_line("launch", sender="creator.testnet", on=FACTORY)
+        reply = tx_reply([launch_log("other")], signer="creator.testnet", receiver=FACTORY)
+        self.assertEqual(len(check(line, reply)), 1)
 
     def test_a_launch_claim_fails_without_an_fc_launch_event(self):
-        root = make({"README.md": tx_line("launch", sender="creator.testnet")})
-        self.assertEqual(len(c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("full")])))), 1)
+        line = tx_line("launch", sender="creator.testnet", on=FACTORY)
+        reply = tx_reply([sell_log("full")], signer="creator.testnet", receiver=FACTORY)
+        self.assertEqual(len(check(line, reply)), 1)
 
-    def test_a_claim_without_a_sender_takes_it_from_the_evidence_files(self):
-        record = {"network": "testnet", "creator": "maker.testnet",
+    def test_a_claim_without_a_sender_or_coin_takes_them_from_the_evidence_files(self):
+        record = {"network": "testnet", "creator": "maker.testnet", "coin": COIN,
                   "launch": {"tx": H}, "buys": [{"tx_hash": "8" * 44, "account": "buyer.testnet"}]}
-        root = make({"README.md": f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'
-                                  f'[b](https://explorer.testnet.near.org/transactions/{"8" * 44} "claim: full_fill")\n',
-                     "evidence/run.json": json.dumps(record)})
-        seen = []
-        event = {"standard": "fair_chance_factory", "version": "1.0.0", "event": "fc_launch", "data": [{}]}
+        line = (f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'
+                f'[b](https://explorer.testnet.near.org/transactions/{"8" * 44} "claim: full_fill")\n')
+        replies = {H: tx_reply([launch_log()], signer="maker.testnet", receiver=FACTORY),
+                   "8" * 44: tx_reply([sell_log("full")], signer="buyer.testnet")}
+        root = make({"README.md": line, "evidence/run.json": json.dumps(record)})
 
         def rpc(method, params):
-            seen.append(params.get("sender_account_id"))
-            if method == "query":
-                return {"result": {}}
-            log = "EVENT_JSON:" + json.dumps(event) if params["tx_hash"] == H else sell_log("full")
-            return tx_reply([log])
+            return {"result": {}} if method == "query" else replies[params["tx_hash"]]
 
         self.assertEqual(c.check_testnet(root, [root / "README.md"], rpc), [])
-        self.assertIn("maker.testnet", seen)
-        self.assertIn("buyer.testnet", seen)
 
     def test_a_claim_without_a_sender_and_no_evidence_is_reported(self):
-        root = make({"README.md": f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'})
-        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([])))
+        line = f'[a](https://explorer.testnet.near.org/transactions/{H} "claim: launch")\n'
+        out = check(line, tx_reply([]))
         self.assertEqual(len(out), 1)
         self.assertIn("sender", out[0])
 
     def test_a_tx_link_with_no_claim_is_reported(self):
-        root = make({"README.md": f"[tx](https://explorer.testnet.near.org/transactions/{H}) alice.testnet\n"})
-        out = c.check_testnet(root, [root / "README.md"], fake_rpc(tx_reply([sell_log("partial")])))
+        line = f"[tx](https://explorer.testnet.near.org/transactions/{H}) alice.testnet\n"
+        out = check(line, tx_reply([sell_log("partial")]))
         self.assertEqual(len(out), 1)
         self.assertIn("claim", out[0])
 
     def test_a_tx_that_does_not_resolve_is_reported(self):
-        root = make({"README.md": tx_line("partial_fill")})
-        out = c.check_testnet(root, [root / "README.md"], fake_rpc({"error": {"message": "unknown"}}))
-        self.assertEqual(len(out), 1)
+        self.assertEqual(len(check(tx_line("partial_fill"), {"error": {"message": "unknown"}})), 1)
+
+
+class RealReceipts(unittest.TestCase):
+    """Saved replies of the public testnet RPC (fields the check does not read are dropped)."""
+
+    @staticmethod
+    def rpc_for_fixtures():
+        replies = {}
+        for path in FIXTURES.glob("*.json"):
+            reply = json.loads(path.read_text())
+            replies[reply["result"]["transaction"]["hash"]] = reply
+
+        def rpc(method, params):
+            if method == "query":
+                return {"result": {}}
+            return replies.get(params["tx_hash"], {"error": {"message": "unknown"}})
+
+        return rpc
+
+    def setUp(self):
+        self.rpc = self.rpc_for_fixtures()
+
+    def test_every_claim_in_the_readme_matches_its_saved_receipt(self):
+        root = Path(__file__).resolve().parent.parent
+        readme = root / "README.md"
+        out = c.check_testnet(root, [readme], self.rpc)
+        self.assertEqual(out, [])
+
+    def test_the_bag_launch_under_the_cabal_coin_fails(self):
+        bag = "8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ"
+        line = f'[a](https://testnet.nearblocks.io/txns/{bag} "claim: launch by bag-creator.fairchance.testnet on factory.fairchance.testnet")\n'
+        root = make({"README.md": line.replace("bag-creator", "cabal-creator")})
+        out = c.check_testnet(root, [root / "README.md"], self.rpc)
+        self.assertTrue(any("signer" in o for o in out), out)
+
+    def test_a_full_fill_by_the_wrong_buyer_fails(self):
+        later = "jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8"
+        line = f'[a](https://testnet.nearblocks.io/txns/{later} "claim: full_fill by cabal-buyer-01.fairchance.testnet on cabal.factory.fairchance.testnet")\n'
+        root = make({"README.md": line})
+        out = c.check_testnet(root, [root / "README.md"], self.rpc)
+        self.assertTrue(any("signer" in o for o in out), out)
+
+    def test_a_sell_claimed_on_the_wrong_coin_fails(self):
+        later = "jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8"
+        line = f'[a](https://testnet.nearblocks.io/txns/{later} "claim: full_fill by cabal-later-buyer.fairchance.testnet on bag.factory.fairchance.testnet")\n'
+        root = make({"README.md": line})
+        out = c.check_testnet(root, [root / "README.md"], self.rpc)
+        self.assertTrue(any("receiver" in o for o in out), out)
+
+
+class LaunchedCoin(unittest.TestCase):
+    def test_a_launch_names_the_coin_it_started(self):
+        bag = "8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ"
+        rpc = RealReceipts.rpc_for_fixtures()
+        for coin, want in (("bag.factory.fairchance.testnet", 0), ("cabal.factory.fairchance.testnet", 1)):
+            line = (f'[a](https://testnet.nearblocks.io/txns/{bag} '
+                    f'"claim: launch by bag-creator.fairchance.testnet on factory.fairchance.testnet of {coin}")\n')
+            root = make({"README.md": line})
+            self.assertEqual(len(c.check_testnet(root, [root / "README.md"], rpc)), want, coin)
 
 
 class Outside(unittest.TestCase):

@@ -1,0 +1,62 @@
+{
+ "result": {
+  "status": {
+   "Failure": {
+    "ActionError": {
+     "index": 0,
+     "kind": {
+      "FunctionCallError": {
+       "ExecutionError": "Smart contract panicked: FC_EARLY_WINDOW"
+      }
+     }
+    }
+   }
+  },
+  "transaction": {
+   "hash": "4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm",
+   "signer_id": "cabal-buyer-01.fairchance.testnet",
+   "receiver_id": "cabal.factory.fairchance.testnet"
+  },
+  "receipts_outcome": [
+   {
+    "id": "9kmBSjAJAGin7TsijabVCaj6FneqQohNGfEBGFDAdrXh",
+    "outcome": {
+     "executor_id": "cabal.factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "Failure": {
+       "ActionError": {
+        "index": 0,
+        "kind": {
+         "FunctionCallError": {
+          "ExecutionError": "Smart contract panicked: FC_EARLY_WINDOW"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "id": "BT6kb3Zm5WKeBKyjV7PLdej9SevUwjk4DFprQGqTNvnU",
+    "outcome": {
+     "executor_id": "cabal-buyer-01.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "27eidsYRPmc6rSMsHyEN9vbrSDpgKxe2aE4XCXbeFoRR",
+    "outcome": {
+     "executor_id": "cabal-buyer-01.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   }
+  ]
+ }
+}

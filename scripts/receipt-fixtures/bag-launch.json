@@ -1,0 +1,118 @@
+{
+ "result": {
+  "status": {
+   "SuccessValue": "dHJ1ZQ=="
+  },
+  "transaction": {
+   "hash": "8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ",
+   "signer_id": "bag-creator.fairchance.testnet",
+   "receiver_id": "factory.fairchance.testnet"
+  },
+  "receipts_outcome": [
+   {
+    "id": "GoEnTDWYE5HumFoMxVzhmNaU5dYM3EZb735hCPzF7BGU",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessReceiptId": "815LKXgdUax5w6ynmZamGw2iExBqWuR3LRvYEAztGjta"
+     }
+    }
+   },
+   {
+    "id": "5axM75fEFFiDc1H72NEtrcXPATTAXTLmzQmTXWyC9qug",
+    "outcome": {
+     "executor_id": "bag.factory.fairchance.testnet",
+     "logs": [
+      "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_mint\",\"data\":[{\"owner_id\":\"bag.factory.fairchance.testnet\",\"amount\":\"1000000000000000000000000000\"}]}"
+     ],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "B63ARAd7TQuQ135r68gie7fkmfXFPw77Rd358jRzUBVE",
+    "outcome": {
+     "executor_id": "bag-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "815LKXgdUax5w6ynmZamGw2iExBqWuR3LRvYEAztGjta",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessReceiptId": "DUi12jgXMCNz4KgDKBGgVBi1FJUsC5VyxmQUcc5W2NMf"
+     }
+    }
+   },
+   {
+    "id": "3Ly9mndpdoHdcJadwZwFz484soCY3NhHaNXB1Z2GZFNP",
+    "outcome": {
+     "executor_id": "bag.factory.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": "eyJjcmVhdG9yIjoiYmFnLWNyZWF0b3IuZmFpcmNoYW5jZS50ZXN0bmV0IiwibGF1bmNoX2Jsb2NrIjoyNzc1NjU3OTEsImxhdW5jaF9ucyI6IjE3OTQ2MDU2MDcwMzM2NDg1MjkiLCJwX2JwcyI6MjAwLCJ3aW5kb3dfdW5tYXJrZWRfcyI6MzYwMCwid2luZG93X2Vhcmx5X3MiOjg2NDAwLCJlYXJseV9ibG9ja3MiOjE3LCJsYXJnZV90aHJlc2hvbGRfYnBzIjoyMDAsImNyZWF0b3JfY2FwX2JwcyI6NDAwLCJyZWFsX2NhcF9jX2JwcyI6NTAwLCJmbG9vcl9icHMiOjEwLCJwZW5hbHR5X2JwcyI6MTAwMCwidmlydHVhbF9uZWFyIjoiMTAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic3dhcF9mZWVfYnBzIjoxMDAsImVhcmx5X2ZlZV9zdGFydF9icHMiOjUwMDAsImJyYWtlX2Ryb3BfYnBzIjpudWxsLCJjcmVhdG9yX2ZlZV9zaGFyZV9icHMiOjMwMDAsImNsYWltX21pbl9yZWFsX25lYXIiOiIxMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMCIsImNsYWltX2RlcHRoX2hvbGRfcyI6ODY0MDAsInVuY2xhaW1lZF90b19wb29sX3MiOm51bGwsImNvZGVfaGFzaCI6IjZMZDVERlRKMUJZYzZ1emI2WVl2ZEszeUFNSGRmQnN2cndORWhzS0U5ZXIzIiwiZGVzY3JpcHRpb24iOiJBIGRlbW8gY29pbiBmb3IgdGhlIE9wdGlvbiBUIHJ1biBvbiB0ZXN0bmV0LiJ9"
+     }
+    }
+   },
+   {
+    "id": "9GHEsY8Vi2Dc8425jTS8AbZMf6fpf1xBoTLYkFJGZ7Q2",
+    "outcome": {
+     "executor_id": "bag-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "DUi12jgXMCNz4KgDKBGgVBi1FJUsC5VyxmQUcc5W2NMf",
+    "outcome": {
+     "executor_id": "factory.fairchance.testnet",
+     "logs": [
+      "EVENT_JSON:{\"standard\":\"fair_chance_factory\",\"version\":\"1.0.0-rc.7\",\"event\":\"fc_launch\",\"data\":[{\"coin\":\"bag.factory.fairchance.testnet\",\"creator\":\"bag-creator.fairchance.testnet\",\"code_hash\":\"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3\",\"launch_block\":277565791,\"description\":\"A demo coin for the Option T run on testnet.\"}]}"
+     ],
+     "status": {
+      "SuccessValue": "dHJ1ZQ=="
+     }
+    }
+   },
+   {
+    "id": "B1Qxe2RLfAkWgJBgJsjtXZwiKRtgsAVfBHcjnkVpbZ25",
+    "outcome": {
+     "executor_id": "bag-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "5MQiBVhkieD1q8zXhMQ6xidXHRigGb47CiJkf5WfPnnr",
+    "outcome": {
+     "executor_id": "bag-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "9eCpzQWjVBBTyz4LjCv6CShjkiVR7vm3DYZiPh7JNQ4S",
+    "outcome": {
+     "executor_id": "bag-creator.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   }
+  ]
+ }
+}

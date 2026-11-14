@@ -1,0 +1,57 @@
+{
+ "result": {
+  "status": {
+   "SuccessValue": ""
+  },
+  "transaction": {
+   "hash": "jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8",
+   "signer_id": "cabal-later-buyer.fairchance.testnet",
+   "receiver_id": "cabal.factory.fairchance.testnet"
+  },
+  "receipts_outcome": [
+   {
+    "id": "4Mcvm1UdmXGxNuCWzreiDLmfQfyZF7mrwN8PLL3cCvQ2",
+    "outcome": {
+     "executor_id": "cabal.factory.fairchance.testnet",
+     "logs": [
+      "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_transfer\",\"data\":[{\"old_owner_id\":\"cabal-later-buyer.fairchance.testnet\",\"new_owner_id\":\"cabal.factory.fairchance.testnet\",\"amount\":\"2156624267254701884416109\"}]}",
+      "EVENT_JSON:{\"standard\":\"fair_chance\",\"version\":\"1.0.0-rc.7\",\"event\":\"fc_sell\",\"data\":[{\"account\":\"cabal-later-buyer.fairchance.testnet\",\"class\":\"small\",\"tokens_asked\":\"2156624267254701884416109\",\"tokens_sold\":\"2156624267254701884416109\",\"marked_sold\":\"0\",\"near_out\":\"289406683720280591508928\",\"fee_near\":\"2923299835558389813222\",\"creator_fee_near\":\"876989950667516943966\",\"penalty_near\":\"0\",\"fill\":\"full\",\"limit_reason\":null,\"allowance_used\":\"0\",\"allowance_left\":\"10152544552210749144063374\",\"cap_used\":\"937262721485592622392047\",\"cap_left\":\"0\",\"window_end_ns\":\"1794650616835610175\"}]}"
+     ],
+     "status": {
+      "SuccessReceiptId": "4NwS7QPXwVpc3To2pfadks4tYUTeaejYqXZvtU6VohLM"
+     }
+    }
+   },
+   {
+    "id": "4NwS7QPXwVpc3To2pfadks4tYUTeaejYqXZvtU6VohLM",
+    "outcome": {
+     "executor_id": "cabal-later-buyer.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "FZPwJfgF2SR1guAkR2RzNz2d4drJbKwiNFJXo8DcJAhS",
+    "outcome": {
+     "executor_id": "cabal-later-buyer.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   },
+   {
+    "id": "35eSXXKKg4LyXE4YfPda68K1sio6Lh1ca5Rw9SviWUd4",
+    "outcome": {
+     "executor_id": "cabal-later-buyer.fairchance.testnet",
+     "logs": [],
+     "status": {
+      "SuccessValue": ""
+     }
+    }
+   }
+  ]
+ }
+}
