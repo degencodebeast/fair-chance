@@ -267,6 +267,16 @@ pub struct ReturnPlan {
     pub steps: Vec<ReturnStep>,
     /// Sellers that hold the keep or less, with the reason: nothing to send.
     pub skipped: Vec<(AccountId, String)>,
+    /// One line per seller, in order: the BAG it keeps and the NEAR it returns.
+    rows: Vec<String>,
+}
+
+impl ReturnPlan {
+    /// One line per seller, in order: "<account>: BAG left <n>, NEAR returned <yocto> ...". A seller
+    /// with BAG left (a partly filled sell) keeps the same reserve, so it can sell or be deleted later.
+    pub fn lines(&self) -> &[String] {
+        &self.rows
+    }
 }
 
 /// The return step's transfers, from the sells plan (read back from its file) and the sellers'
@@ -292,6 +302,7 @@ pub fn plan_returns(
     let mut out = ReturnPlan {
         steps: Vec::new(),
         skipped: Vec::new(),
+        rows: Vec::new(),
     };
     for (state, step) in states.iter().zip(&plan.steps) {
         let account = &state.account;
@@ -310,12 +321,19 @@ pub fn plan_returns(
             );
         }
         if state.near <= RETURN_KEEP_YOCTO {
-            out.skipped.push((
-                account.clone(),
-                format!("holds {} yoctoNEAR, not more than the keep", state.near),
+            let why = format!("holds {} yoctoNEAR, not more than the keep", state.near);
+            out.rows.push(format!(
+                "{account}: BAG left {}, NEAR returned 0 (skipped: {why})",
+                state.bag
             ));
+            out.skipped.push((account.clone(), why));
             continue;
         }
+        out.rows.push(format!(
+            "{account}: BAG left {}, NEAR returned {} yocto (keeps {RETURN_KEEP_YOCTO})",
+            state.bag,
+            state.near - RETURN_KEEP_YOCTO
+        ));
         out.steps.push(ReturnStep {
             account: account.clone(),
             amount: state.near - RETURN_KEEP_YOCTO,
@@ -668,8 +686,8 @@ pub async fn run_returns(
         kept.push(held);
     }
     let returns = plan_returns(&plan, &setup.funder.id, &states)?;
-    for (account, why) in &returns.skipped {
-        say(&format!("{account}: skipped, {why}"));
+    for line in returns.lines() {
+        say(&format!("plan: {line}"));
     }
     let total: u128 = returns.steps.iter().map(|s| s.amount).sum();
     say(&format!(
