@@ -52,8 +52,16 @@ async function open(): Promise<void> {
   } else {
     (await import("./render-landing.ts")).drawLanding(app, href);
     // The landing is drawn after the page loads, so the browser cannot jump to a link such as
-    // "#how" by itself. Jump once the sections exist.
-    if (location.hash.length > 1) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: "start" });
+    // "#how" by itself. Jump once the sections exist. A hash that is not valid percent-encoding
+    // names no section.
+    const id = (() => {
+      try {
+        return decodeURIComponent(location.hash.slice(1));
+      } catch {
+        return "";
+      }
+    })();
+    if (id) document.getElementById(id)?.scrollIntoView({ block: "start" });
   }
 }
 
