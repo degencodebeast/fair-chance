@@ -85,11 +85,12 @@ export function buildClaimCreatorFees(coin: string): TxRequest[] {
 /**
  * The NEAR a launch attaches for the coin's storage, on top of any opening buy. The coin's `new`
  * refuses a launch whose deposit does not cover its storage plus 8 bytes of later state growth
- * (the factory then refunds it). The testnet CABAL2 launch attached 1 NEAR with no icon and locked
- * 0.0402 NEAR for storage; an 8191-byte icon adds about 0.082 NEAR (10^19 yoctoNEAR per byte).
- * The NEAR above the storage lock stays in the coin account.
+ * (the factory then refunds it). On the sandbox, a launch with an 8191-byte icon locked 0.088940 NEAR
+ * (8894 bytes) and went through at 0.25 NEAR and at 0.20 NEAR; the form's text limits add at most
+ * about 250 bytes. 0.25 NEAR leaves about 0.16 NEAR of margin. The NEAR above the storage lock
+ * stays in the coin account.
  */
-export const LAUNCH_STORAGE_DEPOSIT = 10n ** 24n;
+export const LAUNCH_STORAGE_DEPOSIT = 250_000_000_000_000_000_000_000n;
 /** Gas of the factory launch: create, fund, `new` (50 TGas) and two callbacks. The testnet launch sent 300 TGas. */
 export const LAUNCH_GAS = 300n * TGAS;
 const NEAR_DECIMALS = 24;

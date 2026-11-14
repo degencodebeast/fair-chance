@@ -141,11 +141,11 @@ describe("a launch", () => {
   const form = { name: "Cabal Test 2", ticker: "cabal2", description: "", openingBuy: "" };
   const ICON_PREFIX = "data:image/webp;base64,";
 
-  it("calls the factory's launch with 1 NEAR for the coin's storage, as the testnet launch did, and names the new coin", () => {
+  it("calls the factory's launch with 0.25 NEAR for the coin's storage and names the new coin", () => {
     expect(buildLaunch(FACTORY, { form, icon: null })).toEqual({
       kind: "ready",
       coin: "cabal2.factory.fairchance.testnet",
-      deposit: 10n ** 24n,
+      deposit: 250_000_000_000_000_000_000_000n,
       txs: [
         {
           receiverId: FACTORY,
@@ -156,7 +156,7 @@ describe("a launch", () => {
                 methodName: "launch",
                 args: { name: "Cabal Test 2", ticker: "CABAL2", icon: null, description: null, opening_buy: null },
                 gas: "300000000000000",
-                deposit: "1000000000000000000000000",
+                deposit: "250000000000000000000000",
               },
             },
           ],
@@ -168,9 +168,9 @@ describe("a launch", () => {
   it("adds the opening buy to the deposit and passes it in yoctoNEAR", () => {
     const r = buildLaunch(FACTORY, { form: { ...form, description: " A coin. ", openingBuy: "0.5" }, icon: `${ICON_PREFIX}UklGRg==` });
     if (r.kind !== "ready") throw new Error(r.errors.join(" "));
-    expect(r.deposit).toBe(1_500_000_000_000_000_000_000_000n);
+    expect(r.deposit).toBe(750_000_000_000_000_000_000_000n);
     expect(r.txs[0]!.actions[0]!.params).toMatchObject({
-      deposit: "1500000000000000000000000",
+      deposit: "750000000000000000000000",
       args: { description: "A coin.", icon: `${ICON_PREFIX}UklGRg==`, opening_buy: "500000000000000000000000" },
     });
   });
@@ -197,12 +197,12 @@ describe("a launch", () => {
 });
 
 describe("a launch storage deposit the caller sets", () => {
-  it("uses a given storage deposit for a launch in place of 1 NEAR, still adding the opening buy", () => {
+  it("uses a given storage deposit for a launch in place of 0.25 NEAR, still adding the opening buy", () => {
     const r = buildLaunch("factory.fairchance.testnet", {
       form: { name: "Cabal Test 2", ticker: "cabal2", description: "", openingBuy: "0.5" },
       icon: null,
-      storageDeposit: 250_000_000_000_000_000_000_000n,
+      storageDeposit: 200_000_000_000_000_000_000_000n,
     });
-    expect(r).toMatchObject({ kind: "ready", deposit: 750_000_000_000_000_000_000_000n });
+    expect(r).toMatchObject({ kind: "ready", deposit: 700_000_000_000_000_000_000_000n });
   });
 });
