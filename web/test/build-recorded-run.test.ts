@@ -1,4 +1,9 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { KNOWN_NETWORKS } from "../src/known-deployments.ts";
 import { buildRecordedRun } from "../scripts/build-recorded-run.ts";
 import { parseRecordedRun } from "../src/recorded-run.ts";
 
@@ -7,7 +12,7 @@ const HASH_A = "1".repeat(44);
 const HASH_B = "2".repeat(44);
 const evidence = {
   network: "testnet",
-  coin: "fake-coin.fake-factory.testnet",
+  coin: KNOWN_NETWORKS.testnet.demoCoin,
   factory: "fake-factory.testnet",
   code_hash: "FakeHash",
   launch: { tx_hash: HASH_A, account: "fake-creator.testnet" },
@@ -46,5 +51,50 @@ describe("building the recorded run file", () => {
     ["an unknown outcome", { ...evidence, transactions: [{ ...evidence.transactions[0]!, outcome: "magic" }] }],
   ])("refuses evidence with %s, so a half-made run is never written", (_n, bad) => {
     expect(() => buildRecordedRun(bad)).toThrow();
+  });
+});
+
+// The real known network and coin, with one valid transaction.
+const known = { network: "testnet", coin: KNOWN_NETWORKS.testnet.demoCoin, transactions: [evidence.transactions[0]!] };
+
+describe("the network and coin of the evidence", () => {
+  it("accepts the known network with its demo coin", () => {
+    expect(buildRecordedRun(known).coin).toBe(KNOWN_NETWORKS.testnet.demoCoin);
+  });
+
+  it.each([
+    ["a network that is a URL with a key", { ...known, network: "https://rpc.fake-private.example/?apikey=FAKESECRET" }],
+    ["a network that is not a known network", { ...known, network: "mainnet" }],
+    ["an inherited key as the network", { ...known, network: "constructor" }],
+    ["a coin that is not the demo coin", { ...known, coin: "ed25519:FAKESECRET" }],
+    ["another coin under the factory", { ...known, coin: "other.factory.fairchance.testnet" }],
+  ])("refuses %s, so nothing private is copied into the page file", (_n, bad) => {
+    expect(() => buildRecordedRun(bad)).toThrow();
+  });
+});
+
+describe("the command line", () => {
+  it("runs under plain Node and writes the file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fc-brr-"));
+    try {
+      writeFileSync(join(dir, "ev.json"), JSON.stringify(known));
+      const out = join(dir, "out.json");
+      execFileSync("node", [new URL("../scripts/build-recorded-run.ts", import.meta.url).pathname, join(dir, "ev.json"), out], { encoding: "utf8" });
+      expect(JSON.parse(readFileSync(out, "utf8"))).toEqual({ network: "testnet", coin: known.coin, transactions: [{ tx_hash: HASH_A, outcome: "partial_fill", account: "fake-buyer-01.testnet", tokens_asked: "100", tokens_sold: "40", near_out: "5" }] });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits 1 and writes nothing for a bad network", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fc-brr-"));
+    try {
+      writeFileSync(join(dir, "ev.json"), JSON.stringify({ ...known, network: "https://rpc.fake-private.example/?apikey=FAKESECRET" }));
+      const r = spawnSync("node", [new URL("../scripts/build-recorded-run.ts", import.meta.url).pathname, join(dir, "ev.json"), join(dir, "out.json")], { encoding: "utf8" });
+      expect(r.status).toBe(1);
+      expect(r.stderr).not.toContain("FAKESECRET");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

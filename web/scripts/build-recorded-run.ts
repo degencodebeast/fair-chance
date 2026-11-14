@@ -5,6 +5,7 @@
 // The output must pass the page's own reader, so a file the page would refuse is never written.
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { KNOWN_NETWORKS, isNetworkName } from "../src/known-deployments.ts";
 import { parseRecordedRun } from "../src/recorded-run.ts";
 
 const TX_FIELDS = ["tx_hash", "outcome", "account", "tokens_asked", "tokens_sold", "near_out", "refusal_code"] as const;
@@ -18,7 +19,10 @@ export interface RecordedRunFile {
 export function buildRecordedRun(evidence: unknown): RecordedRunFile {
   if (typeof evidence !== "object" || evidence === null) throw new Error("the evidence is not an object");
   const e = evidence as Record<string, unknown>;
-  if (typeof e.network !== "string" || typeof e.coin !== "string") throw new Error("the evidence has no network or coin");
+  // The network and the coin must be the fixed ones. Nothing else of the evidence goes into a public file.
+  if (typeof e.network !== "string" || !isNetworkName(e.network)) throw new Error("the evidence is not for a known network");
+  const known = KNOWN_NETWORKS[e.network];
+  if (known.demoCoin === null || e.coin !== known.demoCoin) throw new Error("the evidence is not for the demo coin of that network");
   if (!Array.isArray(e.transactions)) throw new Error("the evidence has no transactions list");
   const transactions = e.transactions.map((tx): Record<string, string> => {
     const t = (typeof tx === "object" && tx !== null ? tx : {}) as Record<string, unknown>;
@@ -26,9 +30,8 @@ export function buildRecordedRun(evidence: unknown): RecordedRunFile {
     for (const field of TX_FIELDS) if (typeof t[field] === "string") kept[field] = t[field];
     return kept;
   });
-  const file: RecordedRunFile = { network: e.network, coin: e.coin, transactions };
-  // The explorer base is a placeholder: only the file shape is checked here.
-  const checked = parseRecordedRun(file, { network: file.network, coin: file.coin, explorerTxUrl: "https://explorer.invalid/txns/" });
+  const file: RecordedRunFile = { network: e.network, coin: known.demoCoin, transactions };
+  const checked = parseRecordedRun(file, { network: file.network, coin: file.coin, explorerTxUrl: known.explorerTxUrl });
   if (!checked.ok) throw new Error(`the page would refuse this run: ${checked.reason}`);
   return file;
 }
