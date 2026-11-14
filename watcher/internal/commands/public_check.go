@@ -16,6 +16,7 @@ const (
 	perChatGap       = 3 * time.Second
 	totalPerMinute   = 30 // reads for all strangers together
 	repliesPerMinute = 60 // sends to all strangers together
+	chatPerMinute    = 10 // sends to one stranger chat: cards, wait lines, /start and /help together
 	window           = time.Minute
 	busyText         = "Busy. Try again in a minute."
 	refusedText      = "I check only Fair Chance coins on testnet."
@@ -30,10 +31,11 @@ type PublicCheck struct {
 	now     func() time.Time
 
 	mu          sync.Mutex
-	checkByChat map[int64]checkSlot // chats inside the /check gap
-	helpByChat  map[int64]time.Time // chats inside the /start and /help gap
-	replies     []time.Time         // sends to strangers in the last minute
-	recent      []time.Time         // starts of reads in the last minute
+	checkByChat map[int64]checkSlot   // chats inside the /check gap
+	helpByChat  map[int64]time.Time   // chats inside the /start and /help gap
+	sentByChat  map[int64][]time.Time // sends to each stranger chat in the last minute
+	replies     []time.Time           // sends to strangers in the last minute
+	recent      []time.Time           // starts of reads in the last minute
 	backoffTo   time.Time
 	counts      PublicCounts
 }
@@ -57,7 +59,7 @@ func NewPublicCheck(factory, pageURL string, now func() time.Time) (*PublicCheck
 	if now == nil {
 		now = time.Now
 	}
-	return &PublicCheck{factory: factory, pageURL: pageURL, now: now, checkByChat: map[int64]checkSlot{}, helpByChat: map[int64]time.Time{}}, nil
+	return &PublicCheck{factory: factory, pageURL: pageURL, now: now, checkByChat: map[int64]checkSlot{}, helpByChat: map[int64]time.Time{}, sentByChat: map[int64][]time.Time{}}, nil
 }
 
 func (p *PublicCheck) Counts() PublicCounts {
@@ -109,8 +111,25 @@ const (
 	slotSilent             // over a cap or the wait line went already: send nothing
 )
 
-// takeGlobalReply says whether all strangers together may get one more send. The caller holds p.mu.
-func (p *PublicCheck) takeGlobalReply(now time.Time) bool {
+// takeReply says whether one more send to the chat is within both the chat cap and the cap for all
+// strangers together, and records it when it is. The caller holds p.mu.
+func (p *PublicCheck) takeReply(chat int64, now time.Time) bool {
+	for id, sent := range p.sentByChat {
+		keep := sent[:0]
+		for _, at := range sent {
+			if now.Sub(at) < window {
+				keep = append(keep, at)
+			}
+		}
+		if len(keep) == 0 {
+			delete(p.sentByChat, id)
+		} else {
+			p.sentByChat[id] = keep
+		}
+	}
+	if len(p.sentByChat[chat]) >= chatPerMinute {
+		return false
+	}
 	keep := p.replies[:0]
 	for _, at := range p.replies {
 		if now.Sub(at) < window {
@@ -122,6 +141,7 @@ func (p *PublicCheck) takeGlobalReply(now time.Time) bool {
 		return false
 	}
 	p.replies = append(p.replies, now)
+	p.sentByChat[chat] = append(p.sentByChat[chat], now)
 	return true
 }
 
@@ -141,7 +161,7 @@ func (p *PublicCheck) takeCheckSlot(chat int64) slotResult {
 		p.counts.Silent++
 		return slotSilent
 	}
-	if !p.takeGlobalReply(now) {
+	if !p.takeReply(chat, now) {
 		p.counts.Silent++
 		return slotSilent
 	}
@@ -165,7 +185,7 @@ func (p *PublicCheck) takeHelpSlot(chat int64) bool {
 			delete(p.helpByChat, id)
 		}
 	}
-	if _, waiting := p.helpByChat[chat]; waiting || !p.takeGlobalReply(now) {
+	if _, waiting := p.helpByChat[chat]; waiting || !p.takeReply(chat, now) {
 		p.counts.Silent++
 		return false
 	}
