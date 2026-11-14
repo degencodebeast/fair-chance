@@ -50,7 +50,7 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 - [Measured results](#measured-results)
 - [Known limits](#known-limits)
 - [Not in this release](#not-in-this-release)
-- [Libraries, templates and AI tools](#libraries-templates-and-ai-tools)
+- [Libraries and templates](#libraries-and-templates)
 - [Layout](#layout)
 - [License](#license)
 
@@ -182,7 +182,7 @@ Each judging criterion, and where to check it. The [demo video](https://vimeo.co
 | Technical implementation | The rules run in the coin contract. Run step 2, then `cargo test --workspace --locked` ([evidence](docs/evidence.md)). |
 | Design | The coin page shows limits, receipts and refusals in plain words. Open the [live site](https://fair-chance-rho.vercel.app/) on NEAR testnet. The code is in `web/`. |
 | Impact | The problem is in [OVERVIEW](docs/OVERVIEW.md). Demand is not measured, and the numbers are a replay and a simulation ([measured results](#measured-results)). |
-| Originality | [Differences from a per-sell cap](#how-this-differs-from-a-per-sell-cap) and [credits](#libraries-templates-and-ai-tools). The falling early fee is not new ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md#decision)). |
+| Originality | [What is new here](#what-is-new-here), [differences from a per-sell cap](#how-this-differs-from-a-per-sell-cap) and [credits](#libraries-and-templates). The falling early fee is not new ([ADR 0008](docs/adr/0008-snipers-are-early-supply-with-early-fee.md#decision)). |
 | Sustainability | The creator earns a fee share after the pool holds depth for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)). |
 | The mechanic, not the chart | Sell limits, partial fills and the real NEAR cap sit in `rule-engine/` and `contracts/coin/`. No price chart is a rule. |
 | Mechanic in the contract, not a backend | One contract holds the token and the pool ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md)). The watcher and the page read and explain. They hold no rule. |
@@ -393,9 +393,8 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 
 - A separate Python model of the cap rules, written apart from the Rust code and compared with it case by case. It is not merged yet. The cap rules have rule tests, property tests, sandbox tests and a TLA+ model of one sell ([how we checked it](docs/evidence.md#how-we-checked-it)).
 
-## Libraries, templates and AI tools
+## Libraries and templates
 
-- Claude Code wrote most of the code and the docs, under the builder's direction.
 - Contracts: `near-sdk`, `cargo-near`. Tests: `near-sandbox`, `near-api`, `proptest`, `tokio`.
 - Watcher: Go. Page: TypeScript, Vite, Vitest, Playwright core for browser checks.
 - Prior curve designs: the constant-product pool with a virtual reserve comes from earlier launchpad curves ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md), [ADR 0003](docs/adr/0003-virtual-reserve-no-graduation.md#decision)). No code is copied from other launchpads.
