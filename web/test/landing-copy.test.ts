@@ -14,7 +14,7 @@ describe("landing copy", () => {
   });
 
   it("puts the pitch line under the headline, with 'slows' and without 'stops' or 'protects'", () => {
-    expect(landingCopy.subheadline).toBe("Fair Chance slows the dump at launch, inside the coin contract.");
+    expect(landingCopy.subheadline).toBe("Fair Chance slows the dump inside the coin contract, at launch and every day after.");
     expect(landingCopy.subheadline).toMatch(/\bslows\b/);
     expect(landingCopy.subheadline).not.toMatch(/\b(stops?|protects?)\b/i);
     expect(copyViolations(landingCopy.subheadline)).toEqual([]);
@@ -68,7 +68,7 @@ describe("README pitch line", () => {
     const story = lines[head + 2]!;
     expect(story).toMatch(/^A new memecoin goes live/);
     expect(story).toContain("Fair Chance is a memecoin launchpad on NEAR.");
-    expect(story).toContain("slows the dump at launch");
+    expect(story).toContain("slows the dump inside the coin itself, at launch and every day after");
     expect(lines[head + 3]).toBe("");
   });
 });

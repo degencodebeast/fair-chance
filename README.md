@@ -2,7 +2,7 @@
 
 **You buy. The cabal dumps on you. You're left holding the bag.**
 
-A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their bags and the price crashes. You're left holding the bag. Fair Chance is a memecoin launchpad on NEAR. Every coin it launches slows the dump at launch, inside the coin itself, so snipers, the creator and whales sell a bit at a time. How much they can sell follows the pool's depth, and a whale cannot get around it by sending tokens to new wallets.
+A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their bags and the price crashes. You're left holding the bag. Fair Chance is a memecoin launchpad on NEAR. Every coin it launches slows the dump inside the coin itself, at launch and every day after, so snipers, the creator and whales sell a bit at a time. How much they can sell follows the pool's depth, and a whale cannot get around it by sending tokens to new wallets.
 
 Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-rc.7 (the version becomes 1.0.0 when every rule passes its sandbox tests).
 
