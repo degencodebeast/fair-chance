@@ -14,6 +14,7 @@ import copy
 import io
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -146,6 +147,31 @@ class EarlySellMargin(unittest.TestCase):
             out = Path(tmp) / "out"
             self.assertEqual(quiet_main([str(path), str(out), "--no-png"]), 1)
             self.assertFalse(out.exists() and any(out.iterdir()))
+
+
+class RepoHead(unittest.TestCase):
+    """The summary names the code it ran: the commit, marked -dirty when the tree has changes."""
+
+    def git(self, repo: Path, *args: str) -> None:
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t",
+                        "-c", "commit.gpgsign=false", *args], check=True, capture_output=True)
+
+    def test_clean_tree_gives_the_commit_and_a_changed_tree_adds_dirty(self):
+        fc_common = sys.modules["fc_common"]
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            self.git(repo, "init", "-q")
+            (repo / "a.txt").write_text("one\n")
+            self.git(repo, "add", "a.txt")
+            self.git(repo, "commit", "-q", "-m", "first")
+            head = subprocess.run(["git", "-C", tmp, "rev-parse", "--short", "HEAD"],
+                                  capture_output=True, text=True, check=True).stdout.strip()
+            self.assertEqual(fc_common.repo_head(repo), head)
+            (repo / "a.txt").write_text("two\n")
+            self.assertEqual(fc_common.repo_head(repo), f"{head}-dirty")
+            (repo / "a.txt").write_text("one\n")
+            (repo / "new.txt").write_text("new\n")
+            self.assertEqual(fc_common.repo_head(repo), f"{head}-dirty")
 
 
 class Output(unittest.TestCase):

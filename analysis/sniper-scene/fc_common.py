@@ -26,12 +26,15 @@ def cite(rel_path: str, pattern: str) -> str:
     raise SceneRefused(f"citation pattern not found in {rel_path}: {pattern!r} (the source changed)")
 
 
-def repo_head() -> str:
+def repo_head(repo: Path = REPO) -> str:
+    """The short commit, plus "-dirty" when the tree has changes (untracked files count)."""
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-C", str(repo), *args],
+                              capture_output=True, text=True, check=True).stdout.strip()
+
     try:
-        return subprocess.run(
-            ["git", "-C", str(REPO), "rev-parse", "--short", "HEAD"],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
+        head = git("rev-parse", "--short", "HEAD")
+        return head + ("-dirty" if git("status", "--porcelain") else "")
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
