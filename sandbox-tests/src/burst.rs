@@ -15,7 +15,7 @@ use near_api::NetworkConfig;
 use tokio::task::JoinSet;
 
 use crate::rate_limit::without_urls;
-use crate::send_once;
+use crate::{send_once, send_once_and_flag};
 
 /// What the burst guard knows before the launch.
 #[derive(Debug, Clone, Copy)]
@@ -97,6 +97,7 @@ pub async fn send_burst(
     settings: BurstSettings,
 ) -> Result<BurstResult> {
     let stopped = Arc::new(AtomicBool::new(false));
+    let planned = snipers.len();
     let mut buys = JoinSet::new();
     let mut early_sells = Vec::new();
     for (index, sniper) in snipers.into_iter().enumerate() {
@@ -104,7 +105,9 @@ pub async fn send_burst(
         let buyer = sniper.buyer.clone();
         buys.spawn(async move {
             tokio::time::sleep(settings.send_delay).await;
-            let result = send_once(sniper.buy, &buyer, &read, &send).await;
+            // Any answer but success (403, 429, 5xx, timeout, unknown, a failed buy) sets
+            // `stopped` before the lookup by hash and its waits.
+            let result = send_once_and_flag(sniper.buy, &buyer, &read, &send, Some(&stopped)).await;
             if result.is_err() {
                 stopped.store(true, Ordering::SeqCst);
             }
@@ -121,14 +124,22 @@ pub async fn send_burst(
             }
             let mut tasks = JoinSet::new();
             for (index, (buyer, sell)) in early_sells.into_iter().enumerate() {
-                let (read, send) = (read.clone(), send.clone());
+                let (read, send, stopped) = (read.clone(), send.clone(), stopped.clone());
                 tasks.spawn(async move {
                     tokio::time::sleep(settings.send_delay).await;
-                    let result = send_once(sell, &buyer, &read, &send).await;
-                    (index, buyer, result)
+                    // Checked again right before the send.
+                    if stopped.load(Ordering::SeqCst) {
+                        return None;
+                    }
+                    Some((
+                        index,
+                        buyer.clone(),
+                        send_once(sell, &buyer, &read, &send).await,
+                    ))
                 });
             }
-            Some(tasks.join_all().await)
+            let sent: Vec<_> = tasks.join_all().await.into_iter().flatten().collect();
+            (!sent.is_empty()).then_some(sent)
         })
     };
     let bought = buys.join_all().await;
@@ -145,6 +156,12 @@ pub async fn send_burst(
     match sold {
         None => failed.push("no early sell was sent".to_string()),
         Some(sold) => {
+            if sold.len() < planned {
+                failed.push(format!(
+                    "{} of {planned} early sells were not sent",
+                    planned - sold.len()
+                ));
+            }
             for (index, buyer, result) in sorted(sold) {
                 match result {
                     Ok(r) => sell_results.push(r),

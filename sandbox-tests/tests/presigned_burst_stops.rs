@@ -59,3 +59,26 @@ async fn a_403_on_a_buy_stops_the_burst_before_any_early_sell() {
     // Two buys reached the RPC; the two early sells never did.
     assert_eq!(fake.sends(), 2, "{:?}", fake.methods());
 }
+
+#[tokio::test]
+async fn a_429_on_every_buy_stops_the_burst_before_any_early_sell() {
+    // Found by the adversarial review: the status lookup after a 429 waits 2 s and 4 s, longer
+    // than the gap, so the stop must come from the send answer itself, before any lookup.
+    let fake = common::start(common::Mode::Always429).await;
+    let network = common::network(&fake.url);
+    let snipers = vec![sniper("c-buyer-01").await, sniper("c-buyer-02").await];
+    let settings = BurstSettings {
+        early_sell_gap: fair_chance_sandbox_tests::option_t::EARLY_SELL_GAP,
+        send_delay: Duration::ZERO,
+    };
+    let error = send_burst(&network, &network, snipers, settings)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("no early sell was sent"), "{error}");
+    assert!(
+        !error.contains(&fake.url),
+        "the error carries the RPC URL: {error}"
+    );
+    assert_eq!(fake.sends(), 2, "{:?}", fake.methods());
+}

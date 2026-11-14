@@ -826,6 +826,23 @@ pub async fn send_once(
     read: &NetworkConfig,
     send: &NetworkConfig,
 ) -> Result<TransactionResult> {
+    send_once_and_flag(transaction, signer_id, read, send, None).await
+}
+
+/// As [`send_once`]; when the send gives no success answer (any error, or a transaction that
+/// failed), it sets `unclear` at once, before any lookup or wait, so a caller can stop other sends.
+pub async fn send_once_and_flag(
+    transaction: near_api::advanced::ExecuteSignedTransaction,
+    signer_id: &AccountId,
+    read: &NetworkConfig,
+    send: &NetworkConfig,
+    unclear: Option<&std::sync::atomic::AtomicBool>,
+) -> Result<TransactionResult> {
+    let flag = || {
+        if let Some(unclear) = unclear {
+            unclear.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    };
     let signed = transaction.presign_with(send).await.map_err(|e| {
         anyhow::anyhow!(
             "signing for {signer_id} failed before any send: {}; nothing was sent",
@@ -840,8 +857,16 @@ pub async fn send_once(
     };
     let sent = signed.send_to(send).await;
     let error = match sent {
-        Ok(result) => return Ok(result),
-        Err(e) => rate_limit::without_urls(&format!("{e:?}")),
+        Ok(result) => {
+            if !result.is_success() {
+                flag();
+            }
+            return Ok(result);
+        }
+        Err(e) => {
+            flag();
+            rate_limit::without_urls(&format!("{e:?}"))
+        }
     };
     println!("send: tx {hash} of {signer_id} gave no clear answer; looking it up by hash, not sending it again");
     // First a lookup that does not wait: a node answers UNKNOWN_TRANSACTION at once for a hash it
