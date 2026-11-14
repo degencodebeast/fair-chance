@@ -9,6 +9,8 @@ import type { FinalOutcome, TxRequest, WalletSession } from "./tx-types.ts";
 export interface WalletAccount {
   accountId: string;
   network: string;
+  /** The wallet that gave the account, as the library knows it. The session sends and signs out through this wallet only. */
+  wallet?: unknown;
 }
 
 // NEAR account rules: parts of lowercase letters and digits, joined by one "-" or "_", split by ".".
@@ -16,15 +18,23 @@ const PART = "[a-z0-9]+(?:[-_][a-z0-9]+)*";
 const TESTNET_NAME = new RegExp(`^(?:${PART}\\.)+testnet$`);
 const IMPLICIT = /^[0-9a-f]{64}$/;
 
-/** Null when the page may use the account; else the one sentence the visitor sees. */
+const ACCOUNT_REFUSED = "This page works only with NEAR testnet accounts, so it signed out the account.";
+
+/**
+ * Null when the page may use the account; else the one sentence the visitor sees. The account comes
+ * from the wallet, so every field is checked for its type before use, and this function never throws.
+ */
 export function testnetRefusal(account: WalletAccount): string | null {
-  if (account.network !== "testnet") {
-    const named = account.network === "" ? "another network" : account.network;
+  if (typeof account !== "object" || account === null) return ACCOUNT_REFUSED;
+  const id: unknown = account.accountId;
+  const network: unknown = account.network;
+  if (network !== "testnet") {
+    const named = typeof network === "string" && network !== "" ? network : "another network";
     return `This page works only on NEAR testnet, and the wallet is on ${named}, so it signed out.`;
   }
-  const id = account.accountId;
+  if (typeof id !== "string") return ACCOUNT_REFUSED;
   if ((id.length <= 64 && TESTNET_NAME.test(id)) || IMPLICIT.test(id)) return null;
-  return `This page works only with NEAR testnet accounts, so it signed out ${id === "" ? "the account" : id}.`;
+  return id === "" ? ACCOUNT_REFUSED : `This page works only with NEAR testnet accounts, so it signed out ${id}.`;
 }
 
 /** What the page needs from a wallet library. wallet-adapter.ts gives the real one; tests give a fake. */
@@ -33,9 +43,10 @@ export interface WalletLibrary {
   connect(): Promise<WalletAccount>;
   /** The account of a session saved by an earlier visit; null when there is none. */
   restore(): Promise<WalletAccount | null>;
-  /** Asks the wallet to sign and send the transactions. The visitor approves them in the wallet. */
-  send(signerId: string, txs: TxRequest[]): Promise<unknown[]>;
-  signOut(): Promise<void>;
+  /** Asks the wallet that gave `account` to sign and send the transactions as that account. The visitor approves them in the wallet. */
+  send(account: WalletAccount, txs: TxRequest[]): Promise<unknown[]>;
+  /** Signs out the wallet that gave `account`; with no account, the wallet the library has selected. */
+  signOut(account?: WalletAccount): Promise<void>;
   /** A sign-in that starts in the wallet, not from the page's button. */
   onSignIn(listener: (account: WalletAccount) => void): void;
   /** A sign-out that starts in the wallet. */
@@ -69,9 +80,13 @@ function checkedOutcomes(signerId: string, txs: TxRequest[], answer: unknown[]):
   if (!Array.isArray(answer) || answer.length !== txs.length) {
     throw new Error(`The wallet sent back ${Array.isArray(answer) ? answer.length : "no"} results for ${txs.length} transactions.`);
   }
+  const seen = new Map<string, number>();
   return answer.map((item, i) => {
     const tx = (item as Partial<FinalOutcome> | null)?.transaction;
     if (typeof tx?.hash !== "string" || tx.hash === "") throw new Error(`The wallet result ${i + 1} has no transaction hash.`);
+    const first = seen.get(tx.hash);
+    if (first !== undefined) throw new Error(`The wallet result ${i + 1} repeats the transaction of result ${first + 1}.`);
+    seen.set(tx.hash, i);
     if (tx.signer_id !== signerId) throw new Error(`The wallet result ${i + 1} is signed by another account.`);
     if (tx.receiver_id !== txs[i]!.receiverId) throw new Error(`The wallet result ${i + 1} goes to another receiver.`);
     return item as FinalOutcome;
@@ -86,12 +101,30 @@ export function walletControl(href: string, makeLibrary: () => WalletLibrary): W
   const testnetPage = isTestnetPage(href);
   const listeners = new Set<(state: WalletState) => void>();
   let current: WalletState = SIGNED_OUT;
+  /** The account, with its wallet, of the signed-in session; null when signed out. */
+  let bound: WalletAccount | null = null;
   let library: WalletLibrary | null = null;
 
-  const set = (next: WalletState): WalletState => {
+  // A listener that throws must not stop the guard or the other listeners.
+  const set = (next: WalletState, account: WalletAccount | null = null): WalletState => {
     current = next;
-    for (const l of listeners) l(next);
+    bound = next.kind === "signed-in" ? account : null;
+    for (const l of listeners) {
+      try {
+        l(next);
+      } catch {
+        // The listener's own fault; the state is already set.
+      }
+    }
     return next;
+  };
+
+  const quietly = async (signOut: () => Promise<void>): Promise<void> => {
+    try {
+      await signOut();
+    } catch {
+      // The page is already signed out; a wallet that fails to sign out changes nothing here.
+    }
   };
 
   const lib = (): WalletLibrary => {
@@ -105,13 +138,13 @@ export function walletControl(href: string, makeLibrary: () => WalletLibrary): W
     return library;
   };
 
-  const sessionFor = (accountId: string): WalletSession => {
+  const sessionFor = (account: WalletAccount): WalletSession => {
     const session: WalletSession = {
-      accountId,
+      accountId: account.accountId,
       async send(txs) {
         if (current.kind !== "signed-in" || current.session !== session) throw new Error("The wallet is signed out.");
         if (txs.length === 0) throw new Error("There is no transaction to send.");
-        return checkedOutcomes(accountId, txs, await lib().send(accountId, txs));
+        return checkedOutcomes(account.accountId, txs, await lib().send(account, txs));
       },
       signOut: () => control.signOut(),
     };
@@ -119,15 +152,24 @@ export function walletControl(href: string, makeLibrary: () => WalletLibrary): W
   };
 
   /** Every account passes the guard here. A refused one is signed out before the page can use it. */
-  const take = async (account: WalletAccount): Promise<WalletState> => {
-    const refusal = testnetRefusal(account);
+  // It never rejects: any error signs the wallet out and shows a notice.
+  const take = async (given: WalletAccount): Promise<WalletState> => {
+    let refusal: string | null = ACCOUNT_REFUSED;
+    let account = given;
+    try {
+      // One copy of the fields, so the wallet cannot change them after the guard reads them.
+      account = { accountId: given.accountId, network: given.network, wallet: given.wallet };
+      refusal = testnetRefusal(account);
+    } catch {
+      // A wallet answer that cannot be read is refused.
+    }
     if (refusal === null) {
       // The library also reports the sign-in that connect() made; keep the session already given out.
-      if (current.kind === "signed-in" && current.session.accountId === account.accountId) return current;
-      return set({ kind: "signed-in", session: sessionFor(account.accountId) });
+      if (bound !== null && bound.accountId === account.accountId && bound.wallet === account.wallet) return current;
+      return set({ kind: "signed-in", session: sessionFor(account) }, account);
     }
     set({ kind: "signed-out", notice: refusal });
-    await lib().signOut().catch(() => {});
+    await quietly(() => lib().signOut(account));
     return current;
   };
 
@@ -145,12 +187,19 @@ export function walletControl(href: string, makeLibrary: () => WalletLibrary): W
     },
     async restore() {
       if (!testnetPage) return current;
-      const account = await lib().restore().catch(() => null);
+      let account: WalletAccount | null;
+      try {
+        account = await lib().restore();
+      } catch {
+        return current;
+      }
       return account === null ? current : take(account);
     },
     async signOut() {
+      const was = bound ?? undefined;
       set(SIGNED_OUT);
-      if (library !== null) await library.signOut().catch(() => {});
+      const lib = library;
+      if (lib !== null) await quietly(() => lib.signOut(was));
     },
     subscribe(listener) {
       listeners.add(listener);

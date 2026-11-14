@@ -45,7 +45,8 @@ const PAGE = "https://example.test/?network=testnet&view=coins";
 /** A fake wallet library: it records every call and answers as the test sets. */
 function fakeWallet(start: { connect?: WalletAccount | Error; restore?: WalletAccount | null; outcomes?: unknown[] } = {}) {
   const calls: string[] = [];
-  const sent: Array<{ signerId: string; txs: TxRequest[] }> = [];
+  const sent: Array<{ signerId: string; wallet: unknown; txs: TxRequest[] }> = [];
+  const signedOut: unknown[] = [];
   let signIn: ((a: WalletAccount) => void) | null = null;
   let signOut: (() => void) | null = null;
   const lib: WalletLibrary = {
@@ -59,18 +60,20 @@ function fakeWallet(start: { connect?: WalletAccount | Error; restore?: WalletAc
       calls.push("restore");
       return start.restore ?? null;
     },
-    async send(signerId, txs) {
+    async send(account, txs) {
       calls.push("send");
-      sent.push({ signerId, txs });
+      const signerId = account.accountId;
+      sent.push({ signerId, wallet: account.wallet, txs });
       return start.outcomes ?? txs.map((t, i) => outcome(signerId, t.receiverId, `hash${i}`));
     },
-    async signOut() {
+    async signOut(account) {
       calls.push("signOut");
+      signedOut.push(account?.wallet);
     },
     onSignIn: (l) => void (signIn = l),
     onSignOut: (l) => void (signOut = l),
   };
-  return { lib, calls, sent, emitSignIn: (a: WalletAccount) => signIn!(a), emitSignOut: () => signOut!() };
+  return { lib, calls, sent, signedOut, emitSignIn: (a: WalletAccount) => signIn!(a), emitSignOut: () => signOut!() };
 }
 
 function outcome(signer: string, receiver: string, hash: string): FinalOutcome {
@@ -98,7 +101,7 @@ describe("wallet control", () => {
     expect(session.accountId).toBe("lamp.testnet");
     const outcomes = await session.send([BUY, SELL]);
     expect(outcomes.map((o) => o.transaction.hash)).toEqual(["hash0", "hash1"]);
-    expect(w.sent).toEqual([{ signerId: "lamp.testnet", txs: [BUY, SELL] }]);
+    expect(w.sent).toEqual([{ signerId: "lamp.testnet", wallet: undefined, txs: [BUY, SELL] }]);
   });
 
   it("signs out a mainnet account at once and shows one sentence", async () => {
@@ -220,5 +223,123 @@ describe("wallet control", () => {
     await control.signOut();
     await control.connect();
     expect(made).toBe(1);
+  });
+});
+
+describe("wallet answers that are not well formed", () => {
+  const NOT_STRINGS: unknown[] = [undefined, null, ["lamp.testnet"], 42, { toString: () => "lamp.testnet" }];
+
+  it("the guard refuses an account id that is not a string, and never throws", () => {
+    for (const id of NOT_STRINGS) {
+      expect(testnetRefusal({ accountId: id as string, network: "testnet" }), String(id)).toBe(
+        "This page works only with NEAR testnet accounts, so it signed out the account.",
+      );
+    }
+    expect(testnetRefusal(null as unknown as WalletAccount)).not.toBeNull();
+    expect(testnetRefusal({ accountId: "lamp.testnet", network: undefined as unknown as string })).not.toBeNull();
+  });
+
+  it("a connect that gives an account id that is not a string signs that wallet out", async () => {
+    for (const id of NOT_STRINGS) {
+      const w = fakeWallet({ connect: { accountId: id as string, network: "testnet", wallet: "A" } });
+      const control = walletControl(PAGE, () => w.lib);
+      const state = await control.connect();
+      expect(state.kind, String(id)).toBe("signed-out");
+      expect(w.calls, String(id)).toEqual(["connect", "signOut"]);
+      expect(w.signedOut, String(id)).toEqual(["A"]);
+    }
+  });
+
+  it("a connect that gives nothing at all signs out and shows a notice", async () => {
+    const w = fakeWallet();
+    w.lib.connect = async () => undefined as unknown as WalletAccount;
+    const state = await walletControl(PAGE, () => w.lib).connect();
+    expect(state).toEqual({ kind: "signed-out", notice: "This page works only with NEAR testnet accounts, so it signed out the account." });
+    expect(w.calls).toEqual(["signOut"]);
+  });
+
+  it("a wallet sign-in with a null account id signs out the old session, with no unhandled error", async () => {
+    const w = fakeWallet();
+    const control = walletControl(PAGE, () => w.lib);
+    const old = signedIn(await control.connect());
+    const unhandled: unknown[] = [];
+    const onUnhandled = (e: unknown) => unhandled.push(e);
+    process.on("unhandledRejection", onUnhandled);
+    w.emitSignIn({ accountId: null as unknown as string, network: "testnet" });
+    await new Promise((r) => setTimeout(r, 10));
+    process.off("unhandledRejection", onUnhandled);
+    expect(control.state().kind).toBe("signed-out");
+    expect(w.calls.at(-1)).toBe("signOut");
+    expect(unhandled).toEqual([]);
+    await expect(old.send([BUY])).rejects.toThrow("The wallet is signed out.");
+  });
+
+  it("an array account id never reaches the wallet as the signer", async () => {
+    const w = fakeWallet({ connect: { accountId: ["lamp.testnet"] as unknown as string, network: "testnet" } });
+    const state = await walletControl(PAGE, () => w.lib).connect();
+    expect(state.kind).toBe("signed-out");
+    expect(w.calls).not.toContain("send");
+  });
+
+  it("keeps the refusal when the wallet's sign-out throws at once, not in a promise", async () => {
+    const w = fakeWallet({ connect: { accountId: "lamp.near", network: "testnet" } });
+    w.lib.signOut = () => {
+      throw new Error("no wallet");
+    };
+    const state = await walletControl(PAGE, () => w.lib).connect();
+    expect(state).toEqual({ kind: "signed-out", notice: "This page works only with NEAR testnet accounts, so it signed out lamp.near." });
+  });
+
+  it("a subscriber that throws does not stop the guard or the other subscribers", async () => {
+    const w = fakeWallet({ connect: { accountId: "lamp.near", network: "testnet" } });
+    const control = walletControl(PAGE, () => w.lib);
+    const seen: string[] = [];
+    control.subscribe(() => {
+      throw new Error("bad redraw");
+    });
+    control.subscribe((s) => seen.push(s.kind));
+    await expect(control.connect()).resolves.toMatchObject({ kind: "signed-out" });
+    expect(seen).toEqual(["signed-out"]);
+    expect(w.calls).toEqual(["connect", "signOut"]);
+  });
+
+  it("refuses the same outcome given for two transactions", async () => {
+    const outcomes = [outcome("lamp.testnet", BUY.receiverId, "same"), outcome("lamp.testnet", SELL.receiverId, "same")];
+    const session = signedIn(await walletControl(PAGE, () => fakeWallet({ outcomes }).lib).connect());
+    await expect(session.send([BUY, SELL])).rejects.toThrow("The wallet result 2 repeats the transaction of result 1.");
+  });
+});
+
+describe("the session stays bound to the wallet that signed in", () => {
+  it("sends and signs out through the wallet that gave the account", async () => {
+    const w = fakeWallet({ connect: { accountId: "lamp.testnet", network: "testnet", wallet: "A" } });
+    const control = walletControl(PAGE, () => w.lib);
+    const session = signedIn(await control.connect());
+    await session.send([BUY]);
+    expect(w.sent.map((s) => s.wallet)).toEqual(["A"]);
+    await session.signOut();
+    expect(w.signedOut).toEqual(["A"]);
+  });
+
+  it("a refused sign-in from another wallet signs out that wallet, and keeps no session from it", async () => {
+    const w = fakeWallet({ connect: { accountId: "lamp.testnet", network: "testnet", wallet: "A" } });
+    const control = walletControl(PAGE, () => w.lib);
+    await control.connect();
+    w.emitSignIn({ accountId: "lamp.near", network: "testnet", wallet: "B" });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(w.signedOut).toEqual(["B"]);
+    expect(control.state().kind).toBe("signed-out");
+  });
+
+  it("a sign-in of the same account from another wallet gives a new session bound to that wallet", async () => {
+    const w = fakeWallet({ connect: { accountId: "lamp.testnet", network: "testnet", wallet: "A" } });
+    const control = walletControl(PAGE, () => w.lib);
+    const first = signedIn(await control.connect());
+    w.emitSignIn({ accountId: "lamp.testnet", network: "testnet", wallet: "B" });
+    const second = signedIn(control.state());
+    expect(second).not.toBe(first);
+    await second.send([BUY]);
+    expect(w.sent.map((s) => s.wallet)).toEqual(["B"]);
+    await expect(first.send([BUY])).rejects.toThrow("The wallet is signed out.");
   });
 });
