@@ -58,5 +58,7 @@ export const landingCopy = {
     "Someone who buys later through many small wallets is not limited, except that profit on tokens bought in the same hour is held back when the pool cap has too little room.",
   ],
   wontLink: "See every known limit",
+  githubLabel: "GitHub",
+  githubUrl: "https://github.com/degencodebeast/fair-chance",
   footer: "Testnet demo on NEAR. All the rules and the reasons behind them are in the project repository.",
 };

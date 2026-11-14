@@ -30,7 +30,7 @@ p { margin: 0; }
 .coin-icon { width: 60px; height: 60px; border-radius: 14px; border: 2px solid var(--ink); background: repeating-linear-gradient(45deg, var(--paper) 0 6px, var(--track) 6px 12px); flex-shrink: 0; }
 .coin-title { flex: 1 1 220px; min-width: 0; }
 .coin-name { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.chips { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; }
+.chips { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 .chip { font-size: 12px; font-weight: 500; border: 1.5px solid var(--ink); border-radius: 12px; padding: 3px 10px; background: var(--paper); white-space: nowrap; color: var(--ink); text-decoration: none; }
 .chip-link { font-family: var(--font-body); font-weight: 700; }
 .chip-limit { background: var(--limit); border-color: var(--limit); color: var(--paper); font-family: var(--font-body); font-weight: 700; }
@@ -94,11 +94,22 @@ p { margin: 0; }
 .chip-phone { display: none; }
 .telegram { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
 .button-off, .button[disabled] { background: var(--paper); color: var(--muted); border: 2px dashed var(--muted); cursor: not-allowed; }
+/* Primary actions: full-width solid black; off, they turn a solid muted grey. */
+.button-primary { width: 100%; min-height: 50px; font-size: 16px; border-radius: 24px; background: var(--ink); color: var(--paper); }
+.button-primary.button-off, .button-primary[disabled] { background: var(--track); color: var(--muted); border: 0; }
+.button-outline { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); }
+/* The recorded run sits after the app with the app's width and side padding. */
+.recorded-run { max-width: 1440px; margin: 0 auto 48px; padding: 0 40px; }
+.recorded-run > .card { display: flex; flex-direction: column; gap: 8px; }
+.recorded-row { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-top: 2px dashed var(--dash); }
+#recorded-receipts { list-style: none; margin: 8px 0 0; padding: 0; }
+#recorded-receipts a { color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 2px; }
 @media (max-width: 720px) {
   .chip-desktop { display: none; }
   .chip-phone { display: inline-block; }
   #app { padding: 12px; gap: 12px; }
   .page-top { padding: 12px 12px 0; }
+  .recorded-run { padding: 0 12px; margin-bottom: 24px; }
   h1 { font-size: 28px; }
   .summary-lines { display: block; }
   .receipt { grid-template-columns: minmax(0, 1fr); gap: 4px; }
@@ -146,9 +157,9 @@ p { margin: 0; }
 .trade-box { display: flex; flex-direction: column; gap: 12px; }
 .trade-connect-prompt { font: 700 16px/1.4 var(--font-body); }
 .off-control { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.tabs { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--ink); border-radius: 24px; padding: 3px; }
-.tab { border: 0; border-radius: 20px; min-height: 44px; font: 800 16px var(--font-body); cursor: pointer; background: transparent; color: var(--ink); }
-.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.trade-tabs { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--ink); border-radius: 24px; padding: 3px; }
+.trade-tab { border: 0; border-radius: 20px; min-height: 44px; font: 800 16px var(--font-body); cursor: pointer; background: transparent; color: var(--ink); }
+.trade-tab[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .trade-panel { display: flex; flex-direction: column; gap: 12px; }
 .trade-panel[hidden] { display: none; }
 .warning-box { border: 2px solid var(--limit); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }

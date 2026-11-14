@@ -81,7 +81,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     );
   };
   const launchButton = (label: string): HTMLElement => {
-    const b = el("button", { type: "button", id: "launch-button", class: "button button-dark" }, label);
+    const b = el("button", { type: "button", id: "launch-button", class: "button button-dark button-primary" }, label);
     listen(b, "click", onLaunch);
     return b;
   };

@@ -34,7 +34,7 @@ export function turnedOffButton(id: string, label: string, reason: string): HTML
   return el(
     "span",
     { class: "off-control" },
-    el("button", { type: "button", id, class: "button button-off", disabled: "", "aria-describedby": `${id}-reason` }, label),
+    el("button", { type: "button", id, class: "button button-off button-primary", disabled: "", "aria-describedby": `${id}-reason` }, label),
     el("span", { id: `${id}-reason`, class: "muted" }, reason),
   );
 }

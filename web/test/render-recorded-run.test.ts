@@ -15,6 +15,12 @@ describe("the Recorded testnet run section", () => {
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("keeps each row in one column of the page width, apart from the receipt grid", () => {
+    const section = drawRecordedRun({ ok: true, rows: [{ txHash: "h1", link: "https://x.example/txns/h1", text: "a sold some." }] });
+    expect(section.className).toBe("recorded-run");
+    expect(section.querySelector("li")!.className).toBe("recorded-row");
+  });
+
   it("says plainly that the run cannot load, and shows no rows", () => {
     const section = drawRecordedRun({ ok: false, reason: "the file is for another coin" });
     expect(section.querySelectorAll("li")).toHaveLength(0);

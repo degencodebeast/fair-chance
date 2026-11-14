@@ -39,14 +39,14 @@ export interface TradeBoxDeps {
 /** A button that is on with its handler, or off with its reason beside it. */
 function tradeButton(id: string, b: TradeButton, onClick: (() => void) | null): HTMLElement {
   if (b.reason === null) {
-    const button = el("button", { type: onClick === null ? "submit" : "button", id, class: "button button-dark" }, b.label);
+    const button = el("button", { type: onClick === null ? "submit" : "button", id, class: "button button-dark button-primary" }, b.label);
     if (onClick !== null) listen(button, "click", onClick);
     return el("span", { class: "on-control" }, button);
   }
   return el(
     "span",
     { class: "off-control" },
-    el("button", { type: "button", id, class: "button button-off", disabled: "", "aria-describedby": `${id}-reason` }, b.label),
+    el("button", { type: "button", id, class: "button button-off button-primary", disabled: "", "aria-describedby": `${id}-reason` }, b.label),
     el("span", { id: `${id}-reason`, class: "muted" }, b.reason),
   );
 }
@@ -62,8 +62,8 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     tradeBoxModel({ symbol: deps.symbol, decimals: deps.decimals, largeThresholdBps: deps.largeThresholdBps, storageMin: deps.storageMin, preview, signedIn: session()?.accountId ?? null, pending, blocked: deps.blocked });
   const first = model();
 
-  const tabBuy = el("button", { type: "button", role: "tab", id: "trade-tab-buy", "aria-selected": "true", "aria-controls": "trade-buy-panel", class: "tab" }, "Buy");
-  const tabSell = el("button", { type: "button", role: "tab", id: "trade-tab-sell", "aria-selected": "false", "aria-controls": "trade-sell-panel", class: "tab" }, "Sell");
+  const tabBuy = el("button", { type: "button", role: "tab", id: "trade-tab-buy", "aria-selected": "true", "aria-controls": "trade-buy-panel", class: "trade-tab" }, "Buy");
+  const tabSell = el("button", { type: "button", role: "tab", id: "trade-tab-sell", "aria-selected": "false", "aria-controls": "trade-sell-panel", class: "trade-tab" }, "Sell");
 
   const connectSlot = el("div", { id: "trade-connect-slot" });
   const account = el("input", { id: "trade-buy-account", name: "account", type: "text", autocomplete: "off", spellcheck: "false", placeholder: "you.testnet" });
@@ -154,7 +154,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     buySlot.replaceChildren(tradeButton("trade-buy-button", m.buy.button, onBuy));
     sellSlot.replaceChildren(tradeButton("trade-sell-button", m.sell.button, null));
     if (session() === null) {
-      const connect = el("button", { type: "button", id: "trade-connect", class: "button button-dark" }, m.connect.label);
+      const connect = el("button", { type: "button", id: "trade-connect", class: "button button-dark button-primary" }, m.connect.label);
       listen(connect, "click", () => void deps.wallet.connect());
       connectSlot.replaceChildren(el("p", { class: "trade-connect-prompt" }, m.connectPrompt), connect);
     } else {
@@ -170,7 +170,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     account,
     el("label", { for: "trade-buy-amount" }, first.buy.amountLabel),
     amount,
-    el("button", { type: "submit", id: "trade-buy-preview", class: "button" }, "Preview buy"),
+    el("button", { type: "submit", id: "trade-buy-preview", class: "button button-outline" }, "Preview buy"),
   );
   listen(buyForm, "submit", (event) => {
     event.preventDefault();
@@ -281,7 +281,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     { id: "trade-box", "aria-label": "Trade", class: "card trade-box" },
     el("h2", {}, "Trade"),
     connectSlot,
-    el("div", { role: "tablist", "aria-label": "Buy or sell", class: "tabs" }, tabBuy, tabSell),
+    el("div", { role: "tablist", "aria-label": "Buy or sell", class: "trade-tabs" }, tabBuy, tabSell),
     buyPanel,
     sellPanel,
     result,

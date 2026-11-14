@@ -56,7 +56,7 @@ export function drawLanding(app: HTMLElement, href: string): void {
       el("ul", {}, ...copy.wont.map((w) => el("li", {}, w))),
       el("a", { class: "text-link text-link-light", href: coins }, copy.wontLink),
     ),
-    el("footer", { class: "landing-footer" }, copy.footer),
+    el("footer", { class: "landing-footer" }, `${copy.footer} `, el("a", { class: "text-link", href: copy.githubUrl, target: "_blank", rel: "noopener noreferrer" }, copy.githubLabel)),
   ];
   app.replaceChildren(...(children.filter(Boolean) as Node[]));
 }

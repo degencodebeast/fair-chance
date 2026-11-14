@@ -80,6 +80,13 @@ describe("trade box", () => {
     await vi.waitFor(() => expect(connects).toBe(before + 1));
   });
 
+  it("uses its own tab classes, so the coin list tabs keep their own style", () => {
+    const { root } = box();
+    expect(root.querySelector("[role=tablist]")!.className).toBe("trade-tabs");
+    expect(root.querySelector("#trade-tab-buy")!.className).toBe("trade-tab");
+    expect(root.querySelector("#trade-buy-button")?.className ?? "button-primary").toContain("button-primary");
+  });
+
   it("switches between the buy and sell tabs", () => {
     const { root } = box();
     const tab = (id: string) => root.querySelector<HTMLButtonElement>(id)!;

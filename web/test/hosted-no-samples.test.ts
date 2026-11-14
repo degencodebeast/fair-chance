@@ -43,6 +43,12 @@ describe("the landing screen", () => {
     expect(t).not.toMatch(/sample data/i);
     expect(document.querySelector("#proof")).toBeNull();
   });
+  it("links the footer to the project on GitHub", () => {
+    text("https://fc.example/?network=testnet");
+    const link = document.querySelector<HTMLAnchorElement>(".landing-footer a")!;
+    expect(link.textContent).toBe("GitHub");
+    expect(link.getAttribute("href")).toBe("https://github.com/degencodebeast/fair-chance");
+  });
   it("keeps the labeled example receipt on the local machine", () => {
     expect(text("http://localhost:5173/")).toMatch(/Sample data/);
   });

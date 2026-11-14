@@ -54,12 +54,18 @@ function topNode(c: CoinCard, href: string): HTMLElement {
   return c.source === "sample" ? el("div", { class: "top-coin" }, ...inner) : el("a", { class: "top-coin", href: screenLink(href, "coin", { coin: c.account }) }, ...inner);
 }
 
+const HOW_STEPS = [
+  "Every coin has the same sell rules, fixed at launch.",
+  "The creator, early buyers and large holders sell one allowance per hour. A bigger sell fills in part.",
+  "Each limited sell shows as a receipt: asked, filled, and when more can follow.",
+];
+
 /** Draws the list once and returns a function that swaps in new cards without drawing the page again. */
 function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: string): (cards: CoinCard[], note: string) => void {
   let cards = firstCards;
   const pick: { tab: ListTab; query: string } = { tab: "Market cap", query: "" };
   const search = el("input", { id: "coin-search", type: "search", placeholder: "Name, ticker or coin account", autocomplete: "off" });
-  const tabs = el("div", { role: "tablist", "aria-label": "Coin list", class: "tabs" });
+  const tabs = el("div", { role: "tablist", "aria-label": "Coin list", class: "list-tabs" });
   const grid = el("div", { class: "coin-grid", id: "coin-list" });
   const empty = el("div", { class: "card", role: "status", id: "list-empty" });
   const tabNote = el("p", { class: "muted", id: "tab-note" });
@@ -70,7 +76,7 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
     const m = coinListModel(cards, pick);
     tabs.replaceChildren(
       ...m.tabs.map((t) => {
-        const b = el("button", { type: "button", role: "tab", class: "tab", "aria-selected": String(t.label === pick.tab) }, `${t.label} `, el("span", { class: "num" }, String(t.count)));
+        const b = el("button", { type: "button", role: "tab", class: "list-tab", "aria-selected": String(t.label === pick.tab) }, `${t.label} `, el("span", { class: "num" }, String(t.count)));
         b.addEventListener("click", () => {
           pick.tab = t.label;
           refresh();
@@ -92,10 +98,15 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
   });
   app.replaceChildren(
     screenHeader(href, "coins"),
-    el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), el("a", { class: "button", id: "launch-coin", href: screenLink(href, "launch") }, "Launch a coin")),
+    el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), el("a", { class: "button button-dark", id: "launch-coin", href: screenLink(href, "launch") }, "Launch a coin")),
     noteLine,
     top,
-    el("section", { class: "card how-strip", "aria-label": "How it works" }, el("ol", {}, el("li", {}, "Every coin has the same sell rules, fixed at launch."), el("li", {}, "The creator, early buyers and large holders sell one allowance per hour. A bigger sell fills in part."), el("li", {}, "Each limited sell shows as a receipt: asked, filled, and when more can follow.")), el("a", { class: "text-link", href: `${screenLink(href, "landing")}#how` }, "How it works")),
+    el(
+      "section",
+      { class: "card how-strip", "aria-label": "How it works" },
+      el("ol", {}, ...HOW_STEPS.map((t, i) => el("li", {}, el("span", { class: "step-n" }, String(i + 1)), el("span", {}, t)))),
+      el("a", { class: "text-link", href: `${screenLink(href, "landing")}#how` }, "How it works"),
+    ),
     el("div", { class: "search-field" }, el("label", { for: "coin-search" }, "Search coins"), search),
     tabs,
     tabNote,
