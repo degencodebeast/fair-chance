@@ -66,6 +66,8 @@ One preprint measured pump.fun on Solana from 8 August to 18 September 2026: ret
 
 Fair Chance is a launchpad where each coin limits its own sells, so snipers, the creator and whales cannot dump a whole bag on later buyers at once. Every holder can sell part of their bag at a time, and the amount follows how deep the pool is. Wallets that bought in the first blocks get a tighter limit, and their tokens cannot be sold while those blocks are open. A sell above a limit fills in part, and the rest stays in the wallet. The limits live in the coin contract, so no off-chain part can lift them. [The rules](#the-rules) lists each rule with its decision record. [How it works](#how-it-works) follows one coin from launch to alert.
 
+For a buyer, nothing changes: you buy and sell as usual, and the coin applies the limits from the first block. When insiders sell, the price moves in small steps, not in one crash. For a creator, buyers can check the rules on chain before they buy, and the creator earns 30% of the 1% swap fee once the pool has held 10 real NEAR for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)).
+
 
 ## What is new here
 
