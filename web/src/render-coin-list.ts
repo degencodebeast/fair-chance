@@ -50,7 +50,17 @@ function cardNode(c: CoinCard, href: string): HTMLElement {
 }
 
 function topNode(c: CoinCard, href: string): HTMLElement {
-  const inner: Child[] = [el("b", {}, `${c.name} `), el("span", { class: "num" }, c.ticker), el("span", { class: "num" }, c.marketCap), el("span", { class: "num" }, c.change ? `Trades ${c.change}` : "Fewer than 2 trades"), c.source === "sample" && sampleLabel("Sample data")];
+  const inner: Child[] = [
+    drawCoinTile({ account: c.account, ticker: c.ticker, icon: c.icon, small: true }),
+    el(
+      "div",
+      { class: "top-coin-text" },
+      el("div", { class: "top-coin-name" }, el("b", {}, c.name), " ", el("span", { class: "num top-coin-ticker" }, c.ticker)),
+      el("span", { class: "num top-coin-cap" }, c.marketCap),
+      el("span", { class: "num top-coin-change" }, c.change ? `Trades ${c.change}` : "Fewer than 2 trades"),
+      c.source === "sample" && sampleLabel("Sample data"),
+    ),
+  ];
   return c.source === "sample" ? el("div", { class: "top-coin" }, ...inner) : el("a", { class: "top-coin", href: screenLink(href, "coin", { coin: c.account }) }, ...inner);
 }
 
@@ -69,7 +79,8 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
   const grid = el("div", { class: "coin-grid", id: "coin-list" });
   const empty = el("div", { class: "card", role: "status", id: "list-empty" });
   const tabNote = el("p", { class: "muted", id: "tab-note" });
-  const noteLine = el("p", { class: "note", id: "list-note" }, note);
+  // Where the list comes from, as one small line at the foot of the page, as in the design.
+  const noteLine = el("p", { class: "list-source", id: "list-note" }, note);
   const top = el("section", { class: "top-coins", "aria-label": "Top coins by market cap" });
 
   function refresh(): void {
@@ -99,7 +110,6 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
   app.replaceChildren(
     screenHeader(href, "coins"),
     el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), el("a", { class: "button button-dark", id: "launch-coin", href: screenLink(href, "launch") }, "Launch a coin")),
-    noteLine,
     top,
     el(
       "section",
@@ -112,6 +122,7 @@ function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: 
     tabNote,
     empty,
     grid,
+    noteLine,
   );
   refresh();
   return (next, nextNote) => {
