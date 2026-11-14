@@ -59,6 +59,9 @@ pub struct OptionTArguments {
     /// The return step after the BAG sells ([`crate::sells_only::run_returns`]); needs
     /// `--sells-only`.
     pub return_to_funder: bool,
+    /// The sha256 (64 lowercase hex digits) of the existing plan file that the return step or the
+    /// continue step reads.
+    pub plan_sha256: Option<String>,
 }
 
 /// Parses the arguments after the program name. It refuses any argument it does not know, a flag
@@ -102,6 +105,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--buyer-tgas" => parsed.buyer_tgas.is_some(),
             "--launch-deposit-millinear" => parsed.launch_deposit_millinear.is_some(),
             "--sell-plan" => parsed.sell_plan.is_some(),
+            "--plan-sha256" => parsed.plan_sha256.is_some(),
             _ => bail!("unknown argument {flag}; nothing was run"),
         };
         if taken {
@@ -126,6 +130,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--spend-cap" => parsed.spend_cap = Some(value.clone()),
             "--keep" => parsed.keep = Some(value.clone()),
             "--sell-plan" => parsed.sell_plan = Some(value.clone()),
+            "--plan-sha256" => parsed.plan_sha256 = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,

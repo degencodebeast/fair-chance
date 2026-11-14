@@ -173,6 +173,28 @@ pub fn plan_from_file(text: &str) -> Result<SellPlan> {
     })
 }
 
+/// The plan in an existing plan file, taken only when the sha256 of its bytes is `sha256_hex` (64
+/// lowercase hex digits) and when the file is exactly what [`plan_json`] writes for that plan (the
+/// rule, 1 yoctoNEAR and min_near_out 0 for each sell). The return step and the continue step read
+/// the plan file of the sells this way, so an edited file stops them before any read.
+pub fn read_plan_file(bytes: &[u8], sha256_hex: &str) -> Result<SellPlan> {
+    let actual: String = near_api::types::CryptoHash::hash(bytes)
+        .0
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    if actual != sha256_hex {
+        bail!(
+            "the plan file's sha256 is {actual}, not the --plan-sha256 given; nothing was signed"
+        );
+    }
+    let text =
+        std::str::from_utf8(bytes).context("the plan file is not text; nothing was signed")?;
+    let plan = plan_from_file(text)?;
+    check_plan_file(text, &plan)?;
+    Ok(plan)
+}
+
 /// Refuses a sell that is not the plan's step `index`: another account, another amount, or a
 /// chain balance that is not the planned amount.
 pub fn check_step(
@@ -363,6 +385,9 @@ pub fn return_request(args: &OptionTArguments) -> Result<bool> {
     }
     if !args.sells_only {
         bail!("--return-to-funder needs --sells-only; nothing was run");
+    }
+    if args.plan_sha256.is_none() {
+        bail!("--return-to-funder needs --plan-sha256 <sha256 of the plan file>; nothing was run");
     }
     sells_only_request(args)?;
     Ok(true)
@@ -622,7 +647,7 @@ async fn near_and_storage(setup: &OptionTSetup, who: &AccountId) -> Result<(u128
     Ok((view.amount.as_yoctonear(), view.storage_usage))
 }
 
-/// The return step, after the sells. It reads the existing plan file back, reads the BAG and NEAR
+/// The return step, after the sells. It reads the existing plan file back ([`read_plan_file`]), reads the BAG and NEAR
 /// of bag-buyer-01 to -18 and of the two keepers, plans every transfer with [`plan_returns`], and
 /// only then signs. Before each transfer it reads the seller again ([`check_return_step`]) and runs
 /// the spend check; each transfer goes out once ([`crate::send_once`]). At the end it checks that
@@ -630,6 +655,7 @@ async fn near_and_storage(setup: &OptionTSetup, who: &AccountId) -> Result<(u128
 pub async fn run_returns(
     setup: &OptionTSetup,
     plan_path: &Path,
+    plan_sha256: &str,
     list: &mut PassList,
 ) -> Result<Vec<ReturnOutcome>> {
     let coin = coin_account_id(&setup.ticker, &setup.factory)?;
@@ -637,13 +663,13 @@ pub async fn run_returns(
         "return step on {coin}: bag-buyer-01 to -18 send their NEAR minus {RETURN_KEEP_YOCTO} yoctoNEAR to {}",
         setup.funder.id
     ));
-    let text = std::fs::read_to_string(plan_path).with_context(|| {
+    let bytes = std::fs::read(plan_path).with_context(|| {
         format!(
             "the return step reads the plan file {} of the sells; nothing was signed",
             plan_path.display()
         )
     })?;
-    let plan = plan_from_file(&text)?;
+    let plan = read_plan_file(&bytes, plan_sha256)?;
     if plan.coin != coin {
         bail!(
             "the plan file names {}, not {coin}; nothing was signed",

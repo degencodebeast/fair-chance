@@ -121,7 +121,8 @@ async fn start(list: &mut PassList) -> Result<()> {
             );
         }
         if return_to_funder {
-            fair_chance_sandbox_tests::sells_only::run_returns(&setup, &plan, list).await?;
+            let sha = args.plan_sha256.as_deref().unwrap_or_default();
+            fair_chance_sandbox_tests::sells_only::run_returns(&setup, &plan, sha, list).await?;
         } else {
             fair_chance_sandbox_tests::sells_only::run_sells(&setup, &plan, list).await?;
         }
