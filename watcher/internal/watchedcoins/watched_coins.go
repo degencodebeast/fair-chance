@@ -17,7 +17,7 @@ import (
 
 const (
 	historySize = 50
-	// A short fault (HTTP 5xx, timeout, transport error) pauses reads for 2 s, then doubles each time up to 60 s.
+	// A 429 or a short fault (HTTP 5xx, timeout, transport error) pauses reads for 2 s, then doubles each time up to 60 s.
 	firstBackoff = 2 * time.Second
 	maxBackoff   = 60 * time.Second
 )
@@ -34,7 +34,7 @@ type Set struct {
 	mu         sync.Mutex
 	stopped    error         // set by a 403 or an unknown answer: no read after it
 	pausedTill time.Time     // set by a 429 or a short fault
-	backoff    time.Duration // the last pause after a short fault; 0 after a good read
+	backoff    time.Duration // the last step after a 429 or short fault; 0 after a good read
 	coins      map[string]*watched
 	history    []string
 }
@@ -205,11 +205,21 @@ func (s *Set) noteGoodRead() {
 	s.backoff = 0
 }
 
+// pause grows the shared wait (2 s doubling to 60 s) and pauses reads for it, or for retryAfter when that is
+// longer. A 429 and a short fault share the one counter: they come from the same provider and its rate budget.
+// The caller holds s.mu.
+func (s *Set) pause(err error, retryAfter time.Duration) error {
+	s.backoff = min(max(2*s.backoff, firstBackoff), maxBackoff)
+	wait := max(s.backoff, retryAfter)
+	s.pausedTill = s.now().Add(wait)
+	return fmt.Errorf("%w; next read in %s", err, wait)
+}
+
 // noteFailure applies the source rules to a read error and returns the error to report.
 // A 403, a wrong-setup answer or a bad URL stops all reads for good, with no retry.
-// A 429 pauses reads for the Retry-After wait, or one poll interval when the service gave none.
-// A short fault (5xx, timeout, transport error) pauses reads with a growing wait, 2 s doubling to 60 s,
-// and the same cursor reads again after it. The returned error of a short fault names the wait.
+// A 429 or a short fault (5xx, timeout, transport error) pauses reads with a growing wait, 2 s doubling to
+// 60 s, or the Retry-After wait of a 429 when that is longer. The same cursor reads again after it.
+// The returned error names the wait.
 func (s *Set) noteFailure(err error) error {
 	if err == nil {
 		return nil
@@ -221,14 +231,14 @@ func (s *Set) noteFailure(err error) error {
 		errors.Is(err, eventsource.ErrRPCForbidden), errors.Is(err, eventsource.ErrRPCWrongSetup):
 		s.stopped = err
 	case errors.Is(err, eventsource.ErrTransient):
-		s.backoff = min(max(2*s.backoff, firstBackoff), maxBackoff)
-		s.pausedTill = s.now().Add(s.backoff)
-		return fmt.Errorf("%w; next read in %s", err, s.backoff)
-	default:
+		return s.pause(err, 0)
+	case errors.Is(err, eventsource.ErrRateLimited):
 		var limited *eventsource.RateLimitedError
-		if errors.As(err, &limited) && limited.RetryAfter > 0 {
-			s.pausedTill = s.now().Add(limited.RetryAfter)
+		var retryAfter time.Duration
+		if errors.As(err, &limited) {
+			retryAfter = limited.RetryAfter
 		}
+		return s.pause(err, retryAfter)
 	}
 	return err
 }

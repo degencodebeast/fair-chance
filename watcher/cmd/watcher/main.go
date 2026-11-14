@@ -26,11 +26,16 @@ import (
 	"fairchance/watcher/internal/urlsafe"
 )
 
+// pollFlag defines -poll: 2 s between read passes keeps a paid RPC plan inside its rate limit.
+func pollFlag(fs *flag.FlagSet) *time.Duration {
+	return fs.Duration("poll", 2*time.Second, "time between read passes")
+}
+
 func main() {
 	once := flag.Bool("once", false, "stop after -want alerts or -timeout")
 	want := flag.Int("want", 1, "alerts to wait for with -once")
 	timeout := flag.Duration("timeout", 60*time.Second, "time limit with -once")
-	poll := flag.Duration("poll", time.Second, "time between read passes")
+	poll := pollFlag(flag.CommandLine)
 	flag.Parse()
 	log.SetFlags(0)
 	log.SetPrefix("watcher: ")
