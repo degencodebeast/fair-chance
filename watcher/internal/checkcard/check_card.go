@@ -35,14 +35,18 @@ func Render(v eventsource.PreBuyViews, now time.Time, loc *time.Location) string
 	}
 	fmt.Fprintf(&b, "Early supply holds %s of supply.\n", alerts.SupplyShare(v.EarlySupplyTotal))
 	if v.BlocksLeft > 0 {
-		fmt.Fprintf(&b, "Early supply cannot sell for %d more blocks.\n", v.BlocksLeft)
+		unit := "blocks"
+		if v.BlocksLeft == 1 {
+			unit = "block"
+		}
+		fmt.Fprintf(&b, "Early supply cannot sell for %d more %s.\n", v.BlocksLeft, unit)
 	} else {
 		fmt.Fprintf(&b, "Early supply can sell %s %s in total in this 24 h window. The limit refills at %s.\n", alerts.Compact(v.SharedAllowance), symbol, whenText(nextRefill(v, now), now, loc))
 	}
 
 	b.WriteString("\n")
 	if v.LargeHolders == nil {
-		fmt.Fprintf(&b, "Large holders: %s\n", notAvailable)
+		fmt.Fprintf(&b, "The number of large holders is %s.\n", notAvailable)
 	} else {
 		fmt.Fprintf(&b, "Large holders: %d. A large holder cannot send tokens to another account.\n", *v.LargeHolders)
 	}

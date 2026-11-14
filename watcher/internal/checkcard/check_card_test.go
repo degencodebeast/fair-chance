@@ -22,11 +22,12 @@ func TestCheckCardFromFixedViews(t *testing.T) {
 	cases := []struct {
 		name string
 		now  time.Time
+		loc  *time.Location
 	}{
-		{"normal_cap_full", utc(2026, 11, 13, 14, 24)},
-		{"early_open_cap_has_room", utc(2026, 11, 12, 13, 30)},
-		{"coin_without_new_pool_fields", utc(2026, 11, 13, 14, 24)},
-		{"bag_zero_large_holders", utc(2026, 11, 14, 3, 34)},
+		{"normal_cap_full", utc(2026, 11, 13, 14, 24), time.UTC},
+		{"early_open_cap_has_room", utc(2026, 11, 12, 13, 30), time.UTC},
+		{"coin_without_new_pool_fields", utc(2026, 11, 13, 14, 24), time.UTC},
+		{"bag_zero_large_holders", utc(2026, 11, 14, 3, 34), time.FixedZone("WAT", 3600)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -46,11 +47,7 @@ func TestCheckCardFromFixedViews(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			loc := time.UTC
-			if tc.name == "bag_zero_large_holders" {
-				loc = time.FixedZone("WAT", 3600)
-			}
-			got := checkcard.Render(views, tc.now, loc)
+			got := checkcard.Render(views, tc.now, tc.loc)
 			if got != strings.TrimSuffix(string(want), "\n") {
 				t.Fatalf("got:\n%s\nwant:\n%s", got, want)
 			}
@@ -105,5 +102,18 @@ func TestCheckCardNamesItsTimeZone(t *testing.T) {
 	}
 	if utcCard := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC); !strings.Contains(utcCard, "Read at 14:24 UTC.") {
 		t.Errorf("UTC card:\n%s", utcCard)
+	}
+}
+
+func TestEarlyWindowLineUsesTheRightWordForBlocks(t *testing.T) {
+	for blocks, want := range map[uint64]string{
+		1:  "Early supply cannot sell for 1 more block.\n",
+		2:  "Early supply cannot sell for 2 more blocks.\n",
+		40: "Early supply cannot sell for 40 more blocks.\n",
+	} {
+		views := eventsource.PreBuyViews{Name: "Moth Lamp", Symbol: "MOTH", BlocksLeft: blocks, SharedAllowance: "0", EarlySupplyTotal: "0", LaunchNs: "1794488520000000000", WindowEarlyS: 86400}
+		if got := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC); !strings.Contains(got, want) {
+			t.Errorf("blocks_left %d: missing %q in:\n%s", blocks, want, got)
+		}
 	}
 }
