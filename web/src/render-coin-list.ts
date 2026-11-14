@@ -3,6 +3,7 @@
 import { chainReader } from "./chain.ts";
 import { loadCoinCards } from "./coin-cards-from-chain.ts";
 import { coinListModel, type CoinCard, type ListTab } from "./coin-list-model.ts";
+import { drawCoinTile } from "./coin-tile.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { landingCopy } from "./landing-copy.ts";
 import { resolveListLink, type ListLink } from "./page-link.ts";
@@ -36,7 +37,7 @@ function sparkline(c: CoinCard): Node {
 
 function cardBody(c: CoinCard): Child[] {
   return [
-    el("div", { class: "coin-card-head" }, el("div", { class: "coin-icon coin-icon-small", "aria-hidden": "true" }), el("div", { class: "coin-card-title" }, el("div", {}, el("span", { class: "coin-card-name" }, c.name), " ", el("span", { class: "num" }, c.ticker)), el("div", { class: "num muted" }, c.age))),
+    el("div", { class: "coin-card-head" }, drawCoinTile({ account: c.account, ticker: c.ticker, icon: c.icon, small: true }), el("div", { class: "coin-card-title" }, el("div", {}, el("span", { class: "coin-card-name" }, c.name), " ", el("span", { class: "num" }, c.ticker)), el("div", { class: "num muted" }, c.age))),
     el("div", { class: "spark-row" }, sparkline(c), el("span", { class: "num" }, c.change ? `Trades ${c.change}` : "Fewer than 2 trades")),
     el("span", { class: `chip cap-chip cap-${c.cap.tone}` }, c.cap.label),
     el("div", { class: "coin-card-facts" }, el("div", {}, el("div", { class: "muted" }, "Market cap"), el("div", { class: "num" }, c.marketCap)), el("div", {}, el("div", { class: "muted" }, "Early supply"), el("div", { class: "num" }, c.early))),

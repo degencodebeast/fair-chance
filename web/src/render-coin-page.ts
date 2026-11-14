@@ -2,6 +2,7 @@
 // page model; this file only builds elements. It never sets innerHTML, so chain text cannot
 // become markup.
 import { loadCoinPage, type CoinPageData, type CoinReads } from "./coin-page.ts";
+import { drawCoinTile } from "./coin-tile.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { telegramButton } from "./telegram-button.ts";
 import { chainReader, configFromUrl } from "./chain.ts";
@@ -98,7 +99,7 @@ function drawReady(m: CoinPageModel, parts: ReadyParts): HTMLElement[] {
     el(
       "header",
       { class: "coin-header" },
-      h.icon ? el("img", { class: "coin-icon", src: h.icon, alt: "", width: "60", height: "60" }) : el("div", { class: "coin-icon coin-icon-empty", "aria-hidden": "true" }),
+      drawCoinTile({ account: new URL(location.href).searchParams.get("coin") ?? "", ticker: h.symbol, icon: h.icon }),
       el(
         "div",
         { class: "coin-title" },

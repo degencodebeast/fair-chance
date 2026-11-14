@@ -90,6 +90,7 @@ export async function loadCoinCard(reader: ChainReader, coin: string, ctx: TimeC
     account: coin,
     name: meta?.name || coin,
     ticker: symbol,
+    icon: meta?.icon ?? null,
     age: age(ageNs),
     ageSeconds: Number(ageNs / 1_000_000_000n),
     marketCapNear,

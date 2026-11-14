@@ -9,6 +9,8 @@ export interface CoinCard {
   account: string;
   name: string;
   ticker: string;
+  /** The coin's icon as it came from the chain; the tile shows it only when it fits the coin rule. */
+  icon?: string | null;
   age: string;
   ageSeconds: number;
   /** For sorting; null when the coin has no pool reading. */

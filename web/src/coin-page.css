@@ -159,3 +159,6 @@ p { margin: 0; }
   /* v5 phone order: lines, trade box, your plan, who can sell, fees, receipts, chart, holders, rules. */
   .coin-page-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; grid-template-areas: "lines" "sell" "plan" "who" "fees" "receipts" "chart" "holders" "rules"; }
 }
+
+.coin-tile { display: flex; align-items: center; justify-content: center; font: 700 22px var(--font-display, inherit); letter-spacing: 0.02em; }
+.coin-icon-small.coin-tile { font-size: 19px; }

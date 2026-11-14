@@ -1,5 +1,6 @@
 // What the coin page shows, as plain text and flags, from what the chain returned. Pure: the same
 // reads and clock always give the same page. The renderer only draws this.
+import { iconFits } from "./icon-to-webp.ts";
 import type { CoinEvent } from "./chain.ts";
 import type { CheckResult } from "./chain-checks.ts";
 import type { CoinPageData, CoinReads } from "./coin-page.ts";
@@ -116,7 +117,6 @@ export type CoinPageView =
   | CoinPageModel
   | { state: "error"; status: string; title: string; detail: string; lastAttempt: string; frame: PlaceholderFrame };
 
-const ICON_PREFIX = "data:image/webp;base64,";
 
 export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageView {
   if (data.kind === "error") {
@@ -176,7 +176,7 @@ function header(r: CoinReads, ctx: TimeContext): CoinPageModel["header"] {
     creator: r.rules.creator,
     launched: timeWithHint(r.rules.launchNs, ctx),
     description: r.rules.description,
-    icon: icon !== null && icon.startsWith(ICON_PREFIX) ? icon : null,
+    icon: icon !== null && iconFits(icon) ? icon : null,
     rulesChip: { desktop: "Same rules for every coin", phone: "Rules" },
   };
 }
