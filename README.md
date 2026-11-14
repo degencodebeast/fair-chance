@@ -242,7 +242,7 @@ Testnet only. Testnet NEAR and these tokens have no value.
 
 <!-- waits on: the line that says the factory keys are deleted -->
 
-The coin's source metadata names commit `b42fdde` and the pinned build image, by digest. That is the NEP-330 record of a reproducible build. A local rebuild that prints the same hash is not shown yet. <!-- waits on: a local Docker rebuild of that commit and the hash it prints (match or no match) -->
+The coin's source metadata names commit `b42fdde` and the pinned build image, by digest. That is the NEP-330 record of a reproducible build. A local rebuild matches it: on 14 November 2026, `cargo near build reproducible-wasm` in `contracts/coin/` at a clean checkout of `b42fdde` (host `cargo-near` 0.21.1, pinned image `sourcescan/cargo-near:0.22.0-rust-1.97.1`, Docker on Apple silicon) printed SHA-256 base58 `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`. That is the `global_contract_hash` the chain holds for each coin launched so far (CABAL, CABAL2, BAG, QALAUNCH and BAGCLUB), so the code on chain is the code at `b42fdde` in this repo.
 
 ### Recorded testnet runs
 
