@@ -202,3 +202,25 @@ fn a_transfer_goes_out_only_while_the_seller_still_holds_the_near_read_before() 
         assert!(error.to_string().contains("bag-buyer-05"), "{error}");
     }
 }
+
+#[test]
+fn the_plan_lists_for_each_seller_the_bag_left_and_the_near_returned() {
+    let mut states = sold_states();
+    states[10].bag = 390;
+    states[2].near = RETURN_KEEP_YOCTO;
+    let plan = plan_returns(&sells_plan(), &funder(), &states).unwrap();
+    let lines = plan.lines();
+    assert_eq!(lines.len(), 18);
+    assert_eq!(
+        lines[0],
+        "bag-buyer-01.fairchance.testnet: BAG left 0, NEAR returned 2350000000000000000000000 yocto (keeps 50000000000000000000000)"
+    );
+    assert_eq!(
+        lines[2],
+        "bag-buyer-03.fairchance.testnet: BAG left 0, NEAR returned 0 (skipped: holds 50000000000000000000000 yoctoNEAR, not more than the keep)"
+    );
+    assert_eq!(
+        lines[10],
+        "bag-buyer-11.fairchance.testnet: BAG left 390, NEAR returned 2350000000000000000000000 yocto (keeps 50000000000000000000000)"
+    );
+}
