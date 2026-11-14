@@ -48,3 +48,21 @@ async fn presigned_snipers_land_in_the_early_window_and_their_dump_is_held_back(
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn a_burst_that_cannot_fit_the_window_is_refused_before_any_account_is_made() -> Result<()> {
+    let world = World::launch_with_block_ms(600).await?;
+    let mut setup = OptionTSetup::sandbox_defaults(&world, "slow", 2);
+    setup.send_delay = Duration::from_millis(7000);
+    let mut list = PassList::default();
+    let error = run(&setup, &mut list).await.unwrap_err().to_string();
+    assert!(error.contains("nothing was signed"), "{error}");
+    let creator = fair_chance_sandbox_tests::option_t::creator_account_id("slow", &world.bob.id)?;
+    assert!(
+        fair_chance_sandbox_tests::account_view(&world.network, &creator)
+            .await?
+            .is_none(),
+        "the run made {creator} before the guard refused it"
+    );
+    Ok(())
+}

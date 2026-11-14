@@ -743,6 +743,32 @@ pub async fn presign_snipers(
     Ok((snipers, send_s))
 }
 
+/// Seconds one read of the funder's access key takes on the send RPC: the send RPC's time per
+/// call, before any account is made.
+async fn send_call_s(setup: &OptionTSetup) -> Result<f64> {
+    let public_key = setup.funder.signer.get_public_key().await?;
+    let started = Instant::now();
+    with_rate_limit_backoff("the funder's access key", run_budget(), || {
+        near_api::Account(setup.funder.id.clone())
+            .access_key(public_key)
+            .fetch_from(&setup.send_network)
+    })
+    .await?;
+    Ok(started.elapsed().as_secs_f64())
+}
+
+/// The burst guard of [`check_burst_timing`] for this run, with `send_s` measured on the send RPC.
+fn burst_guard(setup: &OptionTSetup, block_s: f64, send_s: f64) -> Result<(BurstTiming, u64)> {
+    let timing = BurstTiming {
+        block_s,
+        send_s: send_s + setup.send_delay.as_secs_f64(),
+        launch_tail_blocks: LAUNCH_TAIL_BLOCKS,
+        early_sell_gap_s: EARLY_SELL_GAP.as_secs_f64(),
+    };
+    let last = check_burst_timing(&timing, rule_engine::FixedValues::fixed().early_blocks)?;
+    Ok((timing, last))
+}
+
 /// The height of a block by its hash.
 async fn height_of(network: &NetworkConfig, hash: near_api::types::CryptoHash) -> Result<u64> {
     Ok(
@@ -799,6 +825,13 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         },
         setup.funder.id
     ));
+    // The guard first, before any account is made: the block time and one timed read on the
+    // send RPC. It runs again on the nonce reads just before the launch.
+    let block_s = measured_block_s(&setup.network).await?;
+    let (_, first_estimate) = burst_guard(setup, block_s, send_call_s(setup).await?)?;
+    say(&format!(
+        "burst guard before any signature: {block_s:.4} s per block; the last early sell lands by block {first_estimate} (estimate)"
+    ));
     let (creator, buyers, later) = make_all_accounts(setup).await?;
 
     if account_view(&setup.network, &coin).await?.is_some() {
@@ -816,15 +849,8 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     // Everything the burst needs, before the launch: the block time, one nonce per sniper and a
     // recent block hash, all buys and early sells signed, and the guard.
     let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
-    let block_s = measured_block_s(&setup.network).await?;
     let (snipers, send_s) = presign_snipers(setup, &coin, &buyers).await?;
-    let burst_timing = BurstTiming {
-        block_s,
-        send_s: send_s + setup.send_delay.as_secs_f64(),
-        launch_tail_blocks: LAUNCH_TAIL_BLOCKS,
-        early_sell_gap_s: EARLY_SELL_GAP.as_secs_f64(),
-    };
-    let estimate = check_burst_timing(&burst_timing, early_blocks)?;
+    let (burst_timing, estimate) = burst_guard(setup, block_s, send_s)?;
     say(&format!(
         "signed {} buys and {} early sells before the launch; {block_s:.4} s per block, {:.2} s per send call; the last early sell lands by block {estimate} of 0 to {early_blocks} (estimate)",
         snipers.len(),
