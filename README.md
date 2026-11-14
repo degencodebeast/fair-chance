@@ -126,7 +126,7 @@ So the quick flip is gone for the early buy. This is a local sandbox run, not te
 
 ## For judges
 
-The hackathon FAQ names how projects are judged: Claude Code and Codex screen each project by checking that it runs and does what the README says. Human judges then decide. The FAQ also lists the criteria earlier NEAR hackathons used. The track prompt says "Judged on the mechanic, not the chart." Sources: [nearhackathon.com](https://nearhackathon.com), [HACKATHON.md](https://nearhackathon.com/HACKATHON.md). The track's example prompt is linked from HACKATHON.md.
+Each judging criterion, and where to check it.
 
 | What is judged | Where you see it |
 | --- | --- |
