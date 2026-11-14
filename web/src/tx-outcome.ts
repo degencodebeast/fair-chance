@@ -9,7 +9,8 @@ import type { FinalOutcome } from "./tx-types.ts";
 
 interface Base {
   txHash: string;
-  explorerUrl: string;
+  /** Null when the hash is not a NEAR transaction hash. */
+  explorerUrl: string | null;
 }
 
 export type TxResult = Base &
@@ -68,8 +69,12 @@ export type TxResult = Base &
   );
 
 /** The testnet explorer page of a transaction. */
-export function explorerTxLink(txHash: string, explorerTxUrl: string = KNOWN_NETWORKS.testnet.explorerTxUrl): string {
-  return `${explorerTxUrl}${txHash}`;
+/** A NEAR transaction hash: 32 bytes in base58, 43 or 44 characters. */
+const TX_HASH = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+
+/** The testnet explorer page of a transaction; null for anything that is not a transaction hash. */
+export function explorerTxLink(txHash: string, explorerTxUrl: string = KNOWN_NETWORKS.testnet.explorerTxUrl): string | null {
+  return TX_HASH.test(txHash) ? `${explorerTxUrl}${txHash}` : null;
 }
 
 interface LoggedEvent {
@@ -79,15 +84,36 @@ interface LoggedEvent {
 }
 
 const EVENT_PREFIX = "EVENT_JSON:";
+const UNREADABLE_EVENT = "The transaction result has a Fair Chance event this page cannot read.";
+const UNREADABLE_RESULT = "The transaction result cannot be read.";
+const NO_EVENT = "The transaction succeeded but logged no Fair Chance event.";
 
-/** Every NEP-297 event a receipt of the transaction logged. */
-function events(outcome: FinalOutcome): LoggedEvent[] {
+/** A Fair Chance event, from the contract that should log it, that does not have the interface's shape. */
+class UnreadableEvent extends Error {}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/**
+ * Every NEP-297 event logged by receipts that `executor` ran. Logs of other accounts are never
+ * read. A log of this account that is not an event list of objects is unreadable.
+ */
+function eventsOf(outcome: FinalOutcome, executor: string): LoggedEvent[] {
   const found: LoggedEvent[] = [];
   for (const receipt of outcome.receipts_outcome) {
+    if (receipt.outcome.executor_id !== executor) continue;
     for (const log of receipt.outcome.logs) {
       if (!log.startsWith(EVENT_PREFIX)) continue;
-      const parsed = cleanChainValue(JSON.parse(log.slice(EVENT_PREFIX.length))) as { standard: string; event: string; data: Record<string, unknown>[] };
-      for (const data of parsed.data) found.push({ standard: parsed.standard, event: parsed.event, data });
+      let parsed: unknown;
+      try {
+        parsed = cleanChainValue(JSON.parse(log.slice(EVENT_PREFIX.length)));
+      } catch {
+        throw new UnreadableEvent();
+      }
+      if (!isRecord(parsed) || typeof parsed.standard !== "string" || typeof parsed.event !== "string" || !Array.isArray(parsed.data)) throw new UnreadableEvent();
+      for (const data of parsed.data) {
+        if (!isRecord(data)) throw new UnreadableEvent();
+        found.push({ standard: parsed.standard, event: parsed.event, data });
+      }
     }
   }
   return found;
@@ -100,9 +126,8 @@ function events(outcome: FinalOutcome): LoggedEvent[] {
 function firstFailure(outcome: FinalOutcome): string | null {
   const statuses = [outcome.transaction_outcome.outcome.status, ...outcome.receipts_outcome.map((r) => r.outcome.status), outcome.status];
   for (const status of statuses) {
-    if (typeof status !== "object" || status === null || !("Failure" in status)) continue;
-    const failure = (status as { Failure: unknown }).Failure;
-    return cleanChainText(executionError(failure) ?? JSON.stringify(failure));
+    if (!isRecord(status) || !("Failure" in status)) continue;
+    return cleanChainText(executionError(status.Failure) ?? JSON.stringify(status.Failure));
   }
   return null;
 }
@@ -114,79 +139,108 @@ function executionError(failure: unknown): string | null {
   return typeof text === "string" ? text : null;
 }
 
-const amount = (data: Record<string, unknown>, key: string): bigint => {
+function amount(data: Record<string, unknown>, key: string): bigint {
   const value = data[key];
-  if (typeof value !== "string" || !/^\d+$/.test(value)) throw new Error(`event field ${key} is not an amount`);
+  if (typeof value !== "string" || !/^\d+$/.test(value)) throw new UnreadableEvent();
   return BigInt(value);
-};
+}
 
-const NO_EVENT = "The transaction succeeded but logged no Fair Chance event.";
+function text(data: Record<string, unknown>, key: string): string {
+  const value = data[key];
+  if (typeof value !== "string") throw new UnreadableEvent();
+  return value;
+}
+
+const FILLS: readonly SellFill[] = ["full", "partial", "none"];
+const LIMIT_REASONS: readonly LimitReason[] = ["allowance", "cap_full", "floor"];
 
 const find = (all: LoggedEvent[], standard: string, event: string) => all.find((e) => e.standard === standard && e.event === event);
 
 /**
- * The result of one transaction. A failed receipt wins over any event: a refusal when the shared
- * refusal file knows the message, else "failed" with the chain's text. A launch whose coin start
- * failed is "failed" too (the factory refunds the deposit). The explorer link uses the testnet
- * explorer unless `explorerTxUrl` is given.
+ * The result of one transaction. Never throws. A failed receipt wins over any event: a refusal
+ * when the shared refusal file knows the message, else "failed" with the chain's text. Events are
+ * read only from the account the transaction called (the coin, or the factory for a launch) and,
+ * for a launch, from the new coin, which must be a direct sub-account of that factory. A launch
+ * whose coin start failed is "failed" (the factory refunds the deposit). The explorer link uses
+ * the testnet explorer unless `explorerTxUrl` is given.
  */
 export function parseTxOutcome(outcome: FinalOutcome, explorerTxUrl?: string): TxResult {
-  const txHash = outcome.transaction.hash;
+  const hash = (outcome as { transaction?: { hash?: unknown } } | null)?.transaction?.hash;
+  const txHash = typeof hash === "string" ? hash : "";
   const base: Base = { txHash, explorerUrl: explorerTxLink(txHash, explorerTxUrl) };
+  try {
+    return read(outcome, base);
+  } catch (e) {
+    return { ...base, kind: "failed", chainMessage: e instanceof UnreadableEvent ? UNREADABLE_EVENT : UNREADABLE_RESULT };
+  }
+}
+
+function read(outcome: FinalOutcome, base: Base): TxResult {
   const failure = firstFailure(outcome);
   if (failure !== null) {
-    const text = refusalTextForMessage(failure);
-    if (text === null) return { ...base, kind: "failed", chainMessage: failure };
-    return { ...base, kind: "refused", code: failure.match(/FC_[A-Z_]+/)?.[0] ?? null, text, chainMessage: failure };
+    const refusal = refusalTextForMessage(failure);
+    if (refusal === null) return { ...base, kind: "failed", chainMessage: failure };
+    return { ...base, kind: "refused", code: failure.match(/FC_[A-Z_]+/)?.[0] ?? null, text: refusal, chainMessage: failure };
   }
-  const all = events(outcome);
-  const sell = find(all, "fair_chance", "fc_sell");
+  const target = outcome.transaction.receiver_id;
+  const fromTarget = eventsOf(outcome, target);
+  const launch = find(fromTarget, "fair_chance_factory", "fc_launch");
+  if (launch) {
+    const d = launch.data;
+    const coin = text(d, "coin");
+    if (!coin.endsWith(`.${target}`) || coin.slice(0, -target.length - 1).includes(".")) throw new UnreadableEvent();
+    const launchBlock = d.launch_block;
+    if (typeof launchBlock !== "number" || !Number.isSafeInteger(launchBlock)) throw new UnreadableEvent();
+    if (d.description !== null && d.description !== undefined && typeof d.description !== "string") throw new UnreadableEvent();
+    // A launch with an opening buy also logs the creator's fc_buy, from the new coin.
+    const openingBuy = find(eventsOf(outcome, coin), "fair_chance", "fc_buy");
+    return {
+      ...base,
+      kind: "launched",
+      coin,
+      creator: text(d, "creator"),
+      launchBlock,
+      description: typeof d.description === "string" ? d.description : null,
+      openingTokens: openingBuy ? amount(openingBuy.data, "tokens_out") : 0n,
+    };
+  }
+  const sell = find(fromTarget, "fair_chance", "fc_sell");
   if (sell) {
     const d = sell.data;
+    const fill = d.fill as SellFill;
+    if (!FILLS.includes(fill)) throw new UnreadableEvent();
+    const reason = d.limit_reason ?? null;
+    if (reason !== null && !LIMIT_REASONS.includes(reason as LimitReason)) throw new UnreadableEvent();
     const tokensAsked = amount(d, "tokens_asked");
     const tokensSold = amount(d, "tokens_sold");
-    const reason = d.limit_reason;
+    if (tokensSold > tokensAsked) throw new UnreadableEvent();
     return {
       ...base,
       kind: "sold",
-      account: String(d.account),
-      fill: d.fill as SellFill,
+      account: text(d, "account"),
+      fill,
       tokensAsked,
       tokensSold,
       tokensKept: tokensAsked - tokensSold,
       nearOut: amount(d, "near_out"),
       penaltyNear: amount(d, "penalty_near"),
-      limitReason: reason === null || reason === undefined ? null : (reason as LimitReason),
+      limitReason: reason as LimitReason | null,
     };
   }
-  // A launch with an opening buy also logs the creator's fc_buy, so the launch is read first.
-  const launch = find(all, "fair_chance_factory", "fc_launch");
-  const buy = find(all, "fair_chance", "fc_buy");
-  if (launch) {
-    const d = launch.data;
-    return {
-      ...base,
-      kind: "launched",
-      coin: String(d.coin),
-      creator: String(d.creator),
-      launchBlock: Number(d.launch_block),
-      description: typeof d.description === "string" ? d.description : null,
-      openingTokens: buy ? amount(buy.data, "tokens_out") : 0n,
-    };
-  }
+  const buy = find(fromTarget, "fair_chance", "fc_buy");
   if (buy) {
     const d = buy.data;
     return {
       ...base,
       kind: "bought",
-      account: String(d.account),
+      account: text(d, "account"),
       nearIn: amount(d, "near_in"),
       tokensOut: amount(d, "tokens_out"),
       markedTokens: amount(d, "marked_tokens"),
       feeNear: amount(d, "fee_near"),
     };
   }
-  const claim = find(all, "fair_chance", "fc_creator_claim");
-  if (claim) return { ...base, kind: "claimed", creator: String(claim.data.creator), amount: amount(claim.data, "amount") };
+  const claim = find(fromTarget, "fair_chance", "fc_creator_claim");
+  if (claim) return { ...base, kind: "claimed", creator: text(claim.data, "creator"), amount: amount(claim.data, "amount") };
   return { ...base, kind: "failed", chainMessage: NO_EVENT };
 }

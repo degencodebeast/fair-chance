@@ -17,14 +17,14 @@ const quote = (tokensOut: bigint): BuyQuote => ({
 });
 
 describe("a buy", () => {
-  it("is one buy action with the NEAR attached and min_tokens_out from the quote, for a registered buyer", () => {
+  it("is one buy action with the NEAR attached and min_tokens_out 1% below the quote, for a registered buyer", () => {
     expect(buildBuy(COIN, { nearIn: 300000000000000000000000n, quote: quote(2709426042412763046439220n), storage: { registered: true } })).toEqual([
       {
         receiverId: COIN,
         actions: [
           {
             type: "FunctionCall",
-            params: { methodName: "buy", args: { min_tokens_out: "2709426042412763046439220" }, gas: "50000000000000", deposit: "300000000000000000000000" },
+            params: { methodName: "buy", args: { min_tokens_out: "2682331781988635415974827" }, gas: "50000000000000", deposit: "300000000000000000000000" },
           },
         ],
       },
@@ -38,7 +38,7 @@ describe("a first buy", () => {
     expect(txs).toHaveLength(1);
     expect(txs[0]!.actions.map((a) => [a.params.methodName, a.params.args, a.params.deposit])).toEqual([
       ["storage_deposit", {}, "3200000000000000000000"],
-      ["buy", { min_tokens_out: "7" }, "1000000000000000000000000"],
+      ["buy", { min_tokens_out: "6" }, "1000000000000000000000000"],
     ]);
   });
 });
@@ -64,29 +64,67 @@ describe("reading the buyer's storage record", () => {
 
 const sellQuote = (tokensFilled: bigint, nearOut: bigint, fill: SellQuote["fill"]): SellQuote => ({ tokensFilled, nearOut, penaltyNear: 0n, fill, limitReason: fill === "full" ? null : "floor" });
 
+/** The coin's slippage check (rule-engine actions.rs, product_at_least): a sell is refused when near_out * amount < min_near_out * tokens_sold. */
+const coinAcceptsSell = (nearOut: bigint, amount: bigint, minNearOut: bigint, tokensSold: bigint) => nearOut * amount >= minNearOut * tokensSold;
+const minNearOutOf = (r: ReturnType<typeof buildSell>) => {
+  if (r.kind !== "ready") throw new Error(r.text);
+  return BigInt(r.txs[0]!.actions[0]!.params.args.min_near_out as string);
+};
+
 describe("a sell", () => {
-  it("is one sell action with exactly 1 yoctoNEAR and min_near_out from the quote's near_out", () => {
-    expect(buildSell(COIN, { amount: 2709426042412763046439220n, quote: sellQuote(2709426042412763046439220n, 292223155027538688590017n, "full") })).toEqual([
-      {
-        receiverId: COIN,
-        actions: [
-          {
-            type: "FunctionCall",
-            params: {
-              methodName: "sell",
-              args: { amount: "2709426042412763046439220", min_near_out: "292223155027538688590017" },
-              gas: "100000000000000",
-              deposit: "1",
+  it("is one sell action with exactly 1 yoctoNEAR and min_near_out 1% below the quote's near_out", () => {
+    expect(buildSell(COIN, { amount: 2709426042412763046439220n, quote: sellQuote(2709426042412763046439220n, 292223155027538688590017n, "full") })).toEqual({
+      kind: "ready",
+      txs: [
+        {
+          receiverId: COIN,
+          actions: [
+            {
+              type: "FunctionCall",
+              params: {
+                methodName: "sell",
+                args: { amount: "2709426042412763046439220", min_near_out: "289300923477263301704116" },
+                gas: "100000000000000",
+                deposit: "1",
+              },
             },
-          },
-        ],
-      },
-    ]);
+          ],
+        },
+      ],
+    });
   });
 
-  it("asks for the whole amount on a quoted partial fill; the coin fills what the limits allow", () => {
-    const [tx] = buildSell(COIN, { amount: 3970605075343742132738487n, quote: sellQuote(96425179448780606817852n, 10440403632388116519974n, "partial") });
-    expect(tx!.actions[0]!.params.args).toEqual({ amount: "3970605075343742132738487", min_near_out: "10440403632388116519974" });
+  describe("on a quoted partial fill (the real CABAL2 buyer 01 sell: asked 3.97M, quote fills 96.4K for 0.0104 NEAR)", () => {
+    const amount = 3970605075343742132738487n;
+    const tokensFilled = 96425179448780606817852n;
+    const nearOut = 10440403632388116519974n;
+    const r = buildSell(COIN, { amount, quote: sellQuote(tokensFilled, nearOut, "partial") });
+
+    it("asks for the whole amount and scales min_near_out to all of it at the quoted price per token, less 1%", () => {
+      expect(r.kind === "ready" && r.txs[0]!.actions[0]!.params.args).toEqual({ amount: "3970605075343742132738487", min_near_out: "425616759953071735207344" });
+    });
+
+    it("passes under the coin's check when the same part fills at a price 0.5% lower", () => {
+      expect(coinAcceptsSell((nearOut * 995n) / 1000n, amount, minNearOutOf(r), tokensFilled)).toBe(true);
+    });
+
+    it("is refused with FC_SLIPPAGE under the coin's check when the price drops 2%, and when it drops 97%", () => {
+      expect(coinAcceptsSell((nearOut * 98n) / 100n, amount, minNearOutOf(r), tokensFilled)).toBe(false);
+      expect(coinAcceptsSell((nearOut * 3n) / 100n, amount, minNearOutOf(r), tokensFilled)).toBe(false);
+    });
+
+    it("holds the same price floor when a different part fills than quoted", () => {
+      const half = tokensFilled / 2n;
+      expect(coinAcceptsSell((nearOut * 995n) / 2000n, amount, minNearOutOf(r), half)).toBe(true);
+      expect(coinAcceptsSell((nearOut * 98n) / 200n, amount, minNearOutOf(r), half)).toBe(false);
+    });
+  });
+
+  it("builds nothing when the quote fills no tokens, and says so", () => {
+    expect(buildSell(COIN, { amount: 5n, quote: { tokensFilled: 0n, nearOut: 0n, penaltyNear: 0n, fill: "none", limitReason: "cap_full" } })).toEqual({
+      kind: "nothing-fills",
+      text: "No tokens can sell now, so there is no sell to send.",
+    });
   });
 });
 
@@ -147,6 +185,10 @@ describe("a launch", () => {
     expect(buildLaunch(FACTORY, { form, icon: icon(8192) })).toEqual({ kind: "invalid", errors: ["The coin icon must be a WebP image under 8 KB."] });
   });
 
+  it("builds nothing for a ticker with a letter outside ASCII, such as the Kelvin sign", () => {
+    expect(buildLaunch(FACTORY, { form: { ...form, ticker: "\u212A" }, icon: null })).toEqual({ kind: "invalid", errors: ["The ticker can use letters, digits, - and _ only."] });
+  });
+
   it("refuses an icon that is not a WebP data URL", () => {
     expect(buildLaunch(FACTORY, { form, icon: "data:image/png;base64,iVBORw0KGgo=" }).kind).toBe("invalid");
     expect(buildLaunch(FACTORY, { form, icon: ICON_PREFIX }).kind).toBe("invalid");
@@ -154,17 +196,7 @@ describe("a launch", () => {
   });
 });
 
-describe("values the caller can set in place of the defaults", () => {
-  it("uses a given min_tokens_out in place of the quote's tokens_out", () => {
-    const [tx] = buildBuy(COIN, { nearIn: 1n, quote: quote(1000n), storage: { registered: true }, minTokensOut: 990n });
-    expect(tx!.actions[0]!.params.args).toEqual({ min_tokens_out: "990" });
-  });
-
-  it("uses a given min_near_out in place of the quote's near_out", () => {
-    const [tx] = buildSell(COIN, { amount: 10n, quote: sellQuote(10n, 500n, "full"), minNearOut: 0n });
-    expect(tx!.actions[0]!.params.args).toEqual({ amount: "10", min_near_out: "0" });
-  });
-
+describe("a launch storage deposit the caller sets", () => {
   it("uses a given storage deposit for a launch in place of 1 NEAR, still adding the opening buy", () => {
     const r = buildLaunch("factory.fairchance.testnet", {
       form: { name: "Cabal Test 2", ticker: "cabal2", description: "", openingBuy: "0.5" },

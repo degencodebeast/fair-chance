@@ -11,8 +11,11 @@ export const LAUNCH_LIMITS = { name: 32, ticker: 8, description: 80 } as const;
 
 const NEAR_DECIMALS = 24;
 
-/** What the factory accepts: it lowers the ticker and uses it as the first part of the coin account, so a dot, a leading or trailing separator and two separators in a row are out. */
-const TICKER_PATTERN = /^[a-z0-9]+([-_][a-z0-9]+)*$/;
+/**
+ * What the factory accepts: it lowers the ticker and uses it as the first part of the coin account, so a dot, a leading or trailing separator and two separators in a row are out.
+ * The ticker is tested as typed, ASCII only: a letter such as the Kelvin sign lowers to "k" and would pass a test of the lowered text, then go on chain as the symbol, a look-alike of K.
+ */
+const TICKER_PATTERN = /^[A-Za-z0-9]+([-_][A-Za-z0-9]+)*$/;
 
 export interface LaunchFormInput {
   name: string;
@@ -59,7 +62,7 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   if (name === "") errors.push("Type a name.");
   if (name.length > LAUNCH_LIMITS.name) errors.push(`The name can be ${LAUNCH_LIMITS.name} characters at most.`);
   if (ticker === "") errors.push("Type a ticker.");
-  else if (!TICKER_PATTERN.test(ticker.toLowerCase())) errors.push("The ticker can use letters, digits, - and _ only.");
+  else if (!TICKER_PATTERN.test(ticker)) errors.push("The ticker can use letters, digits, - and _ only.");
   if (ticker.length > LAUNCH_LIMITS.ticker) errors.push(`The ticker can be ${LAUNCH_LIMITS.ticker} characters at most.`);
   if (description.length > LAUNCH_LIMITS.description) errors.push(`The description can be ${LAUNCH_LIMITS.description} characters at most.`);
   if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
@@ -71,7 +74,7 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   if (input.picture?.state === "refused") errors.push(input.picture.reason);
   const openingBuyUnits = buy === "" ? null : parseTokenAmount(buy, NEAR_DECIMALS);
   const shownTicker = ticker.toUpperCase();
-  const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker.toLowerCase()) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
+  const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
   return {
     counts: {
       name: `${input.name.length}/${LAUNCH_LIMITS.name}`,

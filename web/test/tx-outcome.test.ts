@@ -207,3 +207,83 @@ describe("text from the chain", () => {
     expect(parseTxOutcome(failed)).toMatchObject({ kind: "failed", chainMessage: "Smart contract panicked: boom" });
   });
 });
+
+/** A receipt of another contract, added to a real outcome. */
+const foreignReceipt = (executor: string, log: string) => ({ id: "x", block_hash: "y", outcome: { status: { SuccessValue: "" }, logs: [log], executor_id: executor } });
+const FAKE_SELL =
+  'EVENT_JSON:{"standard":"fair_chance","version":"1.0.0","event":"fc_sell","data":[{"account":"victim.testnet","class":"small","tokens_asked":"5","tokens_sold":"5","near_out":"999","penalty_near":"0","fill":"full","limit_reason":null}]}';
+
+describe("events from the right contract only", () => {
+  it("ignores a Fair Chance event logged by a contract the transaction did not target", () => {
+    const o = fixture("cabal2-buy-later");
+    o.receipts_outcome.unshift(foreignReceipt("evil.testnet", FAKE_SELL));
+    expect(parseTxOutcome(o)).toMatchObject({ kind: "bought", tokensOut: 2709426042412763046439220n });
+  });
+
+  it("ignores an fc_launch logged by any account but the factory the transaction called", () => {
+    const o = fixture("cabal2-buy-later");
+    o.receipts_outcome.unshift(foreignReceipt("evil.testnet", 'EVENT_JSON:{"standard":"fair_chance_factory","version":"1","event":"fc_launch","data":[{"coin":"x.testnet","creator":"y.testnet","launch_block":1,"description":null}]}'));
+    expect(parseTxOutcome(o).kind).toBe("bought");
+  });
+
+  it("reads the opening fc_buy of a launch only from the new coin, a sub-account of the factory", () => {
+    const o = fixture("cabal2-launch");
+    o.receipts_outcome.push(
+      foreignReceipt(
+        "evil.testnet",
+        'EVENT_JSON:{"standard":"fair_chance","version":"1","event":"fc_buy","data":[{"account":"a","near_in":"1","fee_near":"0","creator_fee_near":"0","tokens_out":"5","marked_tokens":"5","class_after":"small","block":1}]}',
+      ),
+    );
+    expect(parseTxOutcome(o)).toMatchObject({ kind: "launched", openingTokens: 0n });
+  });
+
+  it("refuses an fc_launch whose coin is not a sub-account of the factory", () => {
+    const o = fixture("cabal2-launch");
+    const factory = o.receipts_outcome.find((r) => r.outcome.logs.some((l) => l.includes("fc_launch")))!;
+    factory.outcome.logs = factory.outcome.logs.map((l) => l.replace('"coin":"cabal2.factory.fairchance.testnet"', '"coin":"cabal2.evil.testnet"'));
+    expect(parseTxOutcome(o)).toMatchObject({ kind: "failed", chainMessage: "The transaction result has a Fair Chance event this page cannot read." });
+  });
+});
+
+describe("a result that cannot be read", () => {
+  it("does not throw on a malformed event from another contract", () => {
+    const o = fixture("cabal2-buy-later");
+    o.receipts_outcome.push(foreignReceipt("other.testnet", 'EVENT_JSON:{"standard":"x","event":"y","data":{}}'));
+    expect(parseTxOutcome(o).kind).toBe("bought");
+  });
+
+  it.each([
+    ["data that is not a list", 'EVENT_JSON:{"standard":"fair_chance","event":"fc_sell","data":{}}'],
+    ["JSON that does not parse", "EVENT_JSON:{not json"],
+    ["an amount that is not a number", FAKE_SELL.replace('"near_out":"999"', '"near_out":"lots"')],
+    ["a fill that is not full, partial or none", FAKE_SELL.replace('"fill":"full"', '"fill":"most"')],
+    ["a limit reason the interface does not name", FAKE_SELL.replace('"limit_reason":null', '"limit_reason":"vibes"')],
+  ])("gives failed with a plain sentence for %s from the coin itself", (_name, log) => {
+    const o = fixture("cabal2-sell-full");
+    for (const r of o.receipts_outcome) r.outcome.logs = [];
+    o.receipts_outcome[0]!.outcome.logs = [log];
+    expect(parseTxOutcome(o)).toMatchObject({ kind: "failed", chainMessage: "The transaction result has a Fair Chance event this page cannot read." });
+  });
+
+  it("gives failed for an outcome with no receipts list", () => {
+    const o = fixture("cabal2-sell-full") as unknown as Record<string, unknown>;
+    delete o.receipts_outcome;
+    expect(parseTxOutcome(o as unknown as FinalOutcome).kind).toBe("failed");
+  });
+});
+
+describe("the explorer link of an odd hash", () => {
+  it.each(["abc/../../x?y#z", 'x/../../evil?a=1#"><b>', "", "0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OIl0OI", "A6j6eFJ664trF575bTzaecPuzv4kUTtkmy5ZiGrcMtmhX"])("gives no link for %j", (hash) => {
+    expect(explorerTxLink(hash)).toBeNull();
+  });
+
+  it("gives no link in the result when the transaction hash is not base58 of 43 or 44 characters", () => {
+    const o = fixture("cabal2-sell-full");
+    o.transaction.hash = "abc/../../x?y#z";
+    expect(parseTxOutcome(o)).toMatchObject({ kind: "sold", explorerUrl: null });
+  });
+
+  it("links a 43-character hash", () => {
+    expect(explorerTxLink("K5YbpnT1N9or2hbKk9ZxbjuVj6khCaoSnPebcQpZhHG")).toBe("https://testnet.nearblocks.io/txns/K5YbpnT1N9or2hbKk9ZxbjuVj6khCaoSnPebcQpZhHG");
+  });
+});

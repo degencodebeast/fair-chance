@@ -1,6 +1,6 @@
 // The transactions the page asks the wallet to sign: buy, sell, launch and the creator fee claim.
-// Pure: no wallet, no key, no network. Each minimum comes from the coin's own quote, with no margin
-// added here. Gas values are the ones the recorded testnet runs used; unused gas is refunded.
+// Pure: no wallet, no key, no network. Each minimum comes from the coin's own quote less one fixed
+// margin, SLIPPAGE_MARGIN_BPS. Gas values are the ones the recorded testnet runs used; unused gas is refunded.
 import type { SellQuote } from "./account-views.ts";
 import type { BuyQuote } from "./buy-quote.ts";
 import type { ChainReader } from "./chain.ts";
@@ -15,6 +15,10 @@ const TGAS = 1_000_000_000_000n;
 export const BUY_GAS = 50n * TGAS;
 /** Gas of the storage_deposit action sent before a first buy. */
 export const STORAGE_DEPOSIT_GAS = 50n * TGAS;
+
+/** The price move a buy or a sell accepts after its quote: 100 bps, 1%. The builder's choice; callers do not set it. */
+export const SLIPPAGE_MARGIN_BPS = 100n;
+const BPS = 10_000n;
 
 /** Whether the buyer has a NEP-145 storage record on the coin, and what one costs if not. */
 export type BuyerStorage = { registered: true } | { registered: false; storageMin: bigint };
@@ -34,15 +38,15 @@ export async function readBuyerStorage(chain: Pick<ChainReader, "view">, account
 }
 
 /**
- * One buy of `nearIn` yoctoNEAR. `min_tokens_out` is the quote's `tokens_out` (INTERFACE
- * fc_quote_buy), so the coin refuses with FC_SLIPPAGE if the price moved after the quote.
+ * One buy of `nearIn` yoctoNEAR. `min_tokens_out` is the quote's `tokens_out` less the margin,
+ * rounded down, so the coin refuses with FC_SLIPPAGE if the price moved more than 1% after the quote.
  * A buyer with no storage record gets `storage_deposit` first, in the same transaction: the coin
  * refuses a buy from an unregistered account, and one failed action rolls back both.
- * `minTokensOut`, when given, replaces the quote's `tokens_out` (for a margin the caller chooses).
  */
-export function buildBuy(coin: string, input: { nearIn: bigint; quote: BuyQuote; storage: BuyerStorage; minTokensOut?: bigint }): TxRequest[] {
+export function buildBuy(coin: string, input: { nearIn: bigint; quote: BuyQuote; storage: BuyerStorage }): TxRequest[] {
+  const minTokensOut = (input.quote.tokensOut * (BPS - SLIPPAGE_MARGIN_BPS)) / BPS;
   const actions = input.storage.registered ? [] : [call("storage_deposit", {}, STORAGE_DEPOSIT_GAS, input.storage.storageMin)];
-  actions.push(call("buy", { min_tokens_out: (input.minTokensOut ?? input.quote.tokensOut).toString() }, BUY_GAS, input.nearIn));
+  actions.push(call("buy", { min_tokens_out: minTokensOut.toString() }, BUY_GAS, input.nearIn));
   return [{ receiverId: coin, actions }];
 }
 
@@ -53,14 +57,24 @@ export const CLAIM_GAS = 300n * TGAS;
 /** The deposit a sell and a claim need: exactly 1 yoctoNEAR, else FC_ONE_YOCTO. */
 const ONE_YOCTO = 1n;
 
+export type SellTx = { kind: "ready"; txs: TxRequest[] } | { kind: "nothing-fills"; text: string };
+
+const NOTHING_FILLS = "No tokens can sell now, so there is no sell to send.";
+
 /**
- * One sell of `amount` token base units. `min_near_out` is the quote's `near_out` for that amount
- * (INTERFACE sell: the NEAR accepted for all of `amount`, checked per token of the part that fills).
- * `minNearOut`, when given, replaces the quote's `near_out`.
+ * One sell of `amount` token base units. The coin reads `min_near_out` as the NEAR accepted for
+ * all of `amount` and checks it per token of the part that fills (rule-engine actions.rs: refused
+ * when near_out x amount < min_near_out x tokens_sold). So `min_near_out` is the quoted price per
+ * filled token, scaled to all of `amount`, less the margin: near_out x amount x 9,900 ÷
+ * (tokens_filled x 10,000), multiplied before the one division, rounded down. A quote that fills
+ * no tokens gives no sell.
  */
-export function buildSell(coin: string, input: { amount: bigint; quote: SellQuote; minNearOut?: bigint }): TxRequest[] {
-  const args = { amount: input.amount.toString(), min_near_out: (input.minNearOut ?? input.quote.nearOut).toString() };
-  return [{ receiverId: coin, actions: [call("sell", args, SELL_GAS, ONE_YOCTO)] }];
+export function buildSell(coin: string, input: { amount: bigint; quote: SellQuote }): SellTx {
+  const { nearOut, tokensFilled } = input.quote;
+  if (tokensFilled === 0n) return { kind: "nothing-fills", text: NOTHING_FILLS };
+  const minNearOut = (nearOut * input.amount * (BPS - SLIPPAGE_MARGIN_BPS)) / (tokensFilled * BPS);
+  const args = { amount: input.amount.toString(), min_near_out: minNearOut.toString() };
+  return { kind: "ready", txs: [{ receiverId: coin, actions: [call("sell", args, SELL_GAS, ONE_YOCTO)] }] };
 }
 
 /** The creator claims its whole fee balance. The coin refuses any other caller with FC_NOT_CREATOR. */

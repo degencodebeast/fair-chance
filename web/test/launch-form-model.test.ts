@@ -74,6 +74,15 @@ describe("ticker rule (as the factory builds the coin account)", () => {
     expect(m.accountLabel).toBeNull();
   });
 
+  it("refuses a letter outside ASCII, even one that lowers or uppers to ASCII (Kelvin sign, dotless i, sharp s)", () => {
+    for (const t of ["K", "Kag", "ıab", "baß", "bаg"]) {
+      const m = launchFormModel({ ...ok, ticker: t });
+      expect(m.errors, t).toContain("The ticker can use letters, digits, - and _ only.");
+      expect(m.accountLabel, t).toBeNull();
+      expect(m.launchArgs, t).toBeNull();
+    }
+  });
+
   it("refuses a dot, a leading or trailing separator and two separators in a row", () => {
     for (const t of ["a.b", "-bag", "bag_", "b--g", "b-_g"]) {
       expect(launchFormModel({ ...ok, ticker: t }).errors.length, t).toBeGreaterThan(0);
