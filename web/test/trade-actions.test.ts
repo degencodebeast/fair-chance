@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadSellLimit, sendBuy, sendSell } from "../src/trade-actions.ts";
+import { loadSellLimit, sendBuy, sendLaunch, sendSell } from "../src/trade-actions.ts";
 import type { FinalOutcome, TxRequest, WalletSession } from "../src/tx-types.ts";
 
 const fixture = (name: string) => JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/tx-outcomes", `${name}.json`), "utf8")) as FinalOutcome;
@@ -144,5 +144,26 @@ describe("what the account can sell now", () => {
     const chain = fakeChain({ fc_account: { ...account, balance: "0" } });
     expect(await loadSellLimit(chain, SELLER)).toEqual({ balance: 0n, canSellNow: 0n });
     expect(chain.calls).toHaveLength(1);
+  });
+});
+
+describe("a launch", () => {
+  const form = { name: "Cabal Two", ticker: "cabal2", description: "", openingBuy: "" };
+
+  it("calls the factory with the 1 NEAR deposit plus the opening buy, and reads the launch", async () => {
+    const session = fakeSession(async () => [fixture("cabal2-launch")], "cabal2-creator.fairchance.testnet");
+    const out = await sendLaunch(session, "factory.fairchance.testnet", { ...form, openingBuy: "0.5" }, null);
+    const [tx] = session.sent[0]!;
+    expect(tx!.receiverId).toBe("factory.fairchance.testnet");
+    expect(tx!.actions[0]!.params.methodName).toBe("launch");
+    expect(tx!.actions[0]!.params.deposit).toBe("1500000000000000000000000");
+    expect(tx!.actions[0]!.params.args).toMatchObject({ name: "Cabal Two", ticker: "CABAL2", opening_buy: "500000000000000000000000" });
+    expect(out).toMatchObject({ kind: "result", result: { kind: "launched", coin: "cabal2.factory.fairchance.testnet", creator: "cabal2-creator.fairchance.testnet" } });
+  });
+
+  it("sends nothing for a form the factory would refuse", async () => {
+    const session = fakeSession(async () => []);
+    expect(await sendLaunch(session, "factory.fairchance.testnet", { ...form, ticker: "" }, null)).toEqual({ kind: "not-sent", text: "Type a ticker." });
+    expect(session.sent).toHaveLength(0);
   });
 });

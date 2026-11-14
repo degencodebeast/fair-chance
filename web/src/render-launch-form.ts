@@ -1,17 +1,31 @@
-// Draws the launch form screen. The launch button and the picture button are turned off, with the
-// reason beside each. Typing updates the counts, the error list and the preview. Nothing here
-// signs or sends. Text comes from the launch form model.
+// Draws the launch form screen. Typing updates the counts, the error list and the preview. The
+// launch button turns on for a signed-in testnet account with valid fields; the visitor's wallet
+// signs the factory call. After a launch the new coin goes to its page. Text comes from the launch form model.
 import { el, type Child } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { iconToWebp, type IconResult } from "./icon-to-webp.ts";
 import { LAUNCH_LIMITS, launchFormModel, type LaunchArgs } from "./launch-form-model.ts";
 import { launchNameCheckFromLink, type LaunchNameCheck } from "./account-name-check.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
+import type { LaunchedCoin } from "./launch-handoff.ts";
+import type { LaunchFormInput } from "./launch-form-model.ts";
+import type { TradeOutcome } from "./trade-actions.ts";
+import { tradeResultText } from "./trade-result-text.ts";
+import { LAUNCH_STORAGE_DEPOSIT } from "./tx-builders.ts";
+import type { WalletSession } from "./tx-types.ts";
+import type { WalletControl } from "./wallet-session.ts";
 
 /** The picture seams: the converter (a test passes its own) and the receiver of the launch arguments, which a wiring part uses to sign. */
 export interface LaunchFormPicture {
   convert?: (file: File) => Promise<IconResult>;
   onArgs?: (args: LaunchArgs | null) => void;
+}
+
+/** The wallet seams: the page's wallet, the factory call and what happens after a launch. */
+export interface LaunchSend {
+  wallet: WalletControl;
+  launch(session: WalletSession, factory: string, form: LaunchFormInput, icon: string | null): Promise<TradeOutcome>;
+  onLaunched(coin: LaunchedCoin): void;
 }
 
 function field(label: string, id: string, max: number, attrs: Record<string, string> = {}): { box: HTMLElement; input: HTMLInputElement; count: HTMLElement } {
@@ -20,7 +34,7 @@ function field(label: string, id: string, max: number, attrs: Record<string, str
   return { box: el("label", { class: "launch-field", for: id }, el("b", {}, label), input, count), input, count };
 }
 
-export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: LaunchNameCheck = launchNameCheckFromLink(href), picture: LaunchFormPicture = {}): void {
+export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: LaunchNameCheck = launchNameCheckFromLink(href), picture: LaunchFormPicture = {}, send: LaunchSend | null = null): void {
   const convert = picture.convert ?? iconToWebp;
   let icon: string | null = null;
   let latestPicture = 0;
@@ -36,10 +50,19 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   const errors = el("ul", { id: "launch-errors", class: "launch-errors", role: "status" });
   const feeNote = el("p", { class: "muted" });
   const buttonSlot = el("div", { id: "launch-action" });
+  const deposit = el("p", { id: "launch-deposit", class: "muted" });
+  const result = el("div", { id: "launch-result", role: "status", "aria-live": "polite", class: "trade-result" });
+  let pending = false;
+  const session = (): WalletSession | null => {
+    const s = send?.wallet.state();
+    return s?.kind === "signed-in" ? s.session : null;
+  };
+  const formInput = (): LaunchFormInput => ({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value });
   const previewBox = el("section", { id: "launch-preview", "aria-label": "Launch preview", class: "card" });
 
   const refresh = (): void => {
-    const m = launchFormModel({ name: name.input.value, ticker: ticker.input.value, description: description.input.value, openingBuy: buy.value, icon, picture: pictureState });
+    const signedIn = send !== null && nameCheck.factory !== null ? (session()?.accountId ?? null) : null;
+    const m = launchFormModel({ ...formInput(), icon, picture: pictureState, signedIn, pending, storageDeposit: LAUNCH_STORAGE_DEPOSIT });
     picture.onArgs?.(m.launchArgs);
     name.count.textContent = m.counts.name;
     ticker.count.textContent = m.counts.ticker;
@@ -47,7 +70,8 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     buyHelp.textContent = m.buyHelp;
     feeNote.textContent = m.feeNote;
     errors.replaceChildren(...m.errors.map((e) => el("li", { class: "tone-limit" }, e)));
-    buttonSlot.replaceChildren(turnedOffButton("launch-button", m.button.label, m.button.reason));
+    buttonSlot.replaceChildren(m.button.reason === null ? launchButton(m.button.label) : turnedOffButton("launch-button", m.button.label, m.button.reason));
+    deposit.textContent = m.deposit === null ? "" : `${m.deposit.total} ${m.deposit.note}`;
     previewBox.replaceChildren(
       ...(icon === null ? [] : [el("img", { id: "launch-picture-preview", class: "launch-picture-preview", src: icon, alt: "Coin picture preview", width: "64", height: "64" })]),
       el("h2", {}, m.preview.name === "" ? "Your coin" : m.preview.name),
@@ -55,6 +79,39 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
       el("p", {}, m.preview.description === "" ? "No description." : m.preview.description),
       el("p", { class: "muted" }, m.preview.openingBuy === null ? "No opening buy." : `Opening buy ${m.preview.openingBuy}`),
     );
+  };
+  const launchButton = (label: string): HTMLElement => {
+    const b = el("button", { type: "button", id: "launch-button", class: "button button-dark" }, label);
+    listen(b, "click", onLaunch);
+    return b;
+  };
+  const onLaunch = (): void => {
+    const s = session();
+    const factory = nameCheck.factory;
+    if (send === null || s === null || factory === null || pending) return;
+    const form = formInput();
+    const chosenIcon = icon;
+    pending = true;
+    result.replaceChildren();
+    refresh();
+    void send
+      .launch(s, factory, form, chosenIcon)
+      .catch((e: unknown): TradeOutcome => ({ kind: "unknown", text: `The page could not finish this: ${e instanceof Error ? e.message : String(e)}` }))
+      .then((outcome) => {
+        pending = false;
+        refresh();
+        if (outcome.kind === "result" && outcome.result.kind === "launched") {
+          const r = outcome.result;
+          send.onLaunched({ coin: r.coin, name: form.name.trim(), ticker: form.ticker.trim().toUpperCase(), icon: chosenIcon, creator: r.creator, launchBlock: r.launchBlock, explorerUrl: r.explorerUrl });
+          return;
+        }
+        const t = tradeResultText(outcome, { symbol: form.ticker.trim().toUpperCase(), decimals: 18 });
+        result.replaceChildren(
+          el("p", {}, el("b", {}, t.headline)),
+          ...t.lines.map((l) => el("p", {}, l)),
+          ...(t.explorerUrl === null ? [] : [el("a", { class: "text-link", href: t.explorerUrl, target: "_blank", rel: "noopener noreferrer" }, "See it on the testnet explorer")]),
+        );
+      });
   };
   let latestCheck = 0;
   const checkName = (): void => {
@@ -125,6 +182,8 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
     el("div", { class: "launch-field" }, el("label", { for: "launch-buy" }, el("b", {}, "Your opening buy "), el("span", { class: "muted" }, "(optional)")), el("div", { class: "launch-buy-row" }, buy, el("span", { class: "num" }, "NEAR")), buyHelp),
     errors,
     buttonSlot,
+    deposit,
+    result,
     feeNote,
   );
   listen(form, "submit", (event) => event.preventDefault());
@@ -141,4 +200,8 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
   ];
   app.replaceChildren(...children.filter((c): c is Exclude<Child, null | false> => Boolean(c)));
   refresh();
+  // A sign-in or sign-out redraws the button. The listener stops once the form leaves the page.
+  if (send !== null) {
+    const stop = send.wallet.subscribe(() => (form.isConnected ? refresh() : stop()));
+  }
 }

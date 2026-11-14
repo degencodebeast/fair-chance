@@ -5,7 +5,8 @@
 import { parseAccount, parseSellQuote } from "./account-views.ts";
 import { loadBuyQuote } from "./buy-quote.ts";
 import type { ChainReader } from "./chain.ts";
-import { buildBuy, buildSell, readBuyerStorage } from "./tx-builders.ts";
+import type { LaunchFormInput } from "./launch-form-model.ts";
+import { buildBuy, buildLaunch, buildSell, LAUNCH_STORAGE_DEPOSIT, readBuyerStorage } from "./tx-builders.ts";
 import { REASON_SENTENCE } from "./your-plan-model.ts";
 import { parseTxOutcome, type TxResult } from "./tx-outcome.ts";
 import type { TxRequest, WalletSession } from "./tx-types.ts";
@@ -97,4 +98,11 @@ export async function loadSellLimit(chain: Pick<ChainReader, "view">, accountId:
   if (balance === 0n) return { balance, canSellNow: 0n };
   const quote = parseSellQuote(await chain.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() }));
   return { balance, canSellNow: quote.tokensFilled };
+}
+
+/** The factory launch from the form, with the fixed storage deposit plus the opening buy. */
+export async function sendLaunch(session: WalletSession, factory: string, form: LaunchFormInput, icon: string | null): Promise<TradeOutcome> {
+  const launch = buildLaunch(factory, { form, icon, storageDeposit: LAUNCH_STORAGE_DEPOSIT });
+  if (launch.kind === "invalid") return { kind: "not-sent", text: launch.errors.join(" ") };
+  return sendAndRead(session, launch.txs);
 }

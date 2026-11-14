@@ -39,13 +39,24 @@ describe("launch form model", () => {
     expect(launchFormModel(ok).buyHelp).toMatch(/early supply/);
   });
 
-  it("turns the launch button off, valid or not, and says why", () => {
-    for (const input of [ok, { ...ok, name: "" }]) {
-      const m = launchFormModel(input);
-      expect(m.button.reason).toMatch(/turned off/);
-    }
-    expect(launchFormModel(ok).button.label).toBe("Launch Moth Lamp");
-    expect(launchFormModel({ ...ok, name: "" }).button.label).toBe("Launch coin");
+  it("asks for a wallet, then for valid fields, before the launch button turns on", () => {
+    expect(launchFormModel(ok).button).toEqual({ label: "Launch Moth Lamp", reason: "Connect a wallet to launch." });
+    expect(launchFormModel({ ...ok, name: "", signedIn: "you.testnet" }).button).toEqual({ label: "Launch coin", reason: "Fix the items above first." });
+    expect(launchFormModel({ ...ok, signedIn: "you.testnet" }).button).toEqual({ label: "Launch Moth Lamp", reason: null });
+  });
+
+  it("turns the button off while the wallet is open", () => {
+    expect(launchFormModel({ ...ok, signedIn: "you.testnet", pending: true }).button).toEqual({ label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." });
+  });
+
+  it("says the total NEAR the launch attaches, and that the deposit stays in the coin account", () => {
+    const m = launchFormModel({ ...ok, storageDeposit: 10n ** 24n });
+    expect(m.deposit).toEqual({
+      total: "You attach 5.4 NEAR: a 1 NEAR deposit and a 4.4 NEAR opening buy.",
+      note: "The deposit stays in the coin account. Nobody can take it out.",
+    });
+    expect(launchFormModel({ ...ok, openingBuy: "", storageDeposit: 10n ** 24n }).deposit?.total).toBe("You attach 1 NEAR: the deposit.");
+    expect(launchFormModel({ ...ok, openingBuy: "abc", storageDeposit: 10n ** 24n }).deposit?.total).toBe("You attach 1 NEAR for the deposit, plus the opening buy.");
   });
 
   it("shows the preview in capitals for the ticker", () => {
@@ -53,7 +64,7 @@ describe("launch form model", () => {
   });
 
   it("follows the copy rules", () => {
-    for (const t of allText(launchFormModel(ok))) expect(copyViolations(t), t).toEqual([]);
+    for (const t of allText(launchFormModel({ ...ok, storageDeposit: 10n ** 24n }))) expect(copyViolations(t), t).toEqual([]);
   });
 });
 

@@ -3,7 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { LAUNCH_LIMITS } from "../src/launch-form-model.ts";
 import type { LaunchArgs } from "../src/launch-form-model.ts";
 import type { IconResult } from "../src/icon-to-webp.ts";
-import { drawLaunchForm } from "../src/render-launch-form.ts";
+import { drawLaunchForm, type LaunchSend } from "../src/render-launch-form.ts";
+import type { LaunchedCoin } from "../src/launch-handoff.ts";
+import type { TradeOutcome } from "../src/trade-actions.ts";
+import { walletControl } from "../src/wallet-session.ts";
 import { expectNoEnabledControlWithoutHandler, turnedOffReasons } from "./dom-controls.ts";
 
 function form() {
@@ -30,10 +33,16 @@ describe("launch form", () => {
     expectNoEnabledControlWithoutHandler(form());
   });
 
-  it("turns off the launch button, with a reason", () => {
+  it("turns off the launch button until a wallet connects, with a reason", () => {
     const reasons = turnedOffReasons(form());
     expect(Object.keys(reasons)).toEqual(["launch-button"]);
-    expect(reasons["launch-button"]).toMatch(/turned off/);
+    expect(reasons["launch-button"]).toBe("Connect a wallet to launch.");
+  });
+
+  it("shows the total NEAR and that the deposit stays in the coin account, beside the button", () => {
+    const app = form();
+    type(app, "#launch-buy", "4.4");
+    expect(app.querySelector("#launch-deposit")?.textContent).toBe("You attach 5.4 NEAR: a 1 NEAR deposit and a 4.4 NEAR opening buy. The deposit stays in the coin account. Nobody can take it out.");
   });
 
   it("updates the count, the preview and the button label as the visitor types", () => {
@@ -273,5 +282,54 @@ describe("launch form picture", () => {
     choose(app);
     await vi.waitFor(() => expect(app.querySelector("#launch-preview img")).not.toBeNull());
     expect(app.querySelector<HTMLInputElement>("#launch-name")!.value).toBe("Moth Lamp");
+  });
+});
+
+describe("a launch from the form", () => {
+  const launched: TradeOutcome = {
+    kind: "result",
+    result: { kind: "launched", txHash: "Hx3", explorerUrl: "https://testnet.nearblocks.io/txns/Hx3", coin: "moth.factory.sandbox", creator: "you.testnet", launchBlock: 1234, description: null, openingTokens: 0n },
+  };
+  async function signedInForm(send: LaunchSend["launch"]) {
+    const wallet = walletControl("https://example.test/?network=testnet&view=launch", () => ({
+      connect: async () => ({ accountId: "you.testnet", network: "testnet" }),
+      restore: async () => null,
+      send: async () => [],
+      signOut: async () => {},
+      onSignIn: () => {},
+      onSignOut: () => {},
+    }));
+    await wallet.connect();
+    const seen: LaunchedCoin[] = [];
+    const app = document.createElement("main");
+    document.body.replaceChildren(app);
+    const launch = vi.fn(send);
+    drawLaunchForm(app, "http://localhost/?view=launch", { factory: "factory.sandbox", checkName: null }, {}, { wallet, launch, onLaunched: (c) => seen.push(c) });
+    type(app, "#launch-name", "Moth Lamp");
+    type(app, "#launch-ticker", "moth");
+    return { app, seen, launch };
+  }
+
+  it("turns the button on, waits for the wallet, then hands the new coin to its page", async () => {
+    let answer!: (o: TradeOutcome) => void;
+    const { app, seen, launch } = await signedInForm(() => new Promise((r) => (answer = r)));
+    const button = () => app.querySelector<HTMLButtonElement>("#launch-button")!;
+    expect(button().disabled).toBe(false);
+    expectNoEnabledControlWithoutHandler(app);
+    button().click();
+    expect(button().disabled).toBe(true);
+    expect(button().textContent).toBe("Waiting for the wallet");
+    expect(launch).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), "factory.sandbox", expect.objectContaining({ name: "Moth Lamp", ticker: "moth" }), null);
+    answer(launched);
+    await vi.waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toEqual({ coin: "moth.factory.sandbox", name: "Moth Lamp", ticker: "MOTH", icon: null, creator: "you.testnet", launchBlock: 1234, explorerUrl: "https://testnet.nearblocks.io/txns/Hx3" });
+  });
+
+  it("shows the sentence and turns the button back on when the wallet closes", async () => {
+    const { app, seen } = await signedInForm(async () => ({ kind: "not-sent", text: "The wallet closed and sent nothing." }));
+    app.querySelector<HTMLButtonElement>("#launch-button")!.click();
+    await vi.waitFor(() => expect(app.querySelector("#launch-result")?.textContent).toBe("The wallet closed and sent nothing."));
+    expect(app.querySelector<HTMLButtonElement>("#launch-button")!.disabled).toBe(false);
+    expect(seen).toHaveLength(0);
   });
 });

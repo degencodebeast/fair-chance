@@ -1,5 +1,6 @@
-// The text and checks of the launch form. Pure. The launch button is turned off in this version:
-// launching needs a wallet, and nothing on this page signs.
+// The text and checks of the launch form. Pure. The launch button turns on for a signed-in testnet
+// account with valid fields; the visitor's wallet signs, never the page.
+import { exactNear } from "./format.ts";
 import { iconFits } from "./icon-to-webp.ts";
 import { parseTokenAmount } from "./token-amount.ts";
 
@@ -26,6 +27,12 @@ export interface LaunchFormInput {
   icon?: string | null;
   /** The state of the chosen file. A launch waits for "ready" or "none"; a pending or refused picture blocks it. */
   picture?: { state: "none" } | { state: "pending" } | { state: "ready" } | { state: "refused"; reason: string };
+  /** The signed-in testnet account; absent or null when no wallet is connected. */
+  signedIn?: string | null;
+  /** True while the wallet is open for the launch. */
+  pending?: boolean;
+  /** The NEAR the launch attaches for the coin's storage, on top of the opening buy. Absent: no deposit text. */
+  storageDeposit?: bigint;
 }
 
 /** The arguments of the factory's `launch`, field by field (contracts/factory/src/lib.rs). `opening_buy` is yoctoNEAR text. */
@@ -45,13 +52,30 @@ export interface LaunchFormModel {
   /** The ticker as it appears in the coin account: lowered. Null when the ticker is empty or breaks a rule. */
   accountLabel: string | null;
   buyHelp: string;
-  button: { label: string; reason: string };
+  /** `reason` is why the button is off, shown beside it; null when it is on. */
+  button: { label: string; reason: string | null };
+  /** The NEAR the launch attaches, shown beside the button. Null when no deposit is given. */
+  deposit: { total: string; note: string } | null;
   preview: { name: string; ticker: string; description: string; openingBuy: string | null };
   /** The fee note under the button. */
   feeNote: string;
 }
 
-const BUTTON_REASON = "Launching is turned off in this version. A launch needs a wallet, and this page cannot connect one.";
+function launchButton(input: LaunchFormInput, label: string, valid: boolean): { label: string; reason: string | null } {
+  if (input.pending) return { label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." };
+  if (!input.signedIn) return { label, reason: "Connect a wallet to launch." };
+  if (!valid) return { label, reason: "Fix the items above first." };
+  return { label, reason: null };
+}
+
+function depositText(storage: bigint, openingBuy: bigint | null, buyTyped: boolean): { total: string; note: string } {
+  const note = "The deposit stays in the coin account. Nobody can take it out.";
+  const deposit = exactNear(storage.toString());
+  if (openingBuy !== null) {
+    return { total: `You attach ${exactNear((storage + openingBuy).toString())} NEAR: a ${deposit} NEAR deposit and a ${exactNear(openingBuy.toString())} NEAR opening buy.`, note };
+  }
+  return { total: buyTyped ? `You attach ${deposit} NEAR for the deposit, plus the opening buy.` : `You attach ${deposit} NEAR: the deposit.`, note };
+}
 
 export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   const name = input.name.trim();
@@ -89,7 +113,8 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
     accountLabel,
     buyHelp:
       "Optional. An opening buy counts as early supply and pays the early buy fee. The creator group, sub-accounts included, can hold at most 4% of supply.",
-    button: { label: `Launch ${name === "" ? "coin" : name}`, reason: BUTTON_REASON },
+    button: launchButton(input, `Launch ${name === "" ? "coin" : name}`, errors.length === 0),
+    deposit: input.storageDeposit === undefined ? null : depositText(input.storageDeposit, openingBuyUnits, buy !== ""),
     preview: { name, ticker: shownTicker, description, openingBuy: buy === "" ? null : `${buy} NEAR` },
     feeNote: "You earn a share of the swap fee on every trade. You can claim it after the pool holds the minimum real NEAR for 24 h.",
   };

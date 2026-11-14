@@ -27,7 +27,21 @@ async function open(): Promise<void> {
   } else if (screen === "coins") {
     (await import("./render-coin-list.ts")).drawCoinList(app, href);
   } else if (screen === "launch") {
-    (await import("./render-launch-form.ts")).drawLaunchForm(app, href);
+    const [{ drawLaunchForm }, { sendLaunch }, { saveLaunched }, { screenLink }] = await Promise.all([
+      import("./render-launch-form.ts"),
+      import("./trade-actions.ts"),
+      import("./launch-handoff.ts"),
+      import("./screen-route.ts"),
+    ]);
+    drawLaunchForm(app, href, undefined, undefined, {
+      wallet: pageWallet(href),
+      launch: sendLaunch,
+      // The new coin's page shows it at once from the launch result, then reads the chain.
+      onLaunched(coin) {
+        saveLaunched(sessionStorage, coin);
+        location.assign(screenLink(href, "coin", { coin: coin.coin }));
+      },
+    });
   } else if (screen === "alerts") {
     (await import("./render-alerts-screen.ts")).drawAlertsScreen(app, href);
   } else {

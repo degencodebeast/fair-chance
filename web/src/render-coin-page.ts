@@ -16,6 +16,7 @@ import { drawClaimPanel } from "./render-claim-panel.ts";
 import { drawTradeBox } from "./render-trade-box.ts";
 import { loadSellLimit, sendBuy, sendSell } from "./trade-actions.ts";
 import { pageWallet } from "./page-wallet.ts";
+import { drawJustLaunched, takeLaunched } from "./launch-handoff.ts";
 import {
   coinPageModel,
   type Banner,
@@ -28,6 +29,16 @@ import {
 } from "./coin-page-model.ts";
 
 const app = document.querySelector<HTMLElement>("#app")!;
+
+/** A coin launched in this tab: its header shows from the launch result until the chain reads are drawn. */
+const justLaunched = (() => {
+  try {
+    return takeLaunched(sessionStorage, new URL(location.href).searchParams.get("coin") ?? "");
+  } catch {
+    return null;
+  }
+})();
+const titleNode = (): HTMLElement => (justLaunched === null ? el("h1", { id: "coin" }, "Fair Chance") : drawJustLaunched(justLaunched));
 
 function section(label: string, id: string, ...children: Child[]): HTMLElement {
   return el("section", { id, "aria-label": label, class: "card" }, ...children);
@@ -231,7 +242,7 @@ function drawFrame(f: PlaceholderFrame): HTMLElement[] {
 
 function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement[] {
   return [
-    el("h1", { id: "coin" }, "Fair Chance"),
+    titleNode(),
     el(
       "div",
       { role: "alert", class: "banner banner-error", id: "load-error" },
@@ -319,7 +330,7 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
 
 function drawLoading(): void {
   app.replaceChildren(
-    el("h1", { id: "coin" }, "Fair Chance"),
+    titleNode(),
     el("p", { id: "status", class: "status", role: "status" }, "Reading the chain."),
     ...drawFrame(loadingFrame("Loading")),
   );
