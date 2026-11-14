@@ -366,6 +366,17 @@ describe("known deployment comes from the page code, not the link", () => {
     const testnet = await ready(recordedCoin("normal"), `http://localhost/?coin=${coin}&network=testnet`);
     expect(testnet.checksSource).toBe("Checks read through the RPC host test.rpc.fastnear.com.");
   });
+
+  it("names every host that answered when the reads came from more than one", async () => {
+    const rec = recordedCoin("normal");
+    const nowNs = BigInt(rec.now_ns);
+    const data = await loadCoinPage(baseHref, { reader: readerFrom(rec, coin), nowNs });
+    if (data.kind !== "ready") throw new Error("not ready");
+    const both = { ...data, reads: { ...data.reads, rpcHosts: ["fair-chance.example/api/rpc", "test.rpc.fastnear.com"] } };
+    const view = coinPageModel(both, { nowNs, timeZone: "UTC" });
+    if (view.state !== "ready") throw new Error("not ready");
+    expect(view.checksSource).toBe("Checks read through the RPC hosts fair-chance.example/api/rpc and test.rpc.fastnear.com.");
+  });
 });
 
 describe("storage bounds", () => {

@@ -110,20 +110,43 @@ describe("RPC route", () => {
   });
 });
 
-describe("the host the checks list names", () => {
-  it("is the relay on a hosted origin, for reads of the known testnet RPC", () => {
-    expect(createRpcRoute(() => HOSTED).readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("fair-chance.example/api/rpc");
-  });
-  it("is the public RPC on the visitor's own machine", () => {
-    expect(createRpcRoute(() => "http://localhost:5191").readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("test.rpc.fastnear.com");
-  });
-  it("is the RPC of the link for any other RPC URL", () => {
-    expect(createRpcRoute(() => HOSTED).readHost("http://127.0.0.1:3030", "127.0.0.1:3030")).toBe("127.0.0.1:3030");
-  });
-  it("is the public RPC again after the relay is off", async () => {
+describe("the hosts the checks list names", () => {
+  it("is the relay on a hosted origin, for reads of the known testnet RPC", async () => {
     const route = createRpcRoute(() => HOSTED);
-    await route.post(fetchBy((u) => (u === RELAY ? new Response("", { status: 404 }) : ok())), PUBLIC, init);
-    expect(route.readHost(PUBLIC, "test.rpc.fastnear.com")).toBe("test.rpc.fastnear.com");
+    const rec = route.recordHosts();
+    await route.post(fetchBy(ok), PUBLIC, init);
+    expect(rec.hosts()).toEqual(["fair-chance.example/api/rpc"]);
+  });
+  it("is the public RPC on the visitor's own machine", async () => {
+    const route = createRpcRoute(() => "http://localhost:5191");
+    const rec = route.recordHosts();
+    await route.post(fetchBy(ok), PUBLIC, init);
+    expect(rec.hosts()).toEqual(["test.rpc.fastnear.com"]);
+  });
+  it("names the public RPC too when the relay refuses one read (a coin outside the factory)", async () => {
+    const route = createRpcRoute(() => HOSTED);
+    const rec = route.recordHosts();
+    const f = fetchBy((u) => (u === RELAY ? new Response("", { status: 403 }) : ok()));
+    await route.post(fetchBy(ok), PUBLIC, init);
+    await route.post(f, PUBLIC, init);
+    expect(rec.hosts()).toEqual(["fair-chance.example/api/rpc", "test.rpc.fastnear.com"]);
+  });
+  it("names both hosts when the relay falls back in the middle of a load", async () => {
+    const route = createRpcRoute(() => HOSTED);
+    const rec = route.recordHosts();
+    await route.post(fetchBy(ok), PUBLIC, init);
+    const bad = fetchBy((u) => (u === RELAY ? new Response("", { status: 502 }) : ok()));
+    for (let i = 0; i < 3; i++) await route.post(bad, PUBLIC, init);
+    await route.post(fetchBy(ok), PUBLIC, init);
+    expect(rec.hosts()).toEqual(["fair-chance.example/api/rpc", "test.rpc.fastnear.com"]);
+  });
+  it("leaves out a host whose answer was not 2xx, and stops recording after stop", async () => {
+    const route = createRpcRoute(() => HOSTED);
+    const rec = route.recordHosts();
+    await route.post(fetchBy(() => new Response("", { status: 429 })), PUBLIC, init);
+    rec.stop();
+    await route.post(fetchBy(ok), PUBLIC, init);
+    expect(rec.hosts()).toEqual([]);
   });
 });
 

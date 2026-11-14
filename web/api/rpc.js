@@ -14,16 +14,26 @@ const QUERY_ANY_ACCOUNT = new Set(["view_account", "view_access_key_list"]);
 const FINALITIES = new Set(["final", "optimistic"]);
 const ACCOUNT_ID = /^[a-z0-9._-]{2,64}$/;
 
-/** True for the one RPC request shape the page sends: `query` with a fixed finality. */
+const TOP_KEYS = new Set(["jsonrpc", "id", "method", "params"]);
+const ACCOUNT_KEYS = new Set(["request_type", "finality", "account_id"]);
+const CALL_KEYS = new Set([...ACCOUNT_KEYS, "method_name", "args_base64"]);
+
+/** True when every key of `o` is in `allowed`. */
+function onlyKeys(o, allowed) {
+  return Object.keys(o).every((k) => allowed.has(k));
+}
+
+/** True for the one RPC request shape the page sends: `query` with a fixed finality and no other field. */
 export function isAllowed(rpc) {
   if (!rpc || typeof rpc !== "object" || Array.isArray(rpc)) return false;
-  if (rpc.method !== "query") return false;
+  if (rpc.method !== "query" || !onlyKeys(rpc, TOP_KEYS)) return false;
   const p = rpc.params;
   if (!p || typeof p !== "object" || Array.isArray(p)) return false;
-  if (!FINALITIES.has(p.finality) || "block_id" in p) return false;
+  if (!FINALITIES.has(p.finality)) return false;
   if (typeof p.account_id !== "string" || !ACCOUNT_ID.test(p.account_id)) return false;
-  if (QUERY_ANY_ACCOUNT.has(p.request_type)) return true;
-  if (p.request_type !== "call_function") return false;
+  if (QUERY_ANY_ACCOUNT.has(p.request_type)) return onlyKeys(p, ACCOUNT_KEYS);
+  if (p.request_type !== "call_function" || !onlyKeys(p, CALL_KEYS)) return false;
+  if (typeof p.method_name !== "string" || typeof p.args_base64 !== "string") return false;
   return p.account_id === FACTORY || p.account_id.endsWith(`.${FACTORY}`);
 }
 

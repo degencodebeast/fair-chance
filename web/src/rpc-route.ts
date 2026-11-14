@@ -14,8 +14,21 @@ export interface RpcRoute {
   post(fetchFn: typeof fetch, rpcUrl: string, init: RequestInit): Promise<Response>;
   /** True while reads of the known testnet RPC go to the relay. */
   relayOn(): boolean;
-  /** The host a read of `rpcUrl` goes to now: the relay's host and path, or `rpcHost` itself. */
-  readHost(rpcUrl: string, rpcHost: string): string;
+  /**
+   * Starts a record of the hosts that answered reads with a 2xx, in first-use order: the relay as
+   * host and path, any other RPC as its host. Each read adds the host that really answered it.
+   */
+  recordHosts(): HostRecord;
+}
+
+export interface HostRecord {
+  hosts(): string[];
+  stop(): void;
+}
+
+function hostOf(url: string): string {
+  const u = new URL(url);
+  return u.pathname === "/" ? u.host : `${u.host}${u.pathname}`;
 }
 
 /** The page's own relay URL; null on the visitor's own machine or outside a browser. */
@@ -36,6 +49,7 @@ export function createRpcRoute(origin: () => string | null): RpcRoute {
   let relay: string | null | undefined;
   let off = false;
   let failuresInRow = 0;
+  const records = new Set<Set<string>>();
 
   const relayUrl = (): string | null => {
     if (relay === undefined) relay = relayUrlFor(origin());
@@ -48,15 +62,18 @@ export function createRpcRoute(origin: () => string | null): RpcRoute {
 
   return {
     relayOn: () => relayUrl() !== null,
-    readHost(rpcUrl, rpcHost) {
-      const via = rpcUrl === PUBLIC_RPC ? relayUrl() : null;
-      if (via === null) return rpcHost;
-      const u = new URL(via);
-      return `${u.host}${u.pathname}`;
+    recordHosts() {
+      const seen = new Set<string>();
+      records.add(seen);
+      return { hosts: () => [...seen], stop: () => void records.delete(seen) };
     },
     async post(fetchFn, rpcUrl, init) {
+      const answered = (url: string, resp: Response): Response => {
+        if (resp.ok) for (const r of records) r.add(hostOf(url));
+        return resp;
+      };
       const via = rpcUrl === PUBLIC_RPC ? relayUrl() : null;
-      if (via === null) return fetchFn(rpcUrl, init);
+      if (via === null) return answered(rpcUrl, await fetchFn(rpcUrl, init));
       let resp: Response;
       try {
         resp = await fetchFn(via, init);
@@ -67,13 +84,13 @@ export function createRpcRoute(origin: () => string | null): RpcRoute {
       // No relay on this deploy, or no provider URL set: read the public RPC from now on.
       if (resp.status === 404 || resp.status === 503) {
         off = true;
-        return fetchFn(rpcUrl, init);
+        return answered(rpcUrl, await fetchFn(rpcUrl, init));
       }
       // A read the relay does not allow goes to the public RPC; the relay stays on for the others.
-      if (resp.status === 403) return fetchFn(rpcUrl, init);
+      if (resp.status === 403) return answered(rpcUrl, await fetchFn(rpcUrl, init));
       if (resp.status === 429 || resp.status >= 500) failed();
       else failuresInRow = 0;
-      return resp;
+      return answered(via, resp);
     },
   };
 }

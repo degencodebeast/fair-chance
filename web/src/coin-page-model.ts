@@ -146,7 +146,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
     banner: banner(r, ctx),
     warning: checksOk ? null : warning(r.checks),
     checks: r.checks,
-    checksSource: `Checks read through the RPC host ${r.rpcHost}.`,
+    checksSource: `Checks read through the RPC host${r.rpcHosts.length > 1 ? "s" : ""} ${r.rpcHosts.join(" and ")}.`,
     stats: stats(r, ctx, symbol, supply),
     summaryLines: summaryLines(r, who, supply, ctx),
     who,

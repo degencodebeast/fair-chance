@@ -26,8 +26,8 @@ export type Reading<T> = { kind: "value"; value: T } | { kind: "unavailable" };
 
 export interface CoinReads {
   coin: string;
-  /** The RPC host (and port) the checks and the reads used. */
-  rpcHost: string;
+  /** Every RPC host (and port, or relay path) that answered a read of this load, in first-use order. */
+  rpcHosts: string[];
   /** The time the reads were made, for the "as of" label. */
   loadedAtNs: bigint;
   rules: Rules;
@@ -64,6 +64,8 @@ export interface PageLoad {
 }
 
 export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPageData> {
+  // The checks list names every host that really answered a read of this load.
+  const hosts = pageRpcRoute.recordHosts();
   try {
     const link = resolvePageLink(href);
     const cfg = configFromUrl(href);
@@ -80,9 +82,11 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
       runCoinChecks(reader, cfg.coin, link.known),
       eventsFromLaunch(reader, rules.launchBlock),
     ]);
-    const reads: CoinReads = { coin: cfg.coin, rpcHost: pageRpcRoute.readHost(link.rpcUrl, link.rpcHost), loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
+    const reads: CoinReads = { coin: cfg.coin, rpcHosts: hosts.hosts().length > 0 ? hosts.hosts() : [link.rpcHost], loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
     return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href), ...(e instanceof HttpStatusError ? { failure: e } : {}) };
+  } finally {
+    hosts.stop();
   }
 }

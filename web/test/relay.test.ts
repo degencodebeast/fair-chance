@@ -86,6 +86,10 @@ describe("relay allow-list", () => {
     ["a block read", { method: "block", params: { finality: "final" } }],
     ["a tx status", { method: "EXPERIMENTAL_tx_status", params: { tx_hash: "x", sender_account_id: "a.testnet" } }],
     ["a state dump", { method: "query", params: { request_type: "view_state", finality: "final", account_id: "a.testnet", prefix_base64: "" } }],
+    ["a param it does not know", { ...viewAccount("a.testnet"), params: { ...viewAccount("a.testnet").params, sync_checkpoint: "genesis" } }],
+    ["an extra param on a view call", { ...view("bag.factory.fairchance.testnet"), params: { ...view("bag.factory.fairchance.testnet").params, sync_checkpoint: "genesis" } }],
+    ["a view call with no method name", { ...view("bag.factory.fairchance.testnet"), params: { request_type: "call_function", finality: "final", account_id: "bag.factory.fairchance.testnet", args_base64: "e30=" } }],
+    ["a top-level field it does not know", { ...viewAccount("a.testnet"), extra: 1 }],
     ["a read at an old block", { method: "query", params: { request_type: "view_account", block_id: 1, account_id: "a.testnet" } }],
   ])("refuses %s", (_name, body) => {
     expect(isAllowed(body)).toBe(false);
