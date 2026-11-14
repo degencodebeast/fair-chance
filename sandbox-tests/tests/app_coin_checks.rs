@@ -3,7 +3,9 @@
 //! of the funder's sub-accounts, which the runner signs for). Then the detection check: a coin
 //! found too late for the burst plan gets no buy.
 
-use fair_chance_sandbox_tests::app_coin::{check_app_coin, check_detection, AppCoinFacts};
+use fair_chance_sandbox_tests::app_coin::{
+    check_app_coin, check_detection, expected_buy_block, AppCoinFacts,
+};
 use fair_chance_sandbox_tests::burst::BurstTiming;
 
 const KNOWN: &str = "6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3";
@@ -112,4 +114,18 @@ fn a_coin_found_later_than_the_plan_allows_gets_no_buy() {
         .unwrap_err()
         .to_string();
     assert!(refused.contains("no buy was sent"), "{refused}");
+}
+
+/// The block the buys should land in, for the detection log line: the find, then one send call,
+/// then one block to get in and one to run on the coin. C2 timing: 6.45 blocks of send round up to
+/// 7, so a find 2 blocks after the launch block gives 2 + 7 + 2 = 11.
+#[test]
+fn the_expected_buy_block_is_the_find_plus_one_send_call_plus_two_blocks() {
+    assert_eq!(expected_buy_block(&c2_timing(2), 2), 11);
+    assert_eq!(expected_buy_block(&c2_timing(2), 0), 9);
+    let no_delay = BurstTiming {
+        send_s: 0.0,
+        ..c2_timing(2)
+    };
+    assert_eq!(expected_buy_block(&no_delay, 1), 3);
 }
