@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { drawJustLaunched, saveLaunched, takeLaunched, type LaunchedCoin } from "../src/launch-handoff.ts";
+import { drawJustLaunched, drawLaunchedNote, saveLaunched, takeLaunched, type LaunchedCoin } from "../src/launch-handoff.ts";
 
 const FACTORY = "factory.fairchance.testnet";
 const HASH = "BgzcrdkorKb9iLzoS4a4WqVrTkL8ihXssb15wAmpw5RP";
@@ -71,5 +71,13 @@ describe("the launch result handed to the new coin page", () => {
 
   it("draws no link for a hash that is not a transaction hash", () => {
     expect(drawJustLaunched({ ...coin, txHash: "https://example.com/phish" }).querySelector("a")).toBeNull();
+  });
+});
+
+describe("the launch note", () => {
+  it("says the launch went through and links the launch transaction", () => {
+    const node = drawLaunchedNote(coin);
+    expect(node.textContent).toContain("You launched Moth Lamp (MOTH).");
+    expect(node.querySelector("a")?.getAttribute("href")).toBe(`https://testnet.nearblocks.io/txns/${HASH}`);
   });
 });

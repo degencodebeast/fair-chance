@@ -79,3 +79,17 @@ export function drawJustLaunched(c: LaunchedCoin): HTMLElement {
     ),
   );
 }
+
+/**
+ * The note that stays on the new coin's page after its first chain read: the launch went through,
+ * with the explorer link, as a buy and a sell show theirs.
+ */
+export function drawLaunchedNote(c: LaunchedCoin): HTMLElement {
+  const link = explorerTxLink(c.txHash);
+  return el(
+    "div",
+    { class: "trade-result trade-result-ok", id: "launched-note", role: "status" },
+    el("p", {}, el("b", {}, `You launched ${c.name} (${c.ticker}).`)),
+    link !== null && el("a", { class: "text-link", href: link, target: "_blank", rel: "noopener noreferrer" }, "See the launch on the testnet explorer"),
+  );
+}

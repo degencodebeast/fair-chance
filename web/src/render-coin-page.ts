@@ -17,7 +17,7 @@ import { drawTradeBox } from "./render-trade-box.ts";
 import { loadSellLimit, sendBuy, sendSell } from "./trade-actions.ts";
 import { pageWallet } from "./page-wallet.ts";
 import { resolvePageLink } from "./page-link.ts";
-import { drawJustLaunched, takeLaunched } from "./launch-handoff.ts";
+import { drawJustLaunched, drawLaunchedNote, takeLaunched } from "./launch-handoff.ts";
 import {
   checksWarning,
   coinPageModel,
@@ -330,7 +330,9 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
   const parts = reads ? { plan, chart, holders, trade, claim: fees!.panel, feeLine: fees!.line } : { plan: null, chart, holders, trade: null, claim: null, feeLine: null };
   drawn = reads && view.state === "ready" ? { plan, trade, holders, eventCount: reads.events.length } : null;
   const body = view.state === "ready" ? drawReady(view, parts) : drawError(view);
-  app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));
+  // A coin launched in this tab keeps a note with its launch link under the header.
+  const launchedNote = justLaunched !== null && view.state === "ready" ? [drawLaunchedNote(justLaunched)] : [];
+  app.replaceChildren(...body.slice(0, 1), ...launchedNote, status, ...body.slice(1));
   if (holders && reads && !(old?.holders === holders && sameEvents)) {
     const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
     void fillHolders(holders, chainReader(configFromUrl(location.href)), reads.events, supply, reads.loadedAtNs);
