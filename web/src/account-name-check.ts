@@ -4,12 +4,13 @@
 import { readWithRetry, type RetryOptions } from "./chain-fetch.ts";
 import { resolveListLink } from "./page-link.ts";
 import { httpStatusError } from "./refresher.ts";
+import { pageRpcRoute } from "./rpc-route.ts";
 
 export type NameState = "free" | "taken";
 
 export async function checkAccountName(cfg: { rpcUrl: string; accountId: string }, fetchFn: typeof fetch = fetch, retry: RetryOptions = {}): Promise<NameState> {
   const body = await readWithRetry(async () => {
-    const resp = await fetchFn(cfg.rpcUrl, {
+    const resp = await pageRpcRoute.post(fetchFn, cfg.rpcUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: "fc", method: "query", params: { request_type: "view_account", finality: "final", account_id: cfg.accountId } }),

@@ -5,6 +5,7 @@ import { fastNearEvents } from "./fastnear-events.ts";
 import { resolvePageLink } from "./page-link.ts";
 import { cleanChainValue } from "./chain-text.ts";
 import { readWithRetry, type RetryOptions } from "./chain-fetch.ts";
+import { pageRpcRoute, type RpcRoute } from "./rpc-route.ts";
 
 export interface ReaderConfig {
   rpcUrl: string;
@@ -97,11 +98,20 @@ const NO_LOCAL_CODE = "11111111111111111111111111111111";
 
 const WATCHED = new Set(["fair_chance", "fair_chance_factory"]);
 
-/** Each RPC call and each FastNEAR call is one read with the short retry of chain-fetch.ts. */
-export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch, retry: RetryOptions = {}): ChainReader {
+/** Tests give their own limiter, wait and RPC route. */
+export interface ReadOptions extends RetryOptions {
+  route?: RpcRoute;
+}
+
+/**
+ * Each RPC call and each FastNEAR call is one read with the short retry of chain-fetch.ts. RPC calls
+ * go through the page's RPC route (rpc-route.ts), so a hosted page reads through its relay.
+ */
+export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch, retry: ReadOptions = {}): ChainReader {
+  const route = retry.route ?? pageRpcRoute;
   async function call<T>(method: string, params: object): Promise<T> {
     return readWithRetry(async () => {
-      const resp = await fetchFn(cfg.rpcUrl, {
+      const resp = await route.post(fetchFn, cfg.rpcUrl, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: "fc", method, params }),
