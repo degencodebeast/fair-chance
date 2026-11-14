@@ -396,5 +396,8 @@ async function refreshOnce(): Promise<void> {
 load();
 refresh = refreshWhileShown(refreshOnce, (_e, retrying) => {
   const status = app.querySelector("#status");
-  if (status && drawn !== null) status.textContent = retrying ? "Could not refresh. Trying again." : "Could not refresh. Reload the page to try again.";
+  if (!status) return;
+  // Before the first good read the page shows the error view; it still tries again by itself.
+  if (drawn === null) status.textContent = retrying ? "Values cannot load yet. Trying again by itself." : "Values cannot load. Reload the page to try again.";
+  else status.textContent = retrying ? "Could not refresh. Trying again." : "Could not refresh. Reload the page to try again.";
 });

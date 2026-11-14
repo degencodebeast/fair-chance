@@ -84,7 +84,7 @@ describe("reading a recorded run", () => {
   });
 });
 
-const network = (file: string | null): KnownNetwork => ({ rpcUrl: "https://rpc.fake.example", fastNearUrl: "https://tx.fake.example", factoryFromBlock: 0, factory: null, codeHash: null, demoCoin: null, explorerTxUrl: explorer, recordedRunFile: file });
+const network = (file: string | null): KnownNetwork => ({ rpcUrl: "https://rpc.fake.example", fastNearUrl: "https://tx.fake.example", factoryFromBlock: 0, factory: null, codeHash: null, demoCoin: fixture.coin, explorerTxUrl: explorer, recordedRunFile: file });
 const link = `https://fc.example/?network=testnet&coin=${fixture.coin}`;
 const reply = (body: unknown, status = 200) => async () => new Response(JSON.stringify(body), { status });
 
@@ -108,6 +108,13 @@ describe("loading the recorded run", () => {
     expect(missing?.ok).toBe(false);
     const broken = await loadRecordedRun(link, network("evidence/testnet-run.json"), async () => new Response("<html>"));
     expect(broken?.ok).toBe(false);
+  });
+
+  it("reads nothing for a coin other than the demo coin, so its page shows no recorded run", async () => {
+    let calls = 0;
+    const other = "https://fc.example/?network=testnet&coin=cabal2.factory.fairchance.testnet";
+    expect(await loadRecordedRun(other, network("e.json"), async () => { calls++; return new Response(JSON.stringify(fixture)); })).toBeNull();
+    expect(calls).toBe(0);
   });
 
   it("reads nothing for a link with no network or no coin", async () => {

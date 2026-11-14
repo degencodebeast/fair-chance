@@ -118,6 +118,22 @@ describe("the refresher", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it.each(["Failed to fetch", "NetworkError when attempting to fetch resource.", "Load failed", "Values cannot load: Failed to fetch"])(
+    "backs off and tries again when the request got no readable answer (%s)",
+    async (message) => {
+      const timers = fakeTimers();
+      const seen: boolean[] = [];
+      let n = 0;
+      const r = createRefresher({ run: async () => { if (n++ === 0) throw new TypeError(message); }, timers, isHidden: () => false, onError: (_e, retrying) => seen.push(retrying) });
+      r.start();
+      await timers.advance(REFRESH_MS);
+      expect(seen).toEqual([true]);
+      expect(timers.count()).toBe(1);
+      await timers.advance(4000);
+      expect(n).toBe(2);
+    },
+  );
+
   it("stops on an error it does not know, and says so through onError", async () => {
     const timers = fakeTimers();
     const seen: Array<[unknown, boolean]> = [];

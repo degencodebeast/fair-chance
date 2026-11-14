@@ -6,7 +6,7 @@ import { chainReader, type ChainReader } from "./chain.ts";
 import { MOST_COINS_SHOWN } from "./coin-cards-from-chain.ts";
 import { parseMetadata } from "./coin-views.ts";
 import { resolveListLink } from "./page-link.ts";
-import { backoffDelayMs, shouldBackOff } from "./refresher.ts";
+import { backoffDelayMs, HttpStatusError, shouldBackOff } from "./refresher.ts";
 
 /** Coins read at the same time, each one view at a time: at most this many RPC calls in flight. */
 const COINS_AT_ONCE = 4;
@@ -41,7 +41,7 @@ async function withBackoff<R>(read: () => Promise<R>, sleep: (ms: number) => Pro
       return await read();
     } catch (e) {
       if (!shouldBackOff(e) || failures >= TRIES) throw e;
-      await sleep(backoffDelayMs(failures, e.retryAfterMs));
+      await sleep(backoffDelayMs(failures, e instanceof HttpStatusError ? e.retryAfterMs : null));
     }
   }
 }

@@ -28,9 +28,16 @@ export function backoffDelayMs(failures: number, retryAfterMs: number | null): n
   return Math.min(MAX_DELAY_MS, Math.max(step, retryAfterMs ?? 0));
 }
 
-/** True for a 429 or a 5xx answer: the read may run again after a backoff. */
-export function shouldBackOff(e: unknown): e is HttpStatusError {
-  return e instanceof HttpStatusError && (e.status === 429 || e.status >= 500);
+/**
+ * The browser's words for a request that got no readable answer: Chrome, Firefox and Safari. A rate
+ * limit answer without CORS headers reaches the page this way, with no status to read.
+ */
+const NETWORK_FAILURES = /Failed to fetch|NetworkError when attempting to fetch|Load failed/;
+
+/** True for a 429, a 5xx answer or a request with no readable answer: the read may run again after a backoff. */
+export function shouldBackOff(e: unknown): boolean {
+  if (e instanceof HttpStatusError) return e.status === 429 || e.status >= 500;
+  return e instanceof Error && NETWORK_FAILURES.test(e.message);
 }
 
 export interface RefresherTimers {
@@ -93,7 +100,7 @@ export function createRefresher(options: RefresherOptions): Refresher {
         return;
       }
       failures += 1;
-      delay = backoffDelayMs(failures, e.retryAfterMs);
+      delay = backoffDelayMs(failures, e instanceof HttpStatusError ? e.retryAfterMs : null);
     } finally {
       running = false;
     }

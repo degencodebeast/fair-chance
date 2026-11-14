@@ -76,14 +76,15 @@ export function parseRecordedRun(file: unknown, expect: { network: string; coin:
 
 /**
  * Reads the recorded run for the coin in the page link. Null when there is nothing to show: the link
- * names no testnet coin, or the config has no file yet. A missing or broken file is a failure, so the
+ * names no testnet coin, a coin other than the demo coin, or the config has no file yet. A missing or broken file is a failure, so the
  * page can say so instead of showing an empty run.
  */
 export async function loadRecordedRun(href: string, network: KnownNetwork | null = networkFor(href), fetchFn: typeof fetch = fetch): Promise<RecordedRun | null> {
   const url = new URL(href);
   const coin = url.searchParams.get("coin");
   const networkName = url.searchParams.get("network");
-  if (network === null || networkName === null || network.recordedRunFile === null || !coin) return null;
+  // The file holds the run of the demo coin only, so any other coin shows no recorded run at all.
+  if (network === null || networkName === null || network.recordedRunFile === null || !coin || coin !== network.demoCoin) return null;
   try {
     const response = await fetchFn(new URL(network.recordedRunFile, url.origin + "/").href);
     if (!response.ok) return fail(`the file did not load (HTTP ${response.status})`);
