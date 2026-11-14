@@ -228,6 +228,31 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
     let world = World::launch().await?;
     let (setup, coin) = launched_bag(&world).await?;
     let (sellers, keepers) = fixed_accounts("BAG", &setup.funder.id)?;
+    // A buyer outside the plan adds 100 NEAR, so the pool holds about 120 NEAR as on testnet and
+    // the hourly cap (5% of it) lets the hand sells of 01 to 03 fill in full, as they did there.
+    let bounds = view_on(&setup.network, &coin, "storage_balance_bounds", json!({})).await?;
+    let storage: u128 = bounds["min"].as_str().unwrap().parse()?;
+    let big = batch_once(
+        &setup.network,
+        &setup.send_network,
+        &world.alice,
+        &coin,
+        vec![
+            FunctionCall::new(
+                "storage_deposit",
+                json!({}),
+                NearToken::from_yoctonear(storage),
+            ),
+            FunctionCall::new(
+                "buy",
+                json!({ "min_tokens_out": "0" }),
+                NearToken::from_near(100),
+            ),
+        ],
+        NearGas::from_tgas(300),
+    )
+    .await?;
+    assert!(big.is_success(), "{big:?}");
     // The plan file a sells run wrote before it stopped after sell 3.
     let mut balances = Vec::new();
     for a in &sellers {
@@ -257,6 +282,12 @@ async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_f
         )
         .await?;
         assert!(sold.is_success(), "{sold:?}");
+        assert_eq!(
+            balance_of(&setup, &coin, &step.account).await?,
+            0,
+            "the hand sell of {} did not fill in full",
+            step.account
+        );
     }
     let mut kept = Vec::new();
     for k in &keepers {
