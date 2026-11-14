@@ -142,3 +142,9 @@ pre { margin: 6px 0 0; font: 400 12.5px/1.55 var(--font-num); white-space: pre-w
 .try-it { margin: 16px 0; }
 .try-it ol { margin: 8px 0; padding-left: 20px; }
 .try-it li { margin: 4px 0; }
+
+/* My coins */
+.mine-list { list-style: none; margin: 8px 0 20px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.mine-coin { display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.mine-coin p { margin: 0; }
+.mine-coin-link { display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }

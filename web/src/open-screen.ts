@@ -15,7 +15,7 @@ showNetworkBanner(document, href);
 mountWalletBar(document, pageWallet(href));
 const screen = screenFor(href);
 
-const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", launch: "Launch a coin", coin: "Fair Chance coin" };
+const TITLES = { landing: "Fair Chance", coins: "Fair Chance coins", alerts: "Fair Chance alerts", launch: "Launch a coin", mine: "My coins", coin: "Fair Chance coin" };
 document.title = TITLES[screen];
 
 async function open(): Promise<void> {
@@ -42,6 +42,9 @@ async function open(): Promise<void> {
         location.assign(screenLink(href, "coin", { coin: coin.coin }));
       },
     });
+  } else if (screen === "mine") {
+    const [{ drawMyCoins }, { myCoinsFromLink }] = await Promise.all([import("./render-my-coins.ts"), import("./my-coins.ts")]);
+    drawMyCoins(app, href, { wallet: pageWallet(href), load: myCoinsFromLink(href) });
   } else if (screen === "alerts") {
     (await import("./render-alerts-screen.ts")).drawAlertsScreen(app, href);
   } else {

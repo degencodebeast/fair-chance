@@ -12,7 +12,7 @@ export function screenHeader(href: string, current: Screen): HTMLElement {
     "header",
     { class: "screen-header" },
     el("a", { class: "brand", href: screenLink(href, "landing") }, "Fair Chance"),
-    el("nav", { "aria-label": "Screens", class: "screen-nav" }, link("coins", "Coins"), link("alerts", "Alerts")),
+    el("nav", { "aria-label": "Screens", class: "screen-nav" }, link("coins", "Coins"), link("mine", "My coins"), link("alerts", "Alerts")),
     el("a", { class: "button button-dark", id: "header-open-app", href: screenLink(href, "coins") }, "Open app"),
   );
 }
