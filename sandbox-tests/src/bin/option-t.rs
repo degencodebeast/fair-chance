@@ -18,6 +18,12 @@
 //!   option-t --network testnet --ticker BAG --sells-only --sell-plan <that file> --return-to-funder
 //!                                     the return step after the sells: buyers 01 to 18 send their
 //!                                     NEAR minus 0.05 NEAR to the funder, once; 19 and 20 untouched
+//!   option-t --coin <label>.<factory> the run does not launch: it makes the buyers, signs every
+//!                                     buy and early sell, then waits for the app to launch that
+//!                                     coin and sends the burst when it appears (app_coin.rs). The
+//!                                     creator must not be the funder or one of its sub-accounts,
+//!                                     and the coin must run the known code. On sandbox a stand-in
+//!                                     launches it from alice at a random delay, for a rehearsal
 //!   --buy-millinear <n>               NEAR per buy, in milliNEAR (default 1000)
 //!   --buyer-extra-millinear <n>       NEAR per buyer on top of its buy (default 500)
 //!   --buyer-tgas <n>                  prepaid gas per buyer transaction, in TGas (default 300)
@@ -107,7 +113,12 @@ async fn start(list: &mut PassList) -> Result<()> {
     if buyers == 0 {
         anyhow::bail!("--buyers takes 1 or more; nothing was run");
     }
-    let ticker = args.ticker.clone().unwrap_or_else(|| "optiont".to_string());
+    // With --coin the accounts take the coin's label (cabal3-buyer-01 for cabal3.<factory>); the
+    // full check of the coin and of the flags with it runs on the setup's factory below.
+    let ticker = match &args.coin {
+        Some(coin) => coin.split('.').next().unwrap_or_default().to_string(),
+        None => args.ticker.clone().unwrap_or_else(|| "optiont".to_string()),
+    };
     let tune = |setup: &mut OptionTSetup| {
         setup.buy_near = NearToken::from_millinear(args.buy_millinear.unwrap_or(1000).into());
         setup.buyer_extra =
@@ -126,6 +137,7 @@ async fn start(list: &mut PassList) -> Result<()> {
         }
     };
     let world;
+    let mut world_for_stand_in = None;
     let mut setup = match network {
         DemoNetwork::Sandbox => {
             println!("option-t: start a fresh sandbox with the factory");
@@ -133,12 +145,18 @@ async fn start(list: &mut PassList) -> Result<()> {
                 Some(ms) => World::launch_with_block_ms(ms).await?,
                 None => World::launch().await?,
             };
+            world_for_stand_in = Some(&world);
             OptionTSetup::sandbox_defaults(&world, &ticker, buyers)
         }
         DemoNetwork::Testnet => testnet_setup(&ticker, buyers).await?,
     };
     tune(&mut setup);
     setup.limits = limits;
+    if let Some(request) =
+        fair_chance_sandbox_tests::app_coin::app_coin_request(&args, &setup.factory)?
+    {
+        return run_on_app_coin(&setup, &request, network, &world_for_stand_in, list).await;
+    }
     if let Some(plan) = sell_plan {
         let coin =
             fair_chance_sandbox_tests::option_t::coin_account_id(&setup.ticker, &setup.factory)?;
@@ -174,6 +192,55 @@ async fn start(list: &mut PassList) -> Result<()> {
         );
     }
     run(&setup, list).await?;
+    Ok(())
+}
+
+/// Longest wait of the sandbox stand-in after the runner starts to wait, before it launches.
+const STAND_IN_MAX_DELAY: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// The run on a coin the app launches. On testnet the known code hash is the deployed coin's; on
+/// sandbox it is the World's coin code, and a stand-in task launches the coin from alice (never the
+/// funder) at a random delay after the runner starts to wait.
+async fn run_on_app_coin(
+    setup: &OptionTSetup,
+    request: &fair_chance_sandbox_tests::app_coin::AppCoinRequest,
+    network: DemoNetwork,
+    world: &Option<&World>,
+    list: &mut PassList,
+) -> Result<()> {
+    use fair_chance_sandbox_tests::app_coin::{
+        run_app_coin, stand_in_launch, TESTNET_COIN_CODE_HASH,
+    };
+    match (network, world) {
+        (DemoNetwork::Testnet, _) => {
+            run_app_coin(setup, request, TESTNET_COIN_CODE_HASH, list, || {}).await?;
+        }
+        (DemoNetwork::Sandbox, Some(world)) => {
+            let (ready, go) = tokio::sync::oneshot::channel();
+            let stand_in = tokio::spawn(stand_in_launch(
+                world.network.clone(),
+                world.factory.id.clone(),
+                world.alice.clone(),
+                request.label.clone(),
+                STAND_IN_MAX_DELAY,
+                go,
+            ));
+            let known = world.coin_code_hash.to_string();
+            let outcome = run_app_coin(setup, request, &known, list, move || {
+                let _ = ready.send(());
+            })
+            .await;
+            let launched = stand_in.await??;
+            let report = outcome?;
+            if report.launch_tx != launched {
+                anyhow::bail!(
+                    "the run read launch tx {} from the chain, not the stand-in's {launched}",
+                    report.launch_tx
+                );
+            }
+        }
+        (DemoNetwork::Sandbox, None) => anyhow::bail!("no sandbox for the stand-in"),
+    }
     Ok(())
 }
 
