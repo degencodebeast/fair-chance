@@ -218,3 +218,79 @@ async fn after_the_sells_buyers_01_to_18_return_their_near_once_and_19_and_20_ar
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn a_stopped_sells_run_continues_with_buyers_04_to_18_from_the_same_plan_file() -> Result<()>
+{
+    use fair_chance_sandbox_tests::sells_only::{
+        fixed_accounts, plan_from_balances, plan_json, run_continue,
+    };
+    let world = World::launch().await?;
+    let (setup, coin) = launched_bag(&world).await?;
+    let (sellers, keepers) = fixed_accounts("BAG", &setup.funder.id)?;
+    // The plan file a sells run wrote before it stopped after sell 3.
+    let mut balances = Vec::new();
+    for a in &sellers {
+        balances.push((a.clone(), balance_of(&setup, &coin, a).await?));
+    }
+    let plan = plan_from_balances(&coin, "BAG", &setup.funder.id, &balances)?;
+    let path = plan_path("continue");
+    std::fs::write(
+        &path,
+        format!("{}\n", serde_json::to_string_pretty(&plan_json(&plan))?),
+    )?;
+    let sha = sha256_of(&path);
+    for step in &plan.steps[..3] {
+        let seller = fair_chance_sandbox_tests::Account {
+            id: step.account.clone(),
+            signer: setup.funder.signer.clone(),
+        };
+        let sold = fair_chance_sandbox_tests::transact_once(
+            &setup.network,
+            &setup.send_network,
+            &seller,
+            &coin,
+            "sell",
+            json!({ "amount": step.amount.to_string(), "min_near_out": "0" }),
+            NearToken::from_yoctonear(1),
+            NearGas::from_tgas(300),
+        )
+        .await?;
+        assert!(sold.is_success(), "{sold:?}");
+    }
+    let mut kept = Vec::new();
+    for k in &keepers {
+        kept.push(balance_of(&setup, &coin, k).await?);
+    }
+    let file_before = std::fs::read(&path)?;
+
+    // A wrong hash stops it before any signature.
+    let error = run_continue(&setup, &path, &"0".repeat(64), &mut PassList::default())
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("nothing was signed"), "{error}");
+    assert_eq!(
+        balance_of(&setup, &coin, &sellers[3]).await?,
+        plan.steps[3].amount
+    );
+
+    let sells = run_continue(&setup, &path, &sha, &mut PassList::default()).await?;
+
+    assert_eq!(std::fs::read(&path)?, file_before, "the plan file changed");
+    assert_eq!(sells.len(), 15);
+    for (k, sell) in sells.iter().enumerate() {
+        let i = k + 3;
+        assert_eq!(sell.account, sellers[i], "sell {} out of order", i + 1);
+        assert_eq!(sell.tokens_asked, plan.steps[i].amount);
+    }
+    for (k, a) in keepers.iter().enumerate() {
+        assert_eq!(balance_of(&setup, &coin, a).await?, kept[k], "{a} sold");
+    }
+    // Done: a second continue finds every seller sold or not at its planned amount.
+    let again = run_continue(&setup, &path, &sha, &mut PassList::default()).await;
+    match again {
+        Ok(sells) => assert!(sells.is_empty(), "{sells:?}"),
+        Err(e) => assert!(e.to_string().contains("nothing was signed"), "{e}"),
+    }
+    Ok(())
+}
