@@ -30,6 +30,9 @@ expect_refused_naming() { # expect_refused_naming <named> <argument>...
 }
 expect_refused_naming --bogus --return-to-funder --bogus
 expect_refused_naming --bogus --sells-only --bogus
+expect_refused_naming --bogus --continue --plan-sha256 cb36667b628fa837fb30f8cc9a5a1b834a440b0aeb766f43b84652339f538bc8 --bogus
+expect_refused --plan-sha256
+expect_refused --continue=yes
 expect_refused --return-to-funder=yes
 expect_refused --return-to-funders
 expect_refused --network=testnet
