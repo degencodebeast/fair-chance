@@ -60,8 +60,12 @@ func TestBlockScanReturnsTheCoinEventsInChainOrder(t *testing.T) {
 	if len(got) != 2 || got[0].Name != "fc_buy" || got[1].Name != "fc_sell" {
 		t.Fatalf("got %+v", got)
 	}
+	// Each event carries the block where its receipt ran, one after the block that included the transaction.
+	if got[0].Block != 22 {
+		t.Fatalf("buy block %d, want 22 (the transaction is in block 21)", got[0].Block)
+	}
 	sell := got[1]
-	if sell.Coin != coin || sell.Block != 27 || sell.Version != "1.0.0-rc.4" || sell.Standard != "fair_chance" {
+	if sell.Coin != coin || sell.Block != 28 || sell.Version != "1.0.0-rc.4" || sell.Standard != "fair_chance" {
 		t.Fatalf("sell %+v", sell)
 	}
 	var data struct {

@@ -48,7 +48,7 @@ func TestFastNearGivesTheCoinsEventsInChainOrderWithTheNextCursor(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(evs) != 2 || evs[0].Name != "fc_buy" || evs[0].Block != 21 || evs[1].Name != "fc_sell" || evs[1].Block != 27 {
+	if len(evs) != 2 || evs[0].Name != "fc_buy" || evs[0].Block != 22 || evs[1].Name != "fc_sell" || evs[1].Block != 28 {
 		t.Fatalf("events %+v", evs)
 	}
 	if evs[0].Coin != "walk.factory.sandbox" || evs[1].ReceiptID != "receiptSell1" || evs[0].Standard != "fair_chance" {

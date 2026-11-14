@@ -18,11 +18,11 @@ import (
 type request struct {
 	Method string `json:"method"`
 	Params struct {
-		BlockID    *uint64 `json:"block_id"`
-		Finality   string  `json:"finality"`
-		ChunkID    string  `json:"chunk_id"`
-		TxHash     string  `json:"tx_hash"`
-		MethodName string  `json:"method_name"`
+		BlockID    json.RawMessage `json:"block_id"` // a height (number) or a block hash (string)
+		Finality   string          `json:"finality"`
+		ChunkID    string          `json:"chunk_id"`
+		TxHash     string          `json:"tx_hash"`
+		MethodName string          `json:"method_name"`
 	} `json:"params"`
 }
 
@@ -49,8 +49,18 @@ func serve(t testing.TB, dir string, head uint64, earliest *uint64) *httptest.Se
 		switch req.Method {
 		case "block":
 			height := head
-			if req.Params.BlockID != nil {
-				height = *req.Params.BlockID
+			var hash string
+			if json.Unmarshal(req.Params.BlockID, &hash) == nil && hash != "" {
+				name = blockFileByHash(dir, hash)
+				if name == "" {
+					http.Error(w, "not recorded: block "+hash, http.StatusNotFound)
+					return
+				}
+				break
+			}
+			var id uint64
+			if json.Unmarshal(req.Params.BlockID, &id) == nil {
+				height = id
 			}
 			name = fmt.Sprintf("block_%d.json", height)
 			if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
@@ -83,4 +93,26 @@ func serve(t testing.TB, dir string, head uint64, earliest *uint64) *httptest.Se
 	}))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// blockFileByHash finds the recorded block file whose header holds this hash, or "".
+func blockFileByHash(dir, hash string) string {
+	files, _ := filepath.Glob(filepath.Join(dir, "block_*.json"))
+	for _, f := range files {
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Result struct {
+				Header struct {
+					Hash string `json:"hash"`
+				} `json:"header"`
+			} `json:"result"`
+		}
+		if json.Unmarshal(raw, &doc) == nil && doc.Result.Header.Hash == hash {
+			return filepath.Base(f)
+		}
+	}
+	return ""
 }

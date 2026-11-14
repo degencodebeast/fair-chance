@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "author": "test.near",
+    "chunks": [],
+    "header": {
+      "hash": "G8fv7FRYkET99xvyCkrEBcPA8vPYBSVASTd1MPs4LAyW",
+      "height": 28,
+      "prev_hash": "DLZx2BU5wBwmoZ4beUyWKjjQpCdEfuH1QpcPisxoBSeP"
+    }
+  },
+  "id": "fc"
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // RPCScan is the Source for a node with plain NEAR RPC, such as near-sandbox.
@@ -26,6 +27,7 @@ func NewRPCScan(rpcURL string) *RPCScan {
 type blockView struct {
 	Header struct {
 		Height uint64 `json:"height"`
+		Hash   string `json:"hash"`
 	} `json:"header"`
 	Chunks []struct {
 		ChunkHash      string `json:"chunk_hash"`
@@ -42,8 +44,9 @@ type chunkView struct {
 
 type txStatus struct {
 	ReceiptsOutcome []struct {
-		ID      string `json:"id"`
-		Outcome struct {
+		ID        string `json:"id"`
+		BlockHash string `json:"block_hash"` // the block where the receipt ran
+		Outcome   struct {
 			ExecutorID string         `json:"executor_id"`
 			Logs       []string       `json:"logs"`
 			Status     map[string]any `json:"status"`
@@ -71,15 +74,37 @@ func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]E
 	if err := s.rpc.call(ctx, "block", map[string]any{"finality": "final"}, &head); err != nil {
 		return nil, since, fmt.Errorf("final head: %w", err)
 	}
-	var out []Event
+	// Each event carries the block where its receipt ran, which can be later than the block that
+	// included its transaction. The cursor and the retry rule follow the inclusion block, so
+	// found keeps both heights.
+	type found struct {
+		ev       Event
+		included uint64
+	}
+	var out []found
 	seen := map[string]bool{}
-	// On an error at height h, keep only the events of blocks before h, so the caller can
-	// retry from h without sending an event twice.
+	heights := map[string]uint64{} // block hash -> height, read once per pass
+	heightOf := func(hash string, fallback uint64) (uint64, error) {
+		if hash == "" {
+			return fallback, nil
+		}
+		if height, ok := heights[hash]; ok {
+			return height, nil
+		}
+		var b blockView
+		if err := s.rpc.call(ctx, "block", map[string]any{"block_id": hash}, &b); err != nil {
+			return 0, fmt.Errorf("block %s: %w", hash, err)
+		}
+		heights[hash] = b.Header.Height
+		return b.Header.Height, nil
+	}
+	// On an error at height h, keep only the events of transactions in blocks before h, so the
+	// caller can retry from h without sending an event twice.
 	fail := func(h uint64, err error) ([]Event, Cursor, error) {
-		keep := out[:0]
-		for _, ev := range out {
-			if ev.Block < h {
-				keep = append(keep, ev)
+		var keep []Event
+		for _, f := range out {
+			if f.included < h {
+				keep = append(keep, f.ev)
 			}
 		}
 		return keep, Cursor(h), err
@@ -92,6 +117,9 @@ func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]E
 		}
 		if err != nil {
 			return fail(h, fmt.Errorf("block %d: %w", h, err))
+		}
+		if block.Header.Hash != "" {
+			heights[block.Header.Hash] = h
 		}
 		for _, ch := range block.Chunks {
 			if ch.HeightIncluded != h {
@@ -111,19 +139,35 @@ func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]E
 					if !watched[r.Outcome.ExecutorID] || seen[r.ID] || !succeeded(r.Outcome.Status) {
 						continue
 					}
-					seen[r.ID] = true
+					var evs []Event
 					for _, line := range r.Outcome.Logs {
 						if ev, ok := parseLog(line); ok {
-							ev.Coin, ev.ReceiptID, ev.Block = r.Outcome.ExecutorID, r.ID, h
+							ev.Coin, ev.ReceiptID = r.Outcome.ExecutorID, r.ID
 							ev.TxHash, ev.TxSigner = tx.Hash, tx.SignerID
-							out = append(out, ev)
+							evs = append(evs, ev)
 						}
 					}
+					if len(evs) > 0 { // only a receipt with events costs a block read
+						block, err := heightOf(r.BlockHash, h)
+						if err != nil {
+							return fail(h, err)
+						}
+						for _, ev := range evs {
+							ev.Block = block
+							out = append(out, found{ev, h})
+						}
+					}
+					seen[r.ID] = true
 				}
 			}
 		}
 	}
-	return out, Cursor(head.Header.Height + 1), nil
+	events := make([]Event, len(out))
+	for i, f := range out {
+		events[i] = f.ev
+	}
+	slices.SortStableFunc(events, func(a, b Event) int { return int(int64(a.Block) - int64(b.Block)) })
+	return events, Cursor(head.Header.Height + 1), nil
 }
 
 // succeeded reports a receipt outcome status of SuccessValue or SuccessReceiptId.

@@ -20,6 +20,7 @@
             "receiver_id": "walk.factory.sandbox"
           },
           "execution_outcome": {
+            "block_height": 22,
             "outcome": {
               "executor_id": "walk.factory.sandbox",
               "logs": [
@@ -54,6 +55,7 @@
             "receiver_id": "walk.factory.sandbox"
           },
           "execution_outcome": {
+            "block_height": 28,
             "outcome": {
               "executor_id": "walk.factory.sandbox",
               "logs": [
