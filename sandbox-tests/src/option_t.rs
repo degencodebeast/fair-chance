@@ -1297,6 +1297,12 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         near(report.left_in_new_accounts.as_yoctonear()),
         near(report.coin_storage_lock.as_yoctonear())
     ));
+    let end_block_s = measured_block_s(&setup.network).await?;
+    say(&format!(
+        "blocks per second: {:.3} over the {BLOCK_TIME_SPAN} blocks before the account step, {:.3} over the last {BLOCK_TIME_SPAN} blocks at the end",
+        1.0 / block_s,
+        1.0 / end_block_s
+    ));
     Ok(report)
 }
 
