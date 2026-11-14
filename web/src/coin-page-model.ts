@@ -1,5 +1,6 @@
 // What the coin page shows, as plain text and flags, from what the chain returned. Pure: the same
 // reads and clock always give the same page. The renderer only draws this.
+import { BOT_LINK_TEXT, BOT_SENTENCE } from "./telegram-button.ts";
 import { iconFits } from "./icon-to-webp.ts";
 import type { CoinEvent } from "./chain.ts";
 import type { CheckResult } from "./chain-checks.ts";
@@ -74,7 +75,7 @@ export interface CoinPageModel {
     /** The text of the link to the rules: long on desktop, short on a phone. */
     rulesChip: { desktop: string; phone: string };
   };
-  /** The Telegram button is shown turned off, with the reason, until a public bot is approved. */
+  /** The link to the public alert bot, with the sentence that says what to send it. */
   telegram: { label: string; reason: string };
   banner: Banner | null;
   /** Set when any chain check failed or could not run. */
@@ -141,7 +142,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
     asOf: `As of ${clockTime(r.loadedAtNs, ctx)}`,
     refreshAtNs: refreshAt(r, ctx.nowNs),
     header: header(r, ctx),
-    telegram: { label: "Watch on Telegram", reason: "Not open yet. The public alert bot is not live." },
+    telegram: { label: BOT_LINK_TEXT, reason: BOT_SENTENCE },
     banner: banner(r, ctx),
     warning: checksOk ? null : warning(r.checks),
     checks: r.checks,

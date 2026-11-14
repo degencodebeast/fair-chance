@@ -4,6 +4,7 @@ import { el, type Child } from "./dom-elements.ts";
 import { sampleLabel } from "./sample-label.ts";
 import { isOwnMachineHost } from "./local-host.ts";
 import { screenHeader } from "./screen-chrome.ts";
+import { BOT_LINK_TEXT, BOT_SENTENCE, BOT_URL } from "./telegram-button.ts";
 import { screenLink } from "./screen-route.ts";
 import { watcherScreenModel, type ChatMessage } from "./watcher-screen-model.ts";
 
@@ -23,7 +24,8 @@ function drawHostedAlerts(app: HTMLElement, href: string): void {
       "div",
       { class: "alerts-intro" },
       el("h1", { id: "alerts-title" }, "Fair Chance alerts"),
-      el("p", {}, "Alerts for a coin go to the coin's team on Telegram. The watcher cannot move funds or change a rule, and it gives no advice."),
+      el("p", {}, "The watcher cannot move funds or change a rule, and it gives no advice."),
+      el("p", {}, el("a", { id: "alerts-bot-link", class: "text-link", href: BOT_URL, target: "_blank", rel: "noopener noreferrer" }, BOT_LINK_TEXT), " ", BOT_SENTENCE),
       el("p", {}, "The coin page reads every receipt from the chain. It works without Telegram."),
       link,
     ),

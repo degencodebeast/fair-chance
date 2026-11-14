@@ -3,7 +3,7 @@ import { el } from "./dom-elements.ts";
 import type { RecordedRun } from "./recorded-run.ts";
 
 export function drawRecordedRun(run: RecordedRun): HTMLElement {
-  const head = el("div", { class: "section-head" }, el("h2", {}, "Recorded testnet run"), el("span", { class: "muted" }, "Recorded on testnet. Not live."));
+  const head = el("div", { class: "section-head" }, el("h2", {}, "Recorded testnet run"), el("span", { class: "muted" }, "Recorded on testnet. Not read from the chain now."));
   if (!run.ok) {
     return el("section", { id: "recorded-run", class: "card", "aria-label": "Recorded testnet run" }, head, el("p", { class: "note", id: "recorded-run-error" }, `The recorded run cannot load: ${run.reason}.`));
   }

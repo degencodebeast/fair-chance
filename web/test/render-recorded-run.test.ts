@@ -7,7 +7,7 @@ describe("the Recorded testnet run section", () => {
     const section = drawRecordedRun({ ok: true, rows: [{ txHash: "h1", link: "https://x.example/txns/h1", text: "a sold some." }, { txHash: "h2", link: "https://x.example/txns/h2", text: "b was refused." }] });
     expect(section.id).toBe("recorded-run");
     expect(section.querySelector("h2")?.textContent).toBe("Recorded testnet run");
-    expect(section.textContent).toContain("Recorded on testnet. Not live.");
+    expect(section.textContent).toContain("Recorded on testnet. Not read from the chain now.");
     const rows = [...section.querySelectorAll("li[data-tx-hash]")];
     expect(rows.map((r) => r.getAttribute("data-tx-hash"))).toEqual(["h1", "h2"]);
     const link = rows[0]!.querySelector("a")!;

@@ -9,6 +9,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { KNOWN_NETWORKS, type KnownNetwork } from "../src/known-deployments.ts";
+import { BOT_URL } from "../src/telegram-button.ts";
 import { FAUCET_URL } from "../src/try-it-copy.ts";
 
 export interface ScanOptions {
@@ -365,6 +366,8 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     "fonts.googleapis.com": { path: /^\/(?:css2)?$/, queryKeys: ["family", "display"] },
     "fonts.gstatic.com": root,
     "www.w3.org": { path: /^\/2000\/svg$/ },
+    // The alert bot link: that host and exactly that path, no query.
+    [new URL(BOT_URL).hostname]: { path: new RegExp(`^${new URL(BOT_URL).pathname}/?$`) },
     // The faucet link of the how to try it box: that host and exactly that path, no query.
     [new URL(FAUCET_URL).hostname]: { path: new RegExp(`^${new URL(FAUCET_URL).pathname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`) },
   };

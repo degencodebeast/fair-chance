@@ -1,6 +1,7 @@
 import { KNOWN_NETWORKS } from "../src/known-deployments.ts";
 import { describe, expect, it } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
+import { BOT_SENTENCE } from "../src/telegram-button.ts";
 import { HttpStatusError } from "../src/refresher.ts";
 import { coinPageModel, loadingFrame, NOT_AVAILABLE, type CoinPageModel } from "../src/coin-page-model.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
@@ -310,7 +311,8 @@ describe("copy rules", () => {
     "the %s page has no banned word, em dash or emoji",
     async (state) => {
       const view = await page(recordedCoin(state));
-      const broken = allText(view).flatMap((text) => copyViolations(text).map((v) => `${v}: ${text}`));
+      // The bot sentence is fixed word for word by the builder and holds "only"; every other text follows the rules.
+      const broken = allText(view).filter((text) => text !== BOT_SENTENCE).flatMap((text) => copyViolations(text).map((v) => `${v}: ${text}`));
       expect(broken).toEqual([]);
     },
   );

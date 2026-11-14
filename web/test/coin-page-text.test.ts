@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
 import { coinPageModel, loadingFrame, type CoinPageModel } from "../src/coin-page-model.ts";
 import { nearShort, sellRow, tokensShort } from "../src/receipts.ts";
-import { telegramButton } from "../src/telegram-button.ts";
+import { BOT_LINK_TEXT, BOT_SENTENCE, telegramButton } from "../src/telegram-button.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
 import { readerFrom, recordedCoin, type RecordedCoin } from "./recorded-coin.ts";
 
@@ -125,10 +125,10 @@ describe("loading and error frames", () => {
 });
 
 describe("header", () => {
-  it("has the rules chip text for desktop and phone, and a turned-off Telegram button with a reason", async () => {
+  it("has the rules chip text for desktop and phone, and a Telegram link with its sentence", async () => {
     const v = await ready(recordedCoin("normal"));
     expect(v.header.rulesChip).toEqual({ desktop: "Same rules for every coin", phone: "Rules" });
-    expect(v.telegram).toEqual({ label: "Watch on Telegram", reason: "Not open yet. The public alert bot is not live." });
+    expect(v.telegram).toEqual({ label: BOT_LINK_TEXT, reason: BOT_SENTENCE });
   });
 });
 
@@ -156,8 +156,8 @@ describe("tiny amounts", () => {
   });
 });
 
-describe("Telegram button element", () => {
-  it("is disabled and shows its reason", () => {
+describe("Telegram link element", () => {
+  it("is a link to the bot that opens in a new tab, with its sentence beside it", () => {
     const made = (tag: string) => {
       const attrs = new Map<string, string>();
       const kids: unknown[] = [];
@@ -165,13 +165,17 @@ describe("Telegram button element", () => {
     };
     vi.stubGlobal("document", { createElement: made });
     try {
-      const wrap = telegramButton({ label: "Watch on Telegram", reason: "Not open yet." }) as never as ReturnType<typeof made>;
-      const [button, reason] = wrap.kids as ReturnType<typeof made>[];
-      expect(button!.attrs.get("id")).toBe("watch-telegram");
-      expect(button!.attrs.has("disabled")).toBe(true);
-      expect(button!.kids).toEqual(["Watch on Telegram"]);
-      expect(reason!.attrs.get("id")).toBe("watch-telegram-reason");
-      expect(reason!.kids).toEqual(["Not open yet."]);
+      const wrap = telegramButton({ label: BOT_LINK_TEXT, reason: BOT_SENTENCE }) as never as ReturnType<typeof made>;
+      const [link, sentence] = wrap.kids as ReturnType<typeof made>[];
+      expect(link!.tag).toBe("a");
+      expect(link!.attrs.get("id")).toBe("watch-telegram");
+      expect(link!.attrs.get("href")).toBe("https://t.me/fairchance_alert_bot");
+      expect(link!.attrs.get("target")).toBe("_blank");
+      expect(link!.attrs.get("rel")).toBe("noopener noreferrer");
+      expect(link!.attrs.has("disabled")).toBe(false);
+      expect(link!.kids).toEqual(["Open the bot on Telegram"]);
+      expect(sentence!.attrs.get("id")).toBe("watch-telegram-reason");
+      expect(sentence!.kids).toEqual(["Send /check <coin> for its rules. Alerts go to the coin's team only for now."]);
     } finally {
       vi.unstubAllGlobals();
     }

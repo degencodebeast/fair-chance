@@ -288,3 +288,15 @@ describe("the faucet link", () => {
     expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule)).toContain("private-endpoint");
   });
 });
+
+describe("the bot link", () => {
+  it("passes for exactly the bot path and no other t.me path or query", async () => {
+    const bot = "https://t.me/fairchance_alert_bot";
+    plant("assets/app.js", `const b="${bot}";`);
+    expect(await scanBuildOutput(dir, optionsFromConfig({}))).toEqual([]);
+    for (const other of [`${bot}?start=x`, `${bot}2`, "https://t.me/other_bot", "https://t.me/", `${bot}/extra`]) {
+      plant("assets/app.js", `const b="${other}";`);
+      expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule), other).toContain("private-endpoint");
+    }
+  });
+});

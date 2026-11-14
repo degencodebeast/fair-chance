@@ -62,11 +62,14 @@ describe("every screen on a hosted host", () => {
     expect(text).not.toMatch(/sample|made.up|\.sample\b/i);
     expect(document.querySelector(".sample-label, .chat, #pre-buy-card")).toBeNull();
   });
-  it("alerts says where alerts go and links to the coin list, with no bot link", () => {
+  it("alerts links to the bot with its sentence, and to the coin list", () => {
     draw("alerts", "https://fc.example/?view=alerts&network=testnet");
     expect(document.body.textContent).toMatch(/Telegram/);
     expect(document.querySelector<HTMLAnchorElement>("#alerts-coin-link")?.getAttribute("href")).toBe("?view=coins&network=testnet");
-    expect(document.querySelector('a[href*="t.me"], a[href*="telegram"]')).toBeNull();
+    const bot = document.querySelector<HTMLAnchorElement>("#alerts-bot-link");
+    expect(bot?.getAttribute("href")).toBe("https://t.me/fairchance_alert_bot");
+    expect(bot?.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(document.body.textContent).toContain("Send /check <coin> for its rules. Alerts go to the coin's team only for now.");
   });
   it("alerts links to the named coin page when the link names a coin", () => {
     draw("alerts", "https://fc.example/?view=alerts&network=testnet&coin=a.factory.fairchance.testnet");
