@@ -9,6 +9,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { KNOWN_NETWORKS, type KnownNetwork } from "../src/known-deployments.ts";
+import { FAUCET_URL } from "../src/try-it-copy.ts";
 
 export interface ScanOptions {
   /** Accounts the page may name. A sub-account of one of them is allowed too. */
