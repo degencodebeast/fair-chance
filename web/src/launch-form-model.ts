@@ -2,7 +2,7 @@
 // account with valid fields; the visitor's wallet signs, never the page.
 import { exactNear } from "./format.ts";
 import { iconFits } from "./icon-to-webp.ts";
-import { parseTokenAmount } from "./token-amount.ts";
+import { COMMA_REFUSAL, hasComma, parseTokenAmount } from "./token-amount.ts";
 
 /**
  * Field lengths of the form, from the v5 design. The coin and the factory set no limit of their
@@ -89,14 +89,15 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   else if (!TICKER_PATTERN.test(ticker)) errors.push("The ticker can use letters, digits, - and _ only.");
   if (ticker.length > LAUNCH_LIMITS.ticker) errors.push(`The ticker can be ${LAUNCH_LIMITS.ticker} characters at most.`);
   if (description.length > LAUNCH_LIMITS.description) errors.push(`The description can be ${LAUNCH_LIMITS.description} characters at most.`);
-  if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
+  if (hasComma(buy)) errors.push(COMMA_REFUSAL);
+  else if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
     errors.push("Type the opening buy as a number of NEAR, for example 4.40, or leave it empty.");
   }
   const icon = input.icon ?? null;
   if (icon !== null && !iconFits(icon)) errors.push("The picture must be a WebP image under 8 KB. Choose it again.");
   if (input.picture?.state === "pending") errors.push("The picture is still being shrunk. Wait for it.");
   if (input.picture?.state === "refused") errors.push(input.picture.reason);
-  const openingBuyUnits = buy === "" ? null : parseTokenAmount(buy, NEAR_DECIMALS);
+  const openingBuyUnits = buy === "" || hasComma(buy) ? null : parseTokenAmount(buy, NEAR_DECIMALS);
   const shownTicker = ticker.toUpperCase();
   const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
   return {

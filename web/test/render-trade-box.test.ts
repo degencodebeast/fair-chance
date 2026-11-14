@@ -45,9 +45,9 @@ const quoteView = {
   allowance_after: "7100000000000000000000000",
 };
 
-function box(over: object = {}, wallet: WalletControl = signedOut(), actions: TradeActions = noActions()) {
+function box(over: object = {}, wallet: WalletControl = signedOut(), actions: TradeActions = noActions(), blocked: string | null = null) {
   const loadQuote = vi.fn(async () => ({ kind: "value" as const, value: parseBuyQuote({ ...quoteView, ...over }) }));
-  const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value", value: 1_250_000_000_000_000_000_000n }, loadQuote, wallet, actions });
+  const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value", value: 1_250_000_000_000_000_000_000n }, loadQuote, wallet, actions, blocked });
   document.body.replaceChildren(root);
   return { root, loadQuote };
 }
@@ -123,7 +123,7 @@ describe("trade box", () => {
   });
 
   it("shows an error and no number when the read fails", async () => {
-    const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "unavailable" }, loadQuote: async () => { throw new Error("rpc down"); }, wallet: signedOut(), actions: noActions() });
+    const root = drawTradeBox({ symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "unavailable" }, loadQuote: async () => { throw new Error("rpc down"); }, wallet: signedOut(), actions: noActions(), blocked: null });
     document.body.replaceChildren(root);
     await preview(root, "you.testnet", "1");
     expect(root.querySelector("#trade-buy-status")?.textContent).toMatch(/cannot load/);
@@ -139,6 +139,7 @@ describe("trade box with slow answers", () => {
       loadQuote: () => new Promise((resolve) => { pending.push({ resolve }); }),
       wallet: signedOut(),
       actions: noActions(),
+      blocked: null,
     });
     document.body.replaceChildren(root);
     const submit = (near: string) => {
@@ -183,7 +184,7 @@ describe("a buy from the trade box", () => {
     const button = () => root.querySelector<HTMLButtonElement>("#trade-buy-button")!;
     expect(button().disabled).toBe(true);
     expect(button().textContent).toBe("Waiting for the wallet");
-    expect(actions.buy).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), 10n ** 24n);
+    expect(actions.buy).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), { nearIn: 10n ** 24n, quote: parseBuyQuote(quoteView) });
     answer(bought);
     await vi.waitFor(() => expect(root.querySelector("#trade-result")?.textContent).toContain("You bought 5.6M MOTH for 1.0000 NEAR."));
     expect(root.querySelector<HTMLAnchorElement>("#trade-result a")!.href).toBe("https://testnet.nearblocks.io/txns/Hx1");
@@ -233,6 +234,65 @@ describe("a sell from the trade box", () => {
     root.querySelector<HTMLInputElement>("#trade-sell-amount")!.value = "lots";
     root.querySelector<HTMLFormElement>("#trade-sell-form")!.dispatchEvent(new Event("submit", { cancelable: true }));
     expect(root.querySelector("#trade-sell-status")?.textContent).toBe("Type the amount of MOTH as a number, for example 1.5.");
+    expect(actions.sell).not.toHaveBeenCalled();
+  });
+});
+
+describe("the buy the visitor previewed", () => {
+  const edit = (root: HTMLElement, id: string, value: string) => {
+    const input = root.querySelector<HTMLInputElement>(id)!;
+    input.value = value;
+    input.dispatchEvent(new Event("input"));
+  };
+
+  for (const id of ["#trade-buy-amount", "#trade-buy-account"]) {
+    it(`turns the buy off and drops the preview when ${id} changes`, async () => {
+      const actions = noActions();
+      const { root } = box({}, await signedIn(), actions);
+      await preview(root, "you.testnet", "1");
+      edit(root, id, id === "#trade-buy-amount" ? "0.1" : "you.testnet ");
+      const button = root.querySelector<HTMLButtonElement>("#trade-buy-button")!;
+      expect(button.disabled).toBe(true);
+      expect(root.querySelector("#trade-buy-lines")?.textContent).toBe("");
+      button.click();
+      expect(actions.buy).not.toHaveBeenCalled();
+    });
+  }
+});
+
+describe("decimal commas", () => {
+  it("refuses a comma in the buy amount", async () => {
+    const { root, loadQuote } = box({}, await signedIn());
+    await preview(root, "you.testnet", "1,5");
+    expect(root.querySelector("#trade-buy-status")?.textContent).toBe("Use a dot for decimals.");
+    expect(loadQuote).not.toHaveBeenCalled();
+  });
+
+  it("refuses a comma in the sell amount", async () => {
+    const actions = noActions();
+    const { root } = box({}, await signedIn(), actions);
+    root.querySelector<HTMLInputElement>("#trade-sell-amount")!.value = "1,5";
+    root.querySelector<HTMLFormElement>("#trade-sell-form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+    expect(root.querySelector("#trade-sell-status")?.textContent).toBe("Use a dot for decimals.");
+    expect(actions.sell).not.toHaveBeenCalled();
+  });
+});
+
+describe("a coin that fails the page's checks", () => {
+  const WARNING = "Warning: this account does not match the Fair Chance launch rules.";
+
+  it("turns buy and sell off with the warning, and sends nothing", async () => {
+    const actions = noActions();
+    const { root } = box({}, await signedIn(), actions, WARNING);
+    await preview(root, "you.testnet", "1");
+    const reasons = turnedOffReasons(root);
+    expect(reasons["trade-buy-button"]).toBe(WARNING);
+    expect(reasons["trade-sell-button"]).toBe(WARNING);
+    root.querySelector<HTMLButtonElement>("#trade-buy-button")!.click();
+    root.querySelector<HTMLInputElement>("#trade-sell-amount")!.value = "1";
+    root.querySelector<HTMLFormElement>("#trade-sell-form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+    await new Promise((r) => setTimeout(r, 10));
+    expect(actions.buy).not.toHaveBeenCalled();
     expect(actions.sell).not.toHaveBeenCalled();
   });
 });

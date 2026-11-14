@@ -16,8 +16,10 @@ import { drawClaimPanel } from "./render-claim-panel.ts";
 import { drawTradeBox } from "./render-trade-box.ts";
 import { loadSellLimit, sendBuy, sendSell } from "./trade-actions.ts";
 import { pageWallet } from "./page-wallet.ts";
+import { resolvePageLink } from "./page-link.ts";
 import { drawJustLaunched, takeLaunched } from "./launch-handoff.ts";
 import {
+  checksWarning,
   coinPageModel,
   type Banner,
   type Card,
@@ -30,15 +32,19 @@ import {
 
 const app = document.querySelector<HTMLElement>("#app")!;
 
-/** A coin launched in this tab: its header shows from the launch result until the chain reads are drawn. */
+/**
+ * A coin launched in this tab: its header shows from the launch result while the first chain read
+ * loads, and only for the coin the link names under the known factory. It is read once.
+ */
 const justLaunched = (() => {
   try {
-    return takeLaunched(sessionStorage, new URL(location.href).searchParams.get("coin") ?? "");
+    const link = resolvePageLink(location.href);
+    return takeLaunched(sessionStorage, link.coin, link.known.factory);
   } catch {
     return null;
   }
 })();
-const titleNode = (): HTMLElement => (justLaunched === null ? el("h1", { id: "coin" }, "Fair Chance") : drawJustLaunched(justLaunched));
+const plainTitle = (): HTMLElement => el("h1", { id: "coin" }, "Fair Chance");
 
 function section(label: string, id: string, ...children: Child[]): HTMLElement {
   return el("section", { id, "aria-label": label, class: "card" }, ...children);
@@ -242,7 +248,7 @@ function drawFrame(f: PlaceholderFrame): HTMLElement[] {
 
 function drawError(view: Extract<CoinPageView, { state: "error" }>): HTMLElement[] {
   return [
-    titleNode(),
+    plainTitle(),
     el(
       "div",
       { role: "alert", class: "banner banner-error", id: "load-error" },
@@ -274,8 +280,10 @@ function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
     storageMin: reads.storageMin,
     loadQuote: (accountId, nearIn) => loadBuyQuote(chain, accountId, nearIn),
     wallet: pageWallet(),
+    // A coin that fails any of the page's own chain checks gets no buy or sell from this page.
+    blocked: checksWarning(reads.checks)?.title ?? null,
     actions: {
-      buy: (session, nearIn) => sendBuy({ chain, session, coin }, nearIn),
+      buy: (session, buy) => sendBuy({ chain, session, coin }, buy),
       sell: (session, amount) => sendSell({ chain, session, coin }, amount),
       sellLimit: (accountId) => loadSellLimit(chain, accountId),
       // The trade changed the coin: read it again now, not at the next refresh.
@@ -314,7 +322,8 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
   const sameEvents = old !== null && reads !== null && old.eventCount === reads.events.length;
   const holders = reads ? (old?.holders && sameEvents ? old.holders : holdersPlaceholder()) : null;
   const plan = reads ? (old?.plan && holdsVisitorWork(old.plan) ? old.plan : drawYourPlan(reads)) : null;
-  const trade = reads ? (old?.trade && holdsVisitorWork(old.trade) ? old.trade : tradeBox(reads, symbol)) : null;
+  const keepTrade = old?.trade && holdsVisitorWork(old.trade) && checksWarning(reads?.checks ?? []) === null;
+  const trade = reads ? (keepTrade ? old!.trade : tradeBox(reads, symbol)) : null;
   const parts = reads ? { plan, chart, holders, trade, claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };
   drawn = reads && view.state === "ready" ? { plan, trade, holders, eventCount: reads.events.length } : null;
   const body = view.state === "ready" ? drawReady(view, parts) : drawError(view);
@@ -329,14 +338,17 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
 }
 
 function drawLoading(): void {
+  // The launch header shows only before the first read is drawn; a failed read shows the plain error view.
+  const firstLoad = !loadedOnce;
   app.replaceChildren(
-    titleNode(),
+    firstLoad && justLaunched !== null ? drawJustLaunched(justLaunched) : plainTitle(),
     el("p", { id: "status", class: "status", role: "status" }, "Reading the chain."),
     ...drawFrame(loadingFrame("Loading")),
   );
 }
 
 let loadingNow = false;
+let loadedOnce = false;
 let refresh: { stop: () => void; restart: () => void } | null = null;
 
 function load(): void {
@@ -356,6 +368,7 @@ function load(): void {
     })
     .finally(() => {
       loadingNow = false;
+      loadedOnce = true;
     });
 }
 

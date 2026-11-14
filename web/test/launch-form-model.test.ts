@@ -49,6 +49,13 @@ describe("launch form model", () => {
     expect(launchFormModel({ ...ok, signedIn: "you.testnet", pending: true }).button).toEqual({ label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." });
   });
 
+  it("refuses a comma in the opening buy, so 1,5 never reads as 15", () => {
+    const m = launchFormModel({ ...ok, openingBuy: "1,5", storageDeposit: 10n ** 24n });
+    expect(m.errors).toContain("Use a dot for decimals.");
+    expect(m.launchArgs).toBeNull();
+    expect(m.deposit?.total).toBe("You attach 1 NEAR for the deposit, plus the opening buy.");
+  });
+
   it("says the total NEAR the launch attaches, and that the deposit stays in the coin account", () => {
     const m = launchFormModel({ ...ok, storageDeposit: 10n ** 24n });
     expect(m.deposit).toEqual({

@@ -6,8 +6,8 @@ import type { Reading } from "./coin-page.ts";
 import { el } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { compactTokens } from "./format.ts";
-import { parseTokenAmount } from "./token-amount.ts";
-import type { SellLimit, TradeOutcome } from "./trade-actions.ts";
+import { COMMA_REFUSAL, hasComma, parseTokenAmount } from "./token-amount.ts";
+import type { PreviewedBuy, SellLimit, TradeOutcome } from "./trade-actions.ts";
 import { tradeBoxModel, type BuyPreview, type TradeButton } from "./trade-box-model.ts";
 import { tradeResultText } from "./trade-result-text.ts";
 import type { WalletSession } from "./tx-types.ts";
@@ -16,7 +16,8 @@ import type { WalletControl } from "./wallet-session.ts";
 const NEAR_DECIMALS = 24;
 
 export interface TradeActions {
-  buy(session: WalletSession, nearIn: bigint): Promise<TradeOutcome>;
+  /** Sends exactly the previewed buy: its NEAR amount and its quote. */
+  buy(session: WalletSession, buy: PreviewedBuy): Promise<TradeOutcome>;
   sell(session: WalletSession, amount: bigint): Promise<TradeOutcome>;
   sellLimit(accountId: string): Promise<SellLimit>;
   /** Called after a transaction reached the chain, so the page reads the coin again. */
@@ -31,6 +32,8 @@ export interface TradeBoxDeps {
   loadQuote: (accountId: string, nearIn: bigint) => Promise<Reading<BuyQuote>>;
   wallet: WalletControl;
   actions: TradeActions;
+  /** The warning when the coin fails the page's chain checks; null when every check passes. Then nothing is sent. */
+  blocked: string | null;
 }
 
 /** A button that is on with its handler, or off with its reason beside it. */
@@ -56,7 +59,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     return s.kind === "signed-in" ? s.session : null;
   };
   const model = () =>
-    tradeBoxModel({ symbol: deps.symbol, decimals: deps.decimals, largeThresholdBps: deps.largeThresholdBps, storageMin: deps.storageMin, preview, signedIn: session()?.accountId ?? null, pending });
+    tradeBoxModel({ symbol: deps.symbol, decimals: deps.decimals, largeThresholdBps: deps.largeThresholdBps, storageMin: deps.storageMin, preview, signedIn: session()?.accountId ?? null, pending, blocked: deps.blocked });
   const first = model();
 
   const tabBuy = el("button", { type: "button", role: "tab", id: "trade-tab-buy", "aria-selected": "true", "aria-controls": "trade-buy-panel", class: "tab" }, "Buy");
@@ -91,7 +94,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   /** Runs one trade: the buttons stay off until the wallet answers. */
   const trade = (run: (s: WalletSession) => Promise<TradeOutcome>): void => {
     const s = session();
-    if (s === null || pending) return;
+    if (s === null || pending || deps.blocked !== null) return;
     pending = true;
     result.replaceChildren();
     redraw();
@@ -109,9 +112,13 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   };
 
   const onBuy = (): void => {
-    if (preview.kind !== "quote") return;
-    const nearIn = preview.nearIn;
-    trade((s) => deps.actions.buy(s, nearIn));
+    const p = preview;
+    // Only the buy the button shows: the previewed amount and quote, for the signed-in account.
+    if (p.kind !== "quote" || p.quote.kind !== "value" || p.accountId !== session()?.accountId) return;
+    // The fields must still say what was previewed; an edit the page did not hear of drops the preview.
+    if (account.value.trim() !== p.accountId || parseTokenAmount(amount.value, NEAR_DECIMALS) !== p.nearIn) return dropPreview();
+    const buy: PreviewedBuy = { nearIn: p.nearIn, quote: p.quote.value };
+    trade((s) => deps.actions.buy(s, buy));
   };
 
   let latestLimit = 0;
@@ -176,6 +183,12 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
         status.textContent = "Type an account name, for example you.testnet.";
         return;
       }
+      if (hasComma(amount.value)) {
+        preview = { kind: "none" };
+        redraw();
+        status.textContent = COMMA_REFUSAL;
+        return;
+      }
       const nearIn = parseTokenAmount(amount.value, NEAR_DECIMALS);
       if (nearIn === null) {
         preview = { kind: "none" };
@@ -199,6 +212,17 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     })();
   });
 
+  // Any edit of the account or the amount drops the preview, so the buy button never sends an amount or a quote the box does not show.
+  const dropPreview = (): void => {
+    latest++;
+    if (preview.kind === "none") return;
+    preview = { kind: "none" };
+    redraw();
+    status.textContent = "Preview the buy again for the new account or amount.";
+  };
+  listen(account, "input", dropPreview);
+  listen(amount, "input", dropPreview);
+
   const sellForm = el(
     "form",
     { id: "trade-sell-form", class: "plan-form" },
@@ -208,6 +232,10 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   );
   listen(sellForm, "submit", (event) => {
     event.preventDefault();
+    if (hasComma(sellAmount.value)) {
+      sellStatus.textContent = COMMA_REFUSAL;
+      return;
+    }
     const tokens = parseTokenAmount(sellAmount.value, deps.decimals);
     if (tokens === null || tokens === 0n) {
       sellStatus.textContent = `Type the amount of ${deps.symbol} as a number, for example 1.5.`;

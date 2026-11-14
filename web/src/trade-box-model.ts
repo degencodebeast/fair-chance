@@ -30,6 +30,8 @@ export interface TradeBoxInput {
   signedIn: string | null;
   /** True while the wallet is open for a buy or a sell. */
   pending: boolean;
+  /** The warning when the coin fails the page's own chain checks: then no trade turns on. Null when every check passes. */
+  blocked: string | null;
 }
 
 export interface TradeBoxModel {
@@ -64,6 +66,7 @@ function storageNote(storageMin: Reading<bigint>): string {
 const WAITING: TradeButton = { label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." };
 
 function buyButton(input: TradeBoxInput, label: string): TradeButton {
+  if (input.blocked !== null) return { label, reason: input.blocked };
   if (input.pending) return WAITING;
   if (input.signedIn === null) return { label, reason: "Connect a wallet to buy." };
   const p = input.preview;
@@ -72,6 +75,7 @@ function buyButton(input: TradeBoxInput, label: string): TradeButton {
 }
 
 function sellButton(input: TradeBoxInput): TradeButton {
+  if (input.blocked !== null) return { label: "Sell", reason: input.blocked };
   if (input.pending) return WAITING;
   if (input.signedIn === null) return { label: "Sell", reason: "Connect a wallet to sell." };
   return { label: "Sell", reason: null };

@@ -3,7 +3,7 @@
 // the visitor approves each transaction in the wallet. The builders set each minimum from the quote
 // with their fixed margin (tx-builders.ts); this file does no price math.
 import { parseAccount, parseSellQuote } from "./account-views.ts";
-import { loadBuyQuote } from "./buy-quote.ts";
+import type { BuyQuote } from "./buy-quote.ts";
 import type { ChainReader } from "./chain.ts";
 import type { LaunchFormInput } from "./launch-form-model.ts";
 import { buildBuy, buildLaunch, buildSell, LAUNCH_STORAGE_DEPOSIT, readBuyerStorage } from "./tx-builders.ts";
@@ -27,10 +27,15 @@ export interface TradeDeps {
 
 const CLOSED = "The wallet closed and sent nothing.";
 
-/** A wallet that closes or refuses rejects with one of these words (near-connect: "User rejected", "Wallet closed"). */
+/**
+ * The two errors @hot-labs/near-connect 0.12 gives when the visitor closes the wallet before it
+ * signs: the picker's "User rejected" (NearConnector.js) and the wallet frame's "Wallet closed"
+ * (SandboxedWallet/executor.js). Any other error may come after the transaction went out.
+ */
+const CLOSE_MESSAGES: readonly string[] = ["User rejected", "Wallet closed"];
+
 function isClosedWallet(e: unknown): boolean {
-  const text = e instanceof Error ? e.message : String(e);
-  return /reject|closed|cancel|denied/i.test(text);
+  return e instanceof Error && CLOSE_MESSAGES.includes(e.message);
 }
 
 const message = (e: unknown): string => (e instanceof Error ? e.message : String(e));
@@ -47,21 +52,27 @@ export async function sendAndRead(session: WalletSession, txs: TxRequest[]): Pro
   return { kind: "result", result: parseTxOutcome(outcomes[outcomes.length - 1]!) };
 }
 
-/** One buy of `nearIn` yoctoNEAR for the signed-in account. */
-export async function sendBuy(deps: TradeDeps, nearIn: bigint): Promise<TradeOutcome> {
-  const account = deps.session.accountId;
+/** The buy the visitor previewed: the NEAR the box showed and the quote the button showed. */
+export interface PreviewedBuy {
+  nearIn: bigint;
+  quote: BuyQuote;
+}
+
+/**
+ * One buy for the signed-in account, built from the previewed quote and nothing else: the attached
+ * NEAR is the previewed amount and the builder sets min_tokens_out from the previewed tokens_out.
+ * If the price moved since the preview, the coin refuses with FC_SLIPPAGE and nothing changes.
+ */
+export async function sendBuy(deps: TradeDeps, buy: PreviewedBuy): Promise<TradeOutcome> {
   let txs: TxRequest[];
   try {
-    const quote = await loadBuyQuote(deps.chain, account, nearIn);
-    if (quote.kind === "unavailable") return { kind: "not-sent", text: "This coin gives no buy quote, so nothing was sent." };
-    const storage = await readBuyerStorage(deps.chain, account);
-    txs = buildBuy(deps.coin, { nearIn, quote: quote.value, storage });
+    const storage = await readBuyerStorage(deps.chain, deps.session.accountId);
+    txs = buildBuy(deps.coin, { nearIn: buy.nearIn, quote: buy.quote, storage });
   } catch (e) {
-    return { kind: "not-sent", text: `The buy quote could not load, so nothing was sent. ${message(e)}` };
+    return { kind: "not-sent", text: `The storage record could not load, so nothing was sent. ${message(e)}` };
   }
   return sendAndRead(deps.session, txs);
 }
-
 
 /** One sell of `amount` token base units for the signed-in account. Nothing is sent when no part can sell now. */
 export async function sendSell(deps: TradeDeps, amount: bigint): Promise<TradeOutcome> {

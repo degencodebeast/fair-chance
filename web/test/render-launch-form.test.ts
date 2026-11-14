@@ -322,7 +322,7 @@ describe("a launch from the form", () => {
     expect(launch).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), "factory.sandbox", expect.objectContaining({ name: "Moth Lamp", ticker: "moth" }), null);
     answer(launched);
     await vi.waitFor(() => expect(seen).toHaveLength(1));
-    expect(seen[0]).toEqual({ coin: "moth.factory.sandbox", name: "Moth Lamp", ticker: "MOTH", icon: null, creator: "you.testnet", launchBlock: 1234, explorerUrl: "https://testnet.nearblocks.io/txns/Hx3" });
+    expect(seen[0]).toEqual({ coin: "moth.factory.sandbox", name: "Moth Lamp", ticker: "MOTH", icon: null, creator: "you.testnet", launchBlock: 1234, txHash: "Hx3" });
   });
 
   it("shows the sentence and turns the button back on when the wallet closes", async () => {

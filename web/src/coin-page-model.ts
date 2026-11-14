@@ -223,6 +223,11 @@ function banner(r: CoinReads, ctx: TimeContext): Banner | null {
   };
 }
 
+/** The warning of a coin that does not pass every chain check. The trade box shows its title too. */
+export function checksWarning(checks: CheckResult[]): { title: string; reasons: string[] } | null {
+  return checks.every((c) => c.status === "pass") ? null : warning(checks);
+}
+
 function warning(checks: CheckResult[]): { title: string; reasons: string[] } {
   const failed = checks.filter((c) => c.status === "fail");
   return {

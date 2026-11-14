@@ -12,7 +12,7 @@ const quoteView = {
   becomes_large: false,
   allowance_after: "7100000000000000000000000",
 };
-const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value" as const, value: 1_250_000_000_000_000_000_000n }, signedIn: null, pending: false };
+const base = { symbol: "MOTH", decimals: 18, largeThresholdBps: 200, storageMin: { kind: "value" as const, value: 1_250_000_000_000_000_000_000n }, signedIn: null, pending: false, blocked: null };
 const asked = (over: object = {}) => ({
   ...base,
   preview: { kind: "quote" as const, accountId: "you.testnet", nearIn: 10n ** 24n, quote: { kind: "value" as const, value: parseBuyQuote({ ...quoteView, ...over }) } },
@@ -41,6 +41,15 @@ describe("trade box buttons", () => {
   it("turns both buttons off while the wallet is open", () => {
     const m = tradeBoxModel({ ...asked(), signedIn: "you.testnet", pending: true });
     for (const b of [m.buy.button, m.sell.button]) expect(b).toEqual({ label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." });
+  });
+});
+
+describe("a coin that fails the page's checks", () => {
+  it("keeps buy and sell off with the warning, signed in or not", () => {
+    const w = "Warning: this account does not match the Fair Chance launch rules.";
+    const m = tradeBoxModel({ ...asked(), signedIn: "you.testnet", blocked: w });
+    expect(m.buy.button.reason).toBe(w);
+    expect(m.sell.button.reason).toBe(w);
   });
 });
 

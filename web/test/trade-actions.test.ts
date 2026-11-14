@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { parseBuyQuote } from "../src/buy-quote.ts";
 import { loadSellLimit, sendBuy, sendLaunch, sendSell } from "../src/trade-actions.ts";
 import type { FinalOutcome, TxRequest, WalletSession } from "../src/tx-types.ts";
 
@@ -47,12 +48,17 @@ function fakeSession(answer: () => Promise<FinalOutcome[]>, accountId = BUYER): 
   };
 }
 
+const ONE_NEAR = 1_000_000_000_000_000_000_000_000n;
+/** The buy the visitor previewed: the NEAR amount and the quote the button shows. */
+const previewed = (nearIn = ONE_NEAR) => ({ nearIn, quote: parseBuyQuote(buyQuote) });
+
 describe("a buy", () => {
-  it("sends the builder's min_tokens_out (the quote minus 1%) and pays the storage deposit on a first buy", async () => {
-    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: null, storage_balance_bounds: { min: "1250000000000000000000", max: null } });
+  it("builds from the previewed quote: the previewed NEAR, and min_tokens_out from the previewed tokens_out minus 1%", async () => {
+    const chain = fakeChain({ storage_balance_of: null, storage_balance_bounds: { min: "1250000000000000000000", max: null } });
     const session = fakeSession(async () => [fixture("bag-buy")]);
-    const out = await sendBuy({ chain, session, coin: COIN }, 1_000_000_000_000_000_000_000_000n);
-    expect(chain.calls[0]).toEqual(["fc_quote_buy", { account_id: BUYER, near_in: "1000000000000000000000000" }]);
+    const out = await sendBuy({ chain, session, coin: COIN }, previewed());
+    // No second quote: the buy sends what the button showed.
+    expect(chain.calls.map((c) => c[0])).not.toContain("fc_quote_buy");
     expect(session.sent).toHaveLength(1);
     const [tx] = session.sent[0]!;
     expect(tx!.receiverId).toBe(COIN);
@@ -64,36 +70,45 @@ describe("a buy", () => {
   });
 
   it("sends only the buy when the account already has a storage record", async () => {
-    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1250000000000000000000", available: "0" } });
+    const chain = fakeChain({ storage_balance_of: { total: "1250000000000000000000", available: "0" } });
     const session = fakeSession(async () => [fixture("bag-buy")]);
-    await sendBuy({ chain, session, coin: COIN }, 1_000_000_000_000_000_000_000_000n);
+    await sendBuy({ chain, session, coin: COIN }, previewed());
     expect(session.sent[0]![0]!.actions.map((a) => a.params.methodName)).toEqual(["buy"]);
   });
 
   it("says in one sentence that nothing was sent when the visitor closes the wallet", async () => {
-    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1", available: "0" } });
+    const chain = fakeChain({ storage_balance_of: { total: "1", available: "0" } });
     const session = fakeSession(async () => {
       throw new Error("User rejected");
     });
-    expect(await sendBuy({ chain, session, coin: COIN }, 1n)).toEqual({ kind: "not-sent", text: "The wallet closed and sent nothing." });
+    expect(await sendBuy({ chain, session, coin: COIN }, previewed())).toEqual({ kind: "not-sent", text: "The wallet closed and sent nothing." });
+  });
+
+  it("reads only the two exact close messages of the wallet library as nothing sent", async () => {
+    const outcome = async (e: unknown) =>
+      (await sendBuy({ chain: fakeChain({ storage_balance_of: { total: "1", available: "0" } }), session: fakeSession(async () => { throw e; }), coin: COIN }, previewed())).kind;
+    expect(await outcome(new Error("Wallet closed"))).toBe("not-sent");
+    expect(await outcome(new Error("User rejected"))).toBe("not-sent");
+    for (const other of ["User rejected the request", "Connection closed", "wallet closed", "Request cancelled"]) expect(await outcome(new Error(other)), other).toBe("unknown");
+    expect(await outcome("Wallet closed")).toBe("unknown");
   });
 
   it("does not claim nothing was sent when the wallet fails in another way", async () => {
-    const chain = fakeChain({ fc_quote_buy: buyQuote, storage_balance_of: { total: "1", available: "0" } });
+    const chain = fakeChain({ storage_balance_of: { total: "1", available: "0" } });
     const session = fakeSession(async () => {
       throw new Error("RPC timeout");
     });
-    const out = await sendBuy({ chain, session, coin: COIN }, 1n);
+    const out = await sendBuy({ chain, session, coin: COIN }, previewed());
     expect(out.kind).toBe("unknown");
     expect(out.kind === "unknown" && out.text).toBe("The wallet gave no result (RPC timeout). Check your wallet activity before you try again.");
   });
 
-  it("sends nothing when the quote cannot be read", async () => {
-    const chain = fakeChain({ fc_quote_buy: new Error("network down") });
+  it("sends nothing when the storage record cannot be read", async () => {
+    const chain = fakeChain({ storage_balance_of: new Error("network down") });
     const session = fakeSession(async () => []);
-    const out = await sendBuy({ chain, session, coin: COIN }, 1n);
+    const out = await sendBuy({ chain, session, coin: COIN }, previewed());
     expect(session.sent).toHaveLength(0);
-    expect(out).toEqual({ kind: "not-sent", text: "The buy quote could not load, so nothing was sent. network down" });
+    expect(out).toEqual({ kind: "not-sent", text: "The storage record could not load, so nothing was sent. network down" });
   });
 });
 

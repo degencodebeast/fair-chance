@@ -102,7 +102,7 @@ export function drawLaunchForm(app: HTMLElement, href: string, nameCheck: Launch
         refresh();
         if (outcome.kind === "result" && outcome.result.kind === "launched") {
           const r = outcome.result;
-          send.onLaunched({ coin: r.coin, name: form.name.trim(), ticker: form.ticker.trim().toUpperCase(), icon: chosenIcon, creator: r.creator, launchBlock: r.launchBlock, explorerUrl: r.explorerUrl });
+          send.onLaunched({ coin: r.coin, name: form.name.trim(), ticker: form.ticker.trim().toUpperCase(), icon: chosenIcon, creator: r.creator, launchBlock: r.launchBlock, txHash: r.txHash });
           return;
         }
         const t = tradeResultText(outcome, { symbol: form.ticker.trim().toUpperCase(), decimals: 18 });
