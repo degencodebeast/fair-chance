@@ -1,5 +1,7 @@
 # Fair Chance
 
+[![build-and-test](https://github.com/degencodebeast/fair-chance/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/degencodebeast/fair-chance/actions/workflows/build-and-test.yml)
+
 **You buy. The cabal dumps on you. You're left holding the bag.**
 
 A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their bags and the price crashes. You're left holding the bag. Fair Chance is a memecoin launchpad on NEAR. Every coin it launches slows the dump inside the coin itself, at launch and every day after, so snipers, the creator and whales sell a bit at a time. How much they can sell follows the pool's depth, and a whale cannot get around it by sending tokens to new wallets.
@@ -15,6 +17,10 @@ Built for NEAR HACKATHON, track Memecoins With Mechanics.
 - **Coin code hash:** `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, the same for every coin, and a local rebuild of `b42fdde` prints it ([Network](#network))
 - **Login:** none to read. A NEAR testnet wallet is needed only to launch, buy or sell.
 
+![The Bag Holders Club coin page on NEAR testnet: who can sell how fast, the pool cap this hour, the price chart and the sell receipts with partial fills.](docs/images/bagclub-coin-page.png)
+
+*The coin page of Bag Holders Club, the coin from the video, read from NEAR testnet on 14 November 2026. The receipts show the test cabal's partial fills and the reason for each.*
+
 ## Judge path, 2 minutes, no install
 
 1. Open [the Bag Holders Club coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=bagclub.factory.fairchance.testnet&network=testnet). This is the coin launched in the video. The receipts list every sell that went through, with its fill and the reason in plain words: the test cabal's partial fills and the normal buyer's full sell.
@@ -24,9 +30,20 @@ Built for NEAR HACKATHON, track Memecoins With Mechanics.
 
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
+## What is new here
+
+A falling fee on early buys is not new, and Fair Chance uses one. A fixed cap per sell is not new either: it refuses any sell above the cap. These parts are what Fair Chance adds, all inside the coin contract:
+
+- **A limited sell fills in part.** It does not fail. The seller gets what the limit allows, and the rest stays in the wallet.
+- **The limit follows the pool's depth.** One allowance moves the price by 2% at most, at any pool size.
+- **All early supply shares one allowance per 24 hours.** That is every wallet that bought in blocks 0 to 17, plus the creator group. In our testnet runs, 10 sniper wallets shared one allowance and sold 5.2% to 7.8% of what they asked.
+- **A large holder cannot send tokens.** Large means 2% of supply or more. A send that would make the receiver large is refused too, so a big bag cannot be split across new wallets.
+- **One cap per window on real NEAR.** Large, band and early-supply sells together can take out at most 5% of the pool's real NEAR per window.
+
 ## Contents
 
 - [Judge path, 2 minutes, no install](#judge-path-2-minutes-no-install)
+- [What is new here](#what-is-new-here)
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
 - [Why memecoins](#why-memecoins)
