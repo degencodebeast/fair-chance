@@ -14,8 +14,9 @@
 # Needs NEAR_SANDBOX_BIN_PATH (near-sandbox 2.13.4). Sandbox only: it never signs on testnet.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-runs="${1:-5}"
-case "$runs" in ''|*[!0-9]*|0) echo "rehearse-app-coin: runs takes a whole number from 1" >&2; exit 2 ;; esac
+# Only a missing argument takes the default; an empty one is refused like any other bad count.
+runs="${1-5}"
+case "$runs" in ''|*[!0-9]*|0*) echo "rehearse-app-coin: runs takes a whole number from 1, with no leading zero" >&2; exit 2 ;; esac
 : "${NEAR_SANDBOX_BIN_PATH:?set NEAR_SANDBOX_BIN_PATH to a near-sandbox binary}"
 logs="$(mktemp -d)"
 passed=0
@@ -41,4 +42,4 @@ for i in $(seq 1 "$runs"); do
   fi
 done
 echo "rehearse-app-coin: $in_window of $runs runs had every buy and early sell in blocks 0 to 17; $passed of $runs passed every check; logs in $logs"
-[ "$passed" = "$runs" ]
+[ "$passed" -eq "$runs" ]
