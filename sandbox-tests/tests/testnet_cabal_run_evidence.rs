@@ -159,8 +159,18 @@ fn the_early_supply_total_is_kept_as_an_exact_chain_read() {
     assert!(read["block_height"].as_u64().is_some_and(|h| h > 0));
     assert!(read["block_hash"].as_str().is_some_and(|h| h.len() >= 43));
     assert_eq!(read["shared_allowance_used"], "6912014798715522765922994");
-    for field in ["shared_allowance_used", "shared_allowance", "early_supply_total", "window_end_ns"] {
-        let text = read[field].as_str().unwrap_or_else(|| panic!("{field} is a decimal string"));
-        assert!(!text.is_empty() && text.chars().all(|c| c.is_ascii_digit()), "{field}");
+    for field in [
+        "shared_allowance_used",
+        "shared_allowance",
+        "early_supply_total",
+        "window_end_ns",
+    ] {
+        let text = read[field]
+            .as_str()
+            .unwrap_or_else(|| panic!("{field} is a decimal string"));
+        assert!(
+            !text.is_empty() && text.chars().all(|c| c.is_ascii_digit()),
+            "{field}"
+        );
     }
 }
