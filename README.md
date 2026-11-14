@@ -19,6 +19,7 @@ The whole supply is minted once at launch, and no burn method exists. The rules 
 - [The problem](#the-problem)
 - [What it does](#what-it-does)
 - [Try it in 90 seconds](#try-it-in-90-seconds)
+- [Run the sniper scene yourself](#run-the-sniper-scene-yourself)
 - [For judges](#for-judges)
 - [How it works](#how-it-works)
 - [Architecture](#architecture)
@@ -85,6 +86,41 @@ You need the tools below. `verify.sh doctor` checks every pin and starts nothing
    ```
 
    The script launches the demo coin on a fresh sandbox and refuses an opening buy above 4% and an early-window sell. It then buys a large bag, refuses a send, fills a sell in part, and fills a sell up to the real NEAR cap. It shows the receipt on the coin page in headless Chrome and sends the watcher alerts to a fake sender. It prints one `PASS` line per check and exits 0. The first failed check prints a `FAIL` line and exits 1. It needs `NEAR_SANDBOX_BIN_PATH`.
+
+## Run the sniper scene yourself
+
+One command plays a sniper cabal on a fresh local sandbox and prints its numbers:
+
+```sh
+scripts/sniper-scene.sh
+```
+
+It takes about 3 minutes plus the first build. It needs `near-sandbox` 2.13.4 (`NEAR_SANDBOX_BIN_PATH`), `cargo-near` 0.21.1 and python3. Google Chrome makes the PNG charts (`FC_BROWSER_PATH` overrides the binary). Without Chrome you get the SVG charts only. It uses throwaway sandbox keys and never touches testnet.
+
+What happens, with the fixed rules:
+
+1. The creator launches a coin with an opening buy.
+2. A funder makes 10 sniper wallets. They buy together in the first blocks, so all their tokens are early supply.
+3. Each sniper tries to sell its whole bag inside the early window (blocks 0 to 17). Every sell is refused with `FC_EARLY_WINDOW`.
+4. After the window, 3 ordinary buyers buy a small bag each. Then the snipers sell their whole bags, and then the buyers sell theirs.
+5. Last, the creator sells its whole bag. The snipers and the creator share one allowance, so the shared allowance left ends at 0.
+
+The result of two clean runs, with the same numbers in both (group totals):
+
+- Early-window sells: all refused with `FC_EARLY_WINDOW` (FROM CHAIN).
+- The snipers' asked tokens that went through: 3.9% with Fair Chance (FROM CHAIN), all of them without (CALCULATED).
+- The pool's real NEAR the snipers took: 2.9% with Fair Chance (FROM CHAIN), 60% without (CALCULATED).
+- Price drop from the snipers' sells: 1.66% with Fair Chance (FROM CHAIN), 32.02% without (CALCULATED).
+- The ordinary buyers' sells: filled in full (FROM CHAIN).
+- The shared allowance left after the creator's sell: 0, except for rounding dust (FROM CHAIN).
+
+The script writes `summary.md`, `derived.json`, `run.json` and the two charts to `target/sniper-scene/<run id>/`. FROM CHAIN means read from the sandbox receipts and views. CALCULATED means a plain pool with the same fee, the same start and the same order, with no Fair Chance limit ([analysis/sniper-scene/analyze.py](analysis/sniper-scene/analyze.py)). Each sell matches `fc_quote_sell` read just before it, and a replay of the sniper receipts gives the chain's pool exactly. If an early sell lands after block 17, the script prints `FAIL` and no numbers.
+
+Conditions:
+
+- The shared allowance refills every 24 h. It slows the dump. It does not stop it forever.
+- It binds before the 5% real NEAR cap only when the pool's real NEAR is above about a quarter of its virtual NEAR.
+- The ordinary buyers' full fill is a same-hour round trip. A buyer who sells in a later hour is limited by its own allowance.
 
 ## For judges
 

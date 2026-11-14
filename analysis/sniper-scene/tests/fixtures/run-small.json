@@ -1,0 +1,1841 @@
+{
+ "early_vs_late": {
+  "coin": "twin.factory.sandbox",
+  "early_buy": {
+   "success": true,
+   "coin_receipt_block": 254,
+   "events": [
+    {
+     "event": "fc_buy",
+     "data": {
+      "account": "early.cabal.sandbox",
+      "block": 254,
+      "class_after": "large",
+      "creator_fee_near": "9000000000000000000000",
+      "fee_near": "683333333333333333333334",
+      "marked_tokens": "20196846897322601358530003",
+      "near_in": "3000000000000000000000000",
+      "tokens_out": "20196846897322601358530003"
+     }
+    }
+   ],
+   "refusal": null
+  },
+  "late_buy": {
+   "success": true,
+   "coin_receipt_block": 267,
+   "events": [
+    {
+     "event": "fc_buy",
+     "data": {
+      "account": "late.buyers.sandbox",
+      "block": 267,
+      "class_after": "large",
+      "creator_fee_near": "9000000000000000000000",
+      "fee_near": "30000000000000000000000",
+      "marked_tokens": "0",
+      "near_in": "3000000000000000000000000",
+      "tokens_out": "24537986742534757306194959"
+     }
+    }
+   ],
+   "refusal": null
+  },
+  "launch": {
+   "success": true,
+   "coin_receipt_block": 243,
+   "events": [
+    {
+     "event": "fc_buy",
+     "data": {
+      "account": "creator.sandbox",
+      "block": 244,
+      "class_after": "large",
+      "creator_fee_near": "24000000000000000000000",
+      "fee_near": "4000000000000000000000000",
+      "marked_tokens": "38461538461538461538461538",
+      "near_in": "8000000000000000000000000",
+      "tokens_out": "38461538461538461538461538"
+     }
+    }
+   ],
+   "refusal": null
+  },
+  "launch_block": 244,
+  "sells": [
+   {
+    "account": "early.cabal.sandbox",
+    "fc_sell": {
+     "account": "early.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "261089538780289408080651",
+     "cap_used": "403481230228511630730487",
+     "class": "large",
+     "creator_fee_near": "1222670394631853426456",
+     "fee_near": "4075567982106178088187",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "3290604075496427574326714",
+     "near_out": "403481230228511630730487",
+     "penalty_near": "0",
+     "tokens_asked": "20196846897322601358530003",
+     "tokens_sold": "3290604075496427574326714",
+     "window_end_ns": "1794642073618899000"
+    },
+    "role": "early wallet",
+    "tokens_asked": "20196846897322601358530003",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 273,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "early.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "261089538780289408080651",
+        "cap_used": "403481230228511630730487",
+        "class": "large",
+        "creator_fee_near": "1222670394631853426456",
+        "fee_near": "4075567982106178088187",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "3290604075496427574326714",
+        "near_out": "403481230228511630730487",
+        "penalty_near": "0",
+        "tokens_asked": "20196846897322601358530003",
+        "tokens_sold": "3290604075496427574326714",
+        "window_end_ns": "1794642073618899000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "late.buyers.sandbox",
+    "fc_sell": {
+     "account": "late.buyers.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "121631610924505078371976",
+     "cap_used": "403481230228511630730487",
+     "class": "large",
+     "creator_fee_near": "8849060679011637729660",
+     "fee_near": "29496868930038792432203",
+     "fill": "full",
+     "limit_reason": null,
+     "marked_sold": "0",
+     "near_out": "2920190024073840450788002",
+     "penalty_near": "0",
+     "tokens_asked": "24537986742534757306194959",
+     "tokens_sold": "24537986742534757306194959",
+     "window_end_ns": "1794642073618899000"
+    },
+    "role": "late wallet",
+    "tokens_asked": "24537986742534757306194959",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 280,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "late.buyers.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "121631610924505078371976",
+        "cap_used": "403481230228511630730487",
+        "class": "large",
+        "creator_fee_near": "8849060679011637729660",
+        "fee_near": "29496868930038792432203",
+        "fill": "full",
+        "limit_reason": null,
+        "marked_sold": "0",
+        "near_out": "2920190024073840450788002",
+        "penalty_near": "0",
+        "tokens_asked": "24537986742534757306194959",
+        "tokens_sold": "24537986742534757306194959",
+        "window_end_ns": "1794642073618899000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   }
+  ]
+ },
+ "network": "local near-sandbox (fresh, throwaway keys)",
+ "sandbox_release": "2.13.4",
+ "scene": {
+  "actions": [
+   {
+    "account": "b1.buyers.sandbox",
+    "funded_by": "buyers.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "buyer #1",
+    "step": "fund"
+   },
+   {
+    "account": "b2.buyers.sandbox",
+    "funded_by": "buyers.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "buyer #2",
+    "step": "fund"
+   },
+   {
+    "account": "b3.buyers.sandbox",
+    "funded_by": "buyers.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "buyer #3",
+    "step": "fund"
+   },
+   {
+    "account": "creator.sandbox",
+    "head_after_launch_returned": 6,
+    "opening_buy_near": "8000000000000000000000000",
+    "role": "creator",
+    "step": "launch",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 91,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "creator.sandbox",
+        "block": 92,
+        "class_after": "large",
+        "creator_fee_near": "24000000000000000000000",
+        "fee_near": "4000000000000000000000000",
+        "marked_tokens": "38461538461538461538461538",
+        "near_in": "8000000000000000000000000",
+        "tokens_out": "38461538461538461538461538"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s04.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #1",
+    "step": "fund"
+   },
+   {
+    "account": "s09.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #2",
+    "step": "fund"
+   },
+   {
+    "account": "s05.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #3",
+    "step": "fund"
+   },
+   {
+    "account": "s02.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #4",
+    "step": "fund"
+   },
+   {
+    "account": "s03.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #5",
+    "step": "fund"
+   },
+   {
+    "account": "s06.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #6",
+    "step": "fund"
+   },
+   {
+    "account": "s07.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #7",
+    "step": "fund"
+   },
+   {
+    "account": "s01.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #8",
+    "step": "fund"
+   },
+   {
+    "account": "s10.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #9",
+    "step": "fund"
+   },
+   {
+    "account": "s08.cabal.sandbox",
+    "funded_by": "cabal.sandbox",
+    "near": "5000000000000000000000000",
+    "role": "sniper #10",
+    "step": "fund"
+   },
+   {
+    "account": "s04.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #1",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s04.cabal.sandbox",
+        "block": 102,
+        "class_after": "large",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "20196846897322601358530003",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "20196846897322601358530003"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s09.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #2",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s09.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "19250566341590625341299295",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "19250566341590625341299295"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s05.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #3",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s05.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "18371822998652216495263734",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "18371822998652216495263734"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s02.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #4",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s02.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "17554223808028652733538274",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "17554223808028652733538274"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s03.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #5",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s03.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "16792122475598955000691722",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "16792122475598955000691722"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s06.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #6",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s06.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "16080516494439060709977020",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "16080516494439060709977020"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s07.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #7",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s07.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "15414960437137172658310429",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "15414960437137172658310429"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s01.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #8",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s01.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "14791492636308256431953389",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "14791492636308256431953389"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s10.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #9",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s10.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "14206572933808551053333122",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "14206572933808551053333122"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s08.cabal.sandbox",
+    "block_after_launch": 10,
+    "near_in": "3000000000000000000000000",
+    "role": "sniper #10",
+    "sent_at_block_after_launch": 7,
+    "step": "sniper buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 102,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "s08.cabal.sandbox",
+        "block": 102,
+        "class_after": "band",
+        "creator_fee_near": "9000000000000000000000",
+        "fee_near": "683333333333333333333334",
+        "marked_tokens": "13657029622804789083572963",
+        "near_in": "3000000000000000000000000",
+        "tokens_out": "13657029622804789083572963"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s04.cabal.sandbox",
+    "balance_after": "20196846897322601358530003",
+    "block_after_launch": 13,
+    "role": "sniper #1",
+    "step": "sniper sell in early window",
+    "tokens_asked": "20196846897322601358530003",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s09.cabal.sandbox",
+    "balance_after": "19250566341590625341299295",
+    "block_after_launch": 13,
+    "role": "sniper #2",
+    "step": "sniper sell in early window",
+    "tokens_asked": "19250566341590625341299295",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s05.cabal.sandbox",
+    "balance_after": "18371822998652216495263734",
+    "block_after_launch": 13,
+    "role": "sniper #3",
+    "step": "sniper sell in early window",
+    "tokens_asked": "18371822998652216495263734",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s02.cabal.sandbox",
+    "balance_after": "17554223808028652733538274",
+    "block_after_launch": 13,
+    "role": "sniper #4",
+    "step": "sniper sell in early window",
+    "tokens_asked": "17554223808028652733538274",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s03.cabal.sandbox",
+    "balance_after": "16792122475598955000691722",
+    "block_after_launch": 13,
+    "role": "sniper #5",
+    "step": "sniper sell in early window",
+    "tokens_asked": "16792122475598955000691722",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s06.cabal.sandbox",
+    "balance_after": "16080516494439060709977020",
+    "block_after_launch": 13,
+    "role": "sniper #6",
+    "step": "sniper sell in early window",
+    "tokens_asked": "16080516494439060709977020",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s07.cabal.sandbox",
+    "balance_after": "15414960437137172658310429",
+    "block_after_launch": 13,
+    "role": "sniper #7",
+    "step": "sniper sell in early window",
+    "tokens_asked": "15414960437137172658310429",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s01.cabal.sandbox",
+    "balance_after": "14791492636308256431953389",
+    "block_after_launch": 13,
+    "role": "sniper #8",
+    "step": "sniper sell in early window",
+    "tokens_asked": "14791492636308256431953389",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s10.cabal.sandbox",
+    "balance_after": "14206572933808551053333122",
+    "block_after_launch": 13,
+    "role": "sniper #9",
+    "step": "sniper sell in early window",
+    "tokens_asked": "14206572933808551053333122",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "s08.cabal.sandbox",
+    "balance_after": "13657029622804789083572963",
+    "block_after_launch": 13,
+    "role": "sniper #10",
+    "step": "sniper sell in early window",
+    "tokens_asked": "13657029622804789083572963",
+    "tx": {
+     "success": false,
+     "coin_receipt_block": 105,
+     "events": [],
+     "refusal": {
+      "code": "FC_EARLY_WINDOW",
+      "failed_receipt_block": 105
+     }
+    }
+   },
+   {
+    "account": "b1.buyers.sandbox",
+    "block_after_launch": 23,
+    "near_in": "1000000000000000000000000",
+    "role": "buyer #1",
+    "step": "buyer buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 115,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "b1.buyers.sandbox",
+        "block": 115,
+        "class_after": "small",
+        "creator_fee_near": "3000000000000000000000",
+        "fee_near": "10000000000000000000000",
+        "marked_tokens": "0",
+        "near_in": "1000000000000000000000000",
+        "tokens_out": "5668870674730284217713052"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "b2.buyers.sandbox",
+    "block_after_launch": 29,
+    "near_in": "1000000000000000000000000",
+    "role": "buyer #2",
+    "step": "buyer buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 121,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "b2.buyers.sandbox",
+        "block": 121,
+        "class_after": "small",
+        "creator_fee_near": "3000000000000000000000",
+        "fee_near": "10000000000000000000000",
+        "marked_tokens": "0",
+        "near_in": "1000000000000000000000000",
+        "tokens_out": "5588340150392570186122996"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "b3.buyers.sandbox",
+    "block_after_launch": 35,
+    "near_in": "1000000000000000000000000",
+    "role": "buyer #3",
+    "step": "buyer buy",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 127,
+     "events": [
+      {
+       "event": "fc_buy",
+       "data": {
+        "account": "b3.buyers.sandbox",
+        "block": 127,
+        "class_after": "small",
+        "creator_fee_near": "3000000000000000000000",
+        "fee_near": "10000000000000000000000",
+        "marked_tokens": "0",
+        "near_in": "1000000000000000000000000",
+        "tokens_out": "5509515476020240826004970"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s04.cabal.sandbox",
+    "fc_sell": {
+     "account": "s04.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1803727555937308536740738",
+     "cap_used": "142515410445608791206167",
+     "class": "large",
+     "creator_fee_near": "431864880138208458200",
+     "fee_near": "1439549600460694860669",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "796277391496028235793892",
+     "near_out": "142515410445608791206167",
+     "penalty_near": "0",
+     "tokens_asked": "20196846897322601358530003",
+     "tokens_sold": "796277391496028235793892",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #1",
+    "step": "sniper dump",
+    "tokens_asked": "20196846897322601358530003",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 133,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s04.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1803727555937308536740738",
+        "cap_used": "142515410445608791206167",
+        "class": "large",
+        "creator_fee_near": "431864880138208458200",
+        "fee_near": "1439549600460694860669",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "796277391496028235793892",
+        "near_out": "142515410445608791206167",
+        "penalty_near": "0",
+        "tokens_asked": "20196846897322601358530003",
+        "tokens_sold": "796277391496028235793892",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s09.cabal.sandbox",
+    "fc_sell": {
+     "account": "s09.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1668159277790302987565154",
+     "cap_used": "278083688592614340381751",
+     "class": "band",
+     "creator_fee_near": "410812964081834997501",
+     "fee_near": "1369376546939449991673",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "758969498022737712598297",
+     "near_out": "135568278147005549175584",
+     "penalty_near": "0",
+     "tokens_asked": "19250566341590625341299295",
+     "tokens_sold": "758969498022737712598297",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #2",
+    "step": "sniper dump",
+    "tokens_asked": "19250566341590625341299295",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 140,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s09.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1668159277790302987565154",
+        "cap_used": "278083688592614340381751",
+        "class": "band",
+        "creator_fee_near": "410812964081834997501",
+        "fee_near": "1369376546939449991673",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "758969498022737712598297",
+        "near_out": "135568278147005549175584",
+        "penalty_near": "0",
+        "tokens_asked": "19250566341590625341299295",
+        "tokens_sold": "758969498022737712598297",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s05.cabal.sandbox",
+    "fc_sell": {
+     "account": "s05.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1539024298903377365572468",
+     "cap_used": "407218667479539962374437",
+     "class": "band",
+     "creator_fee_near": "391318117839168551493",
+     "fee_near": "1304393726130561838310",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "724324315016361853719026",
+     "near_out": "129134978886925621992686",
+     "penalty_near": "0",
+     "tokens_asked": "18371822998652216495263734",
+     "tokens_sold": "724324315016361853719026",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #3",
+    "step": "sniper dump",
+    "tokens_asked": "18371822998652216495263734",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 147,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s05.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1539024298903377365572468",
+        "cap_used": "407218667479539962374437",
+        "class": "band",
+        "creator_fee_near": "391318117839168551493",
+        "fee_near": "1304393726130561838310",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "724324315016361853719026",
+        "near_out": "129134978886925621992686",
+        "penalty_near": "0",
+        "tokens_asked": "18371822998652216495263734",
+        "tokens_sold": "724324315016361853719026",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s02.cabal.sandbox",
+    "fc_sell": {
+     "account": "s02.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1415859052108839821652106",
+     "cap_used": "530383914274077506294799",
+     "class": "band",
+     "creator_fee_near": "373228020589507708849",
+     "fee_near": "1244093401965025696166",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "692089790780536707625660",
+     "near_out": "123165246794537543920362",
+     "penalty_near": "0",
+     "tokens_asked": "17554223808028652733538274",
+     "tokens_sold": "692089790780536707625660",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #4",
+    "step": "sniper dump",
+    "tokens_asked": "17554223808028652733538274",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 154,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s02.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1415859052108839821652106",
+        "cap_used": "530383914274077506294799",
+        "class": "band",
+        "creator_fee_near": "373228020589507708849",
+        "fee_near": "1244093401965025696166",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "692089790780536707625660",
+        "near_out": "123165246794537543920362",
+        "penalty_near": "0",
+        "tokens_asked": "17554223808028652733538274",
+        "tokens_sold": "692089790780536707625660",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s03.cabal.sandbox",
+    "fc_sell": {
+     "account": "s03.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1298244181266581560481254",
+     "cap_used": "647998785116335767465651",
+     "class": "band",
+     "creator_fee_near": "356408699521994730820",
+     "fee_near": "1188028998406649102736",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "662043315500119863293999",
+     "near_out": "117614870842258261170852",
+     "penalty_near": "0",
+     "tokens_asked": "16792122475598955000691722",
+     "tokens_sold": "662043315500119863293999",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #5",
+    "step": "sniper dump",
+    "tokens_asked": "16792122475598955000691722",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 161,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s03.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1298244181266581560481254",
+        "cap_used": "647998785116335767465651",
+        "class": "band",
+        "creator_fee_near": "356408699521994730820",
+        "fee_near": "1188028998406649102736",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "662043315500119863293999",
+        "near_out": "117614870842258261170852",
+        "penalty_near": "0",
+        "tokens_asked": "16792122475598955000691722",
+        "tokens_sold": "662043315500119863293999",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s06.cabal.sandbox",
+    "fc_sell": {
+     "account": "s06.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1185799345954733889618584",
+     "cap_used": "760443620428183438328321",
+     "class": "band",
+     "creator_fee_near": "340741925187417184432",
+     "fee_near": "1135806417291390614775",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "633987661202612235518550",
+     "near_out": "112444835311847670862670",
+     "penalty_near": "0",
+     "tokens_asked": "16080516494439060709977020",
+     "tokens_sold": "633987661202612235518550",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #6",
+    "step": "sniper dump",
+    "tokens_asked": "16080516494439060709977020",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 168,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s06.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1185799345954733889618584",
+        "cap_used": "760443620428183438328321",
+        "class": "band",
+        "creator_fee_near": "340741925187417184432",
+        "fee_near": "1135806417291390614775",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "633987661202612235518550",
+        "near_out": "112444835311847670862670",
+        "penalty_near": "0",
+        "tokens_asked": "16080516494439060709977020",
+        "tokens_sold": "633987661202612235518550",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s07.cabal.sandbox",
+    "fc_sell": {
+     "account": "s07.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "1078178746090466823645726",
+     "cap_used": "868064220292450504301179",
+     "class": "band",
+     "creator_fee_near": "326123029891718381736",
+     "fee_near": "1087076766305727939120",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "607747563235984399332476",
+     "near_out": "107620599864267065972858",
+     "penalty_near": "0",
+     "tokens_asked": "15414960437137172658310429",
+     "tokens_sold": "607747563235984399332476",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #7",
+    "step": "sniper dump",
+    "tokens_asked": "15414960437137172658310429",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 175,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s07.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "1078178746090466823645726",
+        "cap_used": "868064220292450504301179",
+        "class": "band",
+        "creator_fee_near": "326123029891718381736",
+        "fee_near": "1087076766305727939120",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "607747563235984399332476",
+        "near_out": "107620599864267065972858",
+        "penalty_near": "0",
+        "tokens_asked": "15414960437137172658310429",
+        "tokens_sold": "607747563235984399332476",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s01.cabal.sandbox",
+    "fc_sell": {
+     "account": "s01.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "975067252272926076761936",
+     "cap_used": "971175714109991251184969",
+     "class": "band",
+     "creator_fee_near": "312459072174365899647",
+     "fee_near": "1041530240581219665493",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "583166829587326246347325",
+     "near_out": "103111493817540746883790",
+     "penalty_near": "0",
+     "tokens_asked": "14791492636308256431953389",
+     "tokens_sold": "583166829587326246347325",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #8",
+    "step": "sniper dump",
+    "tokens_asked": "14791492636308256431953389",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 182,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s01.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "975067252272926076761936",
+        "cap_used": "971175714109991251184969",
+        "class": "band",
+        "creator_fee_near": "312459072174365899647",
+        "fee_near": "1041530240581219665493",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "583166829587326246347325",
+        "near_out": "103111493817540746883790",
+        "penalty_near": "0",
+        "tokens_asked": "14791492636308256431953389",
+        "tokens_sold": "583166829587326246347325",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s10.cabal.sandbox",
+    "fc_sell": {
+     "account": "s10.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "876177047943902206056122",
+     "cap_used": "1070065918439015121890783",
+     "class": "band",
+     "creator_fee_near": "299667285845526880926",
+     "fee_near": "998890952818422936423",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "560105886594148355658389",
+     "near_out": "98890204329023870705814",
+     "penalty_near": "0",
+     "tokens_asked": "14206572933808551053333122",
+     "tokens_sold": "560105886594148355658389",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #9",
+    "step": "sniper dump",
+    "tokens_asked": "14206572933808551053333122",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 189,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s10.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "876177047943902206056122",
+        "cap_used": "1070065918439015121890783",
+        "class": "band",
+        "creator_fee_near": "299667285845526880926",
+        "fee_near": "998890952818422936423",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "560105886594148355658389",
+        "near_out": "98890204329023870705814",
+        "penalty_near": "0",
+        "tokens_asked": "14206572933808551053333122",
+        "tokens_sold": "560105886594148355658389",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "s08.cabal.sandbox",
+    "fc_sell": {
+     "account": "s08.cabal.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "781244705784763315911170",
+     "cap_used": "1164998260598154012035735",
+     "class": "band",
+     "creator_fee_near": "287673764118602697409",
+     "fee_near": "958912547062008991364",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "538439687091582674248527",
+     "near_out": "94932342159138890144952",
+     "penalty_near": "0",
+     "tokens_asked": "13657029622804789083572963",
+     "tokens_sold": "538439687091582674248527",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "sniper #10",
+    "step": "sniper dump",
+    "tokens_asked": "13657029622804789083572963",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 196,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "s08.cabal.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "781244705784763315911170",
+        "cap_used": "1164998260598154012035735",
+        "class": "band",
+        "creator_fee_near": "287673764118602697409",
+        "fee_near": "958912547062008991364",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "538439687091582674248527",
+        "near_out": "94932342159138890144952",
+        "penalty_near": "0",
+        "tokens_asked": "13657029622804789083572963",
+        "tokens_sold": "538439687091582674248527",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "b1.buyers.sandbox",
+    "fc_sell": {
+     "account": "b1.buyers.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "733887622563880868723633",
+     "cap_used": "1164998260598154012035735",
+     "class": "small",
+     "creator_fee_near": "3004961492300066295494",
+     "fee_near": "10016538307666887651648",
+     "fill": "full",
+     "limit_reason": null,
+     "marked_sold": "0",
+     "near_out": "991637292459021877513055",
+     "penalty_near": "0",
+     "tokens_asked": "5668870674730284217713052",
+     "tokens_sold": "5668870674730284217713052",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "buyer #1",
+    "step": "buyer sell",
+    "tokens_asked": "5668870674730284217713052",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 203,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "b1.buyers.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "733887622563880868723633",
+        "cap_used": "1164998260598154012035735",
+        "class": "small",
+        "creator_fee_near": "3004961492300066295494",
+        "fee_near": "10016538307666887651648",
+        "fill": "full",
+        "limit_reason": null,
+        "marked_sold": "0",
+        "near_out": "991637292459021877513055",
+        "penalty_near": "0",
+        "tokens_asked": "5668870674730284217713052",
+        "tokens_sold": "5668870674730284217713052",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "b2.buyers.sandbox",
+    "fc_sell": {
+     "account": "b2.buyers.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "687860952032244293993490",
+     "cap_used": "1164998260598154012035735",
+     "class": "small",
+     "creator_fee_near": "2920542465025845458707",
+     "fee_near": "9735141550086151529025",
+     "fill": "full",
+     "limit_reason": null,
+     "marked_sold": "0",
+     "near_out": "963779013458529001373465",
+     "penalty_near": "0",
+     "tokens_asked": "5588340150392570186122996",
+     "tokens_sold": "5588340150392570186122996",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "buyer #2",
+    "step": "buyer sell",
+    "tokens_asked": "5588340150392570186122996",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 210,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "b2.buyers.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "687860952032244293993490",
+        "cap_used": "1164998260598154012035735",
+        "class": "small",
+        "creator_fee_near": "2920542465025845458707",
+        "fee_near": "9735141550086151529025",
+        "fill": "full",
+        "limit_reason": null,
+        "marked_sold": "0",
+        "near_out": "963779013458529001373465",
+        "penalty_near": "0",
+        "tokens_asked": "5588340150392570186122996",
+        "tokens_sold": "5588340150392570186122996",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "b3.buyers.sandbox",
+    "fc_sell": {
+     "account": "b3.buyers.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "643109376580140911230891",
+     "cap_used": "1164998260598154012035735",
+     "class": "small",
+     "creator_fee_near": "2839633520631040427790",
+     "fee_near": "9465445068770134759303",
+     "fill": "full",
+     "limit_reason": null,
+     "marked_sold": "0",
+     "near_out": "937079061808243341170921",
+     "penalty_near": "0",
+     "tokens_asked": "5509515476020240826004970",
+     "tokens_sold": "5509515476020240826004970",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "buyer #3",
+    "step": "buyer sell",
+    "tokens_asked": "5509515476020240826004970",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 217,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "b3.buyers.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "643109376580140911230891",
+        "cap_used": "1164998260598154012035735",
+        "class": "small",
+        "creator_fee_near": "2839633520631040427790",
+        "fee_near": "9465445068770134759303",
+        "fill": "full",
+        "limit_reason": null,
+        "marked_sold": "0",
+        "near_out": "937079061808243341170921",
+        "penalty_near": "0",
+        "tokens_asked": "5509515476020240826004970",
+        "tokens_sold": "5509515476020240826004970",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   },
+   {
+    "account": "creator.sandbox",
+    "fc_sell": {
+     "account": "creator.sandbox",
+     "allowance_left": "10152544552210749144063374",
+     "allowance_used": "0",
+     "cap_left": "387441519505707041029925",
+     "cap_used": "1420666117672587882236701",
+     "class": "large",
+     "creator_fee_near": "774751082043739000609",
+     "fee_near": "2582503606812463335364",
+     "fill": "partial",
+     "limit_reason": "allowance",
+     "marked_sold": "1516377961113224924333879",
+     "near_out": "255667857074433870200966",
+     "penalty_near": "0",
+     "tokens_asked": "38461538461538461538461538",
+     "tokens_sold": "1516377961113224924333879",
+     "window_end_ns": "1794641981517779000"
+    },
+    "role": "creator",
+    "step": "creator sell",
+    "tokens_asked": "38461538461538461538461538",
+    "tx": {
+     "success": true,
+     "coin_receipt_block": 224,
+     "events": [
+      {
+       "event": "fc_sell",
+       "data": {
+        "account": "creator.sandbox",
+        "allowance_left": "10152544552210749144063374",
+        "allowance_used": "0",
+        "cap_left": "387441519505707041029925",
+        "cap_used": "1420666117672587882236701",
+        "class": "large",
+        "creator_fee_near": "774751082043739000609",
+        "fee_near": "2582503606812463335364",
+        "fill": "partial",
+        "limit_reason": "allowance",
+        "marked_sold": "1516377961113224924333879",
+        "near_out": "255667857074433870200966",
+        "penalty_near": "0",
+        "tokens_asked": "38461538461538461538461538",
+        "tokens_sold": "1516377961113224924333879",
+        "window_end_ns": "1794641981517779000"
+       }
+      }
+     ],
+     "refusal": null
+    }
+   }
+  ],
+  "checks": [
+   {
+    "check": "sniper #1 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #2 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #3 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #4 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #5 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #6 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #7 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #8 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #9 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #10 buy in blocks 0 to N and marked",
+    "pass": true
+   },
+   {
+    "check": "sniper #1 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #2 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #3 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #4 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #5 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #6 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #7 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #8 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #9 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "sniper #10 early sell refused with FC_EARLY_WINDOW in blocks 0 to N, no tokens moved",
+    "pass": true
+   },
+   {
+    "check": "pool unchanged by the refused sells",
+    "pass": true
+   },
+   {
+    "check": "sniper #1 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #2 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #3 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #4 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #5 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #6 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #7 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #8 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #9 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "sniper #10 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "buyer #1 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "buyer #2 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "buyer #3 sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "creator sell matches fc_quote_sell before it",
+    "pass": true
+   },
+   {
+    "check": "shared allowance left ends at 0 (at most one base unit of rounding per marked holder)",
+    "pass": true
+   }
+  ],
+  "coin": "cabal.factory.sandbox",
+  "coin_code_hash": "2qUeEiS27wiu3QZAbsJMP7adv1iZhY7zu8EhCSHUiEj5",
+  "early_blocks": 17,
+  "fc_rules": {
+   "brake_drop_bps": null,
+   "claim_depth_hold_s": 86400,
+   "claim_min_real_near": "10000000000000000000000000",
+   "code_hash": "2qUeEiS27wiu3QZAbsJMP7adv1iZhY7zu8EhCSHUiEj5",
+   "creator": "creator.sandbox",
+   "creator_cap_bps": 400,
+   "creator_fee_share_bps": 3000,
+   "description": "You buy. The cabal dumps on you. You hold the bag.",
+   "early_blocks": 17,
+   "early_fee_start_bps": 5000,
+   "floor_bps": 10,
+   "large_threshold_bps": 200,
+   "launch_block": 92,
+   "launch_ns": "1794638381517779000",
+   "p_bps": 200,
+   "penalty_bps": 1000,
+   "real_cap_c_bps": 500,
+   "swap_fee_bps": 100,
+   "unclaimed_to_pool_s": null,
+   "virtual_near": "100000000000000000000000000",
+   "window_early_s": 86400,
+   "window_unmarked_s": 3600
+  },
+  "launch_block": 92,
+  "sizes": {
+   "buyer_buy": "1000000000000000000000000",
+   "buyers": 3,
+   "creator_sells": true,
+   "opening_buy": "8000000000000000000000000",
+   "sniper_buy": "3000000000000000000000000",
+   "snipers": 10
+  },
+  "snapshots": [
+   {
+    "fc_early_window": {
+     "blocks_left": 2,
+     "buy_fee_bps_now": 645,
+     "early_blocks": 17,
+     "early_supply_total": "204777693107229342404931489",
+     "fee_end_block": 110,
+     "rate_per_token": "0",
+     "shared_allowance": "0",
+     "shared_allowance_left": "0",
+     "shared_allowance_used": "0",
+     "window_end_ns": "1794724781517779000"
+    },
+    "fc_pool": {
+     "block": 108,
+     "creator_fee_balance": "114000000000000000000000",
+     "creator_group_share_bps": 384,
+     "large_holders": 2,
+     "near_reserve": "137886000000000000000000000",
+     "real_near": "37886000000000000000000000",
+     "token_reserve": "795222306892770657595068511",
+     "virtual_near": "100000000000000000000000000"
+    },
+    "label": "in the early window, after the refused sells"
+   },
+   {
+    "block": 130,
+    "fc_early_window": {
+     "blocks_left": 0,
+     "buy_fee_bps_now": 100,
+     "early_blocks": 17,
+     "early_supply_total": "204777693107229342404931489",
+     "fee_end_block": 110,
+     "rate_per_token": "394",
+     "shared_allowance": "8073529899640663208470023",
+     "shared_allowance_left": "8073529899640663208470023",
+     "shared_allowance_used": "0",
+     "window_end_ns": "1794724781517779000"
+    },
+    "fc_pool": {
+     "block": 130,
+     "creator_fee_balance": "123000000000000000000000",
+     "creator_group_share_bps": 384,
+     "large_holders": 2,
+     "near_reserve": "140877000000000000000000000",
+     "real_near": "40877000000000000000000000",
+     "token_reserve": "778455580591627562365227493",
+     "virtual_near": "100000000000000000000000000"
+    },
+    "label": "before the snipers' dump"
+   },
+   {
+    "block": 200,
+    "fc_early_window": {
+     "blocks_left": 0,
+     "buy_fee_bps_now": 100,
+     "early_blocks": 17,
+     "early_supply_total": "198220541168701904120795348",
+     "fee_end_block": 110,
+     "rate_per_token": "394",
+     "shared_allowance": "8073529899640663208470023",
+     "shared_allowance_left": "1516377961113224924333882",
+     "shared_allowance_used": "6557151938527438284136141",
+     "window_end_ns": "1794724781517779000"
+    },
+    "fc_pool": {
+     "block": 200,
+     "creator_fee_balance": "126530297759388345491013",
+     "creator_group_share_bps": 384,
+     "large_holders": 2,
+     "near_reserve": "139708471441642457642473252",
+     "real_near": "39708471441642457642473252",
+     "token_reserve": "785012732530155000649363634",
+     "virtual_near": "100000000000000000000000000"
+    },
+    "label": "after the snipers' dump"
+   },
+   {
+    "block": 228,
+    "fc_early_window": {
+     "blocks_left": 0,
+     "buy_fee_bps_now": 100,
+     "early_blocks": 17,
+     "early_supply_total": "196704163207588679196461469",
+     "fee_end_block": 110,
+     "rate_per_token": "394",
+     "shared_allowance": "8073529899640663208470023",
+     "shared_allowance_left": "3",
+     "shared_allowance_used": "8073529899640663208470020",
+     "window_end_ns": "1794724781517779000"
+    },
+    "fc_pool": {
+     "block": 228,
+     "creator_fee_balance": "136070186319389036673613",
+     "creator_group_share_bps": 369,
+     "large_holders": 2,
+     "near_reserve": "136550768328282228861032245",
+     "real_near": "36550768328282228861032245",
+     "token_reserve": "803295836792411320803538531",
+     "virtual_near": "100000000000000000000000000"
+    },
+    "label": "end"
+   }
+  ]
+ },
+ "seconds": 172
+}

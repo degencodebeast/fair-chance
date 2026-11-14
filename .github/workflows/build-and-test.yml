@@ -45,6 +45,9 @@ jobs:
       - name: Trade replay tests (synthetic fixture; the limits-on run builds a coin example)
         run: scripts/test-trade-replay.sh
 
+      - name: Sniper scene analysis tests (small run file; no sandbox)
+        run: python3 -I -m unittest discover -s analysis/sniper-scene/tests
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: watcher/go.mod
