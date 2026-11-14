@@ -1,5 +1,7 @@
 /* Landing, coin list, alerts, price chart and holders table. Colours and fonts come from coin-page.css. */
 .screen-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.wallet-bar { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 100%; }
+.wallet-account { font: 600 13px var(--font-num); overflow-wrap: anywhere; }
 .brand { font: 400 20px var(--font-display); color: var(--ink); text-decoration: none; }
 .screen-nav { display: flex; gap: 6px; flex: 1; }
 .nav-link { color: var(--ink); font-weight: 700; padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center; border-radius: 20px; text-decoration: none; }
