@@ -1,7 +1,9 @@
 /* Landing, coin list, alerts, price chart and holders table. Colours and fonts come from coin-page.css. */
 .screen-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .wallet-bar { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 100%; }
-.wallet-account { font: 600 13px var(--font-num); overflow-wrap: anywhere; }
+.wallet-bar { flex-wrap: nowrap; }
+.wallet-account { font: 600 13px var(--font-num); background: var(--paper); border: 2px solid var(--ink); border-radius: 999px; padding: 6px 12px; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#wallet-sign-out { background: transparent; min-height: 36px; padding: 0 8px; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
 .brand { font: 400 20px var(--font-display); color: var(--ink); text-decoration: none; }
 .screen-nav { display: flex; gap: 6px; flex: 1; }
 .nav-link { color: var(--ink); font-weight: 700; padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center; border-radius: 20px; text-decoration: none; }
@@ -136,7 +138,7 @@ pre { margin: 6px 0 0; font: 400 12.5px/1.55 var(--font-num); white-space: pre-w
 }
 
 /* The fixed network banner above every screen on a named network. */
-#network-banner { position: sticky; top: 0; z-index: 10; padding: 8px 16px; text-align: center; font: 600 13px var(--font-body); background: var(--ink); color: var(--paper); }
+#network-banner { position: sticky; top: 0; z-index: 10; padding: 3px 12px; text-align: center; font: 500 11px var(--font-body); background: var(--ink); color: var(--paper); opacity: 0.9; }
 .launch-picture-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; }
 
 .try-it { margin: 16px 0; }

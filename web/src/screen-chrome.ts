@@ -53,7 +53,7 @@ export function walletBar(control: WalletControl): HTMLElement {
     if (state.kind === "signed-in") {
       const out = el("button", { type: "button", id: "wallet-sign-out", class: "button" }, "Sign out");
       listen(out, "click", () => void control.signOut());
-      root.replaceChildren(el("span", { id: "wallet-account", class: "wallet-account" }, state.session.accountId), out);
+      root.replaceChildren(el("span", { id: "wallet-account", class: "wallet-account", title: state.session.accountId }, state.session.accountId), out);
       return;
     }
     const connect = el("button", { type: "button", id: "wallet-connect", class: "button button-dark" }, connecting ? "Connecting" : "Connect wallet");
