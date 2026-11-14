@@ -57,7 +57,7 @@ describe("normal", () => {
       { label: "Price per 1M MOTH", value: "0.1729 NEAR", sub: "", available: true },
       { label: "Market cap", value: "172.99 NEAR", sub: "", available: true },
       { label: "Real NEAR in pool", value: "40.47 NEAR", sub: "+ 100.00 virtual NEAR. It counts in the price, and nobody can take it out.", available: true },
-      { label: "Age", value: "1 h 22 min", sub: "launched 13:02", available: true },
+      { label: "Age", value: "1 h 22 min", sub: "launched 13:02 UTC", available: true },
     ]);
     expect(view.banner).toMatchObject({ kind: "ended" });
   });
@@ -152,7 +152,7 @@ describe("values read at a time", () => {
 
   it("shows the time the values were read", async () => {
     const view = await ready(recordedCoin("normal"));
-    expect(view.asOf).toBe("As of 14:24");
+    expect(view.asOf).toBe("As of 14:24 UTC");
   });
 
   it("shows the cap as live before the hour ends", async () => {

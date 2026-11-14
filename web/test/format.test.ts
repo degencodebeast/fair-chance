@@ -64,3 +64,13 @@ describe("exactNear", () => {
     expect(exactNear("0")).toBe("0");
   });
 });
+
+describe("zone label", () => {
+  it("names the offset from UTC, and plain UTC for none", async () => {
+    const { zoneLabel, clockTimeWithZone } = await import("../src/format.ts");
+    const ns = BigInt(Date.UTC(2026, 10, 14, 10, 11)) * 1_000_000n;
+    expect(zoneLabel(ns, { timeZone: "UTC" })).toBe("UTC");
+    expect(clockTimeWithZone(ns, { timeZone: "Africa/Lagos" })).toBe("11:11 UTC+1");
+    expect(zoneLabel(ns, { timeZone: "Asia/Kolkata" })).toBe("UTC+5:30");
+  });
+});

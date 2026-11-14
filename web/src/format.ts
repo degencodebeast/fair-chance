@@ -98,6 +98,20 @@ export function clockTime(ns: bigint, ctx: Pick<TimeContext, "timeZone">): strin
   return parts(ns, ctx.timeZone).clock;
 }
 
+/** The zone of a clock time, as an offset from UTC: "UTC", "UTC+1", "UTC-5:30". */
+export function zoneLabel(ns: bigint, ctx: Pick<TimeContext, "timeZone">): string {
+  const name = new Intl.DateTimeFormat("en-GB", { timeZone: ctx.timeZone, timeZoneName: "shortOffset" })
+    .formatToParts(new Date(Number(ns / 1_000_000n)))
+    .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const label = name.replace(/^GMT/, "UTC");
+  return label === "UTC+0" || label === "UTC-0" ? "UTC" : label;
+}
+
+/** Clock time with its zone, for a time a reader may compare across countries: "15:02 UTC+1". */
+export function clockTimeWithZone(ns: bigint, ctx: Pick<TimeContext, "timeZone">): string {
+  return `${clockTime(ns, ctx)} ${zoneLabel(ns, ctx)}`;
+}
+
 /** Local 24 h time with a day word when it is not today, and a hint: "15:02, in 38 min". */
 export function timeWithHint(ns: bigint, ctx: TimeContext): string {
   const at = parts(ns, ctx.timeZone);

@@ -5,7 +5,7 @@ import { iconFits } from "./icon-to-webp.ts";
 import type { CoinEvent } from "./chain.ts";
 import type { CheckResult } from "./chain-checks.ts";
 import type { CoinPageData, CoinReads } from "./coin-page.ts";
-import { age, clockTime, compactTokens, nearAmount, percentOfBps, timeWithHint, type TimeContext } from "./format.ts";
+import { age, clockTime, clockTimeWithZone, compactTokens, nearAmount, percentOfBps, timeWithHint, type TimeContext } from "./format.ts";
 import { nearShort, sellRow, tokensShort } from "./receipts.ts";
 
 export const NOT_AVAILABLE = "Not available from this coin";
@@ -139,7 +139,7 @@ export function coinPageModel(data: CoinPageData, ctx: TimeContext): CoinPageVie
   return {
     state: "ready",
     status: `${sellCount(receipts)} from block ${r.rules.launchBlock}, read from the chain.`,
-    asOf: `As of ${clockTime(r.loadedAtNs, ctx)}`,
+    asOf: `As of ${clockTimeWithZone(r.loadedAtNs, ctx)}`,
     refreshAtNs: refreshAt(r, ctx.nowNs),
     header: header(r, ctx),
     telegram: { label: BOT_LINK_TEXT, reason: BOT_SENTENCE },
@@ -243,7 +243,7 @@ function stats(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigint | 
   const ageStat: Stat = {
     label: "Age",
     value: age(ctx.nowNs - r.rules.launchNs),
-    sub: `launched ${clockTime(r.rules.launchNs, ctx)}`,
+    sub: `launched ${clockTimeWithZone(r.rules.launchNs, ctx)}`,
     available: true,
   };
   if (r.pool.kind !== "value" || r.pool.value.tokenReserve === 0n) {
