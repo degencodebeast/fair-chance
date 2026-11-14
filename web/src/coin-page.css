@@ -184,3 +184,10 @@ p { margin: 0; }
 .coin-icon-small.coin-tile { font-size: 19px; }
 .claim-panel[hidden], .creator-fees-line[hidden] { display: none; }
 .creator-fees-line { margin: 10px 4px 0; }
+
+/* Sell: a share of the balance in one click, and a slider. */
+.sell-shares { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sell-share { font-family: var(--font-body); font-weight: 700; font-size: 14px; min-height: 40px; border-radius: 12px; cursor: pointer; }
+.sell-share:hover { background: var(--ink); color: var(--paper); }
+/* The form's text field style (border, padding) must not reach the slider: padding stops the thumb short of the end. */
+.plan-form input[type="range"]#trade-sell-slider { width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; accent-color: var(--ink); min-height: 32px; cursor: pointer; }

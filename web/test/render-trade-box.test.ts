@@ -250,6 +250,48 @@ describe("a sell from the trade box", () => {
     expectNoEnabledControlWithoutHandler(root);
   });
 
+  it("fills a share of the balance from the 25%, 50%, 75% and Max buttons, and Max sells the whole balance", async () => {
+    const actions = noActions();
+    const { root } = box({}, await signedIn(), actions);
+    await vi.waitFor(() => expect(root.querySelector("#trade-sell-limit")?.textContent).toContain("You hold 2.0M MOTH."));
+    const field = root.querySelector<HTMLInputElement>("#trade-sell-amount")!;
+    const slider = root.querySelector<HTMLInputElement>("#trade-sell-slider")!;
+    const pick = (label: string) => [...root.querySelectorAll<HTMLButtonElement>("#trade-sell-shares button")].find((b) => b.textContent === label)!.click();
+    pick("25%");
+    expect([field.value, slider.value]).toEqual(["500000", "25"]);
+    pick("50%");
+    expect(field.value).toBe("1000000");
+    pick("75%");
+    expect(field.value).toBe("1500000");
+    pick("Max");
+    expect([field.value, slider.value]).toEqual(["2000000", "100"]);
+    root.querySelector<HTMLFormElement>("#trade-sell-form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect(actions.sell).toHaveBeenCalledWith(expect.objectContaining({ accountId: "you.testnet" }), 2n * 10n ** 24n));
+    expectNoEnabledControlWithoutHandler(root);
+  });
+
+  it("fills the amount from the slider and moves the slider when the amount is typed", async () => {
+    const { root } = box({}, await signedIn(), noActions());
+    await vi.waitFor(() => expect(root.querySelector("#trade-sell-limit")?.textContent).toContain("You hold 2.0M MOTH."));
+    const field = root.querySelector<HTMLInputElement>("#trade-sell-amount")!;
+    const slider = root.querySelector<HTMLInputElement>("#trade-sell-slider")!;
+    slider.value = "10";
+    slider.dispatchEvent(new Event("input"));
+    expect(field.value).toBe("200000");
+    field.value = "1000000";
+    field.dispatchEvent(new Event("input"));
+    expect(slider.value).toBe("50");
+  });
+
+  it("says so when the share buttons have no balance to use", async () => {
+    const actions = noActions({ sellLimit: vi.fn(async () => ({ balance: 0n, canSellNow: 0n, moreOpens: null })) });
+    const { root } = box({}, await signedIn(), actions);
+    await vi.waitFor(() => expect(root.querySelector("#trade-sell-limit")?.textContent).toBe("You hold no MOTH yet."));
+    [...root.querySelectorAll<HTMLButtonElement>("#trade-sell-shares button")].find((b) => b.textContent === "Max")!.click();
+    expect(root.querySelector<HTMLInputElement>("#trade-sell-amount")!.value).toBe("");
+    expect(root.querySelector("#trade-sell-status")?.textContent).toBe("You hold no MOTH yet.");
+  });
+
   it("asks for a number before it sends", async () => {
     const actions = noActions();
     const { root } = box({}, await signedIn(), actions);

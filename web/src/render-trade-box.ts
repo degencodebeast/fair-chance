@@ -6,7 +6,7 @@ import type { Reading } from "./coin-page.ts";
 import { el } from "./dom-elements.ts";
 import { listen } from "./dom-listen.ts";
 import { compactTokens } from "./format.ts";
-import { COMMA_REFUSAL, hasComma, parseTokenAmount } from "./token-amount.ts";
+import { COMMA_REFUSAL, formatTokenAmount, hasComma, parseTokenAmount } from "./token-amount.ts";
 import type { PreviewedBuy, SellLimit, TradeOutcome } from "./trade-actions.ts";
 import { tradeBoxModel, type BuyPreview, type TradeButton } from "./trade-box-model.ts";
 import { tradeResultText } from "./trade-result-text.ts";
@@ -79,6 +79,39 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   const sellLimit = el("p", { id: "trade-sell-limit", class: "muted" });
   const sellAmount = el("input", { id: "trade-sell-amount", name: "tokens", type: "text", inputmode: "decimal", autocomplete: "off", placeholder: "1000" });
   const sellStatus = el("p", { id: "trade-sell-status", class: "muted", role: "status" });
+  // A share of the balance in one click, as on other launchpads. Max is the whole balance: the coin
+  // fills what its limits let through now, and the rest stays in the wallet.
+  let heldUnits: bigint | null = null;
+  const sellSlider = el("input", { id: "trade-sell-slider", type: "range", min: "0", max: "100", step: "1", value: "0", "aria-label": "Share of your balance to sell" });
+  const setShare = (pct: number): void => {
+    if (heldUnits === null || heldUnits === 0n) {
+      sellStatus.textContent = heldUnits === 0n ? `You hold no ${deps.symbol} yet.` : "Connect a wallet to sell.";
+      return;
+    }
+    // A part share rounds down to whole tokens, so the field stays short; Max keeps every base unit.
+    const one = 10n ** BigInt(deps.decimals);
+    const part = (heldUnits * BigInt(pct)) / 100n;
+    const units = pct >= 100 ? heldUnits : part >= one ? (part / one) * one : part;
+    sellAmount.value = units === 0n ? "" : formatTokenAmount(units, deps.decimals);
+    sellSlider.value = String(pct);
+    sellStatus.textContent = "";
+  };
+  const shares = el(
+    "div",
+    { id: "trade-sell-shares", class: "sell-shares", role: "group", "aria-label": "Share of your balance" },
+    ...[25, 50, 75, 100].map((pct) => {
+      const b = el("button", { type: "button", class: "chip sell-share" }, pct === 100 ? "Max" : `${pct}%`);
+      listen(b, "click", () => setShare(pct));
+      return b;
+    }),
+  );
+  listen(sellSlider, "input", () => setShare(Number(sellSlider.value)));
+  // A typed amount moves the slider to its share of the balance.
+  listen(sellAmount, "input", () => {
+    const units = parseTokenAmount(sellAmount.value, deps.decimals);
+    if (heldUnits === null || heldUnits === 0n || units === null) return;
+    sellSlider.value = String(units >= heldUnits ? 100 : Number((units * 100n) / heldUnits));
+  });
   const sellSlot = el("div", { id: "trade-sell-action" });
 
   const showResult = (outcome: TradeOutcome): void => {
@@ -126,6 +159,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     const s = session();
     const mine = ++latestLimit;
     if (s === null) {
+      heldUnits = null;
       sellLimit.textContent = "Connect a wallet to sell.";
       return;
     }
@@ -133,6 +167,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     deps.actions.sellLimit(s.accountId).then(
       (l) => {
         if (mine !== latestLimit) return;
+        heldUnits = l.balance;
         const t = (units: bigint) => `${compactTokens(units.toString(), deps.decimals)} ${deps.symbol}`;
         sellLimit.textContent = l.balance === 0n
             ? `You hold no ${deps.symbol} yet.`
@@ -230,6 +265,8 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     { id: "trade-sell-form", class: "plan-form" },
     el("label", { for: "trade-sell-amount" }, first.sell.amountLabel),
     sellAmount,
+    shares,
+    sellSlider,
     sellSlot,
   );
   listen(sellForm, "submit", (event) => {

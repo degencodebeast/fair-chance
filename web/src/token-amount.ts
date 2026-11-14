@@ -20,3 +20,11 @@ export function parseTokenAmount(text: string, decimals: number): bigint | null 
   const units = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, "0") || "0");
   return units > 0n ? units : null;
 }
+
+/** Writes token base units as the exact decimal amount a trader would type, with no trailing zeros. */
+export function formatTokenAmount(units: bigint, decimals: number): string {
+  const base = 10n ** BigInt(decimals);
+  const whole = units / base;
+  const fraction = (units % base).toString().padStart(decimals, "0").replace(/0+$/, "");
+  return fraction === "" ? whole.toString() : `${whole}.${fraction}`;
+}
