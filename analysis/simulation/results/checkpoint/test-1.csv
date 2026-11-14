@@ -1,3 +1,3 @@
 label,n,t,brake,penalty,creator_fee_share,window_hours,test,brake_trips,max_drawdown,final_price
-simulation,17,0.02,off,0.1,0.0,1.0,1_normal_brake,0,0.6985387952943214,1.8578462530169676e-07
-simulation,17,0.02,off,0.1,0.3,1.0,1_normal_brake,0,0.7035586368855538,1.823983017843451e-07
+simulation,17,0.02,off,0.1,0.0,1.0,1_normal_brake,0,0.6985387952943227,1.8578462530169562e-07
+simulation,17,0.02,off,0.1,0.3,1.0,1_normal_brake,0,0.7035586368855571,1.823983017843432e-07

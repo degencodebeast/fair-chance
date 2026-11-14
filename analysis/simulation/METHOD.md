@@ -45,13 +45,19 @@ every token sold in the window, marked or unmarked, once; buys never restore
 floor room. The marked floor subtracts marked tokens sold in its 24-hour
 allowance window and unmarked tokens sold in the current 1-hour window. The
 available floor for the account is the larger of the unmarked floor and the
-marked floor left at its first sell of the window. A marked part held by the
-cap cannot fill through the unmarked floor. If a large marked sell is held and
-the unmarked part fills exactly its unmarked floor, its limit reason is
-`floor`.
+marked floor left at its first sell of the window. A marked part held by the cap cannot fill through the unmarked floor (ADR
+0005). When a large sell has `marked.floor_left == 0` and its unmarked part fills
+exactly the remaining unmarked floor before the cap stops the rest, its limit
+reason is `floor`.
 
 `cap_left` is the most NEAR out the counted part of a sell with no band penalty
 can take now. It is `(c * real_near_now - cap_used) * (1 - f) / ((1 + c) * (1 - f) + c * s * f)`, rounded down, where `c`, `f`, and `s` are the real cap, swap fee, and creator fee share. Uncounted parts do not use `cap_left`; per-account fills are checked separately. The configured creator fee share is applied to pool actions and leaves the pool.
+
+Each sell is priced as one swap on the total filled token amount. The model
+uses that single quote for its fee, creator share, penalty and cap check; it
+attributes marked, bought and uncounted portions within the same swap output.
+A mixed marked/unmarked sell in blocks 0 to N is refused as a whole with
+`FC_EARLY_WINDOW`.
 
 The early buy fee is `1% + 49% × (18 − b) / 18` for launch-relative blocks
 `b=0..17`, then 1% from block 18 onward. Allowance is
@@ -65,24 +71,28 @@ checks. Test 11 scales marked early supply to 9%, 23%, and 41%, retaining a
 `results/cap-cases.json` contains the 1.0.0-rc.7 contract-comparison vectors.
 It includes both one-floor sell orders, a marked sell held at the cap with the
 unmarked floor tested separately, `cap_left` before and after sells at s=30%,
-and a band sell stopped below the full `cap_left` amount. The file records the
-creator fee share and uses binary floating point with 100 bisection iterations;
-`cap_left` is serialized by rounding down, while other amounts are rounded to
-the nearest base unit.
+and a band sell stopped below the full `cap_left` amount. The file records the creator fee share. Pool state uses binary floats; sell
+fill searches use integer token base units, and gross output, fees and penalties
+are quantized to yoctoNEAR. `cap_left` is serialized by rounding down; other
+amounts are rounded to the nearest base unit.
 
 The simulation is derived from the published rules. Contract code was consulted
 only to settle implementation details: class is large while its large flag
 remains set, class floors are recorded before an action and raised after it,
+a marked sell in blocks 0 to N refuses the whole sell, each sell is one swap,
 and the cap check uses real NEAR after the actual net payout, including the
 penalty retained in the pool. The rc.7 `cap_left` formula was implemented from
-the interface text and checked against the pool's post-sell equation. The model
-implements those details separately in Python. It does not copy contract code or integer rounding: pool math uses
-binary floats and 100 bisection iterations. rc.6 makes the previous band
-allowance wording discrepancy explicit; rc.7 resolves the floor behavior
-described above.
+the interface text and checked against the pool's post-sell equation. These
+details are implemented independently in Python. No rule-text/code
+disagreement remains in the rc.7 comparison cases; rc.6 resolved the earlier
+band allowance wording difference.
 
-The model uses binary floating point with 100 bisection iterations; values are
-rounded to the nearest base unit only when serialized. Run
+The model stores reserve state as binary floats and uses high-precision decimal
+arithmetic when converting swap quotes to yoctoNEAR. It searches limited fills
+in integer token base units; values are rounded only at the documented output
+boundaries.
+
+Run
 `python3 analysis/simulation/charts.py`
 to regenerate the SVG summaries for tests 1, 4, and 10. The configured brake
 does not trip in the baseline synthetic path; the unit test separately forces
