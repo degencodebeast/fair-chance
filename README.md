@@ -4,7 +4,7 @@
 
 A new memecoin goes live, and you buy in. Minutes later, the cabal dumps their bags and the price crashes. You're left holding the bag. Fair Chance is a memecoin launchpad on NEAR. Every coin it launches slows the dump inside the coin itself, at launch and every day after, so snipers, the creator and whales sell a bit at a time. How much they can sell follows the pool's depth, and a whale cannot get around it by sending tokens to new wallets.
 
-Built for NEAR HACKATHON, track Memecoins With Mechanics. Coin interface 1.0.0-rc.7 (the version becomes 1.0.0 when every rule passes its sandbox tests).
+Built for NEAR HACKATHON, track Memecoins With Mechanics.
 
 The whole supply is minted once at launch, and no burn method exists. The rules slow a dump. They do not stop it. See [Known limits](#known-limits).
 
@@ -348,7 +348,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 
 ## Layout
 
-`rule-engine/` holds the rules as plain Rust. `contracts/coin/` and `contracts/factory/` wrap them. `sandbox-tests/` runs them on a local chain. `watcher/` is the Go alert service. `web/` is the coin page. `docs/` holds [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), the [ADRs](docs/adr/) and [GLOSSARY](GLOSSARY.md).
+`rule-engine/` holds the rules as plain Rust. `contracts/coin/` and `contracts/factory/` wrap them. `sandbox-tests/` runs them on a local chain. `watcher/` is the Go alert service. `web/` is the coin page. `docs/` holds [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), the [ADRs](docs/adr/) and [GLOSSARY](GLOSSARY.md). The coin interface is version 1.0.0-rc.7. It becomes 1.0.0 when every rule passes its sandbox tests.
 
 ## License
 
