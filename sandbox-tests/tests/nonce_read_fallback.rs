@@ -94,11 +94,9 @@ fn transfer() -> (
 async fn a_failed_nonce_read_on_the_send_rpc_is_read_once_on_the_read_rpc() {
     let count = Arc::new(AtomicUsize::new(0));
     let read = network(&access_key_node(count.clone()).await);
-    let (tx, alice) = transfer();
+    let (tx, _alice) = transfer();
 
-    let signed = presign_once(tx, &alice, &read, &network(DEAD))
-        .await
-        .unwrap();
+    let signed = presign_once(tx, &read, &network(DEAD)).await.unwrap();
 
     assert!(matches!(
         signed.transaction,
@@ -113,9 +111,9 @@ async fn the_send_rpc_is_read_first_and_the_read_rpc_is_not_touched_when_it_answ
     let read_count = Arc::new(AtomicUsize::new(0));
     let send = network(&access_key_node(send_count.clone()).await);
     let read = network(&access_key_node(read_count.clone()).await);
-    let (tx, alice) = transfer();
+    let (tx, _alice) = transfer();
 
-    presign_once(tx, &alice, &read, &send).await.unwrap();
+    presign_once(tx, &read, &send).await.unwrap();
 
     assert_eq!(send_count.load(Ordering::SeqCst), 1);
     assert_eq!(read_count.load(Ordering::SeqCst), 0);
@@ -123,9 +121,8 @@ async fn the_send_rpc_is_read_first_and_the_read_rpc_is_not_touched_when_it_answ
 
 #[tokio::test]
 async fn when_both_reads_fail_it_stops_and_says_nothing_was_sent() {
-    let (tx, alice) = transfer();
-    let error = match presign_once(tx, &alice, &network(DEAD), &network("http://127.0.0.1:7")).await
-    {
+    let (tx, _alice) = transfer();
+    let error = match presign_once(tx, &network(DEAD), &network("http://127.0.0.1:7")).await {
         Ok(_) => panic!("signed with no nonce read"),
         Err(e) => e.to_string(),
     };
