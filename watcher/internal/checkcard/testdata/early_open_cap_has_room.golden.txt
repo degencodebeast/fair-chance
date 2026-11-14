@@ -1,14 +1,12 @@
 Moth Lamp (MOTH)
-As of 13:30 UTC.
+Read at 13:30 UTC.
 
-Creator group: 4.0% of supply
-Early supply: 5.0% of supply
+The creator group holds 4.0% of supply.
+Early supply holds 5.0% of supply.
 Early supply cannot sell for 40 more blocks.
 
-Large holders: 1
-Large accounts cannot send.
+Large holders: 1. A large holder cannot send tokens to another account.
 
-Pool cap this hour: has room, 0.90 NEAR left of 2.13
-Resets 14:02 UTC, in 32 min.
+Pool cap this hour: 0.90 NEAR left of 2.13 NEAR. It resets at 14:02 UTC, in 32 min.
 
-Nobody can change these rules.
+Nobody can change these rules, not even the creator.

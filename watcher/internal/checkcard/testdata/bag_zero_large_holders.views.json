@@ -1,0 +1,7 @@
+{
+  "ft_metadata": {"spec": "ft-1.0.0", "name": "Bag Holder", "symbol": "BAG", "decimals": 18},
+  "fc_rules": {"creator": "wick.lamp.testnet", "launch_block": 100, "launch_ns": "1794605580000000000", "window_early_s": 86400, "window_unmarked_s": 3600, "early_blocks": 100},
+  "fc_pool": {"block": 900, "large_holders": 0, "creator_group_share_bps": 0},
+  "fc_early_window": {"early_blocks": 100, "blocks_left": 0, "early_supply_total": "0", "shared_allowance": "10100000000000000000000000"},
+  "fc_cap": {"window_start_ns": "1794627180000000000", "window_end_ns": "1794630780000000000", "cap_total": "990000000000000000000000", "cap_used": "50000000000000000000000", "cap_left": "940000000000000000000000", "is_full": false}
+}

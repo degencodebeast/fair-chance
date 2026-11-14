@@ -26,6 +26,7 @@ func TestCheckCardFromFixedViews(t *testing.T) {
 		{"normal_cap_full", utc(2026, 11, 13, 14, 24)},
 		{"early_open_cap_has_room", utc(2026, 11, 12, 13, 30)},
 		{"coin_without_new_pool_fields", utc(2026, 11, 13, 14, 24)},
+		{"bag_zero_large_holders", utc(2026, 11, 14, 3, 34)},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -45,7 +46,11 @@ func TestCheckCardFromFixedViews(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			got := checkcard.Render(views, tc.now, time.UTC)
+			loc := time.UTC
+			if tc.name == "bag_zero_large_holders" {
+				loc = time.FixedZone("WAT", 3600)
+			}
+			got := checkcard.Render(views, tc.now, loc)
 			if got != strings.TrimSuffix(string(want), "\n") {
 				t.Fatalf("got:\n%s\nwant:\n%s", got, want)
 			}
@@ -73,7 +78,7 @@ func TestCreatorGroupWithNoTokensIsWrittenAsZeroPercent(t *testing.T) {
 	zero := uint64(0)
 	views := eventsource.PreBuyViews{Name: "Moth Lamp", Symbol: "MOTH", CreatorGroupShareBps: &zero, SharedAllowance: "0", EarlySupplyTotal: "0", LaunchNs: "1794488520000000000", WindowEarlyS: 86400}
 	got := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC)
-	if !strings.Contains(got, "Creator group: 0% of supply\n") {
+	if !strings.Contains(got, "The creator group holds 0% of supply.\n") {
 		t.Fatalf("got:\n%s", got)
 	}
 }
@@ -93,12 +98,12 @@ func TestCheckCardNamesItsTimeZone(t *testing.T) {
 	}
 	lagos := time.FixedZone("WAT", 3600)
 	got := checkcard.Render(views, utc(2026, 11, 13, 14, 24), lagos)
-	for _, want := range []string{"As of 15:24 WAT.", "until 16:02 WAT, in 38 min.", "Refills 14:02 WAT tomorrow"} {
+	for _, want := range []string{"Read at 15:24 WAT.", "until 16:02 WAT, in 38 min.", "refills at 14:02 WAT tomorrow"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
-	if utcCard := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC); !strings.Contains(utcCard, "As of 14:24 UTC.") {
+	if utcCard := checkcard.Render(views, utc(2026, 11, 13, 14, 24), time.UTC); !strings.Contains(utcCard, "Read at 14:24 UTC.") {
 		t.Errorf("UTC card:\n%s", utcCard)
 	}
 }
