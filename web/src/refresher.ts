@@ -28,7 +28,8 @@ export function backoffDelayMs(failures: number, retryAfterMs: number | null): n
   return Math.min(MAX_DELAY_MS, Math.max(step, retryAfterMs ?? 0));
 }
 
-function shouldBackOff(e: unknown): e is HttpStatusError {
+/** True for a 429 or a 5xx answer: the read may run again after a backoff. */
+export function shouldBackOff(e: unknown): e is HttpStatusError {
   return e instanceof HttpStatusError && (e.status === 429 || e.status >= 500);
 }
 

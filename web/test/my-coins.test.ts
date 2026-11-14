@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { ChainReader, CoinEvent } from "../src/chain.ts";
 import { loadMyCoins } from "../src/my-coins.ts";
+import { HttpStatusError } from "../src/refresher.ts";
 
 const ME = "you.testnet";
 const launch = (coin: string, creator: string, block: number): CoinEvent => ({
@@ -45,5 +46,54 @@ describe("my coins", () => {
   it("fails as a whole when one read fails, so no list mixes reads", async () => {
     const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: [launch("a.factory.testnet", ME, 10)], cursor: 0 }) };
     await expect(loadMyCoins(factory, 0, () => coinReader({ ft_metadata: meta("A", "A") }, []), ME)).rejects.toThrow("no view ft_balance_of");
+  });
+});
+
+describe("my coins reads", () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => launch(`c${i}.factory.testnet`, "other.testnet", i + 1));
+
+  it("reads at most 4 coins at a time", async () => {
+    let inFlight = 0;
+    let most = 0;
+    const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: many(12), cursor: 0 }) };
+    const slow = (): ChainReader => ({
+      ...coinReader({}, []),
+      async view<T>(method: string) {
+        inFlight++;
+        most = Math.max(most, inFlight);
+        await new Promise((r) => setTimeout(r, 1));
+        inFlight--;
+        return (method === "ft_metadata" ? meta("X", "X") : "0") as T;
+      },
+    });
+    const mine = await loadMyCoins(factory, 0, slow, ME);
+    expect(mine.held).toEqual([]);
+    // Two views per coin run together, so 4 coins at a time is at most 8 calls in flight.
+    expect(most).toBeLessThanOrEqual(8);
+    expect(most).toBeGreaterThan(2);
+  });
+
+  it("waits and reads a coin again after a 429, with the shared backoff", async () => {
+    const waits: number[] = [];
+    let tries = 0;
+    const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: many(1), cursor: 0 }) };
+    const flaky = (): ChainReader => ({
+      ...coinReader({}, []),
+      async view<T>(method: string) {
+        if (method === "ft_balance_of" && tries++ === 0) throw new HttpStatusError("busy", 429, 9_000);
+        return (method === "ft_metadata" ? meta("X", "X") : "0") as T;
+      },
+    });
+    const mine = await loadMyCoins(factory, 0, flaky, ME, { sleep: async (ms) => void waits.push(ms) });
+    expect(mine.launched).toEqual([]);
+    expect(waits).toEqual([9_000]);
+  });
+
+  it("does not retry a read that failed for another reason", async () => {
+    const waits: number[] = [];
+    const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: many(1), cursor: 0 }) };
+    const broken = (): ChainReader => ({ ...coinReader({}, []), view: async () => { throw new HttpStatusError("gone", 404, null); } });
+    await expect(loadMyCoins(factory, 0, broken, ME, { sleep: async (ms) => void waits.push(ms) })).rejects.toThrow("gone");
+    expect(waits).toEqual([]);
   });
 });

@@ -6,6 +6,45 @@ import { chainReader, type ChainReader } from "./chain.ts";
 import { MOST_COINS_SHOWN } from "./coin-cards-from-chain.ts";
 import { parseMetadata } from "./coin-views.ts";
 import { resolveListLink } from "./page-link.ts";
+import { backoffDelayMs, shouldBackOff } from "./refresher.ts";
+
+/** Coins read at the same time, so one sign-in does not flood the public RPC. */
+const COINS_AT_ONCE = 4;
+/** Reads of one coin after a 429 or a 5xx, before the list fails. */
+const TRIES = 3;
+
+export interface MyCoinsOptions {
+  /** Tests give their own wait. */
+  sleep?: (ms: number) => Promise<void>;
+}
+
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Runs `read` for each item, at most `limit` at a time, and keeps the order. */
+async function inBatches<T, R>(items: T[], limit: number, read: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await read(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/** A read that the RPC answered with 429 or a 5xx runs again after the shared backoff. */
+async function withBackoff<R>(read: () => Promise<R>, sleep: (ms: number) => Promise<void>): Promise<R> {
+  for (let failures = 1; ; failures++) {
+    try {
+      return await read();
+    } catch (e) {
+      if (!shouldBackOff(e) || failures >= TRIES) throw e;
+      await sleep(backoffDelayMs(failures, e.retryAfterMs));
+    }
+  }
+}
 
 export interface MyCoin {
   coin: string;
@@ -39,7 +78,8 @@ async function readCoin(reader: ChainReader, coin: string, launchBlock: number, 
 }
 
 /** Newest first, over at most MOST_COINS_SHOWN of the factory's coins. */
-export async function loadMyCoins(factory: ChainReader, fromBlock: number, readerFor: (coin: string) => ChainReader, accountId: string): Promise<MyCoins> {
+export async function loadMyCoins(factory: ChainReader, fromBlock: number, readerFor: (coin: string) => ChainReader, accountId: string, options: MyCoinsOptions = {}): Promise<MyCoins> {
+  const sleep = options.sleep ?? wait;
   const { events } = await factory.events(fromBlock);
   const launches = new Map<string, { block: number; creator: string }>();
   for (const e of events) {
@@ -47,7 +87,7 @@ export async function loadMyCoins(factory: ChainReader, fromBlock: number, reade
     launches.set(e.data.coin, { block: e.block, creator: String(e.data.creator ?? "") });
   }
   const newest = [...launches].sort((a, b) => b[1].block - a[1].block).slice(0, MOST_COINS_SHOWN);
-  const coins = await Promise.all(newest.map(([coin, l]) => readCoin(readerFor(coin), coin, l.block, accountId)));
+  const coins = await inBatches(newest, COINS_AT_ONCE, ([coin, l]) => withBackoff(() => readCoin(readerFor(coin), coin, l.block, accountId), sleep));
   return {
     launched: coins.filter((c) => launches.get(c.coin)!.creator === accountId),
     held: coins.filter((c) => c.balance > 0n),
