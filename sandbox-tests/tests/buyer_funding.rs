@@ -97,3 +97,21 @@ fn the_same_plan_stops_at_the_sandbox_gas_price_with_both_amounts() {
     assert!(error.contains("--buyer-extra-millinear 847"), "{error}");
     assert!(error.contains("nothing was signed"), "{error}");
 }
+
+#[test]
+fn the_sandbox_rehearsal_passes_the_extra_computed_at_the_sandbox_gas_price() {
+    let script = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../scripts/rehearse-app-coin.sh"
+    ))
+    .unwrap();
+    let extra = buyer_extra_for(millinear(500), millinear(300), BUYER_GAS, SANDBOX_GAS_PRICE);
+    assert!(
+        script.contains(&format!(
+            "--buy-millinear 500 \\\n    --buyer-extra-millinear {} --later-buy-millinear 300",
+            extra.as_millinear()
+        )),
+        "the script must pass --buyer-extra-millinear {}",
+        extra.as_millinear()
+    );
+}
