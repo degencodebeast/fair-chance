@@ -3,6 +3,7 @@
 import type { ClaimPanelModel } from "./claim-panel-model.ts";
 import { el } from "./dom-elements.ts";
 import { turnedOffButton } from "./screen-chrome.ts";
+import type { WalletControl } from "./wallet-session.ts";
 
 export function drawClaimPanel(m: ClaimPanelModel): HTMLElement {
   return el(
@@ -26,4 +27,28 @@ export function drawClaimPanel(m: ClaimPanelModel): HTMLElement {
     turnedOffButton("claim-fees-button", m.button.label, m.button.reason),
     m.refusals.notReady && el("p", { class: "muted", id: "creator-fees-too-early" }, `If the creator claims too early: ${m.refusals.notReady}`),
   );
+}
+
+/**
+ * The full panel for the connected creator account, and one short line for everyone else. Both
+ * follow the wallet. Nothing shows when the coin has no creator fee view.
+ */
+export function drawCreatorFees(m: ClaimPanelModel, wallet: WalletControl): { panel: HTMLElement | null; line: HTMLElement | null } {
+  if (m.creator === null || m.line === null) return { panel: null, line: null };
+  const panel = drawClaimPanel(m);
+  const line = el("p", { id: "creator-fees-line", class: "muted creator-fees-line" }, m.line);
+  const follow = (): void => {
+    const s = wallet.state();
+    const isCreator = s.kind === "signed-in" && s.session.accountId === m.creator;
+    panel.hidden = !isCreator;
+    line.hidden = isCreator;
+  };
+  let shown = false;
+  const stop = wallet.subscribe(() => {
+    if (panel.isConnected || line.isConnected) shown = true;
+    else if (shown) return stop();
+    follow();
+  });
+  follow();
+  return { panel, line };
 }

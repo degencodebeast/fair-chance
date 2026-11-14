@@ -21,6 +21,10 @@ export interface ClaimPanelInput {
 export interface ClaimPanelModel {
   /** "0.420 NEAR"; null when the coin has no creator fee view. */
   amount: string | null;
+  /** The coin's creator account; null when the coin has no creator fee view. */
+  creator: string | null;
+  /** The short line everyone else sees, "Creator fees: 0.114 NEAR, held for <creator>."; null without the view. */
+  line: string | null;
   message: string;
   /** Who can claim. Null when the view is missing. */
   viewer: string | null;
@@ -35,7 +39,7 @@ const BUTTON_REASON =
 export function claimPanelModel(input: ClaimPanelInput): ClaimPanelModel {
   const refusals = { notReady: refusalText("FC_CLAIM_NOT_READY"), notCreator: refusalText("FC_NOT_CREATOR") };
   if (input.fees.kind === "unavailable") {
-    return { amount: null, message: NOT_AVAILABLE_FROM_COIN, viewer: null, progress: null, button: { label: "Claim", reason: BUTTON_REASON }, refusals };
+    return { amount: null, creator: null, line: null, message: NOT_AVAILABLE_FROM_COIN, viewer: null, progress: null, button: { label: "Claim", reason: BUTTON_REASON }, refusals };
   }
   const f = input.fees.value;
   const amount = `${nearAmount(f.balance.toString(), 3)} NEAR`;
@@ -57,6 +61,8 @@ export function claimPanelModel(input: ClaimPanelInput): ClaimPanelModel {
   }
   return {
     amount,
+    creator: f.creator,
+    line: `Creator fees: ${amount}, held for ${f.creator}.`,
     message,
     viewer: `The creator account is ${f.creator}. That account can claim.`,
     progress,

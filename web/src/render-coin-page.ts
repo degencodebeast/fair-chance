@@ -12,7 +12,7 @@ import { drawYourPlan } from "./render-your-plan.ts";
 import { refreshWhileShown } from "./refresher.ts";
 import { loadBuyQuote } from "./buy-quote.ts";
 import { claimPanelModel } from "./claim-panel-model.ts";
-import { drawClaimPanel } from "./render-claim-panel.ts";
+import { drawCreatorFees } from "./render-claim-panel.ts";
 import { drawTradeBox } from "./render-trade-box.ts";
 import { loadSellLimit, sendBuy, sendSell } from "./trade-actions.ts";
 import { pageWallet } from "./page-wallet.ts";
@@ -108,10 +108,11 @@ interface ReadyParts {
   holders: HTMLElement | null;
   trade: HTMLElement | null;
   claim: HTMLElement | null;
+  feeLine: HTMLElement | null;
 }
 
 function drawReady(m: CoinPageModel, parts: ReadyParts): HTMLElement[] {
-  const { plan, chart, holders, trade, claim } = parts;
+  const { plan, chart, holders, trade, claim, feeLine } = parts;
   const h = m.header;
   const nodes: (HTMLElement | null)[] = [];
   nodes.push(
@@ -162,6 +163,7 @@ function drawReady(m: CoinPageModel, parts: ReadyParts): HTMLElement[] {
       ),
     ),
   );
+  nodes.push(feeLine);
   const grid: (HTMLElement | null)[] = [];
   grid.push(
     el(
@@ -292,8 +294,8 @@ function tradeBox(reads: CoinReads, symbol: string): HTMLElement {
   });
 }
 
-function claimPanel(reads: CoinReads): HTMLElement {
-  return drawClaimPanel(claimPanelModel({ fees: reads.creatorFees, claimMinRealNear: reads.rules.claimMinRealNear, claimDepthHoldS: reads.rules.claimDepthHoldS, nowNs: reads.loadedAtNs }));
+function creatorFees(reads: CoinReads): { panel: HTMLElement | null; line: HTMLElement | null } {
+  return drawCreatorFees(claimPanelModel({ fees: reads.creatorFees, claimMinRealNear: reads.rules.claimMinRealNear, claimDepthHoldS: reads.rules.claimDepthHoldS, nowNs: reads.loadedAtNs }), pageWallet());
 }
 
 /** What a visitor has typed or opened in a section; a refresh keeps such a section as it is. */
@@ -324,7 +326,8 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
   const plan = reads ? (old?.plan && holdsVisitorWork(old.plan) ? old.plan : drawYourPlan(reads, pageWallet())) : null;
   const keepTrade = old?.trade && holdsVisitorWork(old.trade) && checksWarning(reads?.checks ?? []) === null;
   const trade = reads ? (keepTrade ? old!.trade : tradeBox(reads, symbol)) : null;
-  const parts = reads ? { plan, chart, holders, trade, claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };
+  const fees = reads ? creatorFees(reads) : null;
+  const parts = reads ? { plan, chart, holders, trade, claim: fees!.panel, feeLine: fees!.line } : { plan: null, chart, holders, trade: null, claim: null, feeLine: null };
   drawn = reads && view.state === "ready" ? { plan, trade, holders, eventCount: reads.events.length } : null;
   const body = view.state === "ready" ? drawReady(view, parts) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));

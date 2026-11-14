@@ -180,3 +180,5 @@ p { margin: 0; }
 
 .coin-tile { display: flex; align-items: center; justify-content: center; font: 700 22px var(--font-display, inherit); letter-spacing: 0.02em; }
 .coin-icon-small.coin-tile { font-size: 19px; }
+.claim-panel[hidden], .creator-fees-line[hidden] { display: none; }
+.creator-fees-line { margin: 10px 4px 0; }
