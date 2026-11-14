@@ -21,6 +21,8 @@ export interface ScanOptions {
   allowedHosts: Record<string, HostRule>;
   /** Host names of keyed RPC providers, added to the built-in list. */
   providerHosts: string[];
+  /** Whole-name patterns for the test accounts of our own testnet run. Each must match the full account. */
+  ownTestAccounts?: RegExp[];
 }
 
 export interface HostRule {
@@ -240,6 +242,7 @@ function scanText(text: string, file: string, options: ScanOptions, buildNames: 
   const mask = lexed?.ok ? lexed.mask : null;
   for (const m of text.matchAll(WALLET)) {
     if (options.sampleAccounts.includes(m[0]) || isAllowedAccount(m[0], options.allowedAccounts)) continue;
+    if (options.ownTestAccounts?.some((p) => p.test(m[0]))) continue;
     if (mask !== null && mask[m.index!] === 0 && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(m[0])) continue;
     add("wallet", m[0]);
   }
@@ -297,6 +300,10 @@ export async function scanBuildOutput(dir: string, options: ScanOptions): Promis
 // The made-up names in the sample data and the input hints of the page.
 const SAMPLE_ACCOUNTS = ["moth.factory.testnet", "you.testnet", "bigfish.testnet", "dart.testnet", "lamp.testnet", "wick.lamp.testnet"];
 
+// The test accounts of our own testnet run, which the recorded run file names. Exact shapes under
+// the one root we own, so no other account and no sub-account of these passes.
+const OWN_TEST_ACCOUNTS = [/^(?:bag-buyer-\d{2}|bag-creator|cabal-[a-z0-9-]+)\.fairchance\.testnet$/];
+
 /** The accounts and hosts the page may name, from the fixed config. */
 export function optionsFromConfig(env: Record<string, string | undefined> = process.env): ScanOptions {
   const networks: KnownNetwork[] = Object.values(KNOWN_NETWORKS);
@@ -316,6 +323,7 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     allowedAccounts: networks.flatMap((n) => [n.factory, n.demoCoin]).filter((a): a is string => a !== null),
     allowedValues: networks.flatMap((n) => [n.factory, n.demoCoin, n.codeHash]).filter((v): v is string => v !== null),
     sampleAccounts: SAMPLE_ACCOUNTS,
+    ownTestAccounts: OWN_TEST_ACCOUNTS,
     allowedHosts,
     providerHosts: (env.FC_PRIVATE_HOSTS ?? "").split(",").map((h) => h.trim()).filter((h) => h !== ""),
   };
