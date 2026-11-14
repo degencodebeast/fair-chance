@@ -44,12 +44,12 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(body))
 	if err != nil {
-		return errors.New("bad RPC URL")
+		return fmt.Errorf("bad RPC URL: %w", ErrRPCWrongSetup)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return withoutURL(err)
+		return fmt.Errorf("%s: %v: %w", method, withoutURL(err), ErrTransient)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusTooManyRequests {
@@ -58,8 +58,11 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 	if resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("%s: HTTP 403: %w", method, ErrRPCForbidden)
 	}
+	if resp.StatusCode >= 500 {
+		return fmt.Errorf("%s: HTTP %d: %w", method, resp.StatusCode, ErrTransient)
+	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s: HTTP %d", method, resp.StatusCode)
+		return fmt.Errorf("%s: HTTP %d: %w", method, resp.StatusCode, ErrRPCWrongSetup)
 	}
 	var envelope struct {
 		Result json.RawMessage `json:"result"`

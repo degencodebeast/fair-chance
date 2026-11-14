@@ -4,16 +4,20 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"fairchance/watcher/internal/telegram"
+	"fairchance/watcher/internal/watchedcoins"
 )
 
-// Watcher starts alerts for one coin account.
+// Watcher starts alerts for one coin account: from the head on, or from a past block.
 type Watcher interface {
 	Watch(ctx context.Context, coin string) error
+	WatchFrom(ctx context.Context, coin string, block uint64) error
 }
 
 // Checker writes the pre-buy card for one coin account. It reads views only.
@@ -61,17 +65,44 @@ func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
 	}
 }
 
+const watchUsage = "Send /watch and one coin account, for example /watch moth.factory.testnet. To read past events, add a start block: /watch moth.factory.testnet from 12345."
+
 func (b Bot) handleWatch(ctx context.Context, fields []string) {
-	if len(fields) != 2 || !nearAccount.MatchString(fields[1]) {
-		b.reply(ctx, b.ChatID, "Send /watch and one coin account, for example /watch moth.factory.testnet.")
+	if len(fields) < 2 || !nearAccount.MatchString(fields[1]) {
+		b.reply(ctx, b.ChatID, watchUsage)
 		return
 	}
 	coin := fields[1]
-	if err := b.Watcher.Watch(ctx, coin); err != nil {
-		b.reply(ctx, b.ChatID, "I cannot read "+coin+". Check the account name and try again.")
-		return
+	switch len(fields) {
+	case 2:
+		if err := b.Watcher.Watch(ctx, coin); err != nil {
+			b.reply(ctx, b.ChatID, "I cannot read "+coin+". Check the account name and try again.")
+			return
+		}
+		b.reply(ctx, b.ChatID, "Watching "+coin+". You get one message each time a limit acts on that coin.")
+	case 4:
+		block, err := strconv.ParseUint(fields[3], 10, 64)
+		if fields[2] != "from" || err != nil {
+			b.reply(ctx, b.ChatID, watchUsage)
+			return
+		}
+		b.watchFrom(ctx, coin, block)
+	default:
+		b.reply(ctx, b.ChatID, watchUsage)
 	}
-	b.reply(ctx, b.ChatID, "Watching "+coin+". You get one message each time a limit acts on that coin.")
+}
+
+func (b Bot) watchFrom(ctx context.Context, coin string, block uint64) {
+	switch err := b.Watcher.WatchFrom(ctx, coin, block); {
+	case errors.Is(err, watchedcoins.ErrBeforeLaunch):
+		b.reply(ctx, b.ChatID, "That block is before the launch block of "+coin+". Send a block from the launch on.")
+	case errors.Is(err, watchedcoins.ErrAfterHead):
+		b.reply(ctx, b.ChatID, "That block is after the latest final block. Send a block that already exists.")
+	case err != nil:
+		b.reply(ctx, b.ChatID, "I cannot read "+coin+". Check the account name and try again.")
+	default:
+		b.reply(ctx, b.ChatID, "Watching "+coin+" from block "+strconv.FormatUint(block, 10)+". You get one message each time a limit acts on that coin.")
+	}
 }
 
 func (b Bot) handleCheck(ctx context.Context, chat int64, fields []string) {

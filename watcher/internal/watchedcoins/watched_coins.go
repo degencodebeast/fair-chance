@@ -5,6 +5,7 @@ package watchedcoins
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -14,7 +15,12 @@ import (
 	"fairchance/watcher/internal/telegram"
 )
 
-const historySize = 50
+const (
+	historySize = 50
+	// A short fault (HTTP 5xx, timeout, transport error) pauses reads for 2 s, then doubles each time up to 60 s.
+	firstBackoff = 2 * time.Second
+	maxBackoff   = 60 * time.Second
+)
 
 type Set struct {
 	Source   eventsource.Source
@@ -26,8 +32,9 @@ type Set struct {
 	Now      func() time.Time
 
 	mu         sync.Mutex
-	stopped    error     // set by a 403 or an unknown answer: no read after it
-	pausedTill time.Time // set by a 429
+	stopped    error         // set by a 403 or an unknown answer: no read after it
+	pausedTill time.Time     // set by a 429 or a short fault
+	backoff    time.Duration // the last pause after a short fault; 0 after a good read
 	coins      map[string]*watched
 	history    []string
 }
@@ -37,26 +44,56 @@ type watched struct {
 	rules  alerts.CoinRules
 }
 
+var (
+	// ErrBeforeLaunch is a start block below the coin's launch block.
+	ErrBeforeLaunch = errors.New("the start block is before the launch block of the coin")
+	// ErrAfterHead is a start block after the final head.
+	ErrAfterHead = errors.New("the start block is after the final head")
+)
+
 // Watch starts alerts for a coin from the current head on. It fails when the coin's views cannot be read.
 // Watching a coin twice keeps the first cursor.
 func (s *Set) Watch(ctx context.Context, coin string) error {
+	return s.start(ctx, coin, nil)
+}
+
+// WatchFrom starts alerts for a coin from a block on, to read past events. The block must be the
+// coin's launch block or later, and not after the final head (ErrBeforeLaunch, ErrAfterHead). When
+// the coin is already watched, its cursor moves to the block.
+func (s *Set) WatchFrom(ctx context.Context, coin string, block uint64) error {
+	return s.start(ctx, coin, &block)
+}
+
+func (s *Set) start(ctx context.Context, coin string, from *uint64) error {
 	facts, err := s.Facts(ctx, coin)
 	if err != nil {
 		return err
 	}
-	head, err := s.Head(ctx)
+	head, err := s.Head(ctx) // the block after the final head
 	if err != nil {
 		return err
+	}
+	cursor := head
+	if from != nil {
+		if *from < facts.LaunchBlock {
+			return fmt.Errorf("%w: block %d, launch block %d", ErrBeforeLaunch, *from, facts.LaunchBlock)
+		}
+		if eventsource.Cursor(*from) >= head {
+			return fmt.Errorf("%w: block %d, final head %d", ErrAfterHead, *from, head-1)
+		}
+		cursor = eventsource.Cursor(*from)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.coins == nil {
 		s.coins = map[string]*watched{}
 	}
-	if _, already := s.coins[coin]; !already {
-		s.coins[coin] = &watched{cursor: head, rules: alerts.CoinRules{
+	if w, already := s.coins[coin]; !already {
+		s.coins[coin] = &watched{cursor: cursor, rules: alerts.CoinRules{
 			Creator: facts.Creator, LaunchBlock: facts.LaunchBlock, EarlyBlocks: facts.EarlyBlocks, Symbol: facts.Symbol,
 		}}
+	} else if from != nil {
+		w.cursor = cursor
 	}
 	return nil
 }
@@ -112,7 +149,10 @@ func (s *Set) Poll(ctx context.Context) error {
 		s.mu.Lock()
 		w.cursor = next
 		s.mu.Unlock()
-		if s.noteFailure(err) {
+		if err == nil {
+			s.noteGoodRead()
+		}
+		if err = s.noteFailure(err); s.Stopped() != nil {
 			return err
 		}
 		if s.paused() {
@@ -156,22 +196,37 @@ func (s *Set) paused() bool {
 	return s.now().Before(s.pausedTill)
 }
 
-// noteFailure applies the source rules to a read error and reports whether reads must stop.
-// A 403 or an answer the watcher does not know stops all reads for good, with no retry.
-// A 429 pauses reads for the Retry-After wait, or one poll interval when FastNEAR gave none.
-func (s *Set) noteFailure(err error) bool {
+// noteGoodRead ends a run of short faults: the next fault pauses for 2 s again.
+func (s *Set) noteGoodRead() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.backoff = 0
+}
+
+// noteFailure applies the source rules to a read error and returns the error to report.
+// A 403, a wrong-setup answer or a bad URL stops all reads for good, with no retry.
+// A 429 pauses reads for the Retry-After wait, or one poll interval when the service gave none.
+// A short fault (5xx, timeout, transport error) pauses reads with a growing wait, 2 s doubling to 60 s,
+// and the same cursor reads again after it. The returned error of a short fault names the wait.
+func (s *Set) noteFailure(err error) error {
 	if err == nil {
-		return false
+		return nil
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if errors.Is(err, eventsource.ErrForbidden) || errors.Is(err, eventsource.ErrUnexpectedResponse) {
+	switch {
+	case errors.Is(err, eventsource.ErrForbidden), errors.Is(err, eventsource.ErrUnexpectedResponse),
+		errors.Is(err, eventsource.ErrRPCForbidden), errors.Is(err, eventsource.ErrRPCWrongSetup):
 		s.stopped = err
-		return true
+	case errors.Is(err, eventsource.ErrTransient):
+		s.backoff = min(max(2*s.backoff, firstBackoff), maxBackoff)
+		s.pausedTill = s.now().Add(s.backoff)
+		return fmt.Errorf("%w; next read in %s", err, s.backoff)
+	default:
+		var limited *eventsource.RateLimitedError
+		if errors.As(err, &limited) && limited.RetryAfter > 0 {
+			s.pausedTill = s.now().Add(limited.RetryAfter)
+		}
 	}
-	var limited *eventsource.RateLimitedError
-	if errors.As(err, &limited) && limited.RetryAfter > 0 {
-		s.pausedTill = s.now().Add(limited.RetryAfter)
-	}
-	return false
+	return err
 }

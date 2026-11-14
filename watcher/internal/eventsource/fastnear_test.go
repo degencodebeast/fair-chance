@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,12 +111,54 @@ func TestFastNearReportsRetryAfterOfARateLimit(t *testing.T) {
 	}
 }
 
-func TestFastNearTreatsAnyOtherAnswerAsUnknown(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusBadGateway) }))
+func TestFastNearTreatsAServerFaultAsTransientAndKeepsTheCursor(t *testing.T) {
+	for _, status := range []int{500, 502, 503, 504} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status) }))
+		_, next, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"c.testnet"}, 7)
+		srv.Close()
+		if !errors.Is(err, eventsource.ErrTransient) || errors.Is(err, eventsource.ErrUnexpectedResponse) || next != 7 {
+			t.Errorf("status %d: err %v next %d; want a transient error and cursor 7", status, err, next)
+		}
+		if !strings.Contains(err.Error(), strconv.Itoa(status)) {
+			t.Errorf("status %d: the error text %q does not name the status", status, err)
+		}
+	}
+}
+
+func TestFastNearTreatsATransportFaultAsTransientWithoutTheURL(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	url := srv.URL
+	srv.Close() // nothing listens now: connection refused
+	_, next, err := eventsource.NewFastNear(url).Events(context.Background(), []string{"c.testnet"}, 7)
+	if !errors.Is(err, eventsource.ErrTransient) || next != 7 {
+		t.Fatalf("err %v next %d", err, next)
+	}
+	if strings.Contains(err.Error(), url) {
+		t.Fatalf("the error text holds the URL: %v", err)
+	}
+}
+
+func TestFastNearTreatsATimeoutAsTransient(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { <-release }))
 	defer srv.Close()
-	_, _, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"c.testnet"}, 7)
-	if !errors.Is(err, eventsource.ErrUnexpectedResponse) {
-		t.Fatalf("err %v", err)
+	defer close(release)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, next, err := eventsource.NewFastNear(srv.URL).Events(ctx, []string{"c.testnet"}, 7)
+	if !errors.Is(err, eventsource.ErrTransient) || next != 7 {
+		t.Fatalf("err %v next %d", err, next)
+	}
+}
+
+func TestFastNearStopsOnAnswersThatMeanAWrongSetup(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusNotFound} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(status) }))
+		_, _, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"c.testnet"}, 7)
+		srv.Close()
+		if !errors.Is(err, eventsource.ErrUnexpectedResponse) || errors.Is(err, eventsource.ErrTransient) {
+			t.Errorf("status %d: err %v", status, err)
+		}
 	}
 }
 

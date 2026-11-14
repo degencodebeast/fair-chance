@@ -14,7 +14,19 @@ const builderChat = 111
 
 type recordingWatcher struct {
 	watched []string
+	from    map[string]uint64 // coin -> block of a WatchFrom
 	err     error
+}
+
+func (r *recordingWatcher) WatchFrom(_ context.Context, coin string, block uint64) error {
+	if r.err != nil {
+		return r.err
+	}
+	if r.from == nil {
+		r.from = map[string]uint64{}
+	}
+	r.from[coin] = block
+	return nil
 }
 
 func (r *recordingWatcher) Watch(_ context.Context, coin string) error {
