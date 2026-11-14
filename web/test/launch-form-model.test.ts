@@ -41,7 +41,7 @@ describe("launch form model", () => {
 
   it("asks for a wallet, then for valid fields, before the launch button turns on", () => {
     expect(launchFormModel(ok).button).toEqual({ label: "Launch Moth Lamp", reason: "Connect a wallet to launch." });
-    expect(launchFormModel({ ...ok, name: "", signedIn: "you.testnet" }).button).toEqual({ label: "Launch coin", reason: "Fix the items above first." });
+    expect(launchFormModel({ ...ok, name: "", signedIn: "you.testnet" }).button).toEqual({ label: "Launch coin", reason: "Complete the items above first." });
     expect(launchFormModel({ ...ok, signedIn: "you.testnet" }).button).toEqual({ label: "Launch Moth Lamp", reason: null });
   });
 
@@ -153,5 +153,47 @@ describe("launch form picture state", () => {
 
   it("gives valid arguments with no icon when no file is chosen", () => {
     expect(launchFormModel({ ...ok, picture: { state: "none" } }).launchArgs?.icon).toBeNull();
+  });
+});
+
+describe("launch form errors by field", () => {
+  it("names the field each error belongs to, in the same order", () => {
+    const m = launchFormModel({ ...ok, name: "", ticker: "MO TH", openingBuy: "x" });
+    expect(m.errorFields).toEqual(["name", "ticker", "buy"]);
+    expect(m.errorFields).toHaveLength(m.errors.length);
+  });
+  it("tags a refused picture", () => {
+    expect(launchFormModel({ ...ok, picture: { state: "refused", reason: "No." } }).errorFields).toEqual(["picture"]);
+  });
+});
+
+describe("launch form rules and cost cards", () => {
+  it("lists the fixed rules from the rule engine values", () => {
+    const m = launchFormModel(ok);
+    expect(m.rules).toContainEqual({ label: "Supply", value: "1,000,000,000" });
+    expect(m.rules).toContainEqual({ label: "Early window", value: "17 blocks" });
+    expect(m.rules).toContainEqual({ label: "Creator group holds at most", value: "4% of supply" });
+    expect(m.rules).toContainEqual({ label: "Swap fee", value: "1% on buys and sells" });
+    expect(m.rules).toContainEqual({ label: "Graduation", value: "none, liquidity stays locked" });
+  });
+  it("costs the 0.25 NEAR deposit plus the opening buy", () => {
+    const m = launchFormModel({ ...ok, storageDeposit: 250_000_000_000_000_000_000_000n });
+    expect(m.cost).toEqual({
+      rows: [
+        { label: "Launch deposit", value: "0.25 NEAR" },
+        { label: "Your opening buy", value: "4.4 NEAR" },
+      ],
+      total: "4.65 NEAR",
+    });
+  });
+  it("shows no opening buy as none, and no cost without a deposit value", () => {
+    const m = launchFormModel({ ...ok, openingBuy: "", storageDeposit: 250_000_000_000_000_000_000_000n });
+    expect(m.cost?.rows[1]).toEqual({ label: "Your opening buy", value: "none" });
+    expect(m.cost?.total).toBe("0.25 NEAR");
+    expect(launchFormModel(ok).cost).toBeNull();
+  });
+  it("keeps the card text inside the copy rules", () => {
+    const m = launchFormModel({ ...ok, storageDeposit: 250_000_000_000_000_000_000_000n });
+    expect(copyViolations(allText(m.rules).join("\n"))).toEqual([]);
   });
 });

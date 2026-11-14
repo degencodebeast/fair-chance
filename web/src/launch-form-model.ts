@@ -36,6 +36,30 @@ export interface LaunchFormInput {
 }
 
 /** The arguments of the factory's `launch`, field by field (contracts/factory/src/lib.rs). `opening_buy` is yoctoNEAR text. */
+export type LaunchField = "name" | "ticker" | "description" | "buy" | "picture";
+
+/**
+ * The rules every coin gets, from `FixedValues::fixed()` in rule-engine/src/fixed_values.rs and
+ * docs/OVERVIEW.md. The creator fee share and the claim minimum are not final (ADR 0003, ADR 0010),
+ * so the card gives no number for them.
+ */
+export const FIXED_RULES: { label: string; value: string }[] = [
+  { label: "Supply", value: "1,000,000,000" },
+  { label: "Pool", value: "paired with NEAR, 100 virtual" },
+  { label: "Early window", value: "17 blocks" },
+  { label: "Early buy fee", value: "falls each block, stays in the pool" },
+  { label: "Allowance window", value: "1 h, early supply 24 h" },
+  { label: "Pool cap per hour", value: "5% of real NEAR" },
+  { label: "Mid-size penalty", value: "10%, stays in the pool" },
+  { label: "Creator group holds at most", value: "4% of supply" },
+  { label: "Large from", value: "2% of supply" },
+  { label: "Swap fee", value: "1% on buys and sells" },
+  { label: "Creator fee", value: "a share of the swap fee, value not final" },
+  { label: "Creator can claim", value: "after the pool holds a minimum of real NEAR for 24 h, value not final" },
+  { label: "Unclaimed creator fees", value: "stay outside the pool" },
+  { label: "Graduation", value: "none, liquidity stays locked" },
+];
+
 export interface LaunchArgs {
   name: string;
   ticker: string;
@@ -47,6 +71,12 @@ export interface LaunchArgs {
 export interface LaunchFormModel {
   counts: { name: string; ticker: string; description: string };
   errors: string[];
+  /** The field each error belongs to, in the same order; the page shows an error once that field was touched. */
+  errorFields: LaunchField[];
+  /** The fixed rules every coin gets. */
+  rules: { label: string; value: string }[];
+  /** What the launch attaches, line by line, with the total; null when no deposit value is given. */
+  cost: { rows: { label: string; value: string }[]; total: string } | null;
   /** What the launch call takes; null while any field has an error. */
   launchArgs: LaunchArgs | null;
   /** The ticker as it appears in the coin account: lowered. Null when the ticker is empty or breaks a rule. */
@@ -64,7 +94,7 @@ export interface LaunchFormModel {
 function launchButton(input: LaunchFormInput, label: string, valid: boolean): { label: string; reason: string | null } {
   if (input.pending) return { label: "Waiting for the wallet", reason: "Approve or close the transaction in your wallet." };
   if (!input.signedIn) return { label, reason: "Connect a wallet to launch." };
-  if (!valid) return { label, reason: "Fix the items above first." };
+  if (!valid) return { label, reason: "Complete the items above first." };
   return { label, reason: null };
 }
 
@@ -77,26 +107,41 @@ function depositText(storage: bigint, openingBuy: bigint | null, buyTyped: boole
   return { total: buyTyped ? `You attach ${deposit} NEAR for the deposit, plus the opening buy.` : `You attach ${deposit} NEAR: the deposit.`, note };
 }
 
+function costCard(storage: bigint, openingBuy: bigint | null): { rows: { label: string; value: string }[]; total: string } {
+  return {
+    rows: [
+      { label: "Launch deposit", value: `${exactNear(storage.toString())} NEAR` },
+      { label: "Your opening buy", value: openingBuy === null ? "none" : `${exactNear(openingBuy.toString())} NEAR` },
+    ],
+    total: `${exactNear((storage + (openingBuy ?? 0n)).toString())} NEAR`,
+  };
+}
+
 export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
   const name = input.name.trim();
   const ticker = input.ticker.trim();
   const description = input.description;
   const buy = input.openingBuy.trim();
   const errors: string[] = [];
-  if (name === "") errors.push("Type a name.");
-  if (name.length > LAUNCH_LIMITS.name) errors.push(`The name can be ${LAUNCH_LIMITS.name} characters at most.`);
-  if (ticker === "") errors.push("Type a ticker.");
-  else if (!TICKER_PATTERN.test(ticker)) errors.push("The ticker can use letters, digits, - and _ only.");
-  if (ticker.length > LAUNCH_LIMITS.ticker) errors.push(`The ticker can be ${LAUNCH_LIMITS.ticker} characters at most.`);
-  if (description.length > LAUNCH_LIMITS.description) errors.push(`The description can be ${LAUNCH_LIMITS.description} characters at most.`);
-  if (hasComma(buy)) errors.push(COMMA_REFUSAL);
+  const errorFields: LaunchField[] = [];
+  const fail = (field: LaunchField, text: string): void => {
+    errors.push(text);
+    errorFields.push(field);
+  };
+  if (name === "") fail("name", "Type a name.");
+  if (name.length > LAUNCH_LIMITS.name) fail("name", `The name can be ${LAUNCH_LIMITS.name} characters at most.`);
+  if (ticker === "") fail("ticker", "Type a ticker.");
+  else if (!TICKER_PATTERN.test(ticker)) fail("ticker", "The ticker can use letters, digits, - and _ only.");
+  if (ticker.length > LAUNCH_LIMITS.ticker) fail("ticker", `The ticker can be ${LAUNCH_LIMITS.ticker} characters at most.`);
+  if (description.length > LAUNCH_LIMITS.description) fail("description", `The description can be ${LAUNCH_LIMITS.description} characters at most.`);
+  if (hasComma(buy)) fail("buy", COMMA_REFUSAL);
   else if (buy !== "" && parseTokenAmount(buy, NEAR_DECIMALS) === null) {
-    errors.push("Type the opening buy as a number of NEAR, for example 4.40, or leave it empty.");
+    fail("buy", "Type the opening buy as a number of NEAR, for example 4.40, or leave it empty.");
   }
   const icon = input.icon ?? null;
-  if (icon !== null && !iconFits(icon)) errors.push("The picture must be a WebP image under 8 KB. Choose it again.");
-  if (input.picture?.state === "pending") errors.push("The picture is still being shrunk. Wait for it.");
-  if (input.picture?.state === "refused") errors.push(input.picture.reason);
+  if (icon !== null && !iconFits(icon)) fail("picture", "The picture must be a WebP image under 8 KB. Choose it again.");
+  if (input.picture?.state === "pending") fail("picture", "The picture is still being shrunk. Wait for it.");
+  if (input.picture?.state === "refused") fail("picture", input.picture.reason);
   const openingBuyUnits = buy === "" || hasComma(buy) ? null : parseTokenAmount(buy, NEAR_DECIMALS);
   const shownTicker = ticker.toUpperCase();
   const accountLabel = ticker !== "" && TICKER_PATTERN.test(ticker) && ticker.length <= LAUNCH_LIMITS.ticker ? ticker.toLowerCase() : null;
@@ -107,6 +152,9 @@ export function launchFormModel(input: LaunchFormInput): LaunchFormModel {
       description: `${description.length}/${LAUNCH_LIMITS.description}`,
     },
     errors,
+    errorFields,
+    rules: FIXED_RULES,
+    cost: input.storageDeposit === undefined ? null : costCard(input.storageDeposit, openingBuyUnits),
     launchArgs:
       errors.length > 0
         ? null
