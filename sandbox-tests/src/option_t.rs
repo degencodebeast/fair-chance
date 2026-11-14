@@ -244,8 +244,8 @@ pub struct OptionTSetup {
     pub limits: Option<SpendLimits>,
     /// NEAR the one ordinary buyer pays after the early window; zero means no later buyer.
     pub later_buy: NearToken,
-    /// Sandbox rehearsal only: a wait before each burst send that stands in for the slow public
-    /// testnet RPC. Zero on testnet.
+    /// Sandbox rehearsal only: a wait before the launch send and each burst send that stands in
+    /// for the slow public testnet RPC. Zero on testnet.
     pub send_delay: Duration,
 }
 
@@ -882,6 +882,8 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         .presign_with(&setup.send_network)
         .await?;
     let launch_sent = Instant::now();
+    // A rehearsal waits here as the slow public RPC would (zero on testnet).
+    tokio::time::sleep(setup.send_delay).await;
     let launched = send_once(launch, &creator.id, &setup.network, &setup.send_network).await?;
     let launch_answer_s = launch_sent.elapsed().as_secs_f64();
     if !launched.is_success() || events(&launched, "fair_chance_factory", "fc_launch").len() != 1 {

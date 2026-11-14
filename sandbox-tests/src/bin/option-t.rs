@@ -20,8 +20,8 @@
 //!   --later-buy-millinear <n>         NEAR one later buyer pays after the early window, then it
 //!                                     sells every token after the dump (default 0: no later buyer)
 //!   --sandbox-block-ms <n>            sandbox only: about one block every n ms (testnet: 581)
-//!   --sandbox-send-delay-ms <n>       sandbox only: a wait before each burst send, standing in
-//!                                     for the public testnet RPC (about 3,400 ms on 14 Nov)
+//!   --sandbox-send-delay-ms <n>       sandbox only: a wait before the launch and each burst send,
+//!                                     like the public testnet RPC (about 3,400 ms on 14 Nov)
 //!   --ticker <ticker>                 coin ticker, kept as given for the symbol; accounts use it
 //!                                     in lowercase (default optiont)
 //!   --name <name>                     coin name (default "Option T")
