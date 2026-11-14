@@ -1,5 +1,5 @@
-// Package urlsafe keeps keys that can hide in a URL out of the output. An endpoint URL must be a
-// bare host (a path, user, password, query or fragment could hold a key), and every URL in log or
+// Package urlsafe keeps keys that can hide in a URL out of the output. An endpoint URL may have a path
+// (a provider key can sit there) but no user, password, query or fragment, and every URL in log or
 // error text is replaced with "<rpc url>". A Telegram request URL holds the bot token, so this also
 // covers net/http errors of the Telegram client.
 package urlsafe
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// CheckEndpoint refuses an endpoint URL that is not http or https on a bare host, or that names
+// CheckEndpoint refuses an endpoint URL that is not http or https with no user, password, query or fragment, or that names
 // mainnet. The error names the setting, never the URL.
 func CheckEndpoint(name, raw string) error {
 	u, err := url.Parse(raw)
@@ -22,9 +22,8 @@ func CheckEndpoint(name, raw string) error {
 		u.User != nil ||
 		u.RawQuery != "" || u.ForceQuery ||
 		u.Fragment != "" || strings.Contains(raw, "#") ||
-		(u.Path != "" && u.Path != "/") ||
 		strings.Contains(u.Host, "mainnet") {
-		return fmt.Errorf("%s is refused: use a testnet or local endpoint on a bare host, with no path, user, password, query or fragment", name)
+		return fmt.Errorf("%s is refused: use a testnet or local endpoint with no user, password, query or fragment", name)
 	}
 	return nil
 }

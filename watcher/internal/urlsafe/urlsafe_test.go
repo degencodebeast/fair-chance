@@ -11,11 +11,10 @@ import (
 
 const fakeKey = "FAKEKEY0123456789"
 
-func TestAnEndpointWithAPathOrAKeyPlaceIsRefusedAndNotEchoed(t *testing.T) {
+func TestAnEndpointWithAUserQueryFragmentOrMainnetIsRefusedAndNotEchoed(t *testing.T) {
 	for _, raw := range []string{
-		"https://rpc.testnet.invalid/v3/" + fakeKey,
-		"https://rpc.testnet.near.org/" + fakeKey,
 		"https://rpc.testnet.near.org/?key=" + fakeKey,
+		"https://rpc.testnet.invalid/v3/" + fakeKey + "?k=1",
 		"https://" + fakeKey + ":x@rpc.testnet.near.org",
 		"https://rpc.testnet.near.org/#" + fakeKey,
 		"https://rpc.mainnet.near.org",
@@ -33,6 +32,8 @@ func TestAnEndpointWithAPathOrAKeyPlaceIsRefusedAndNotEchoed(t *testing.T) {
 	for _, raw := range []string{
 		"https://rpc.testnet.near.org",
 		"https://rpc.testnet.near.org/",
+		"https://example-testnet.invalid/abc123def/",
+		"https://example-testnet.invalid/v1/abc123def",
 		"https://tx.test.fastnear.com",
 		"http://127.0.0.1:3030",
 	} {

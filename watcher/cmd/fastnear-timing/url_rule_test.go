@@ -24,11 +24,14 @@ func TestStoppedByHoldsNoURL(t *testing.T) {
 	}
 }
 
-func TestTheTimingToolRefusesAURLWithAPath(t *testing.T) {
-	if err := checkEndpoints("https://rpc.testnet.invalid/v3/FAKEKEY0123456789", "https://tx.test.fastnear.com"); err == nil || strings.Contains(err.Error(), "FAKEKEY") {
+func TestTheTimingToolRefusesAURLWithAQuery(t *testing.T) {
+	if err := checkEndpoints("https://rpc.testnet.invalid/v3?key=FAKEKEY0123456789", "https://tx.test.fastnear.com"); err == nil || strings.Contains(err.Error(), "FAKEKEY") {
 		t.Fatalf("%v", err)
 	}
 	if err := checkEndpoints("https://rpc.testnet.near.org", "https://tx.test.fastnear.com"); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkEndpoints("https://example-testnet.invalid/abc123def/", "https://tx.test.fastnear.com"); err != nil {
 		t.Fatal(err)
 	}
 }
