@@ -153,3 +153,24 @@ describe("a launch", () => {
     expect(buildLaunch(FACTORY, { form, icon: `${ICON_PREFIX}not base64!` }).kind).toBe("invalid");
   });
 });
+
+describe("values the caller can set in place of the defaults", () => {
+  it("uses a given min_tokens_out in place of the quote's tokens_out", () => {
+    const [tx] = buildBuy(COIN, { nearIn: 1n, quote: quote(1000n), storage: { registered: true }, minTokensOut: 990n });
+    expect(tx!.actions[0]!.params.args).toEqual({ min_tokens_out: "990" });
+  });
+
+  it("uses a given min_near_out in place of the quote's near_out", () => {
+    const [tx] = buildSell(COIN, { amount: 10n, quote: sellQuote(10n, 500n, "full"), minNearOut: 0n });
+    expect(tx!.actions[0]!.params.args).toEqual({ amount: "10", min_near_out: "0" });
+  });
+
+  it("uses a given storage deposit for a launch in place of 1 NEAR, still adding the opening buy", () => {
+    const r = buildLaunch("factory.fairchance.testnet", {
+      form: { name: "Cabal Test 2", ticker: "cabal2", description: "", openingBuy: "0.5" },
+      icon: null,
+      storageDeposit: 250_000_000_000_000_000_000_000n,
+    });
+    expect(r).toMatchObject({ kind: "ready", deposit: 750_000_000_000_000_000_000_000n });
+  });
+});

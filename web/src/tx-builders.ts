@@ -38,10 +38,11 @@ export async function readBuyerStorage(chain: Pick<ChainReader, "view">, account
  * fc_quote_buy), so the coin refuses with FC_SLIPPAGE if the price moved after the quote.
  * A buyer with no storage record gets `storage_deposit` first, in the same transaction: the coin
  * refuses a buy from an unregistered account, and one failed action rolls back both.
+ * `minTokensOut`, when given, replaces the quote's `tokens_out` (for a margin the caller chooses).
  */
-export function buildBuy(coin: string, input: { nearIn: bigint; quote: BuyQuote; storage: BuyerStorage }): TxRequest[] {
+export function buildBuy(coin: string, input: { nearIn: bigint; quote: BuyQuote; storage: BuyerStorage; minTokensOut?: bigint }): TxRequest[] {
   const actions = input.storage.registered ? [] : [call("storage_deposit", {}, STORAGE_DEPOSIT_GAS, input.storage.storageMin)];
-  actions.push(call("buy", { min_tokens_out: input.quote.tokensOut.toString() }, BUY_GAS, input.nearIn));
+  actions.push(call("buy", { min_tokens_out: (input.minTokensOut ?? input.quote.tokensOut).toString() }, BUY_GAS, input.nearIn));
   return [{ receiverId: coin, actions }];
 }
 
@@ -55,9 +56,10 @@ const ONE_YOCTO = 1n;
 /**
  * One sell of `amount` token base units. `min_near_out` is the quote's `near_out` for that amount
  * (INTERFACE sell: the NEAR accepted for all of `amount`, checked per token of the part that fills).
+ * `minNearOut`, when given, replaces the quote's `near_out`.
  */
-export function buildSell(coin: string, input: { amount: bigint; quote: SellQuote }): TxRequest[] {
-  const args = { amount: input.amount.toString(), min_near_out: input.quote.nearOut.toString() };
+export function buildSell(coin: string, input: { amount: bigint; quote: SellQuote; minNearOut?: bigint }): TxRequest[] {
+  const args = { amount: input.amount.toString(), min_near_out: (input.minNearOut ?? input.quote.nearOut).toString() };
   return [{ receiverId: coin, actions: [call("sell", args, SELL_GAS, ONE_YOCTO)] }];
 }
 
@@ -96,9 +98,10 @@ export type LaunchTx =
 /**
  * The factory `launch` call from the launch form. The ticker goes as typed in upper case (the coin's
  * symbol, as the form previews it); the factory lowers it for the coin account. An empty
- * description and an empty opening buy go as null. Deposit: LAUNCH_STORAGE_DEPOSIT plus the opening buy.
+ * description and an empty opening buy go as null. Deposit: `storageDeposit` (default
+ * LAUNCH_STORAGE_DEPOSIT) plus the opening buy.
  */
-export function buildLaunch(factory: string, input: { form: LaunchFormInput; icon: string | null }): LaunchTx {
+export function buildLaunch(factory: string, input: { form: LaunchFormInput; icon: string | null; storageDeposit?: bigint }): LaunchTx {
   const errors = [...launchFormModel(input.form).errors];
   if (input.icon !== null && !iconIsSmallWebp(input.icon)) errors.push(refusalText(ICON_REFUSAL)!);
   if (errors.length > 0) return { kind: "invalid", errors };
@@ -106,7 +109,7 @@ export function buildLaunch(factory: string, input: { form: LaunchFormInput; ico
   const description = input.form.description.trim();
   const buyText = input.form.openingBuy.trim();
   const openingBuy = buyText === "" ? null : parseTokenAmount(buyText, NEAR_DECIMALS);
-  const deposit = LAUNCH_STORAGE_DEPOSIT + (openingBuy ?? 0n);
+  const deposit = (input.storageDeposit ?? LAUNCH_STORAGE_DEPOSIT) + (openingBuy ?? 0n);
   const args = {
     name: input.form.name.trim(),
     ticker: ticker.toUpperCase(),
