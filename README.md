@@ -180,7 +180,7 @@ Each judging criterion, and where to check it. The [demo video](https://vimeo.co
 | Sustainability | The creator earns a fee share after the pool holds depth for 24 hours ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)). |
 | The mechanic, not the chart | Sell limits, partial fills and the real NEAR cap sit in `rule-engine/` and `contracts/coin/`. No price chart is a rule. |
 | Mechanic in the contract, not a backend | One contract holds the token and the pool ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md)). The watcher and the page read and explain. They hold no rule. |
-| Parameters set at launch, no admin key | The coin account has no access keys, and every value is a constant read with `fc_rules` ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)). |
+| Parameters set at launch, no admin key | The coin account and the factory account have no access keys, and every value is a constant read with `fc_rules` ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)). |
 | Sybil limits written plainly | [Known limits](#known-limits) and [evidence](docs/evidence.md). |
 | A page with live state and a log | The [Cabal Test 2 coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=cabal2.factory.fairchance.testnet&network=testnet) reads its state from NEAR testnet and shows one receipt row per sell. |
 | A 60-day simulation under a few scenarios | [analysis/FINDINGS.md](analysis/FINDINGS.md) |
@@ -222,7 +222,7 @@ When a step fails, the contract refuses with its code, and the call changes no s
 | Coin page (`web/`) | Static files in a browser, plus a read-only relay (`web/api/rpc.js`) on the hosted site | Reads views from a NEAR testnet RPC and events from FastNEAR, and shows limits, receipts and refusals. On the hosted site, the views go through the relay. | No. |
 | Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts to the builder's private chat, answers `/check`. | No. |
 
-There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key. The factory account still has one full-access key on testnet. That key cannot change an existing coin, because each coin has no keys and runs its code by a fixed hash. It could change how future coins launch. The page is static. It reads the chain, and it sends a buy, a sell or a launch only when the visitor signs it in their own wallet. The watcher and the page can go offline, and the coin still enforces every rule.
+There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key. The factory account has no access keys either. Its last key was deleted on 14 November 2026, so nobody can change the factory or how future coins launch. Each coin has no keys and runs its code by a fixed hash. The page is static. It reads the chain, and it sends a buy, a sell or a launch only when the visitor signs it in their own wallet. The watcher and the page can go offline, and the coin still enforces every rule.
 
 Nobody can change a coin after launch. These three lines are the claim ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)):
 
@@ -282,7 +282,7 @@ Testnet only. Testnet NEAR and these tokens have no value.
 
 - Deployed commit, from the coin's source metadata: `b42fdde`
 - The coin from the demo video: `bagclub.factory.fairchance.testnet`. Launch: [explorer](https://testnet.nearblocks.io/txns/EJ3oXY3JGefVbW4iQy7bnzg1yykRFB3xoQ9DWtmCJ3Tz "claim: launch on factory.fairchance.testnet of bagclub.factory.fairchance.testnet")
-- The factory account still has one full-access key. It cannot change an existing coin.
+- The factory account has no access keys. Its last full-access key was deleted on 14 November 2026: [explorer](https://testnet.nearblocks.io/txns/92ZSV49eqCHAWoPLUTtYtmckP9ujcSeW1PMMi5AqzgS7 "claim: delete_key on factory.fairchance.testnet"). Launches still work, because `launch` is a public method.
 
 The coin's source metadata names commit `b42fdde` and the pinned build image, by digest. That is the NEP-330 record of a reproducible build. A local rebuild matches it: on 14 November 2026, `cargo near build reproducible-wasm` in `contracts/coin/` at a clean checkout of `b42fdde` (host `cargo-near` 0.21.1, pinned image `sourcescan/cargo-near:0.22.0-rust-1.97.1`, Docker on Apple silicon) printed SHA-256 base58 `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`. That is the `global_contract_hash` the chain holds for each coin launched so far (CABAL, CABAL2, BAG, QALAUNCH and BAGCLUB), so the code on chain is the code at `b42fdde` in this repo.
 
@@ -343,7 +343,7 @@ call '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_fu
 
 For BAG, call 2 gives `global_contract_hash` `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`, and call 3 gives the same `code_hash`. The hash from call 2 is what the chain holds. The hash from call 3 is what the coin reports; the factory passed it to `new` at launch. The two must match each other, and the hash a reproducible build of the deployed commit prints. If they differ, the deployed code is not that commit. The local rebuild of `b42fdde` in [Network](#network) prints this hash.
 
-The factory account still has an access key, so call 1 on the factory returns one full-access key. Call 1 on any coin returns an empty list.
+Call 1 returns an empty list for the factory too, and for any coin.
 
 The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill on bag.factory.fairchance.testnet") and in `evidence/testnet-run.json`.
 
