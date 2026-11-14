@@ -1,7 +1,7 @@
 // The plain text for every contract refusal, from the file the whole repo shares. The page never
 // writes a refusal text of its own. A key is an FC_ code, or the fixed text of a standard NEP-141
 // or NEP-145 message, with ACCOUNT_PLACEHOLDER where the message names an account.
-import texts from "../../refusal-texts/refusal-texts.json";
+import texts from "../../refusal-texts/refusal-texts.json" with { type: "json" };
 
 const byKey: Readonly<Record<string, string>> = texts;
 const ACCOUNT_PLACEHOLDER = "<account>";
