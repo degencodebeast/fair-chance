@@ -110,6 +110,7 @@ describe("sell fills fully", () => {
       accountId: "you.testnet",
       balance: "5.0M MOTH",
       text: "No limit applies to your bag.",
+      lead: "you.testnet can sell 5.0M MOTH now.",
     });
     expect(preview).toMatchObject({
       title: "Your sell fills in full",
@@ -173,6 +174,7 @@ describe("a small account at a full cap", () => {
       accountId: "you.testnet",
       balance: "5.0M MOTH",
       text: `No limit applies to your bag. ${HELD_BACK}`,
+      lead: "you.testnet can sell 4.0M MOTH now.",
     });
   });
 

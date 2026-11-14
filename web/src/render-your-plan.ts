@@ -74,9 +74,16 @@ export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: Plan
   const symbol = reads.metadata.kind === "value" ? reads.metadata.value.symbol : "tokens";
   const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
 
+  // With an account filled, the result sits above the fields. Only the result moves, so the field keeps focus.
+  const placeResult = (filled: boolean): void => {
+    if (filled) section.insertBefore(result, form);
+    else form.after(result);
+  };
+
   let latest = 0;
   const show = async (): Promise<void> => {
     const accountId = accountInput.value.trim();
+    placeResult(accountId !== "");
     if (accountId === "") {
       result.replaceChildren(el("p", { class: "note" }, "Type an account name, for example you.testnet."));
       return;
@@ -93,8 +100,12 @@ export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: Plan
       const mine = ++latest;
       const loaded = await load({ accountId, asked });
       if (mine !== latest) return;
-      const view = yourPlanView({ accountId, symbol, decimals, totalSupply: supply, ...loaded }, { nowNs });
+      const signed = wallet.state();
+      const ownAccount = signed.kind === "signed-in" && signed.session.accountId === accountId;
+      const view = yourPlanView({ accountId, ownAccount, symbol, decimals, totalSupply: supply, ...loaded }, { nowNs });
+      const lead = view.plan.kind === "unavailable" ? null : view.plan.lead;
       result.replaceChildren(
+        ...(lead === null ? [] : [el("p", { class: "plan-lead", id: "plan-lead" }, lead)]),
         el("p", { class: "as-of num muted", id: "plan-as-of" }, view.asOf),
         drawPlan(view.plan),
         ...(view.preview ? [drawPreview(view.preview)] : []),
@@ -105,6 +116,9 @@ export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: Plan
     }
   };
 
+  const CHECK = "Check";
+  const PREVIEW_SELL = "Preview sell";
+  const button = el("button", { type: "submit", class: "button button-dark" }, CHECK);
   const form = el(
     "form",
     { class: "plan-form" },
@@ -112,8 +126,11 @@ export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: Plan
     accountInput,
     el("label", { for: "plan-amount" }, `Amount to sell (${symbol}), optional`),
     amountInput,
-    el("button", { type: "submit", class: "button button-dark" }, "Show plan and preview"),
+    button,
   );
+  listen(amountInput, "input", () => {
+    button.textContent = amountInput.value.trim() === "" ? CHECK : PREVIEW_SELL;
+  });
   // The field follows the connected account until the visitor types in it.
   let typed = false;
   listen(accountInput, "input", () => {
@@ -125,7 +142,10 @@ export function drawYourPlan(reads: CoinReads, wallet: WalletControl, load: Plan
     const next = state.kind === "signed-in" ? state.session.accountId : "";
     if (accountInput.value === next) return;
     accountInput.value = next;
-    if (next === "") result.replaceChildren();
+    if (next === "") {
+      result.replaceChildren();
+      placeResult(false);
+    }
     else void show();
   };
   let shown = false;

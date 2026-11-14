@@ -135,7 +135,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
         if (mine !== latestLimit) return;
         const t = (units: bigint) => `${compactTokens(units.toString(), deps.decimals)} ${deps.symbol}`;
         sellLimit.textContent = l.balance === 0n
-            ? `This account holds no ${deps.symbol}.`
+            ? `You hold no ${deps.symbol} yet.`
             : `You can sell up to ${t(l.canSellNow)} now. You hold ${t(l.balance)}.${l.moreOpens === null ? "" : ` ${l.moreOpens}`}`;
       },
       (e: unknown) => {

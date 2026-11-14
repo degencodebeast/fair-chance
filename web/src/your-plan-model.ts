@@ -7,6 +7,8 @@ import { clockTime, compactTokens, compactTokensRoundedUp, nearAmount, timeWithH
 
 export interface PlanInput {
   accountId: string;
+  /** True when the account is the connected wallet's; the text then says "you". */
+  ownAccount?: boolean;
   symbol: string;
   decimals: number;
   totalSupply: bigint | null;
@@ -25,10 +27,12 @@ export interface Tag {
 
 export type PlanView =
   | { kind: "unavailable"; accountId: string; text: string }
-  | { kind: "small"; accountId: string; balance: string; text: string }
+  | { kind: "small"; accountId: string; balance: string; text: string; lead: string | null }
   | {
       kind: "card";
       accountId: string;
+      /** One plain sentence that leads the result, such as "You can sell 951.6K BAG now." */
+      lead: string | null;
       tags: Tag[];
       balance: string;
       big: string;
@@ -107,11 +111,19 @@ const PROFIT_HELD_BACK = "Profit from tokens you bought this hour is held back w
 
 function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bigint) => string): PlanView {
   const symbol = input.symbol;
+  const own = input.ownAccount === true;
+  const who = own ? "You" : input.accountId;
   // Early supply is limited whatever the class says: marked tokens show through marked_balance.
   if (a.class === "small" && a.markedBalance === 0n) {
+    const balance = `${tokens(a.balance)} ${symbol}`;
+    if (a.balance === 0n) {
+      const text = own ? `You hold no ${symbol} yet.` : `${input.accountId} holds no ${symbol}.`;
+      return { kind: "small", accountId: input.accountId, balance, text, lead: null };
+    }
     const held = a.maxFullFillNow.kind === "value" && a.maxFullFillNow.value < a.balance;
     const text = held ? `No limit applies to your bag. ${PROFIT_HELD_BACK}` : "No limit applies to your bag.";
-    return { kind: "small", accountId: input.accountId, balance: `${tokens(a.balance)} ${symbol}`, text };
+    const canSell = a.maxFullFillNow.kind === "value" ? a.maxFullFillNow.value : a.balance;
+    return { kind: "small", accountId: input.accountId, balance, text, lead: `${who} can sell ${tokens(canSell)} ${symbol} now.` };
   }
   const tags: Tag[] = [];
   if (a.class !== "small") tags.push({ label: a.class === "large" ? "Large" : "Mid-size", tone: a.class === "large" ? "dark" : "plain" });
@@ -137,17 +149,19 @@ function planView(input: PlanInput, a: Account, ctx: TimeContext, tokens: (n: bi
     primary?.kind === "unmarked" && marked !== null && a.markedBalance > 0n
       ? `Early supply: ${tokens(marked.left)} of ${tokens(marked.allowance)} left. It resets ${timeWithHint(marked.windowEndNs, ctx)}.`
       : null;
+  const bigSub =
+    maxFull !== null && primary !== null && maxFull < primary.value.allowance
+      ? `Allowance this window: ${tokens(primary.value.allowance)}. It resets ${timeWithHint(primary.value.windowEndNs, ctx)}.`
+      : null;
   return {
     kind: "card",
     accountId: input.accountId,
+    lead: maxFull === null ? null : `${who} can sell ${tokens(maxFull)} ${symbol} now.${bigSub === null ? "" : ` ${bigSub}`}`,
     tags,
     balance: `Balance ${tokens(a.balance)} ${symbol}${share}`,
     big: maxFull === null ? NOT_AVAILABLE : tokens(maxFull),
     bigLabel: "can sell now",
-    bigSub:
-      maxFull !== null && primary !== null && maxFull < primary.value.allowance
-        ? `Allowance this window: ${tokens(primary.value.allowance)}. It resets ${timeWithHint(primary.value.windowEndNs, ctx)}.`
-        : null,
+    bigSub,
     bigTone: maxFull !== null && maxFull < a.balance ? "limit" : "plain",
     usedPct: primary === null || primary.value.allowance === 0n ? 0 : Number((primary.value.used * 100n) / primary.value.allowance),
     usedLabel: primary === null ? NOT_AVAILABLE : `${tokens(primary.value.used)} of ${tokens(primary.value.allowance)}${usedUnit}`,
