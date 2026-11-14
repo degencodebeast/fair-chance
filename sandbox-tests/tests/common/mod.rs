@@ -22,9 +22,15 @@ pub enum Mode {
 pub struct FakeRpc {
     pub url: String,
     pub methods: Arc<Mutex<Vec<String>>>,
+    /// The JSON-RPC body of each request, in order.
+    pub bodies: Arc<Mutex<Vec<String>>>,
 }
 
 impl FakeRpc {
+    pub fn bodies(&self) -> Vec<String> {
+        self.bodies.lock().unwrap().clone()
+    }
+
     pub fn methods(&self) -> Vec<String> {
         self.methods.lock().unwrap().clone()
     }
@@ -48,7 +54,9 @@ pub async fn start_with_path(mode: Mode, path: &str) -> FakeRpc {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/{path}", listener.local_addr().unwrap());
     let methods = Arc::new(Mutex::new(Vec::new()));
+    let bodies = Arc::new(Mutex::new(Vec::new()));
     let seen = methods.clone();
+    let seen_bodies = bodies.clone();
     tokio::spawn(async move {
         loop {
             let Ok((stream, _)) = listener.accept().await else {
@@ -56,18 +64,24 @@ pub async fn start_with_path(mode: Mode, path: &str) -> FakeRpc {
             };
             let mode = mode.clone();
             let seen = seen.clone();
+            let seen_bodies = seen_bodies.clone();
             tokio::spawn(async move {
-                let _ = serve(stream, mode, seen).await;
+                let _ = serve(stream, mode, seen, seen_bodies).await;
             });
         }
     });
-    FakeRpc { url, methods }
+    FakeRpc {
+        url,
+        methods,
+        bodies,
+    }
 }
 
 async fn serve(
     mut stream: TcpStream,
     mode: Mode,
     seen: Arc<Mutex<Vec<String>>>,
+    seen_bodies: Arc<Mutex<Vec<String>>>,
 ) -> std::io::Result<()> {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 8192];
@@ -100,6 +114,10 @@ async fn serve(
         .and_then(|v| v["method"].as_str().map(str::to_string))
         .unwrap_or_default();
     seen.lock().unwrap().push(method.clone());
+    seen_bodies
+        .lock()
+        .unwrap()
+        .push(String::from_utf8_lossy(&body).to_string());
     let target = match mode {
         Mode::Always429 => {
             let reply = "HTTP/1.1 429 Too Many Requests\r\nretry-after: 0\r\ncontent-length: 0\r\nconnection: close\r\n\r\n";
