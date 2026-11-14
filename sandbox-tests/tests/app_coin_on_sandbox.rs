@@ -114,10 +114,10 @@ async fn a_coin_the_funder_launched_gets_no_buy() {
 /// One JSON-RPC call to the sandbox node, raw; the whole answer.
 async fn rpc(node: &str, method: &str, params: Value) -> Value {
     let body = json!({ "jsonrpc": "2.0", "id": "0", "method": method, "params": params });
-    let (_, out) = common::post_raw(node, body.to_string().as_bytes())
-        .await
-        .unwrap();
-    serde_json::from_slice(&out).unwrap_or(Value::Null)
+    match common::post_raw(node, body.to_string().as_bytes()).await {
+        Ok((_, out)) => serde_json::from_slice(&out).unwrap_or(Value::Null),
+        Err(_) => Value::Null,
+    }
 }
 
 /// Every value under a key named `key`, with its path.
@@ -169,37 +169,66 @@ async fn explain_the_sends(world: &World, fake: &common::FakeRpc) {
     for (kind, count) in &kinds {
         say(format!("{count} x {kind}"));
     }
-    let Some((request, _)) = sends.first() else {
+    let Some((request, _)) = common::first_failed_send(&answers) else {
+        say("no signed send was refused".to_string());
         return;
     };
-    let request_json: Value = serde_json::from_str(request).unwrap();
+    let request_json: Value = serde_json::from_str(request).unwrap_or_default();
     say(format!(
-        "first send: method {}, wait_until {}",
+        "first refused send: method {}, wait_until {}",
         request_json["method"], request_json["params"]["wait_until"]
     ));
+    let config = rpc(
+        &node,
+        "EXPERIMENTAL_protocol_config",
+        json!({ "finality": "final" }),
+    )
+    .await;
+    let mut limits = Vec::new();
+    find_key(&config, "max_total_prepaid_gas", "config", &mut limits);
+    find_key(&config, "protocol_version", "config", &mut limits);
+    say(format!("protocol config: {}", limits.join(", ")));
+    // The same recorded bytes once more, raw, on the sandbox only.
+    let out = match common::post_raw(&node, request.as_bytes()).await {
+        Ok((_, out)) => String::from_utf8_lossy(&out).to_string(),
+        Err(e) => format!("no answer: {e}"),
+    };
+    match common::rpc_error_parts(&out) {
+        Some((cause, data)) => say(format!("raw resend: error.cause {cause} error.data {data}")),
+        None => say(format!(
+            "raw resend: no error: {}",
+            out.chars().take(300).collect::<String>()
+        )),
+    }
     let Some(b64) = request_json["params"]["signed_tx_base64"].as_str() else {
-        say("the first send has no signed_tx_base64".to_string());
+        say("the first refused send has no signed_tx_base64".to_string());
         return;
     };
-    let bytes = base64::engine::general_purpose::STANDARD
+    let decoded = base64::engine::general_purpose::STANDARD
         .decode(b64)
-        .unwrap();
-    let signed: near_api::types::transaction::SignedTransaction =
-        borsh::from_slice(&bytes).unwrap();
+        .map_err(|e| e.to_string())
+        .and_then(|bytes| {
+            borsh::from_slice::<near_api::types::transaction::SignedTransaction>(&bytes)
+                .map(|signed| (bytes.len(), signed))
+                .map_err(|e| e.to_string())
+        });
+    let (size, signed) = match decoded {
+        Ok(done) => done,
+        Err(e) => {
+            say(format!("the first refused send does not decode: {e}"));
+            return;
+        }
+    };
     let tx = &signed.transaction;
     let mut hashes = Vec::new();
-    find_key(
-        &serde_json::to_value(tx).unwrap(),
-        "block_hash",
-        "tx",
-        &mut hashes,
-    );
+    if let Ok(value) = serde_json::to_value(tx) {
+        find_key(&value, "block_hash", "tx", &mut hashes);
+    }
     say(format!(
-        "first send: {} to {}, nonce {}, {} bytes, {}",
+        "first refused send: {} to {}, nonce {}, {size} bytes, {}",
         tx.signer_id(),
         tx.receiver_id(),
         tx.nonce(),
-        bytes.len(),
         hashes.join(", ")
     ));
     let mut total_gas: u64 = 0;
@@ -251,25 +280,5 @@ async fn explain_the_sends(world: &World, fake: &common::FakeRpc) {
             "now at {finality}: head {}, key nonce {}",
             block["result"]["header"]["height"], key["result"]["nonce"]
         ));
-    }
-    let config = rpc(
-        &node,
-        "EXPERIMENTAL_protocol_config",
-        json!({ "finality": "final" }),
-    )
-    .await;
-    let mut limits = Vec::new();
-    find_key(&config, "max_total_prepaid_gas", "config", &mut limits);
-    find_key(&config, "protocol_version", "config", &mut limits);
-    say(format!("protocol config: {}", limits.join(", ")));
-    // The same recorded bytes once more, raw, on the sandbox only.
-    let (_, out) = common::post_raw(&node, request.as_bytes()).await.unwrap();
-    let out = String::from_utf8_lossy(&out).to_string();
-    match common::rpc_error_parts(&out) {
-        Some((cause, data)) => say(format!("raw resend: error.cause {cause} error.data {data}")),
-        None => say(format!(
-            "raw resend: no error: {}",
-            out.chars().take(300).collect::<String>()
-        )),
     }
 }

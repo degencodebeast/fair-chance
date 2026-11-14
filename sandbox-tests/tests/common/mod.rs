@@ -193,6 +193,17 @@ pub fn rpc_error_parts(answer: &str) -> Option<(serde_json::Value, serde_json::V
     ))
 }
 
+/// The first (request, answer) pair that is a signed send the node answered with an error.
+pub fn first_failed_send(pairs: &[(String, String)]) -> Option<&(String, String)> {
+    pairs.iter().find(|(request, answer)| {
+        let method = serde_json::from_str::<serde_json::Value>(request)
+            .ok()
+            .and_then(|v| v["method"].as_str().map(str::to_string))
+            .unwrap_or_default();
+        is_send(&method) && rpc_error_parts(answer).is_some()
+    })
+}
+
 /// What a `view_access_key` query answered.
 #[derive(Debug, PartialEq, Eq)]
 pub struct KeyAnswer {
