@@ -95,3 +95,24 @@ fn the_flags_of_a_launching_run_or_a_bag_step_are_refused_with_the_coin_flag() {
         );
     }
 }
+
+#[test]
+fn the_app_coin_run_reserves_100_tgas_per_buy_unless_told_otherwise() {
+    use fair_chance_sandbox_tests::app_coin::buyer_gas;
+    use near_api::types::NearGas;
+    let coin = parse(&["--coin", "cabal3.factory.fairchance.testnet"]).unwrap();
+    assert_eq!(buyer_gas(&coin), NearGas::from_tgas(100));
+    let told = parse(&[
+        "--coin",
+        "cabal3.factory.fairchance.testnet",
+        "--buyer-tgas",
+        "300",
+    ])
+    .unwrap();
+    assert_eq!(buyer_gas(&told), NearGas::from_tgas(300));
+    // The run that launches keeps its own default.
+    assert_eq!(
+        buyer_gas(&parse(&["--buyers", "10"]).unwrap()),
+        NearGas::from_tgas(300)
+    );
+}

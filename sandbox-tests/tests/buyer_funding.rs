@@ -1,117 +1,131 @@
-//! Each runner account signs its own transactions, and the node refuses a transaction whose
-//! deposits plus prepaid gas at the current gas price are more than the signer holds
-//! (NotEnoughBalance). The sandbox answered that for 0.7 NEAR buyers at a cost of
-//! 0.806719159630831 NEAR per buy. The funding check counts, as if every prepaid gas unit burns:
-//! an early buyer's buy (with its storage deposit), early sell and sell after the window; the
-//! later buyer's buy and sell; 5 Tgas of send fees per transaction, a 25 percent rise of the gas
-//! price and 0.01 NEAR for the account itself. All buyers get the same extra, and the later
-//! buyer sends one transaction fewer, so the early buyer's shortfall sets the extra.
+//! Each runner account signs its own transactions, and the node refuses one whose deposits plus
+//! its cost of gas are more than the signer holds (NotEnoughBalance). The node buys the prepaid
+//! gas and the send fees at min_gas_purchase_price (1e9 yoctoNEAR per gas on the sandbox and on
+//! testnet), not at the block gas price (1e8): the sandbox probe measured
+//! cost = deposit + (prepaid gas + 1.719 Tgas) x 1e9 at 300, 150 and 30 Tgas, and testnet charged
+//! a CABAL2 buy (100 Tgas, 0.505 NEAR attached) 0.606719159630831 NEAR.
+//!
+//! The check uses the higher of the node's gas price with 25 percent headroom and
+//! min_gas_purchase_price, 5 Tgas of send fees per transaction and 0.01 NEAR for the account. It
+//! counts the two moments an early buyer signs at: the burst (buy and early sell, both prepaid in
+//! full) and the sell after the window (refunds back, 10 Tgas burnt per earlier transaction; a
+//! CABAL2 buy burnt 5.04 Tgas). The later buyer the same, one transaction fewer.
 
 use fair_chance_sandbox_tests::buyer_funding::{
-    buyer_extra_for, buyer_need, check_buyer_funding, later_buyer_need,
+    buyer_extra_for, buyer_need, check_buyer_funding, later_buyer_need, price_used,
 };
 use near_api::types::{NearGas, NearToken};
 
-const SANDBOX_GAS_PRICE: u128 = 1_000_000_000;
-const TESTNET_GAS_PRICE: u128 = 100_000_000;
-const BUYER_GAS: NearGas = NearGas::from_tgas(300);
+const PURCHASE_PRICE: u128 = 1_000_000_000;
+const GAS_100: NearGas = NearGas::from_tgas(100);
+const GAS_300: NearGas = NearGas::from_tgas(300);
 
 fn millinear(n: u128) -> NearToken {
     NearToken::from_millinear(n)
 }
 
 #[test]
-fn an_early_buyer_needs_its_three_transactions_at_the_raised_gas_price() {
-    // 0.5 + 0.005 + 665 Tgas x 1.25e9 + 0.01 NEAR + 2 yocto of sell deposits.
+fn the_price_is_the_higher_of_the_raised_gas_price_and_the_purchase_price() {
+    assert_eq!(price_used(100_000_000, PURCHASE_PRICE), 1_000_000_000);
+    assert_eq!(price_used(1_000_000_000, PURCHASE_PRICE), 1_250_000_000);
+    assert_eq!(price_used(2_000_000_000, PURCHASE_PRICE), 2_500_000_000);
+    assert_eq!(price_used(100_000_000, 0), 125_000_000);
+}
+
+#[test]
+fn an_early_buyer_needs_the_larger_of_its_two_moments() {
+    // Burst: 0.5 + 0.005 + (100 + 50 + 2 x 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        buyer_need(millinear(500), BUYER_GAS, SANDBOX_GAS_PRICE).as_yoctonear(),
-        1_346_250_000_000_000_000_000_002
+        buyer_need(millinear(500), GAS_100, PURCHASE_PRICE).as_yoctonear(),
+        675_000_000_000_000_000_000_001
     );
-    // 0.5 + 0.005 + 665 Tgas x 1.25e8 + 0.01 NEAR + 2 yocto.
+    // Burst: 0.5 + 0.005 + (300 + 50 + 2 x 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        buyer_need(millinear(500), BUYER_GAS, TESTNET_GAS_PRICE).as_yoctonear(),
-        598_125_000_000_000_000_000_002
+        buyer_need(millinear(500), GAS_300, PURCHASE_PRICE).as_yoctonear(),
+        875_000_000_000_000_000_000_001
     );
 }
 
 #[test]
-fn the_need_covers_the_cost_the_sandbox_refused() {
-    assert!(
-        buyer_need(millinear(500), BUYER_GAS, SANDBOX_GAS_PRICE).as_yoctonear()
-            > 806_719_159_630_831_000_000_000
-    );
+fn the_need_covers_what_the_node_charges_at_the_burst() {
+    // The probe's buy at 100 Tgas, plus an early sell of 50 Tgas with the same send fees.
+    let node = 606_719_159_630_831_000_000_000u128 + (50_000 + 1_719) * 1_000_000_000_000_000_000;
+    assert!(buyer_need(millinear(500), GAS_100, PURCHASE_PRICE).as_yoctonear() > node);
 }
 
 #[test]
-fn the_later_buyer_needs_its_buy_and_its_sell() {
-    // 0.3 + 0.005 + 610 Tgas x 1.25e9 + 0.01 NEAR + 1 yocto.
+fn the_later_buyer_needs_its_sell_after_its_buy_burnt() {
+    // Sell moment: 0.3 + 0.005 + 10 Tgas burnt + (100 + 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        later_buyer_need(millinear(300), BUYER_GAS, SANDBOX_GAS_PRICE).as_yoctonear(),
-        1_077_500_000_000_000_000_000_001
+        later_buyer_need(millinear(300), GAS_100, PURCHASE_PRICE).as_yoctonear(),
+        430_000_000_000_000_000_000_001
     );
 }
 
 #[test]
 fn the_extra_is_the_larger_shortfall_rounded_up_to_a_millinear() {
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(300), BUYER_GAS, SANDBOX_GAS_PRICE),
-        millinear(847)
+        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE),
+        millinear(176)
     );
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(300), BUYER_GAS, TESTNET_GAS_PRICE),
-        millinear(99)
+        buyer_extra_for(millinear(500), millinear(300), GAS_300, PURCHASE_PRICE),
+        millinear(376)
     );
-    // No later buyer: only the early buyer counts.
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(0), BUYER_GAS, TESTNET_GAS_PRICE),
-        millinear(99)
+        buyer_extra_for(millinear(500), millinear(0), GAS_100, PURCHASE_PRICE),
+        millinear(176)
     );
 }
 
 #[test]
-fn the_testnet_plan_passes_at_the_testnet_gas_price() {
+fn the_testnet_plan_passes_with_100_tgas() {
     check_buyer_funding(
         millinear(500),
         millinear(300),
         millinear(200),
-        BUYER_GAS,
-        TESTNET_GAS_PRICE,
+        GAS_100,
+        PURCHASE_PRICE,
     )
     .unwrap();
 }
 
 #[test]
-fn the_same_plan_stops_at_the_sandbox_gas_price_with_both_amounts() {
+fn the_same_plan_with_300_tgas_stops_with_both_amounts() {
     let error = check_buyer_funding(
         millinear(500),
         millinear(300),
         millinear(200),
-        BUYER_GAS,
-        SANDBOX_GAS_PRICE,
+        GAS_300,
+        PURCHASE_PRICE,
     )
     .unwrap_err()
     .to_string();
-    assert!(error.contains("1.346250000000000000000002 NEAR"), "{error}");
+    assert!(error.contains("0.875000000000000000000001 NEAR"), "{error}");
     assert!(error.contains("0.7 NEAR"), "{error}");
     assert!(error.contains("1000000000 yoctoNEAR per gas"), "{error}");
-    assert!(error.contains("--buyer-extra-millinear 847"), "{error}");
+    assert!(error.contains("--buyer-extra-millinear 376"), "{error}");
     assert!(error.contains("nothing was signed"), "{error}");
 }
 
 #[test]
-fn the_sandbox_rehearsal_passes_the_extra_computed_at_the_sandbox_gas_price() {
+fn the_sandbox_rehearsal_uses_the_testnet_amounts_and_they_are_enough() {
     let script = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../scripts/rehearse-app-coin.sh"
     ))
     .unwrap();
-    let extra = buyer_extra_for(millinear(500), millinear(300), BUYER_GAS, SANDBOX_GAS_PRICE);
     assert!(
-        script.contains(&format!(
-            "--buy-millinear 500 \\\n    --buyer-extra-millinear {} --later-buy-millinear 300",
-            extra.as_millinear()
-        )),
-        "the script must pass --buyer-extra-millinear {}",
-        extra.as_millinear()
+        script.contains(
+            "--buy-millinear 500 \\\n    --buyer-extra-millinear 200 --later-buy-millinear 300"
+        ),
+        "the script must pass the testnet amounts"
+    );
+    assert!(
+        !script.contains("--buyer-tgas"),
+        "the app coin default must apply"
+    );
+    assert!(
+        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE) <= millinear(200)
     );
 }
