@@ -114,7 +114,7 @@ async function load(app: HTMLElement, href: string, link: ListLink): Promise<voi
   app.replaceChildren(screenHeader(href, "coins"), el("h1", { id: "coins-title" }, "Coins"), el("p", { class: "status", role: "status", id: "list-status" }, "Reading the chain."));
   const nowNs = BigInt(Date.now()) * 1_000_000n;
   try {
-    const factory = chainReader({ rpcUrl: link.rpcUrl, coin: link.factory, ...(link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {}) });
+    const factory = chainReader({ rpcUrl: link.rpcUrl, coin: link.factory, anyLoggedTx: true, ...(link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {}) });
     const cards = await loadCoinCards(factory, link.fromBlock, (coin) => chainReader({ rpcUrl: link.rpcUrl, coin, ...(link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {}) }), { nowNs });
     drawList(app, href, cards, `Read from ${link.source}, factory ${link.factory}. ${cards.length === 0 ? "" : `${cards.length} coin${cards.length === 1 ? "" : "s"}.`}`, () => {});
   } catch (e) {

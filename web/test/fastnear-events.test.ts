@@ -54,4 +54,40 @@ describe("FastNEAR event source", () => {
     const { events } = await reader.events(0);
     expect(events).toHaveLength(2);
   });
+
+  describe("a factory, whose launch event is logged by a callback receipt", () => {
+    // FastNEAR marks such a transaction is_event_log:false, so the event-log filter hides it.
+    function eventLogBlindFastNear(): { fetchFn: typeof fetch; bodies: Record<string, unknown>[] } {
+      const bodies: Record<string, unknown>[] = [];
+      const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+        const path = new URL(String(url)).pathname;
+        if (path === "/v0/transactions") return new Response(file("transactions_walking_path.json"));
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push(body);
+        const txs = body.is_event_log === true ? [] : JSON.parse(file("account_walking_path.json").toString()).account_txs;
+        return new Response(JSON.stringify({ account_txs: txs, resume_token: null }));
+      }) as typeof fetch;
+      return { fetchFn, bodies };
+    }
+
+    it("finds no events with the event-log filter, which is the default for a coin", async () => {
+      const { fetchFn } = eventLogBlindFastNear();
+      const { events } = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn });
+      expect(events).toEqual([]);
+    });
+
+    it("finds the events when the read leaves the filter out, and still asks for successful transactions only", async () => {
+      const { fetchFn, bodies } = eventLogBlindFastNear();
+      const { events } = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn, anyLoggedTx: true });
+      expect(events.map((e) => e.name)).toEqual(["fc_buy", "fc_sell"]);
+      expect(bodies[0]).toMatchObject({ account_id: coin, is_success: true });
+      expect(bodies[0]).not.toHaveProperty("is_event_log");
+    });
+
+    it("is what the chain reader does when its config asks for it", async () => {
+      const { fetchFn } = eventLogBlindFastNear();
+      const cfg = { coin, rpcUrl: "https://rpc.testnet.example", fastNearUrl: "https://fastnear.test", anyLoggedTx: true };
+      expect((await chainReader(cfg, fetchFn).events(0)).events).toHaveLength(2);
+    });
+  });
 });

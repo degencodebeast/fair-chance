@@ -9,6 +9,8 @@ export interface ReaderConfig {
   coin: string;
   /** Base URL of the FastNEAR transactions API. Set: events come from it (testnet). Unset: block scan. */
   fastNearUrl?: string;
+  /** Read every successful transaction of the account, not only those FastNEAR flags as event logs. The factory needs this. */
+  anyLoggedTx?: boolean;
 }
 
 /**
@@ -152,7 +154,7 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
   async function events(since?: number, launchBlock?: number) {
     const launch = since === undefined ? (await view<{ launch_block: number }>("fc_rules")).launch_block : launchBlock;
     let from = since ?? scanStartBlock(launch!);
-    if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn });
+    if (cfg.fastNearUrl) return fastNearEvents({ baseUrl: cfg.fastNearUrl, coin: cfg.coin, since: from, fetchFn, ...(cfg.anyLoggedTx ? { anyLoggedTx: true } : {}) });
     // A height with no block answers UNKNOWN_BLOCK and the scan skips it. A node that dropped
     // old blocks answers the same way, so check first that the node still has the blocks.
     const status = await call<{ sync_info: { earliest_block_height: number } }>("status", {});

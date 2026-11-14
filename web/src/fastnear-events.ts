@@ -28,6 +28,13 @@ export interface FastNearRead {
   /** First block height to include. */
   since: number;
   fetchFn: typeof fetch;
+  /**
+   * Leave out FastNEAR's is_event_log filter. A coin logs its events in its own call, so the
+   * filter is right and cheap for a coin. The factory logs fc_launch in a callback receipt, which
+   * FastNEAR does not flag, so the factory read needs every successful transaction. The receipt
+   * logs are still parsed and filtered by the code below.
+   */
+  anyLoggedTx?: boolean;
 }
 
 export async function fastNearEvents(read: FastNearRead): Promise<{ events: CoinEvent[]; cursor: number }> {
@@ -70,7 +77,7 @@ async function accountTxsSince(read: FastNearRead): Promise<AccountTx[]> {
     const body: Record<string, unknown> = {
       account_id: read.coin,
       desc: true,
-      is_event_log: true,
+      ...(read.anyLoggedTx ? {} : { is_event_log: true }),
       is_success: true,
       limit: ACCOUNT_PAGE_SIZE,
     };
