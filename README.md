@@ -182,7 +182,7 @@ Each judging criterion, and where to check it. The [demo video](https://vimeo.co
 | Mechanic in the contract, not a backend | One contract holds the token and the pool ([ADR 0002](docs/adr/0002-token-and-pool-in-one-contract.md)). The watcher and the page read and explain. They hold no rule. |
 | Parameters set at launch, no admin key | The coin account and the factory account have no access keys, and every value is a constant read with `fc_rules` ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)). |
 | Sybil limits written plainly | [Known limits](#known-limits) and [evidence](docs/evidence.md). |
-| A page with live state and a log | The [Cabal Test 2 coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=cabal2.factory.fairchance.testnet&network=testnet) reads its state from NEAR testnet and shows one receipt row per sell. |
+| A page with live state and a log | The [Bag Holders Club coin page](https://fair-chance-rho.vercel.app/?view=coin&coin=bagclub.factory.fairchance.testnet&network=testnet), the coin from the video, reads its state from NEAR testnet and shows one receipt row per sell. |
 | A 60-day simulation under a few scenarios | [analysis/FINDINGS.md](analysis/FINDINGS.md) |
 
 ## How it works
@@ -232,7 +232,7 @@ Nobody can change a coin after launch. These three lines are the claim ([ADR 000
 
 ## The rules
 
-Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin gets the same ones. The creator fee share and its minimum depth are not final ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)).
+Values are the fixed constants in `rule-engine/src/fixed_values.rs`. Every coin gets the same ones. The creator fee share and its minimum depth may change in a later coin version. A coin that is already launched keeps its values, because nobody can change it ([ADR 0010](docs/adr/0010-creator-fee-share-after-24h-depth.md#decision)).
 
 Words used here (full list in [GLOSSARY](GLOSSARY.md)):
 
@@ -276,7 +276,7 @@ In facts, against [meme.cooking](https://docs.meme.cooking/): its docs describe 
 Testnet only. Testnet NEAR and these tokens have no value.
 
 - Factory: `factory.fairchance.testnet`
-- Demo coin BAG: `bag.factory.fairchance.testnet`
+- First test coin, BAG: `bag.factory.fairchance.testnet`
 - Coin code hash: `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`
 - Launch of BAG: [explorer](https://testnet.nearblocks.io/txns/8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ "claim: launch on factory.fairchance.testnet of bag.factory.fairchance.testnet")
 
@@ -321,7 +321,7 @@ Open `docs/evidence.md` for what each test proves. Sandbox tests need `NEAR_SAND
 
 ## Check it from a terminal
 
-These calls only read. They need no wallet and no key. They use the demo coin. The recorded output of each call is in [docs/evidence.md](docs/evidence.md#terminal-checks-of-the-bag-coin).
+These calls only read. They need no wallet and no key. They use BAG, the first test coin. The same calls work for any coin, such as `bagclub.factory.fairchance.testnet`. The recorded output of each call is in [docs/evidence.md](docs/evidence.md#terminal-checks-of-the-bag-coin).
 
 ```sh
 COIN=bag.factory.fairchance.testnet
@@ -357,6 +357,8 @@ These are recorded runs. They do not predict results.
 | Property tests | Three random-sequence properties in `real_near_cap_properties.rs`, with 10,000, 1,000 and 1,000 cases. Failing cases are kept in `rule-engine/proptest-regressions/`. | `cargo test --locked -p fair-chance-rule-engine --test real_near_cap_properties` |
 | NEAR launch replay and 60-day simulation | See [analysis/FINDINGS.md](analysis/FINDINGS.md). | Public-chain replay and synthetic activity. Not a forecast. |
 | SMDD replay | With the limits off, the creator sold 4.7% of all tokens sold in that run and took 10.2% of all NEAR paid out in that run in the first hour. With all rules together (early fee, allowance, class and cap), the creator sold 0.02% of all tokens sold in that run and took 0.02% of all NEAR paid out in that run. See [the chart and table](analysis/smdd-replay/results/). | SMDD's first-hour trades on Solana, replayed in order on one Fair Chance pool, limits on in the same coin code, in the near-sdk in-process runner, with exact blocks and times. Groups only, minutes from launch. The difference comes from all the rules together. Sizing in [the replay method](analysis/smdd-replay/METHOD.md). |
+
+Notes on the SMDD replay:
 
 Real coin: the creator sold 7.331% of supply. Replay with limits off: 6.77%. The gap comes from the curve shape (pump.fun's 1.073 billion virtual tokens).
 
@@ -397,7 +399,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 
 ## Layout
 
-`rule-engine/` holds the rules as plain Rust. `contracts/coin/` and `contracts/factory/` wrap them. `sandbox-tests/` runs them on a local chain. `watcher/` is the Go alert service. `web/` is the coin page. `docs/` holds [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), the [ADRs](docs/adr/) and [GLOSSARY](GLOSSARY.md). The coin interface is version 1.0.0-rc.7. It becomes 1.0.0 when every rule passes its sandbox tests.
+`rule-engine/` holds the rules as plain Rust. `contracts/coin/` and `contracts/factory/` wrap them. `sandbox-tests/` runs them on a local chain. `watcher/` is the Go alert service. `web/` is the coin page. `docs/` holds [OVERVIEW](docs/OVERVIEW.md), [INTERFACE](docs/INTERFACE.md), the [ADRs](docs/adr/) and [GLOSSARY](GLOSSARY.md). The coin interface is version 1.0.0-rc.7.
 
 ## License
 
