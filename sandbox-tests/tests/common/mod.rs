@@ -245,3 +245,42 @@ pub fn network(url: &str) -> near_api::NetworkConfig {
     n.rpc_endpoints = vec![near_api::RPCEndpoint::new(url.parse().unwrap()).with_retries(1)];
     n
 }
+
+/// The `cost` of a NotEnoughBalance answer, in yoctoNEAR.
+pub fn not_enough_balance_cost(answer: &str) -> Option<u128> {
+    let (_, data) = rpc_error_parts(answer)?;
+    data["TxExecutionError"]["InvalidTxError"]["NotEnoughBalance"]["cost"]
+        .as_str()?
+        .parse()
+        .ok()
+}
+
+/// cost = deposit + (prepaid gas + fee_gas) x price, all in yocto and gas units.
+#[derive(Debug, PartialEq, Eq)]
+pub struct CostRule {
+    pub price: u128,
+    pub fee_gas: u128,
+}
+
+/// The rule through the first two (prepaid gas, cost) points with different gas, or `None`.
+pub fn fit_cost_rule(deposit: u128, points: &[(u128, u128)]) -> Option<CostRule> {
+    let (g1, c1) = *points.first()?;
+    let (g2, c2) = *points.iter().find(|(g, _)| *g != g1)?;
+    let (high, low) = if g1 > g2 {
+        ((g1, c1), (g2, c2))
+    } else {
+        ((g2, c2), (g1, c1))
+    };
+    let price = high.1.checked_sub(low.1)? / (high.0 - low.0);
+    if price == 0 {
+        return None;
+    }
+    let fee_gas = (high.1.checked_sub(deposit)? / price).checked_sub(high.0)?;
+    Some(CostRule { price, fee_gas })
+}
+
+/// Whether `cost` for `gas` is on the rule, to within one gas unit of rounding.
+pub fn fits(deposit: u128, rule: &CostRule, gas: u128, cost: u128) -> bool {
+    let expected = deposit + (gas + rule.fee_gas) * rule.price;
+    expected.abs_diff(cost) <= rule.price
+}
