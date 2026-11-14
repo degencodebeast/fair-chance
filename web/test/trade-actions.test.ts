@@ -171,10 +171,24 @@ describe("a sell", () => {
 
 describe("a sell of more than the account holds", () => {
   it("sends nothing and says so when the coin gives no quote (the amount is above the balance)", async () => {
-    const chain = fakeChain({ fc_quote_sell: null });
+    const chain = fakeChain({ fc_quote_sell: null, fc_account: { class: "small", balance: "1000", is_large: false, can_send: true } });
     const session = fakeSession(async () => [], SELLER);
-    expect(await sendSell({ chain, session, coin: COIN2 }, 5000n)).toEqual({ kind: "not-sent", text: "You hold less than this amount now, so nothing was sent. The Sell tab shows what you hold." });
+    expect(await sendSell({ chain, session, coin: COIN2 }, 5000n)).toEqual({ kind: "not-sent", text: "You hold less than this amount now. Nothing was sent." });
     expect(session.sent).toHaveLength(0);
+  });
+});
+
+describe("a sell the coin refuses in the early window", () => {
+  const early = { class: "small", balance: "5000", marked_balance: "5000", unmarked_balance: "0", is_large: false, can_send: true };
+  const window = { early_blocks: 17, blocks_left: 6, early_supply_total: "5000", shared_allowance: "100", buy_fee_bps_now: 0, fee_end_block: 17 };
+  it("says early supply cannot sell yet, not that the visitor holds less", async () => {
+    const chain = fakeChain({ fc_quote_sell: null, fc_account: early, fc_early_window: window });
+    const session = fakeSession(async () => [], SELLER);
+    expect(await sendSell({ chain, session, coin: COIN2 }, 1n)).toEqual({ kind: "not-sent", text: "Early supply cannot sell until block 17 has passed, in about 6 blocks. Nothing was sent." });
+  });
+  it("gives a sell limit of 0 now with the early window reason", async () => {
+    const chain = fakeChain({ fc_quote_sell: null, fc_account: early, fc_early_window: window });
+    expect(await loadSellLimit(chain, SELLER, { symbol: "BAG", decimals: 24 })).toEqual({ balance: 5000n, canSellNow: 0n, moreOpens: "Early supply cannot sell until block 17 has passed, in about 6 blocks." });
   });
 });
 

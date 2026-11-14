@@ -81,20 +81,33 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   const sellStatus = el("p", { id: "trade-sell-status", class: "muted", role: "status" });
   // A share of the balance in one click, as on other launchpads. Max is the whole balance: the coin
   // fills what its limits let through now, and the rest stays in the wallet.
-  let heldUnits: bigint | null = null;
+  // What the page knows of the balance: one state for each case, so each says its own sentence.
+  type Held = { kind: "signed-out" } | { kind: "loading" } | { kind: "failed" } | { kind: "value"; units: bigint };
+  let held: Held = { kind: "signed-out" };
+  const heldUnits = (): bigint | null => (held.kind === "value" && held.units > 0n ? held.units : null);
+  // After a sell with no clear result, Sell stays off until a new balance read.
+  let sellLocked = false;
+  let sentSellText: string | null = null;
   const sellSlider = el("input", { id: "trade-sell-slider", type: "range", min: "0", max: "100", step: "1", value: "0", "aria-label": "Share of your balance to sell" });
   const setShare = (pct: number): void => {
-    if (heldUnits === null || heldUnits === 0n) {
-      sellStatus.textContent = heldUnits === 0n ? `You hold no ${deps.symbol} yet.` : "Connect a wallet to sell.";
+    const units0 = heldUnits();
+    if (units0 === null) {
+      sellAmount.value = "";
+      sellSlider.value = "0";
+      sellStatus.textContent =
+        held.kind === "signed-out" ? "Connect a wallet to sell."
+        : held.kind === "loading" ? "Reading your balance. Try again in a moment."
+        : held.kind === "failed" ? "Your balance cannot load, so the page cannot fill a share."
+        : `You hold no ${deps.symbol} yet.`;
       return;
     }
     // A part share rounds down to whole tokens, so the field stays short; Max keeps every base unit.
     const one = 10n ** BigInt(deps.decimals);
-    const part = (heldUnits * BigInt(pct)) / 100n;
-    const units = pct >= 100 ? heldUnits : part >= one ? (part / one) * one : part;
+    const part = (units0 * BigInt(pct)) / 100n;
+    const units = pct >= 100 ? units0 : part >= one ? (part / one) * one : part;
     sellAmount.value = units === 0n ? "" : formatTokenAmount(units, deps.decimals);
     sellSlider.value = String(pct);
-    sellStatus.textContent = "";
+    sellStatus.textContent = units === 0n && pct > 0 ? "Your balance is too small for this share. Use Max." : "";
   };
   const shares = el(
     "div",
@@ -109,8 +122,9 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   // A typed amount moves the slider to its share of the balance.
   listen(sellAmount, "input", () => {
     const units = parseTokenAmount(sellAmount.value, deps.decimals);
-    if (heldUnits === null || heldUnits === 0n || units === null) return;
-    sellSlider.value = String(units >= heldUnits ? 100 : Number((units * 100n) / heldUnits));
+    const h = heldUnits();
+    if (h === null || units === null) return;
+    sellSlider.value = String(units >= h ? 100 : Number((units * 100n) / h));
   });
   const sellSlot = el("div", { id: "trade-sell-action" });
 
@@ -137,12 +151,21 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
         pending = false;
         showResult(outcome);
         redraw();
+        const wasSell = sentSellText !== null;
+        // A sell that reached the wallet empties its field, so a second click cannot send it again.
+        // An amount typed while the sell waited stays.
+        if (wasSell && outcome.kind !== "not-sent" && sellAmount.value === sentSellText) {
+          sellAmount.value = "";
+          sellSlider.value = "0";
+        }
+        sentSellText = null;
+        // With no clear result the sell may be on chain: Sell stays off until the balance is read again.
+        if (wasSell && outcome.kind === "unknown") {
+          sellLocked = true;
+          redraw();
+          loadSellLimit();
+        }
         if (outcome.kind === "result") {
-          // A sent sell empties its field, so a second click cannot send the same amount again.
-          if (outcome.result.kind === "sold") {
-            sellAmount.value = "";
-            sellSlider.value = "0";
-          }
           deps.actions.onTraded();
           loadSellLimit();
         }
@@ -164,22 +187,29 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
     const s = session();
     const mine = ++latestLimit;
     if (s === null) {
-      heldUnits = null;
+      held = { kind: "signed-out" };
       sellLimit.textContent = "Connect a wallet to sell.";
       return;
     }
+    held = { kind: "loading" };
     sellLimit.textContent = "Reading what you can sell now.";
     deps.actions.sellLimit(s.accountId).then(
       (l) => {
         if (mine !== latestLimit) return;
-        heldUnits = l.balance;
+        held = { kind: "value", units: l.balance };
+        if (sellLocked) {
+          sellLocked = false;
+          redraw();
+        }
         const t = (units: bigint) => `${compactTokens(units.toString(), deps.decimals)} ${deps.symbol}`;
         sellLimit.textContent = l.balance === 0n
             ? `You hold no ${deps.symbol} yet.`
             : `You can sell up to ${t(l.canSellNow)} now. You hold ${t(l.balance)}.${l.moreOpens === null ? "" : ` ${l.moreOpens}`}`;
       },
       (e: unknown) => {
-        if (mine === latestLimit) sellLimit.textContent = `What you can sell now cannot load. ${e instanceof Error ? e.message : String(e)}`;
+        if (mine !== latestLimit) return;
+        held = { kind: "failed" };
+        sellLimit.textContent = `What you can sell now cannot load. ${e instanceof Error ? e.message : String(e)}`;
       },
     );
   };
@@ -194,7 +224,9 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
         : []),
     );
     buySlot.replaceChildren(tradeButton("trade-buy-button", m.buy.button, onBuy));
-    sellSlot.replaceChildren(tradeButton("trade-sell-button", m.sell.button, null));
+    sellSlot.replaceChildren(
+      tradeButton("trade-sell-button", sellLocked ? { label: m.sell.button.label, reason: "Check your wallet activity. Sell turns on again when your balance is read." } : m.sell.button, null),
+    );
     if (session() === null) {
       const connect = el("button", { type: "button", id: "trade-connect", class: "button button-dark button-primary" }, m.connect.label);
       listen(connect, "click", () => void deps.wallet.connect());
@@ -276,6 +308,7 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
   );
   listen(sellForm, "submit", (event) => {
     event.preventDefault();
+    if (sellLocked) return;
     if (hasComma(sellAmount.value)) {
       sellStatus.textContent = COMMA_REFUSAL;
       return;
@@ -286,6 +319,8 @@ export function drawTradeBox(deps: TradeBoxDeps): HTMLElement {
       return;
     }
     sellStatus.textContent = "";
+    if (session() === null || pending || deps.blocked !== null) return;
+    sentSellText = sellAmount.value;
     trade((s) => deps.actions.sell(s, tokens));
   });
 

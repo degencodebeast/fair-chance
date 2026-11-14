@@ -5,6 +5,7 @@
 import { parseAccount, parseSellQuote } from "./account-views.ts";
 import type { BuyQuote } from "./buy-quote.ts";
 import type { ChainReader } from "./chain.ts";
+import { parseEarlyWindow } from "./coin-views.ts";
 import type { LaunchFormInput } from "./launch-form-model.ts";
 import { buildBuy, buildLaunch, buildSell, LAUNCH_STORAGE_DEPOSIT, readBuyerStorage } from "./tx-builders.ts";
 import { parseTxOutcome, type TxResult } from "./tx-outcome.ts";
@@ -74,6 +75,25 @@ export async function sendBuy(deps: TradeDeps, buy: PreviewedBuy): Promise<Trade
   return sendAndRead(deps.session, txs);
 }
 
+/**
+ * Why the coin gave no quote. The coin's fc_quote_sell is null for any sell it would refuse: an
+ * amount above the balance, or early supply in the early window. Reads the account and the early
+ * window to say which; a read that fails gives the plain sentence.
+ */
+async function noQuoteReason(chain: Pick<ChainReader, "view">, accountId: string, amount: bigint): Promise<string> {
+  try {
+    const account = parseAccount(await chain.view("fc_account", { account_id: accountId }));
+    if (amount > account.balance) return "You hold less than this amount now.";
+    if (account.markedBalance > 0n) {
+      const early = parseEarlyWindow(await chain.view("fc_early_window"));
+      if (early.blocksLeft > 0) return `Early supply cannot sell until block ${early.earlyBlocks} has passed, in about ${early.blocksLeft} blocks.`;
+    }
+  } catch {
+    // Fall through to the plain sentence.
+  }
+  return "The coin refuses this sell now.";
+}
+
 /** One sell of `amount` token base units for the signed-in account. Nothing is sent when no part can sell now. */
 export async function sendSell(deps: TradeDeps, amount: bigint): Promise<TradeOutcome> {
   const account = deps.session.accountId;
@@ -81,7 +101,7 @@ export async function sendSell(deps: TradeDeps, amount: bigint): Promise<TradeOu
   try {
     const raw = await deps.chain.view("fc_quote_sell", { account_id: account, amount: amount.toString() });
     // The coin gives no quote for more than the account holds, for example after the same sell went through.
-    if (raw === null) return { kind: "not-sent", text: "You hold less than this amount now, so nothing was sent. The Sell tab shows what you hold." };
+    if (raw === null) return { kind: "not-sent", text: `${await noQuoteReason(deps.chain, account, amount)} Nothing was sent.` };
     const quote = parseSellQuote(raw);
     if (quote.tokensFilled === 0n) {
       const why = quote.limitReason === null ? "" : ` ${REASON_SENTENCE[quote.limitReason]}`;
@@ -115,10 +135,12 @@ export async function loadSellLimit(
   const { balance } = account;
   if (balance === 0n) return { balance, canSellNow: 0n, moreOpens: null };
   const raw = await chain.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() });
-  // No quote: the balance changed between the two reads (a trade just landed). Read both again once.
+  // No quote: the coin refuses a sell of the whole balance now. When the balance changed between
+  // the two reads (a trade just landed), read both again once; otherwise none of it can sell now.
   if (raw === null) {
-    if (triesLeft > 0) return loadSellLimit(chain, accountId, coin, triesLeft - 1);
-    throw new Error("Your balance changed while the page read it. Reload to read it again.");
+    const again = parseAccount(await chain.view("fc_account", { account_id: accountId }));
+    if (again.balance !== balance && triesLeft > 0) return loadSellLimit(chain, accountId, coin, triesLeft - 1);
+    return { balance, canSellNow: 0n, moreOpens: await noQuoteReason(chain, accountId, balance) };
   }
   const quote = parseSellQuote(raw);
   const { plan } = yourPlanView(
