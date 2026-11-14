@@ -23,6 +23,22 @@ export const landingCopy = {
     coin: "cabal2.factory.fairchance.testnet",
     link: "See the coin",
   },
+  // The sell receipt card on the right of the hero: the same CABAL2 group totals, from the run log
+  // and the chain (evidence/testnet-cabal2-run.json and the run notes). No made-up value.
+  receiptCard: {
+    brand: "Fair Chance",
+    tag: "Sell receipt",
+    meta: "Cabal Test 2 (CABAL2) · 14 Nov, 10:12 UTC",
+    who: "Our test cabal, 10 wallets",
+    allowance: { label: "Shared early allowance", value: "2.98M of 9.7M used", pct: 31 },
+    rows: [
+      { k: "Asked", v: "39.5M CABAL2" },
+      { k: "Went through", v: "2.98M (7.5%)" },
+      { k: "Stays in wallets", v: "36.5M CABAL2" },
+      { k: "Early sells refused", v: "10 of 10" },
+    ],
+    foot: "NEAR testnet. Read from the chain.",
+  },
   problem:
     "On most launchpads, the creator and the people who buy in the opening seconds often sell into you within minutes. A warning tool can tell you it happened. It can't stop it.",
   buyers: {

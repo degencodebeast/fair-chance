@@ -17,9 +17,28 @@ function itemCard(id: string, block: { kicker: string; title: string; items: { b
 
 export function drawLanding(app: HTMLElement, href: string): void {
   const coins = screenLink(href, "coins");
+  const r = copy.receiptCard;
+  const receipt = el(
+    "aside",
+    { class: "hero-receipt", id: "hero-receipt", "aria-label": "Sell receipt from the CABAL2 testnet run" },
+    el("div", { class: "hr-head" }, el("b", {}, r.brand), el("span", { class: "hr-tag" }, r.tag)),
+    el("p", { class: "hr-meta" }, r.meta),
+    el("p", { class: "hr-who" }, r.who),
+    el(
+      "div",
+      { class: "hr-allowance" },
+      el("div", { class: "hr-line" }, el("span", {}, r.allowance.label), el("span", { class: "num" }, r.allowance.value)),
+      el("div", { class: "meter" }, el("div", { class: "meter-used", style: `width:${r.allowance.pct}%` })),
+    ),
+    ...r.rows.map((x) => el("div", { class: "hr-row" }, el("span", {}, x.k), el("span", { class: "hr-dots" }), el("span", { class: "num" }, x.v))),
+    el("p", { class: "hr-foot" }, r.foot),
+  );
   const children: Child[] = [
     screenHeader(href, "landing"),
     el(
+      "div",
+      { class: "hero-wrap" },
+      el(
       "section",
       { "aria-label": "Intro", class: "hero" },
       el("h1", { id: "landing-headline" }, copy.headline),
@@ -41,6 +60,8 @@ export function drawLanding(app: HTMLElement, href: string): void {
         el("p", {}, copy.proof.sentence),
         el("a", { class: "text-link text-link-light", href: screenLink(href, "coin", { coin: copy.proof.coin }) }, copy.proof.link),
       ),
+    ),
+      receipt,
     ),
     el("section", { "aria-label": "The problem", class: "problem" }, el("p", {}, copy.problem)),
     itemCard("buyers-h", copy.buyers),
