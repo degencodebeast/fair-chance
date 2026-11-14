@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChainReader, CoinEvent } from "../../src/chain.ts";
+import { chainReader, type ChainReader, type CoinEvent } from "../../src/chain.ts";
 import { loadMyCoins } from "../../src/my-coins.ts";
-import { HttpStatusError } from "../../src/refresher.ts";
 import { sendAndRead } from "../../src/trade-actions.ts";
 import { tradeResultText } from "../../src/trade-result-text.ts";
 import { COMMA_REFUSAL } from "../../src/token-amount.ts";
@@ -18,8 +17,13 @@ describe("adv", () => {
   });
   it("F2: events read has no backoff on 429", async () => {
     let n = 0;
-    const factory = { events: async () => { n++; if (n === 1) throw new HttpStatusError("429", 429, null); return { events: [], cursor: 0 }; } } as unknown as ChainReader;
-    const r = await loadMyCoins(factory, 0, () => ({}) as ChainReader, "x.testnet", { sleep: async () => {} }).catch((e) => `REJECTED: ${e.message}`);
+    const fetchFn = (async () => {
+      n++;
+      if (n === 1) return new Response("busy", { status: 429 });
+      return new Response(JSON.stringify({ account_txs: [], resume_token: null }));
+    }) as typeof fetch;
+    const factory = chainReader({ rpcUrl: "http://127.0.0.1:1", coin: "factory.testnet", fastNearUrl: "http://127.0.0.1:2", anyLoggedTx: true }, fetchFn, { sleep: async () => {} });
+    const r = await loadMyCoins(factory, 0, () => ({}) as ChainReader, "x.testnet").catch((e) => `REJECTED: ${e.message}`);
     expect(typeof r).toBe("object");
   });
   it("F3: concurrent RPC requests in My coins", async () => {

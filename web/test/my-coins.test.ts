@@ -72,41 +72,11 @@ describe("my coins reads", () => {
     expect(most).toBe(4);
   });
 
-  it("waits and reads a coin again after a 429, with the shared backoff", async () => {
-    const waits: number[] = [];
-    let tries = 0;
-    const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: many(1), cursor: 0 }) };
-    const flaky = (): ChainReader => ({
-      ...coinReader({}, []),
-      async view<T>(method: string) {
-        if (method === "ft_balance_of" && tries++ === 0) throw new HttpStatusError("busy", 429, 9_000);
-        return (method === "ft_metadata" ? meta("X", "X") : "0") as T;
-      },
-    });
-    const mine = await loadMyCoins(factory, 0, flaky, ME, { sleep: async (ms) => void waits.push(ms) });
-    expect(mine.launched).toEqual([]);
-    expect(waits).toEqual([9_000]);
-  });
-
-  it("reads the factory events again after a 429, with the shared backoff", async () => {
-    const waits: number[] = [];
+  it("passes a failed read straight to the screen, which tries the whole list again", async () => {
     let reads = 0;
-    const factory: ChainReader = {
-      ...coinReader({}, []),
-      events: async () => {
-        if (reads++ === 0) throw new HttpStatusError("busy", 429, null);
-        return { events: [], cursor: 0 };
-      },
-    };
-    expect(await loadMyCoins(factory, 0, () => coinReader({}, []), ME, { sleep: async (ms) => void waits.push(ms) })).toEqual({ launched: [], held: [] });
-    expect(waits).toEqual([4_000]);
-  });
-
-  it("does not retry a read that failed for another reason", async () => {
-    const waits: number[] = [];
     const factory: ChainReader = { ...coinReader({}, []), events: async () => ({ events: many(1), cursor: 0 }) };
-    const broken = (): ChainReader => ({ ...coinReader({}, []), view: async () => { throw new HttpStatusError("gone", 404, null); } });
-    await expect(loadMyCoins(factory, 0, broken, ME, { sleep: async (ms) => void waits.push(ms) })).rejects.toThrow("gone");
-    expect(waits).toEqual([]);
+    const busy = (): ChainReader => ({ ...coinReader({}, []), view: async () => { reads++; throw new HttpStatusError("busy", 429, null); } });
+    await expect(loadMyCoins(factory, 0, busy, ME)).rejects.toThrow("busy");
+    expect(reads).toBe(1);
   });
 });

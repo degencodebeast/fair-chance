@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MyCoin, MyCoins } from "../src/my-coins.ts";
 import { drawMyCoins } from "../src/render-my-coins.ts";
+import { HttpStatusError } from "../src/refresher.ts";
 import { walletControl, type WalletControl } from "../src/wallet-session.ts";
 import { expectNoEnabledControlWithoutHandler } from "./dom-controls.ts";
 
@@ -67,5 +68,58 @@ describe("my coins screen", () => {
     const { app } = draw(w, vi.fn(async () => { throw new Error("rpc down"); }));
     await vi.waitFor(() => expect(app.querySelector("#mine-status")?.textContent).toBe("Your coins cannot load from the chain. rpc down"));
     expect(app.querySelector("#mine-held")).toBeNull();
+  });
+});
+
+describe("my coins screen after a failed read", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows a Try again button that reads the list again", async () => {
+    const w = wallet();
+    await w.connect();
+    let n = 0;
+    const { app, load } = draw(w, vi.fn(async () => {
+      if (n++ === 0) throw new Error("rpc down");
+      return mine;
+    }));
+    await vi.waitFor(() => expect(app.querySelector("#mine-retry")?.textContent).toBe("Try again"));
+    expectNoEnabledControlWithoutHandler(app);
+    app.querySelector<HTMLButtonElement>("#mine-retry")!.click();
+    await vi.waitFor(() => expect(app.querySelectorAll("#mine-held li")).toHaveLength(1));
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(app.querySelector("#mine-retry")).toBeNull();
+  });
+
+  it("keeps trying by itself after a rate limit or no readable answer, with the 4, 8 and 16 second backoff", async () => {
+    vi.useFakeTimers();
+    const w = wallet();
+    await w.connect();
+    const at: number[] = [];
+    const start = Date.now();
+    const { app } = draw(w, vi.fn(async () => {
+      at.push(Date.now() - start);
+      if (at.length === 1) throw new TypeError("Failed to fetch");
+      if (at.length <= 4) throw new HttpStatusError("busy", 429, null);
+      return mine;
+    }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(app.querySelector("#mine-status")?.textContent).toBe("Your coins cannot load from the chain. Failed to fetch Trying again by itself.");
+    expect(app.querySelector("#mine-retry")).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(4_000 + 8_000 + 16_000 + 32_000);
+    expect(at).toEqual([0, 4_000, 12_000, 28_000, 60_000]);
+    expect(app.querySelectorAll("#mine-held li")).toHaveLength(1);
+  });
+
+  it("does not try by itself after an error it does not know", async () => {
+    vi.useFakeTimers();
+    const w = wallet();
+    await w.connect();
+    const { app, load } = draw(w, vi.fn(async () => { throw new HttpStatusError("gone", 403, null); }));
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(app.querySelector("#mine-status")?.textContent).toBe("Your coins cannot load from the chain. gone");
+    expect(app.querySelector("#mine-retry")).not.toBeNull();
   });
 });

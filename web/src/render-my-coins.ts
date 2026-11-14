@@ -1,8 +1,12 @@
 // The My coins screen: the coins the signed-in account launched and the coins it holds, each with
-// what it can sell now. It reads again on each sign-in. Read-only: nothing here signs.
+// what it can sell now. It reads again on each sign-in. After a failed read it shows a Try again
+// button, and after a rate limit or no readable answer it also tries again by itself with the
+// refresher backoff (4, 8, 16, 32, then 60 seconds). Read-only: nothing here signs.
 import { drawCoinTile } from "./coin-tile.ts";
 import { el } from "./dom-elements.ts";
+import { listen } from "./dom-listen.ts";
 import { compactTokens } from "./format.ts";
+import { backoffDelayMs, HttpStatusError, shouldBackOff } from "./refresher.ts";
 import type { MyCoin, MyCoins } from "./my-coins.ts";
 import { screenHeader } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
@@ -40,8 +44,16 @@ export function drawMyCoins(app: HTMLElement, href: string, deps: MyCoinsDeps): 
   app.replaceChildren(screenHeader(href, "mine"), el("h1", { id: "mine-title" }, "My coins"), status, body);
 
   let latest = 0;
-  const show = (): void => {
+  let failures = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const clearTimer = (): void => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+  };
+  const show = (again = false): void => {
     const mine = ++latest;
+    clearTimer();
+    if (!again) failures = 0;
     const s = deps.wallet.state();
     body.replaceChildren();
     if (s.kind !== "signed-in") {
@@ -53,6 +65,7 @@ export function drawMyCoins(app: HTMLElement, href: string, deps: MyCoinsDeps): 
     deps.load(account).then(
       (coins) => {
         if (mine !== latest) return;
+        failures = 0;
         status.textContent = `Coins of ${account}.`;
         body.replaceChildren(
           el("h2", {}, "Coins you launched"),
@@ -62,10 +75,18 @@ export function drawMyCoins(app: HTMLElement, href: string, deps: MyCoinsDeps): 
         );
       },
       (e: unknown) => {
-        if (mine === latest) status.textContent = `Your coins cannot load from the chain. ${e instanceof Error ? e.message : String(e)}`;
+        if (mine !== latest) return;
+        const byItself = shouldBackOff(e);
+        status.textContent = `Your coins cannot load from the chain. ${e instanceof Error ? e.message : String(e)}${byItself ? " Trying again by itself." : ""}`;
+        const retry = el("button", { type: "button", class: "button", id: "mine-retry" }, "Try again");
+        listen(retry, "click", () => show(true));
+        body.replaceChildren(retry);
+        if (!byItself) return;
+        failures += 1;
+        timer = setTimeout(() => (app.contains(status) ? show(true) : undefined), backoffDelayMs(failures, e instanceof HttpStatusError ? e.retryAfterMs : null));
       },
     );
   };
-  const stop = deps.wallet.subscribe(() => (app.contains(status) ? show() : stop()));
+  const stop = deps.wallet.subscribe(() => (app.contains(status) ? show() : (stop(), clearTimer())));
   show();
 }
