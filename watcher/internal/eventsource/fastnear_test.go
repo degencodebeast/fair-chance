@@ -63,6 +63,43 @@ func TestFastNearGivesTheCoinsEventsInChainOrderWithTheNextCursor(t *testing.T) 
 	}
 }
 
+// A receipt can run in a later block than the transaction that started it. The event belongs to the
+// block where the receipt ran (execution_outcome.block_height), which is where the contract read the clock.
+func TestFastNearGivesEventsTheBlockOfTheReceiptThatLoggedThem(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file := map[string]string{"/v0/account": "account_walking_path.json", "/v0/transactions": "transactions_walking_path.json"}[r.URL.Path]
+		raw, err := os.ReadFile(filepath.Join(fixtureDir, file))
+		if err != nil {
+			t.Error(err)
+		}
+		if r.URL.Path == "/v0/transactions" {
+			var doc map[string]any
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Error(err)
+			}
+			for _, tx := range doc["transactions"].([]any) {
+				for _, rc := range tx.(map[string]any)["receipts"].([]any) {
+					rc.(map[string]any)["execution_outcome"].(map[string]any)["block_height"] = 1000
+				}
+			}
+			raw, _ = json.Marshal(doc)
+		}
+		w.Write(raw)
+	}))
+	defer srv.Close()
+
+	evs, next, err := eventsource.NewFastNear(srv.URL).Events(context.Background(), []string{"walk.factory.sandbox"}, 15)
+	if err != nil || len(evs) != 2 {
+		t.Fatalf("events %+v err %v", evs, err)
+	}
+	if evs[0].Block != 1000 || evs[1].Block != 1000 {
+		t.Fatalf("blocks %d and %d, want the receipt block 1000", evs[0].Block, evs[1].Block)
+	}
+	if next != 28 {
+		t.Fatalf("next cursor %d, want 28 (the transaction heights decide it, so no event repeats)", next)
+	}
+}
+
 func TestFastNearSkipsTransactionsBeforeTheCursor(t *testing.T) {
 	var bodies []map[string]any
 	srv := fastNearServer(t, &bodies)

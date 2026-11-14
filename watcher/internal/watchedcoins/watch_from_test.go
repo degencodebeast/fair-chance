@@ -72,3 +72,44 @@ func TestWatchFromMovesTheCursorOfACoinAlreadyWatched(t *testing.T) {
 		t.Fatalf("sent %d, want 1", len(fake.Sent))
 	}
 }
+
+// gatedSource holds a read open until release is closed, then reports a cursor far ahead.
+type gatedSource struct {
+	started chan struct{}
+	release chan struct{}
+	cursors []eventsource.Cursor
+}
+
+func (g *gatedSource) Events(_ context.Context, _ []string, since eventsource.Cursor) ([]eventsource.Event, eventsource.Cursor, error) {
+	g.cursors = append(g.cursors, since)
+	if len(g.cursors) == 1 {
+		close(g.started)
+		<-g.release
+	}
+	return nil, 5000, nil
+}
+
+func TestAReadPassInFlightDoesNotOverwriteTheCursorOfAWatchFrom(t *testing.T) {
+	ctx := context.Background()
+	src := &gatedSource{started: make(chan struct{}), release: make(chan struct{})}
+	set := launchedSet(src, &telegram.Fake{})
+	if err := set.Watch(ctx, "a.testnet"); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error)
+	go func() { done <- set.Poll(ctx) }()
+	<-src.started
+	if err := set.WatchFrom(ctx, "a.testnet", 28); err != nil {
+		t.Fatal(err)
+	}
+	close(src.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if err := set.Poll(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if src.cursors[1] != 28 {
+		t.Fatalf("the next read started at %d, want 28 from the WatchFrom", src.cursors[1])
+	}
+}

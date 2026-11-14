@@ -147,7 +147,9 @@ func (s *Set) Poll(ctx context.Context) error {
 		_, next, err := alerts.SendNew(ctx, s.Source, []string{coin}, cursor, writer, sender, s.ChatID)
 
 		s.mu.Lock()
-		w.cursor = next
+		if w.cursor == cursor { // a WatchFrom during the read moved the cursor: keep its choice
+			w.cursor = next
+		}
 		s.mu.Unlock()
 		if err == nil {
 			s.noteGoodRead()

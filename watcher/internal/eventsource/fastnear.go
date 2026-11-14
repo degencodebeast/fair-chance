@@ -72,7 +72,8 @@ type fastNearTx struct {
 			ReceiverID string `json:"receiver_id"`
 		} `json:"receipt"`
 		ExecutionOutcome struct {
-			Outcome struct {
+			BlockHeight uint64 `json:"block_height"` // the block where the receipt ran
+			Outcome     struct {
 				Logs   []string       `json:"logs"`
 				Status map[string]any `json:"status"`
 			} `json:"outcome"`
@@ -127,9 +128,15 @@ func eventsOfTx(tx fastNearTx, coin string, height uint64, seen map[string]bool)
 		if r.Receipt.ReceiverID != coin || seen[r.Receipt.ReceiptID] || !succeeded(r.ExecutionOutcome.Outcome.Status) {
 			continue
 		}
+		// The event belongs to the block where its receipt ran, which can be later than the block
+		// of the transaction. An answer without that height falls back to the transaction's block.
+		block := height
+		if r.ExecutionOutcome.BlockHeight != 0 {
+			block = r.ExecutionOutcome.BlockHeight
+		}
 		for _, line := range r.ExecutionOutcome.Outcome.Logs {
 			if ev, ok := parseLog(line); ok {
-				ev.Coin, ev.ReceiptID, ev.Block = coin, r.Receipt.ReceiptID, height
+				ev.Coin, ev.ReceiptID, ev.Block = coin, r.Receipt.ReceiptID, block
 				ev.TxHash, ev.TxSigner = tx.Transaction.Hash, tx.Transaction.SignerID
 				out = append(out, ev)
 			}
