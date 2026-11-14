@@ -20,7 +20,9 @@ use crate::option_t::{
     EARLY_SELL_GAP,
 };
 use crate::pass_list::PassList;
-use crate::rate_limit::{run_budget, with_rate_limit_backoff, without_urls, Budget};
+use crate::rate_limit::{
+    read_fault, run_budget, with_rate_limit_backoff, without_urls, Budget, ReadFault,
+};
 use crate::spend_guard::check_funder;
 use crate::{
     account_view, events, launch_args, transaction_hash, view_on, Account, LAUNCH_DEPOSIT,
@@ -154,20 +156,6 @@ pub enum Probe<T> {
     Found(T),
 }
 
-/// `Some(retry_after)` for an HTTP 429 or 5xx (the RPC is busy or failed for a moment), `None`
-/// for anything else.
-fn busy_wait(error: &str) -> Option<Option<Duration>> {
-    if let Some(wait) = crate::rate_limit::rate_limit_wait(error) {
-        return Some(wait);
-    }
-    let after = error.split("status: 5").nth(1)?;
-    let code = after.as_bytes();
-    let three_digits = code.len() >= 2
-        && code[..2].iter().all(u8::is_ascii_digit)
-        && !code.get(2).is_some_and(u8::is_ascii_digit);
-    three_digits.then_some(None)
-}
-
 /// Reads the coin with `probe` every `interval` until it is found, for `deadline` at most. A 429 or
 /// a 5xx waits as `budget` allows (the shared rule: 2 s doubling, at most two waits in the run); a
 /// 403, any other answer, or a busy answer past the budget stops it with no retry. The error
@@ -189,7 +177,7 @@ where
             Ok(Probe::Missing) => {}
             Err(error) => {
                 let error = without_urls(&error);
-                let Some(retry_after) = busy_wait(&error) else {
+                let ReadFault::Busy(retry_after) = read_fault(&error) else {
                     bail!("unknown result of the read of the coin: {error}; stopped, no retry");
                 };
                 let Some(wait) = budget.next(retry_after) else {

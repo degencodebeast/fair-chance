@@ -1,11 +1,12 @@
-//! Reads on a public RPC back off on a 429. near-api retries a few times on its own and then gives
-//! up with the response in the error text (`status: 429` and its `retry-after` header), so this
-//! module reads that text: a 429 waits (the Retry-After when it is longer) and reads again, up to
-//! a total wait limit. A 403 or any other error is not waited on: the caller stops and reports.
-//! Only reads go through here; a transaction is never sent twice.
+//! Reads on a public RPC back off on a 429 or a 5xx. near-api gives up with the response in the
+//! error text (`status: 429` and its `retry-after` header), so this module reads that text with
+//! one rule ([`read_fault`]): any 4xx but 429 (a 403 first) stops, wherever it is in the text; a
+//! 429 or a 5xx waits (the Retry-After when it is longer) and reads again, up to a total wait
+//! limit; anything else stops. The caller stops and reports. Only reads go through here; a
+//! transaction is never sent twice.
 //!
 //! The waits are one budget for the whole run ([`run_budget`]): every read shares it, so the run
-//! obeys at most two 429 waits and 15 minutes of waiting in all. No error text carries an RPC URL
+//! obeys at most two waits and 15 minutes of waiting in all; a Retry-After past that stops the run. No error text carries an RPC URL
 //! ([`without_urls`]): a URL could hold a key.
 
 use std::future::Future;
@@ -112,24 +113,65 @@ pub fn without_urls(text: &str) -> String {
     out
 }
 
-/// `Some(retry_after)` when the error text is an HTTP 429, with its Retry-After in seconds when
-/// the text has one; `None` for anything else.
-pub fn rate_limit_wait(error: &str) -> Option<Option<Duration>> {
-    let after = error.split("status: 429").nth(1)?;
-    if after.starts_with(|c: char| c.is_ascii_digit()) {
-        return None;
-    }
-    let retry_after = after
+/// What a read error asks for: stop with no retry, or wait (the Retry-After when the answer had
+/// one) and read again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadFault {
+    Stop,
+    Busy(Option<Duration>),
+}
+
+/// Every HTTP status in the error text: a `status: ` followed by exactly three digits.
+fn status_codes(error: &str) -> Vec<u16> {
+    error
+        .split("status: ")
+        .skip(1)
+        .filter_map(|after| {
+            let digits = after.as_bytes();
+            let three = digits.len() >= 3
+                && digits[..3].iter().all(u8::is_ascii_digit)
+                && !digits.get(3).is_some_and(u8::is_ascii_digit);
+            three.then(|| after[..3].parse().ok()).flatten()
+        })
+        .collect()
+}
+
+/// The Retry-After header of the answer, in whole seconds, when the text has one.
+fn retry_after(error: &str) -> Option<Duration> {
+    error
         .split(r#""retry-after": ""#)
         .nth(1)
         .and_then(|rest| rest.split('"').next())
         .and_then(|secs| secs.parse::<u64>().ok())
-        .map(Duration::from_secs);
-    Some(retry_after)
+        .map(Duration::from_secs)
 }
 
-/// Runs `read` until it answers, waiting on each 429 as `budget` allows. A 403, any other error,
-/// or a 429 past the budget stops it with `what` in the error and no URL in it.
+/// The one rule for every read error, in this order: any 4xx but 429 (a 403 first) stops, wherever
+/// it is in the text; then a 429 waits; then a 5xx waits; anything else stops. A wait takes the
+/// Retry-After of the answer when it has one.
+pub fn read_fault(error: &str) -> ReadFault {
+    let codes = status_codes(error);
+    if codes.iter().any(|c| (400..500).contains(c) && *c != 429) {
+        return ReadFault::Stop;
+    }
+    if codes.iter().any(|c| *c == 429 || (500..600).contains(c)) {
+        return ReadFault::Busy(retry_after(error));
+    }
+    ReadFault::Stop
+}
+
+/// `Some(retry_after)` when the error text is an HTTP 429 that [`read_fault`] waits on, with its
+/// Retry-After when the text has one; `None` for anything else.
+pub fn rate_limit_wait(error: &str) -> Option<Option<Duration>> {
+    match read_fault(error) {
+        ReadFault::Busy(wait) if status_codes(error).contains(&429) => Some(wait),
+        _ => None,
+    }
+}
+
+/// Runs `read` until it answers, waiting on each 429 or 5xx as `budget` allows ([`read_fault`]). A
+/// 403 or any other 4xx, an unknown error, or a wait past the budget stops it with `what` in the
+/// error and no URL in it.
 pub async fn with_rate_limit_backoff<T, E, F, Fut>(
     what: &str,
     budget: &Budget,
@@ -145,7 +187,7 @@ where
             Ok(value) => return Ok(value),
             Err(e) => format!("{e:?}"),
         };
-        let Some(retry_after) = rate_limit_wait(&error) else {
+        let ReadFault::Busy(retry_after) = read_fault(&error) else {
             bail!(
                 "unknown result of {what}: {}; stopped, no retry",
                 without_urls(&error)
@@ -153,13 +195,13 @@ where
         };
         let Some(wait) = budget.next(retry_after) else {
             bail!(
-                "{what} got HTTP 429 past the run's wait limit ({READ_MAX_WAITS} waits, {} s in all); stopped: {}",
+                "{what} got HTTP 429 or 5xx past the run's wait limit ({READ_MAX_WAITS} waits, {} s in all); stopped: {}",
                 READ_WAIT_LIMIT.as_secs(),
                 without_urls(&error)
             );
         };
         println!(
-            "rate limit: {what} got HTTP 429; waiting {} s",
+            "rate limit: {what} got HTTP 429 or 5xx; waiting {} s",
             wait.as_secs_f64()
         );
         tokio::time::sleep(wait).await;
