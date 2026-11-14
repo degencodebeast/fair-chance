@@ -57,6 +57,11 @@ describe("HTTP status errors", () => {
 });
 
 describe("the refresher", () => {
+  it("reads every 15 seconds", () => {
+    expect(REFRESH_MS).toBe(15_000);
+  });
+
+
   function setup(outcomes: Array<"ok" | Error>, hidden = { value: false }) {
     const timers = fakeTimers();
     const calls: number[] = [];
@@ -90,7 +95,7 @@ describe("the refresher", () => {
     const e429long = new HttpStatusError("x", 429, 40_000);
     const { timers, calls, r } = setup([e429, e503, e429long, "ok"]);
     r.start();
-    await timers.advance(4000); // first read fails
+    await timers.advance(REFRESH_MS); // first read fails
     expect(calls).toHaveLength(1);
     await timers.advance(3999);
     expect(calls).toHaveLength(1);

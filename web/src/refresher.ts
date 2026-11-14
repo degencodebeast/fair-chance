@@ -1,6 +1,6 @@
-// Re-reads a screen every few seconds, never while the tab is hidden, and slows down when the
+// Re-reads a screen every 15 seconds, never while the tab is hidden, and slows down when the
 // FastNEAR API or the RPC says 429 or answers 5xx. The timers are given in, so tests use fake ones.
-export const REFRESH_MS = 4_000;
+export const REFRESH_MS = 15_000;
 const BACKOFF_MS = [4_000, 8_000, 16_000, 32_000, 60_000] as const;
 const MAX_DELAY_MS = 60_000;
 
