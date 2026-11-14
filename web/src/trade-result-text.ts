@@ -12,7 +12,11 @@ export interface TradeResultText {
   explorerUrl: string | null;
 }
 
-const near = (yocto: bigint) => `${nearAmount(yocto.toString(), 4)} NEAR`;
+/** NEAR to 4 places; an amount above zero that rounds to zero says so instead of showing 0.0000. */
+function near(yocto: bigint): string {
+  const shown = nearAmount(yocto.toString(), 4);
+  return yocto > 0n && shown === "0.0000" ? "less than 0.0001 NEAR" : `${shown} NEAR`;
+}
 
 export function tradeResultText(outcome: TradeOutcome, coin: { symbol: string; decimals: number }): TradeResultText {
   if (outcome.kind !== "result") return { tone: "refused", headline: outcome.text, lines: [], explorerUrl: null };

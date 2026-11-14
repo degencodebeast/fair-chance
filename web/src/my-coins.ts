@@ -8,7 +8,7 @@ import { parseMetadata } from "./coin-views.ts";
 import { resolveListLink } from "./page-link.ts";
 import { backoffDelayMs, shouldBackOff } from "./refresher.ts";
 
-/** Coins read at the same time, so one sign-in does not flood the public RPC. */
+/** Coins read at the same time, each one view at a time: at most this many RPC calls in flight. */
 const COINS_AT_ONCE = 4;
 /** Reads of one coin after a 429 or a 5xx, before the list fails. */
 const TRIES = 3;
@@ -70,7 +70,9 @@ function amount(value: unknown, view: string): bigint {
 }
 
 async function readCoin(reader: ChainReader, coin: string, launchBlock: number, accountId: string): Promise<MyCoin> {
-  const [meta, balanceView] = await Promise.all([reader.view("ft_metadata"), reader.view("ft_balance_of", { account_id: accountId })]);
+  // One view at a time, so COINS_AT_ONCE coins make at most that many RPC calls in flight.
+  const meta = await reader.view("ft_metadata");
+  const balanceView = await reader.view("ft_balance_of", { account_id: accountId });
   const m = parseMetadata(meta);
   const balance = amount(balanceView, "ft_balance_of");
   const canSellNow = balance === 0n ? 0n : parseSellQuote(await reader.view("fc_quote_sell", { account_id: accountId, amount: balance.toString() })).tokensFilled;
@@ -80,7 +82,7 @@ async function readCoin(reader: ChainReader, coin: string, launchBlock: number, 
 /** Newest first, over at most MOST_COINS_SHOWN of the factory's coins. */
 export async function loadMyCoins(factory: ChainReader, fromBlock: number, readerFor: (coin: string) => ChainReader, accountId: string, options: MyCoinsOptions = {}): Promise<MyCoins> {
   const sleep = options.sleep ?? wait;
-  const { events } = await factory.events(fromBlock);
+  const { events } = await withBackoff(() => factory.events(fromBlock), sleep);
   const launches = new Map<string, { block: number; creator: string }>();
   for (const e of events) {
     if (e.standard !== "fair_chance_factory" || e.name !== "fc_launch" || typeof e.data.coin !== "string") continue;

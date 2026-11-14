@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { tradeResultText } from "../src/trade-result-text.ts";
-import { parseTxOutcome } from "../src/tx-outcome.ts";
+import { parseTxOutcome, type TxResult } from "../src/tx-outcome.ts";
+import type { TradeOutcome } from "../src/trade-actions.ts";
 import type { FinalOutcome } from "../src/tx-types.ts";
 import { copyViolations } from "./copy-rules.ts";
 
@@ -44,6 +45,13 @@ describe("the words of a trade result", () => {
   it("gives one sentence and no link when nothing was sent", () => {
     const t = tradeResultText({ kind: "not-sent", text: "The wallet closed and sent nothing." }, coin);
     expect(t).toEqual({ tone: "refused", headline: "The wallet closed and sent nothing.", lines: [], explorerUrl: null });
+  });
+
+  it("says less than 0.0001 NEAR for an amount above zero that rounds to zero", () => {
+    const tiny: TradeOutcome = { kind: "result", result: { ...(result("bag-buy") as Extract<TxResult, { kind: "bought" }>), nearIn: 99_999_999_999_999_999_999n, feeNear: 0n } };
+    const t = tradeResultText(tiny, { symbol: "BAG", decimals: 18 });
+    expect(t.headline).toBe("You bought 7.3M BAG for less than 0.0001 NEAR.");
+    expect(t.lines).toContain("Swap fee: 0.0000 NEAR.");
   });
 
   it("follows the copy rules", () => {

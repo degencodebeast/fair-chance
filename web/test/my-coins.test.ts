@@ -68,9 +68,8 @@ describe("my coins reads", () => {
     });
     const mine = await loadMyCoins(factory, 0, slow, ME);
     expect(mine.held).toEqual([]);
-    // Two views per coin run together, so 4 coins at a time is at most 8 calls in flight.
-    expect(most).toBeLessThanOrEqual(8);
-    expect(most).toBeGreaterThan(2);
+    // One view at a time per coin, 4 coins at a time: at most 4 RPC calls in flight.
+    expect(most).toBe(4);
   });
 
   it("waits and reads a coin again after a 429, with the shared backoff", async () => {
@@ -87,6 +86,20 @@ describe("my coins reads", () => {
     const mine = await loadMyCoins(factory, 0, flaky, ME, { sleep: async (ms) => void waits.push(ms) });
     expect(mine.launched).toEqual([]);
     expect(waits).toEqual([9_000]);
+  });
+
+  it("reads the factory events again after a 429, with the shared backoff", async () => {
+    const waits: number[] = [];
+    let reads = 0;
+    const factory: ChainReader = {
+      ...coinReader({}, []),
+      events: async () => {
+        if (reads++ === 0) throw new HttpStatusError("busy", 429, null);
+        return { events: [], cursor: 0 };
+      },
+    };
+    expect(await loadMyCoins(factory, 0, () => coinReader({}, []), ME, { sleep: async (ms) => void waits.push(ms) })).toEqual({ launched: [], held: [] });
+    expect(waits).toEqual([4_000]);
   });
 
   it("does not retry a read that failed for another reason", async () => {
