@@ -107,6 +107,8 @@ p { margin: 0; }
 @media (max-width: 720px) {
   .chip-desktop { display: none; }
   .chip-phone { display: inline-block; }
+  .chip { white-space: normal; overflow-wrap: anywhere; max-width: 100%; }
+  .coin-title { min-width: 0; }
   #app { padding: 12px; gap: 12px; }
   .page-top { padding: 12px 12px 0; }
   .recorded-run { padding: 0 12px; margin-bottom: 24px; }
