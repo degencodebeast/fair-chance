@@ -137,15 +137,17 @@ async function load(app: HTMLElement, href: string, link: ListLink): Promise<voi
     const cards = await readCards();
     const update = drawList(app, href, cards, chainNote(link, cards));
     // Later reads swap the cards in place. A failed read keeps the cards on screen and says so.
-    stopRefresh = refreshWhileShown(async () => {
-      try {
+    const stop = refreshWhileShown(
+      async () => {
         const next = await readCards();
         update(next, chainNote(link, next));
-      } catch (e) {
-        document.querySelector("#list-note")!.textContent = `Could not refresh from ${link.source}. Trying again.`;
-        throw e;
-      }
-    });
+      },
+      (_e, retrying) => {
+        const line = document.querySelector("#list-note");
+        if (line) line.textContent = retrying ? `Could not refresh from ${link.source}. Trying again.` : `Could not refresh from ${link.source}. Reload the page to try again.`;
+      },
+    );
+    stopRefresh = stop.stop;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const retry = el("button", { type: "button", class: "button" }, "Try again");

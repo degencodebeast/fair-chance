@@ -16,7 +16,7 @@ describe("the how to try it text", () => {
     expect(steps[2]).toMatch(/buy/i);
   });
   it("names the faucet in one constant: the link on the NEAR docs", () => {
-    expect(FAUCET_URL).toBe("https://near-faucet.io/");
+    expect(FAUCET_URL).toBe("https://docs.near.org/getting-started/faucet");
   });
   it("says in one line what is true: testnet, no value, no audit", () => {
     expect(TRY_IT_NOTE).toBe("This runs on NEAR testnet. Test tokens have no value. The contracts have no audit.");

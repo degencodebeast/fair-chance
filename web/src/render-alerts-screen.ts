@@ -2,7 +2,9 @@
 // /check card. Every message is an example and the screen says so; the sentences are the watcher's.
 import { el, type Child } from "./dom-elements.ts";
 import { sampleLabel } from "./sample-label.ts";
+import { isOwnMachineHost } from "./local-host.ts";
 import { screenHeader } from "./screen-chrome.ts";
+import { screenLink } from "./screen-route.ts";
 import { watcherScreenModel, type ChatMessage } from "./watcher-screen-model.ts";
 
 function openControl(m: ChatMessage): Node | null {
@@ -11,7 +13,25 @@ function openControl(m: ChatMessage): Node | null {
   return el("button", { type: "button", class: "open-on-fair-chance", disabled: "", title: "Sample alert: no real receipt" }, "Open on Fair Chance");
 }
 
+/** A hosted page has no made-up chat to show: it says where alerts go and links to the coin screens. */
+function drawHostedAlerts(app: HTMLElement, href: string): void {
+  const coin = new URL(href).searchParams.get("coin");
+  const link = coin ? el("a", { id: "alerts-coin-link", class: "text-link", href: screenLink(href, "coin", { coin }) }, "Open the coin page") : el("a", { id: "alerts-coin-link", class: "text-link", href: screenLink(href, "coins") }, "Open the coin list");
+  app.replaceChildren(
+    screenHeader(href, "alerts"),
+    el(
+      "div",
+      { class: "alerts-intro" },
+      el("h1", { id: "alerts-title" }, "Fair Chance alerts"),
+      el("p", {}, "Alerts for a coin go to the coin's team on Telegram. The watcher cannot move funds or change a rule, and it gives no advice."),
+      el("p", {}, "The coin page reads every receipt from the chain. It works without Telegram."),
+      link,
+    ),
+  );
+}
+
 export function drawAlertsScreen(app: HTMLElement, href: string): void {
+  if (!isOwnMachineHost(new URL(href).hostname)) return drawHostedAlerts(app, href);
   const m = watcherScreenModel(href);
   const bubbles = m.chat.map((c) =>
     el(

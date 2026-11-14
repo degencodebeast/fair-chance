@@ -2,6 +2,7 @@
 // FastNEAR API or the RPC says 429 or answers 5xx. The timers are given in, so tests use fake ones.
 export const REFRESH_MS = 4_000;
 const BACKOFF_MS = [4_000, 8_000, 16_000, 32_000, 60_000] as const;
+const MAX_DELAY_MS = 60_000;
 
 /** A read that failed with an HTTP status; `retryAfterMs` comes from the Retry-After header. */
 export class HttpStatusError extends Error {
@@ -23,7 +24,8 @@ export function httpStatusError(message: string, resp: Response): HttpStatusErro
 /** How long to wait after the nth failure in a row (1 or more). */
 export function backoffDelayMs(failures: number, retryAfterMs: number | null): number {
   const step = BACKOFF_MS[Math.min(failures, BACKOFF_MS.length) - 1]!;
-  return Math.max(step, retryAfterMs ?? 0);
+  // Retry-After may lengthen a step, never past the last step. A huge value would also overflow setTimeout.
+  return Math.min(MAX_DELAY_MS, Math.max(step, retryAfterMs ?? 0));
 }
 
 function shouldBackOff(e: unknown): e is HttpStatusError {
@@ -39,6 +41,8 @@ export interface RefresherOptions {
   /** One read and redraw. It throws when the read fails. */
   run: () => Promise<void>;
   isHidden: () => boolean;
+  /** Called after each failed read. `retrying` is false when the loop has stopped for good. */
+  onError?: (error: unknown, retrying: boolean) => void;
   timers?: RefresherTimers;
   intervalMs?: number;
 }
@@ -78,10 +82,17 @@ export function createRefresher(options: RefresherOptions): Refresher {
       await options.run();
       failures = 0;
     } catch (e) {
-      if (shouldBackOff(e)) {
-        failures += 1;
-        delay = backoffDelayMs(failures, e.retryAfterMs);
+      // Only a rate limit or a server error is worth another try. A 403 or an answer this page does not
+      // know ends the loop; the reader sees the error and no timer stays.
+      const retrying = shouldBackOff(e);
+      options.onError?.(e, retrying);
+      if (!retrying) {
+        running = false;
+        stopped = true;
+        return;
       }
+      failures += 1;
+      delay = backoffDelayMs(failures, e.retryAfterMs);
     } finally {
       running = false;
     }
@@ -90,6 +101,7 @@ export function createRefresher(options: RefresherOptions): Refresher {
 
   return {
     start() {
+      clear();
       stopped = false;
       failures = 0;
       schedule(interval);
@@ -106,14 +118,21 @@ export function createRefresher(options: RefresherOptions): Refresher {
   };
 }
 
-/** Starts a refresher tied to the page: it pauses while the tab is hidden. The result stops it. */
-export function refreshWhileShown(run: () => Promise<void>, doc: Document = document): () => void {
-  const refresher = createRefresher({ run, isHidden: () => doc.hidden });
+/** A refresher tied to the page: it pauses while the tab is hidden. `restart` begins again after a stop. */
+export function refreshWhileShown(run: () => Promise<void>, onError?: RefresherOptions["onError"], doc: Document = document): { stop: () => void; restart: () => void } {
+  const refresher = createRefresher({ run, isHidden: () => doc.hidden, ...(onError ? { onError } : {}) });
   const onChange = (): void => refresher.visibilityChanged();
-  doc.addEventListener("visibilitychange", onChange);
-  refresher.start();
-  return () => {
-    refresher.stop();
-    doc.removeEventListener("visibilitychange", onChange);
+  const handle = {
+    stop: () => {
+      refresher.stop();
+      doc.removeEventListener("visibilitychange", onChange);
+    },
+    restart: () => {
+      doc.removeEventListener("visibilitychange", onChange);
+      doc.addEventListener("visibilitychange", onChange);
+      refresher.start();
+    },
   };
+  handle.restart();
+  return handle;
 }

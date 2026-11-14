@@ -1,8 +1,8 @@
 // The words of the "How to try it" box. The wallet name and the faucet link live here, so one edit
-// changes every place that shows them. The faucet is the testnet faucet the NEAR docs link to
-// (docs.near.org, "Token Faucet").
+// changes every place that shows them. The faucet is the NEAR docs page "Token Faucet", which holds the built-in testnet
+// faucet and lists the external one.
 export const WALLET_NAME = "a NEAR testnet wallet";
-export const FAUCET_URL = "https://near-faucet.io/";
+export const FAUCET_URL = "https://docs.near.org/getting-started/faucet";
 export const TRY_IT_TITLE = "How to try it";
 export const TRY_IT_NOTE = "This runs on NEAR testnet. Test tokens have no value. The contracts have no audit.";
 export const FAUCET_LINK_TEXT = "NEAR testnet faucet";

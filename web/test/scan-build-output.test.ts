@@ -274,3 +274,16 @@ describe("the pre-deploy scan of the build", () => {
     expect(await rules()).toEqual(["key", "key"]);
   });
 });
+
+describe("the faucet link", () => {
+  it("passes in the build with the real config, and no other faucet path does", async () => {
+    plant("assets/app.js", `const f="${FAUCET_URL}";`);
+    expect(await scanBuildOutput(dir, optionsFromConfig({}))).toEqual([]);
+    plant("assets/app.js", `const f="${FAUCET_URL}?key=abc";`);
+    expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule)).toContain("private-endpoint");
+    plant("assets/app.js", 'const f="https://docs.near.org/other";');
+    expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule)).toContain("private-endpoint");
+    plant("assets/app.js", 'const f="https://near-faucet.io/";');
+    expect((await scanBuildOutput(dir, optionsFromConfig({}))).map((f) => f.rule)).toContain("private-endpoint");
+  });
+});

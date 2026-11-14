@@ -4,6 +4,8 @@ import { fallbackList } from "../src/list-fallback.ts";
 import { SAMPLE_COINS } from "../src/coin-list-sample.ts";
 import { resolveListLink } from "../src/page-link.ts";
 import { drawLanding } from "../src/render-landing.ts";
+import { drawAlertsScreen } from "../src/render-alerts-screen.ts";
+import { drawLaunchForm } from "../src/render-launch-form.ts";
 
 describe("the coin list with nothing to read", () => {
   it("keeps the made-up coins on the local machine", () => {
@@ -43,5 +45,35 @@ describe("the landing screen", () => {
   });
   it("keeps the labeled example receipt on the local machine", () => {
     expect(text("http://localhost:5173/")).toMatch(/Sample data/);
+  });
+});
+
+describe("every screen on a hosted host", () => {
+  const draw = (screen: "landing" | "alerts" | "launch", href: string) => {
+    document.body.innerHTML = '<main id="app"></main>';
+    const app = document.querySelector<HTMLElement>("#app")!;
+    if (screen === "landing") drawLanding(app, href);
+    else if (screen === "alerts") drawAlertsScreen(app, href);
+    else drawLaunchForm(app, href);
+    return document.body.textContent ?? "";
+  };
+  it.each(["landing", "alerts", "launch"] as const)("%s shows no made-up value", (screen) => {
+    const text = draw(screen, `https://fc.example/?network=testnet${screen === "alerts" ? "&view=alerts" : ""}`);
+    expect(text).not.toMatch(/sample|made.up|\.sample\b/i);
+    expect(document.querySelector(".sample-label, .chat, #pre-buy-card")).toBeNull();
+  });
+  it("alerts says where alerts go and links to the coin list, with no bot link", () => {
+    draw("alerts", "https://fc.example/?view=alerts&network=testnet");
+    expect(document.body.textContent).toMatch(/Telegram/);
+    expect(document.querySelector<HTMLAnchorElement>("#alerts-coin-link")?.getAttribute("href")).toBe("?view=coins&network=testnet");
+    expect(document.querySelector('a[href*="t.me"], a[href*="telegram"]')).toBeNull();
+  });
+  it("alerts links to the named coin page when the link names a coin", () => {
+    draw("alerts", "https://fc.example/?view=alerts&network=testnet&coin=a.factory.fairchance.testnet");
+    expect(document.querySelector<HTMLAnchorElement>("#alerts-coin-link")?.getAttribute("href")).toBe("?coin=a.factory.fairchance.testnet&network=testnet");
+  });
+  it("alerts keeps the made-up chat on the local machine", () => {
+    draw("alerts", "http://localhost:5173/?view=alerts");
+    expect(document.querySelector(".chat")).not.toBeNull();
   });
 });

@@ -33,6 +33,10 @@ describe("backoff delay", () => {
   it("runs 4, 8, 16, 32, then 60 seconds and stays at 60", () => {
     expect([1, 2, 3, 4, 5, 6, 9].map((n) => backoffDelayMs(n, null))).toEqual([4000, 8000, 16000, 32000, 60000, 60000, 60000]);
   });
+  it("never waits longer than 60 seconds, however long Retry-After is", () => {
+    expect(backoffDelayMs(1, 3_000_000_000)).toBe(60_000);
+    expect(backoffDelayMs(2, 61_000)).toBe(60_000);
+  });
   it("honors a longer Retry-After and ignores a shorter one", () => {
     expect(backoffDelayMs(1, 30_000)).toBe(30_000);
     expect(backoffDelayMs(3, 1_000)).toBe(16_000);
@@ -83,7 +87,7 @@ describe("the refresher", () => {
   it("backs off on 429, then on 5xx, and honors a longer Retry-After", async () => {
     const e429 = new HttpStatusError("x", 429, null);
     const e503 = new HttpStatusError("x", 503, null);
-    const e429long = new HttpStatusError("x", 429, 90_000);
+    const e429long = new HttpStatusError("x", 429, 40_000);
     const { timers, calls, r } = setup([e429, e503, e429long, "ok"]);
     r.start();
     await timers.advance(4000); // first read fails
@@ -94,9 +98,9 @@ describe("the refresher", () => {
     expect(calls).toHaveLength(2);
     await timers.advance(7999);
     expect(calls).toHaveLength(2);
-    await timers.advance(1); // after 8 s: third read fails with Retry-After 90 s
+    await timers.advance(1); // after 8 s: third read fails with Retry-After 40 s
     expect(calls).toHaveLength(3);
-    await timers.advance(89_999);
+    await timers.advance(39_999);
     expect(calls).toHaveLength(3);
     await timers.advance(1);
     expect(calls).toHaveLength(4); // success
@@ -104,17 +108,43 @@ describe("the refresher", () => {
     expect(calls).toHaveLength(5);
   });
 
-  it("keeps the normal interval after an error that is not a rate limit", async () => {
-    const { timers, calls, r } = setup([new Error("network"), "ok"]);
+  it.each([403, 404, 400])("stops for good on an HTTP %i and leaves no timer", async (status) => {
+    const { timers, calls, r } = setup([new HttpStatusError("x", status, null), "ok"]);
     r.start();
-    await timers.advance(REFRESH_MS * 2);
-    expect(calls).toHaveLength(2);
+    await timers.advance(REFRESH_MS);
+    expect(calls).toHaveLength(1);
+    expect(timers.count()).toBe(0);
+    await timers.advance(REFRESH_MS * 10);
+    expect(calls).toHaveLength(1);
   });
 
-  it("does not back off on a 404", async () => {
-    const { timers, calls, r } = setup([new HttpStatusError("x", 404, null), "ok"]);
+  it("stops on an error it does not know, and says so through onError", async () => {
+    const timers = fakeTimers();
+    const seen: Array<[unknown, boolean]> = [];
+    const boom = new Error("odd");
+    const r = createRefresher({ run: async () => { throw boom; }, timers, isHidden: () => false, onError: (e, retrying) => seen.push([e, retrying]) });
     r.start();
-    await timers.advance(REFRESH_MS * 2);
+    await timers.advance(REFRESH_MS * 5);
+    expect(seen).toEqual([[boom, false]]);
+    expect(timers.count()).toBe(0);
+  });
+
+  it("tells onError that a rate limit will be retried", async () => {
+    const timers = fakeTimers();
+    const seen: boolean[] = [];
+    const r = createRefresher({ run: async () => { throw new HttpStatusError("x", 429, null); }, timers, isHidden: () => false, onError: (_e, retrying) => seen.push(retrying) });
+    r.start();
+    await timers.advance(REFRESH_MS);
+    expect(seen).toEqual([true]);
+  });
+
+  it("starts again after a stop when asked, with the delays reset", async () => {
+    const { timers, calls, r } = setup([new HttpStatusError("x", 403, null), "ok"]);
+    r.start();
+    await timers.advance(REFRESH_MS);
+    expect(timers.count()).toBe(0);
+    r.start();
+    await timers.advance(REFRESH_MS);
     expect(calls).toHaveLength(2);
   });
 

@@ -307,30 +307,52 @@ function drawLoading(): void {
   );
 }
 
+let loadingNow = false;
+let refresh: { stop: () => void; restart: () => void } | null = null;
+
 function load(): void {
   drawLoading();
+  loadingNow = true;
   const nowNs = BigInt(Date.now()) * 1_000_000n;
   loadCoinPage(location.href, { nowNs })
-    .then((data) => draw(coinPageModel(data, { nowNs }), load, data))
+    .then((data) => {
+      draw(coinPageModel(data, { nowNs }), load, data);
+      // A new read, by the first load, the Try again button or the cap hour, starts the refresh again.
+      refresh?.restart();
+    })
     .catch((err: unknown) => {
       // loadCoinPage does not throw; this only guards the drawing code.
       const message = err instanceof Error ? err.message : String(err);
       draw({ state: "error", status: `Values cannot load: ${message}`, title: "Values cannot load from the chain.", detail: message, lastAttempt: "", frame: loadingFrame("Not loaded") }, load, null);
+    })
+    .finally(() => {
+      loadingNow = false;
     });
 }
 
-/** Reads the coin again without the loading frame. A failed read leaves the page as it is and says so. */
+/**
+ * Reads the coin again without the loading frame. A failed read leaves the page as it is and says so.
+ * When the earlier load failed, a good read draws the whole page; a failed one keeps the error view.
+ */
 async function refreshOnce(): Promise<void> {
-  if (drawn === null) return;
+  if (loadingNow) return;
+  const wasReady = drawn !== null;
   const nowNs = BigInt(Date.now()) * 1_000_000n;
   const data = await loadCoinPage(location.href, { nowNs });
   if (data.kind === "error") {
-    const status = app.querySelector("#status");
-    if (status) status.textContent = "Could not refresh. Trying again.";
+    if (wasReady) {
+      const status = app.querySelector("#status");
+      if (status) status.textContent = "Could not refresh.";
+    } else {
+      draw(coinPageModel(data, { nowNs }), load, data);
+    }
     throw data.failure ?? new Error(data.message);
   }
-  draw(coinPageModel(data, { nowNs }), load, data, true);
+  draw(coinPageModel(data, { nowNs }), load, data, wasReady);
 }
 
 load();
-refreshWhileShown(refreshOnce);
+refresh = refreshWhileShown(refreshOnce, (_e, retrying) => {
+  const status = app.querySelector("#status");
+  if (status && drawn !== null) status.textContent = retrying ? "Could not refresh. Trying again." : "Could not refresh. Reload the page to try again.";
+});

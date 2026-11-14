@@ -242,7 +242,10 @@ function scanText(text: string, file: string, options: ScanOptions, buildNames: 
   const lexed = /\.(?:js|mjs)$/.test(file) ? textMask(text) : null;
   if (lexed !== null && !lexed.ok) add("unreadable-file", file);
   const mask = lexed?.ok ? lexed.mask : null;
+  // A host name such as "docs.near.org" reads like an account name. Inside a URL the page may name, it is a host.
+  const allowedUrlRanges = [...text.matchAll(URL_PATTERN)].filter((u) => isAllowedUrl(u[0], options.allowedHosts)).map((u) => [u.index!, u.index! + u[0].length] as const);
   for (const m of text.matchAll(WALLET)) {
+    if (allowedUrlRanges.some(([from, to]) => m.index! >= from && m.index! < to)) continue;
     if (options.sampleAccounts.includes(m[0]) || isAllowedAccount(m[0], options.allowedAccounts)) continue;
     if (options.ownTestAccounts?.some((p) => p.test(m[0]))) continue;
     if (mask !== null && mask[m.index!] === 0 && /^[a-z0-9_$]{1,2}\.(?:testnet|near)$/.test(m[0])) continue;
@@ -361,6 +364,8 @@ export function optionsFromConfig(env: Record<string, string | undefined> = proc
     "fonts.googleapis.com": { path: /^\/(?:css2)?$/, queryKeys: ["family", "display"] },
     "fonts.gstatic.com": root,
     "www.w3.org": { path: /^\/2000\/svg$/ },
+    // The faucet link of the how to try it box: that host and exactly that path, no query.
+    [new URL(FAUCET_URL).hostname]: { path: new RegExp(`^${new URL(FAUCET_URL).pathname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/?$`) },
   };
   for (const n of networks) {
     allowedHosts[new URL(n.rpcUrl).hostname] = root;
