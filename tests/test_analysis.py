@@ -110,6 +110,7 @@ class SimulationTests(unittest.TestCase):
         self.assertTrue(e.transfer('sender','creator',40_000_000,100,target_creator=True,hour=1))
         self.assertEqual(e.creator_tokens(),40_000_000)
         self.assertFalse(e.transfer('sender','creator',1,100,target_creator=True,hour=1))
+        self.assertEqual(e.buy('creator.child',.1,1,creator=True),0)
 
     def test_post_sell_cap_uses_real_near_left(self):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); w = e.wallet("large")
