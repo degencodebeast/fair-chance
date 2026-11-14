@@ -5,6 +5,7 @@
 //! The binary comes from `NEAR_SANDBOX_BIN_PATH`.
 
 pub mod amount_text;
+pub mod app_coin;
 pub mod burst;
 pub mod factory_deploy;
 pub mod option_t;

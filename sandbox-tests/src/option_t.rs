@@ -79,6 +79,9 @@ pub struct OptionTArguments {
     /// `--continue`: the continue step after a sells run that stopped part way
     /// ([`crate::sells_only::run_continue`]).
     pub continue_sells: bool,
+    /// `--coin <account>`: the run does not launch; it waits for this coin, launched in the app
+    /// ([`crate::app_coin`]).
+    pub coin: Option<String>,
 }
 
 /// The values each number flag takes. Bounded so no amount or count can overflow later.
@@ -148,6 +151,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--sandbox-send-delay-ms" => parsed.sandbox_send_delay_ms.is_some(),
             "--sell-plan" => parsed.sell_plan.is_some(),
             "--plan-sha256" => parsed.plan_sha256.is_some(),
+            "--coin" => parsed.coin.is_some(),
             _ => bail!("unknown argument {flag}; nothing was run"),
         };
         if taken {
@@ -181,6 +185,7 @@ pub fn parse_arguments(args: &[String]) -> Result<OptionTArguments> {
             "--keep" => parsed.keep = Some(value.clone()),
             "--sell-plan" => parsed.sell_plan = Some(value.clone()),
             "--plan-sha256" => parsed.plan_sha256 = Some(value.clone()),
+            "--coin" => parsed.coin = Some(value.clone()),
             "--buy-millinear" => parsed.buy_millinear = number()?,
             "--buyer-extra-millinear" => parsed.buyer_extra_millinear = number()?,
             "--buyer-tgas" => parsed.buyer_tgas = number()?,
