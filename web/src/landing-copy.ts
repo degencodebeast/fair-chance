@@ -32,11 +32,15 @@ export const landingCopy = {
     who: "Our test cabal, 10 wallets",
     allowance: { label: "Shared early allowance", value: "2.98M of 9.7M used", pct: 31 },
     rows: [
+      { k: "Paid in", v: "5.00 NEAR" },
       { k: "Asked", v: "39.5M CABAL2" },
-      { k: "Went through", v: "2.98M (7.5%)" },
+      { k: "Went through", v: "2.98M CABAL2" },
       { k: "Stays in wallets", v: "36.5M CABAL2" },
+      { k: "NEAR out", v: "0.32 NEAR" },
       { k: "Early sells refused", v: "10 of 10" },
     ],
+    highlight: { label: "Went through", sub: "of what the cabal asked to sell, after the early window", value: "7.5%" },
+    reason: "Reason: early supply shares one small allowance per 24 h. Splitting into 10 wallets gave no more.",
     foot: "NEAR testnet. Read from the chain.",
   },
   problem:

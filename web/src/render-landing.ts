@@ -31,6 +31,13 @@ export function drawLanding(app: HTMLElement, href: string): void {
       el("div", { class: "meter" }, el("div", { class: "meter-used", style: `width:${r.allowance.pct}%` })),
     ),
     ...r.rows.map((x) => el("div", { class: "hr-row" }, el("span", {}, x.k), el("span", { class: "hr-dots" }), el("span", { class: "num" }, x.v))),
+    el(
+      "div",
+      { class: "hr-highlight" },
+      el("div", {}, el("b", {}, r.highlight.label), el("p", { class: "hr-sub" }, r.highlight.sub)),
+      el("span", { class: "hr-big num" }, r.highlight.value),
+    ),
+    el("p", { class: "hr-foot" }, r.reason),
     el("p", { class: "hr-foot" }, r.foot),
   );
   const children: Child[] = [

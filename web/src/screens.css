@@ -18,8 +18,12 @@ a.button { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Landing */
 .hero-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 48px; align-items: center; }
-.hero-receipt { background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 16px 16px 0 0; padding: 20px 22px 26px; transform: rotate(1.5deg); display: flex; flex-direction: column; gap: 8px;
-  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%; mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 16px 100%; }
+.hero-receipt { position: relative; background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-bottom: 0; border-radius: 16px 16px 0 0; padding: 20px 22px 14px; margin-bottom: 12px; transform: rotate(1.5deg); display: flex; flex-direction: column; gap: 8px; }
+.hero-receipt::after { content: ""; position: absolute; left: -2px; right: -2px; bottom: -12px; height: 12px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='12'%3E%3Cpath d='M0 1 L8 11 L16 1 Z' fill='%23FFFDF4'/%3E%3Cpath d='M0 1 L8 11 L16 1' fill='none' stroke='%2317150F' stroke-width='2'/%3E%3C/svg%3E") repeat-x; }
+.hr-highlight { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-top: 2px solid var(--ink); padding-top: 10px; margin-top: 4px; }
+.hr-sub { font: 400 12px var(--font-num); opacity: 0.75; max-width: 200px; }
+.hr-big { font: 700 52px/1 var(--font-num); color: var(--limit); }
 .hr-head { display: flex; justify-content: space-between; align-items: center; font: 400 18px var(--font-display); }
 .hr-tag { font: 600 12px var(--font-num); border: 2px solid var(--ink); border-radius: 999px; padding: 2px 10px; }
 .hr-meta { font: 400 13px var(--font-num); opacity: 0.75; }
