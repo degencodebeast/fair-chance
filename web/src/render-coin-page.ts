@@ -338,7 +338,15 @@ function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, 
   app.querySelector("#load-error button")?.addEventListener("click", retry);
   const marked = app.querySelector(".from-alert");
   if (marked) marked.scrollIntoView({ block: "center" });
+  // A link such as "#rules" points at a section that exists only after the first read, so the
+  // browser cannot jump to it by itself. Jump once, on the first ready draw.
+  if (!hashJumped && view.state === "ready" && location.hash.length > 1) {
+    hashJumped = true;
+    app.querySelector(`[id="${CSS.escape(location.hash.slice(1))}"]`)?.scrollIntoView({ block: "start" });
+  }
 }
+
+let hashJumped = false;
 
 function drawLoading(): void {
   // The launch header shows only before the first read is drawn; a failed read shows the plain error view.

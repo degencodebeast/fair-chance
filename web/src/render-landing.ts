@@ -58,7 +58,7 @@ export function drawLanding(app: HTMLElement, href: string): void {
           ? el("a", { class: "button button-dark button-big", id: "watch-demo", href: copy.demoUrl, target: "_blank", rel: "noopener noreferrer" }, copy.actions[0].label)
           : el("a", { class: "button button-dark button-big", id: "open-app", href: coins }, copy.openAppLabel),
         el("a", { class: "button button-big", id: "launch-coin", href: screenLink(href, "launch") }, copy.actions[1].label),
-        el("a", { class: "text-link", id: "see-rules", href: coins }, copy.actions[2].label),
+        el("a", { class: "text-link", id: "see-rules", href: `${screenLink(href, "coin", { coin: copy.proof.coin })}#rules` }, copy.actions[2].label),
       ),
       el(
         "div",
