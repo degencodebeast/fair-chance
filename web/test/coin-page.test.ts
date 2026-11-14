@@ -56,7 +56,7 @@ describe("normal", () => {
     expect(view.stats).toEqual([
       { label: "Price per 1M MOTH", value: "0.1729 NEAR", sub: "", available: true },
       { label: "Market cap", value: "172.99 NEAR", sub: "", available: true },
-      { label: "Real NEAR in pool", value: "40.47 NEAR", sub: "+ 100.00 virtual", available: true },
+      { label: "Real NEAR in pool", value: "40.47 NEAR", sub: "+ 100.00 virtual NEAR. It counts in the price, and nobody can take it out.", available: true },
       { label: "Age", value: "1 h 22 min", sub: "launched 13:02", available: true },
     ]);
     expect(view.banner).toMatchObject({ kind: "ended" });

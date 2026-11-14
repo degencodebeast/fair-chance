@@ -260,7 +260,7 @@ function stats(r: CoinReads, ctx: TimeContext, symbol: string, supply: bigint | 
     {
       label: "Real NEAR in pool",
       value: `${nearAmount(p.realNear.toString())} NEAR`,
-      sub: `+ ${nearAmount(p.virtualNear.toString())} virtual`,
+      sub: `+ ${nearAmount(p.virtualNear.toString())} virtual NEAR. It counts in the price, and nobody can take it out.`,
       available: true,
     },
     ageStat,
