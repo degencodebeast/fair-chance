@@ -188,7 +188,7 @@ When a step fails, the contract refuses with its code, and the call changes no s
 | Coin page (`web/`) | Static files in a browser, plus a read-only relay (`web/api/rpc.js`) on the hosted site | Reads views from a NEAR testnet RPC and events from FastNEAR, and shows limits, receipts and refusals. On the hosted site, the views go through the relay. | No. |
 | Watcher and bot (`watcher/`) | A Go process the builder runs | Reads events, sends alerts to the builder's private chat, answers `/check`. | No. |
 
-There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key, and the factory holds none after its key is deleted <!-- waits on: the testnet deploy (the factory key deletion) -->. The page is static and only reads. The watcher and the page can go offline, and the coin still enforces every rule.
+There is no backend that holds a rule or a signing key. On the hosted site, the page reads through a small relay at `/api/rpc`. It forwards only allowed `query` reads to a NEAR testnet RPC and cannot send a transaction. The rules run on chain. Each coin holds no key, and the factory holds none after its key is deleted <!-- waits on: the testnet deploy (the factory key deletion) -->. The page is static. It reads the chain, and it sends a buy, a sell or a launch only when the visitor signs it in their own wallet. The watcher and the page can go offline, and the coin still enforces every rule.
 
 Nobody can change a coin after launch. These three lines are the claim ([ADR 0006](docs/adr/0006-zero-keys-global-contract-by-hash.md)):
 
