@@ -1,6 +1,7 @@
 import { KNOWN_NETWORKS } from "../src/known-deployments.ts";
 import { describe, expect, it } from "vitest";
 import { loadCoinPage } from "../src/coin-page.ts";
+import { HttpStatusError } from "../src/refresher.ts";
 import { coinPageModel, loadingFrame, NOT_AVAILABLE, type CoinPageModel } from "../src/coin-page-model.ts";
 import { allText, copyViolations } from "./copy-rules.ts";
 import { readerFrom, recordedCoin, type RecordedCoin } from "./recorded-coin.ts";
@@ -207,6 +208,14 @@ describe("empty receipts", () => {
 });
 
 describe("RPC error", () => {
+  it("keeps the HTTP status of a failed read, so a refresh can back off", async () => {
+    const rec = recordedCoin("normal");
+    const failing = { ...readerFrom(rec, coin), view: async () => { throw new HttpStatusError("fc_rules: HTTP 429", 429, 9000); } };
+    const data = await loadCoinPage(baseHref, { reader: failing, nowNs: BigInt(rec.now_ns) });
+    expect(data.kind).toBe("error");
+    if (data.kind === "error") expect([data.failure?.status, data.failure?.retryAfterMs]).toEqual([429, 9000]);
+  });
+
   it("shows an error and no number, so nothing stale looks live", async () => {
     const view = await page(recordedCoin("rpc-error"));
     expect(view).toEqual({

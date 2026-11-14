@@ -3,13 +3,15 @@
 import { chainReader } from "./chain.ts";
 import { loadCoinCards } from "./coin-cards-from-chain.ts";
 import { coinListModel, type CoinCard, type ListTab } from "./coin-list-model.ts";
-import { SAMPLE_COINS } from "./coin-list-sample.ts";
 import { el, type Child } from "./dom-elements.ts";
 import { landingCopy } from "./landing-copy.ts";
 import { resolveListLink, type ListLink } from "./page-link.ts";
+import { fallbackList } from "./list-fallback.ts";
+import { drawTryItBox } from "./render-try-it-box.ts";
 import { sampleLabel } from "./sample-label.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
+import { refreshWhileShown } from "./refresher.ts";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -53,14 +55,16 @@ function topNode(c: CoinCard, href: string): HTMLElement {
   return c.source === "sample" ? el("div", { class: "top-coin" }, ...inner) : el("a", { class: "top-coin", href: screenLink(href, "coin", { coin: c.account }) }, ...inner);
 }
 
-function drawList(app: HTMLElement, href: string, cards: CoinCard[], note: string, onRetry: () => void): void {
-  void onRetry;
+/** Draws the list once and returns a function that swaps in new cards without drawing the page again. */
+function drawList(app: HTMLElement, href: string, firstCards: CoinCard[], note: string): (cards: CoinCard[], note: string) => void {
+  let cards = firstCards;
   const pick: { tab: ListTab; query: string } = { tab: "Market cap", query: "" };
   const search = el("input", { id: "coin-search", type: "search", placeholder: "Name, ticker or coin account", autocomplete: "off" });
   const tabs = el("div", { role: "tablist", "aria-label": "Coin list", class: "tabs" });
   const grid = el("div", { class: "coin-grid", id: "coin-list" });
   const empty = el("div", { class: "card", role: "status", id: "list-empty" });
   const tabNote = el("p", { class: "muted", id: "tab-note" });
+  const noteLine = el("p", { class: "note", id: "list-note" }, note);
   const top = el("section", { class: "top-coins", "aria-label": "Top coins by market cap" });
 
   function refresh(): void {
@@ -90,7 +94,8 @@ function drawList(app: HTMLElement, href: string, cards: CoinCard[], note: strin
   app.replaceChildren(
     screenHeader(href, "coins"),
     el("div", { class: "list-title" }, el("div", {}, el("h1", { id: "coins-title" }, "Coins"), el("p", {}, "Each card shows its cap state and latest receipt.")), turnedOffButton("launch-coin", "Launch a coin", landingCopy.launchOffNote)),
-    el("p", { class: "note", id: "list-note" }, note),
+    noteLine,
+    drawTryItBox(),
     top,
     el("section", { class: "card how-strip", "aria-label": "How it works" }, el("ol", {}, el("li", {}, "Every coin has the same sell rules, fixed at launch."), el("li", {}, "The creator, early buyers and large holders sell one allowance per hour. A bigger sell fills in part."), el("li", {}, "Each limited sell shows as a receipt: asked, filled, and when more can follow.")), el("a", { class: "text-link", href: `${screenLink(href, "landing")}#how` }, "How it works")),
     el("div", { class: "search-field" }, el("label", { for: "coin-search" }, "Search coins"), search),
@@ -100,23 +105,47 @@ function drawList(app: HTMLElement, href: string, cards: CoinCard[], note: strin
     grid,
   );
   refresh();
+  return (next, nextNote) => {
+    cards = next;
+    noteLine.textContent = nextNote;
+    refresh();
+  };
 }
+
+function chainNote(link: Extract<ListLink, { kind: "chain" }>, cards: CoinCard[]): string {
+  return `Read from ${link.source}, factory ${link.factory}. ${cards.length === 0 ? "" : `${cards.length} coin${cards.length === 1 ? "" : "s"}.`}`;
+}
+
+let stopRefresh: (() => void) | null = null;
 
 async function load(app: HTMLElement, href: string, link: ListLink): Promise<void> {
   if (link.kind !== "chain") {
-    const note =
-      link.kind === "sample"
-        ? "Sample data. This link names no chain, so every coin below is made up."
-        : `${link.source} has no factory set yet, so every coin below is sample data.`;
-    drawList(app, href, SAMPLE_COINS, note, () => {});
+    const { cards, note } = fallbackList(link, new URL(href).hostname);
+    drawList(app, href, cards, note);
     return;
   }
   app.replaceChildren(screenHeader(href, "coins"), el("h1", { id: "coins-title" }, "Coins"), el("p", { class: "status", role: "status", id: "list-status" }, "Reading the chain."));
-  const nowNs = BigInt(Date.now()) * 1_000_000n;
+  stopRefresh?.();
+  stopRefresh = null;
+  const readCards = async (): Promise<CoinCard[]> => {
+    const nowNs = BigInt(Date.now()) * 1_000_000n;
+    const fastNear = link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {};
+    const factory = chainReader({ rpcUrl: link.rpcUrl, coin: link.factory, anyLoggedTx: true, ...fastNear });
+    return loadCoinCards(factory, link.fromBlock, (coin) => chainReader({ rpcUrl: link.rpcUrl, coin, ...fastNear }), { nowNs });
+  };
   try {
-    const factory = chainReader({ rpcUrl: link.rpcUrl, coin: link.factory, anyLoggedTx: true, ...(link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {}) });
-    const cards = await loadCoinCards(factory, link.fromBlock, (coin) => chainReader({ rpcUrl: link.rpcUrl, coin, ...(link.fastNearUrl ? { fastNearUrl: link.fastNearUrl } : {}) }), { nowNs });
-    drawList(app, href, cards, `Read from ${link.source}, factory ${link.factory}. ${cards.length === 0 ? "" : `${cards.length} coin${cards.length === 1 ? "" : "s"}.`}`, () => {});
+    const cards = await readCards();
+    const update = drawList(app, href, cards, chainNote(link, cards));
+    // Later reads swap the cards in place. A failed read keeps the cards on screen and says so.
+    stopRefresh = refreshWhileShown(async () => {
+      try {
+        const next = await readCards();
+        update(next, chainNote(link, next));
+      } catch (e) {
+        document.querySelector("#list-note")!.textContent = `Could not refresh from ${link.source}. Trying again.`;
+        throw e;
+      }
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const retry = el("button", { type: "button", class: "button" }, "Try again");

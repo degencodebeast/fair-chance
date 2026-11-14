@@ -2,9 +2,8 @@
 // address opens. Both come from the fixed config, never from the link.
 import { el } from "./dom-elements.ts";
 import { isOwnMachineHost } from "./local-host.ts";
-import { KNOWN_NETWORKS, type KnownNetwork } from "./known-deployments.ts";
 
-export const TESTNET_BANNER = "Testnet. Read only. No wallet needed.";
+export const TESTNET_BANNER = "NEAR testnet. Test tokens have no value. No audit.";
 
 /** The fixed banner text for a link that names the testnet; null for any other link. */
 export function networkBanner(href: string): string | null {
@@ -12,14 +11,13 @@ export function networkBanner(href: string): string | null {
 }
 
 /**
- * The link a bare hosted address redirects to: the demo coin of the testnet. Null when the link has
- * any parameter, the host is local, or the config has no demo coin yet.
+ * The link a bare hosted address gets: it names the testnet and nothing else, so the landing screen
+ * opens and every link from it carries the network. Null when the link has any parameter or the host is local.
  */
-export function hostedEntryHref(href: string, networks: Record<string, KnownNetwork> = KNOWN_NETWORKS): string | null {
+export function hostedEntryHref(href: string): string | null {
   const url = new URL(href);
   if (isOwnMachineHost(url.hostname) || url.search !== "") return null;
-  const demo = networks.testnet?.demoCoin ?? null;
-  return demo ? `?${new URLSearchParams({ network: "testnet", coin: demo }).toString()}` : null;
+  return `?${new URLSearchParams({ network: "testnet" }).toString()}`;
 }
 
 /** Puts the fixed banner before the app, once. Draws nothing when the link names no known network. */

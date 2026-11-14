@@ -1,5 +1,6 @@
 // Chain-read module: views and events for one coin, from a NEAR RPC endpoint.
 // The page reads the chain only through this module, never through the watcher.
+import { httpStatusError } from "./refresher.ts";
 import { fastNearEvents } from "./fastnear-events.ts";
 import { resolvePageLink } from "./page-link.ts";
 import { cleanChainValue } from "./chain-text.ts";
@@ -102,7 +103,7 @@ export function chainReader(cfg: ReaderConfig, fetchFn: typeof fetch = fetch): C
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: "fc", method, params }),
     });
-    if (!resp.ok) throw new Error(`${method}: HTTP ${resp.status}`);
+    if (!resp.ok) throw httpStatusError(`${method}: HTTP ${resp.status}`, resp);
     const body = await resp.json();
     if (body.error) throw new RpcError(String(body.error.cause?.name), String(body.error.data));
     return body.result as T;

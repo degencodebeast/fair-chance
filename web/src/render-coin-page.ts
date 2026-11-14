@@ -8,6 +8,7 @@ import { chainReader, configFromUrl } from "./chain.ts";
 import { drawPriceChart } from "./render-price-chart.ts";
 import { fillHolders, holdersPlaceholder } from "./render-holders-table.ts";
 import { drawYourPlan } from "./render-your-plan.ts";
+import { refreshWhileShown } from "./refresher.ts";
 import { loadBuyQuote } from "./buy-quote.ts";
 import { claimPanelModel } from "./claim-panel-model.ts";
 import { drawClaimPanel } from "./render-claim-panel.ts";
@@ -258,17 +259,38 @@ function claimPanel(reads: CoinReads): HTMLElement {
   return drawClaimPanel(claimPanelModel({ fees: reads.creatorFees, claimMinRealNear: reads.rules.claimMinRealNear, claimDepthHoldS: reads.rules.claimDepthHoldS, nowNs: reads.loadedAtNs }));
 }
 
-function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null): void {
+/** What a visitor has typed or opened in a section; a refresh keeps such a section as it is. */
+function holdsVisitorWork(node: HTMLElement | null): boolean {
+  if (node === null) return false;
+  if (node.contains(document.activeElement)) return true;
+  return [...node.querySelectorAll("input, textarea")].some((i) => (i as HTMLInputElement).value !== "");
+}
+
+interface Drawn {
+  plan: HTMLElement | null;
+  trade: HTMLElement | null;
+  holders: HTMLElement | null;
+  eventCount: number;
+}
+let drawn: Drawn | null = null;
+
+function draw(view: CoinPageView, retry: () => void, data: CoinPageData | null, keep = false): void {
   scheduleRefresh(view, retry);
   const status = el("p", { id: "status", class: "status", role: "status" }, view.status);
   const reads = data?.kind === "ready" ? data.reads : null;
   const symbol = reads?.metadata.kind === "value" ? reads.metadata.value.symbol : "tokens";
   const chart = reads ? drawPriceChart(reads.events, symbol) : null;
-  const holders = reads ? holdersPlaceholder() : null;
-  const parts = reads ? { plan: drawYourPlan(reads), chart, holders, trade: tradeBox(reads, symbol), claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };
+  // On a refresh the holders table stays unless there is new activity, and a form with the visitor's input stays as it is.
+  const old = keep && reads ? drawn : null;
+  const sameEvents = old !== null && reads !== null && old.eventCount === reads.events.length;
+  const holders = reads ? (old?.holders && sameEvents ? old.holders : holdersPlaceholder()) : null;
+  const plan = reads ? (old?.plan && holdsVisitorWork(old.plan) ? old.plan : drawYourPlan(reads)) : null;
+  const trade = reads ? (old?.trade && holdsVisitorWork(old.trade) ? old.trade : tradeBox(reads, symbol)) : null;
+  const parts = reads ? { plan, chart, holders, trade, claim: claimPanel(reads) } : { plan: null, chart, holders, trade: null, claim: null };
+  drawn = reads && view.state === "ready" ? { plan, trade, holders, eventCount: reads.events.length } : null;
   const body = view.state === "ready" ? drawReady(view, parts) : drawError(view);
   app.replaceChildren(...body.slice(0, 1), status, ...body.slice(1));
-  if (holders && reads) {
+  if (holders && reads && !(old?.holders === holders && sameEvents)) {
     const supply = reads.totalSupply.kind === "value" ? reads.totalSupply.value : null;
     void fillHolders(holders, chainReader(configFromUrl(location.href)), reads.events, supply, reads.loadedAtNs);
   }
@@ -297,4 +319,18 @@ function load(): void {
     });
 }
 
+/** Reads the coin again without the loading frame. A failed read leaves the page as it is and says so. */
+async function refreshOnce(): Promise<void> {
+  if (drawn === null) return;
+  const nowNs = BigInt(Date.now()) * 1_000_000n;
+  const data = await loadCoinPage(location.href, { nowNs });
+  if (data.kind === "error") {
+    const status = app.querySelector("#status");
+    if (status) status.textContent = "Could not refresh. Trying again.";
+    throw data.failure ?? new Error(data.message);
+  }
+  draw(coinPageModel(data, { nowNs }), load, data, true);
+}
+
 load();
+refreshWhileShown(refreshOnce);

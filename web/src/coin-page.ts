@@ -1,6 +1,7 @@
 // Loads everything the coin page shows, through the chain-read module only. The result is either
 // all of it or an error: when any read fails, no number from an earlier or partial read is kept.
 import { chainReader, configFromUrl, eventsFromLaunch, ViewNotAvailable, type ChainReader, type CoinEvent } from "./chain.ts";
+import { HttpStatusError } from "./refresher.ts";
 import { parseCreatorFees, type CreatorFees } from "./creator-fees.ts";
 import { runCoinChecks, type CheckResult } from "./chain-checks.ts";
 import { resolvePageLink, sourceLabel } from "./page-link.ts";
@@ -43,7 +44,7 @@ export interface CoinReads {
 
 export type CoinPageData =
   | { kind: "ready"; reads: CoinReads; highlightReceipt: string | null }
-  | { kind: "error"; message: string; attemptedAtNs: bigint; source: string };
+  | { kind: "error"; message: string; attemptedAtNs: bigint; source: string; /** Set when the read failed with an HTTP status, so a refresh can back off. */ failure?: HttpStatusError };
 
 async function optional<T>(read: () => Promise<unknown>, parse: (value: unknown) => T): Promise<Reading<T>> {
   try {
@@ -81,6 +82,6 @@ export async function loadCoinPage(href: string, load: PageLoad): Promise<CoinPa
     const reads: CoinReads = { coin: cfg.coin, rpcHost: link.rpcHost, loadedAtNs: load.nowNs, rules, pool, earlyWindow, cap, creatorFees, storageMin, totalSupply, metadata, events: scan.events, checks };
     return { kind: "ready", reads, highlightReceipt: new URL(href).searchParams.get("receipt") };
   } catch (e) {
-    return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href) };
+    return { kind: "error", message: e instanceof Error ? e.message : String(e), attemptedAtNs: load.nowNs, source: sourceLabel(href), ...(e instanceof HttpStatusError ? { failure: e } : {}) };
   }
 }

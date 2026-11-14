@@ -2,6 +2,7 @@
 // POST /v0/account lists the transactions that logged events for the coin. POST /v0/transactions
 // gives up to 20 of them with their receipt logs. The public endpoint needs no key. A 403 or any
 // answer this code does not know stops the read with an error and is never retried.
+import { httpStatusError } from "./refresher.ts";
 import { parseLog, type CoinEvent } from "./chain.ts";
 
 const ACCOUNT_PAGE_SIZE = 100;
@@ -103,7 +104,7 @@ async function post<T>(read: FastNearRead, path: string, body: object): Promise<
     body: JSON.stringify(body),
   });
   if (resp.status === 403) throw new Error(`${path}: FastNEAR answered 403, stop and report`);
-  if (resp.status === 429) throw new Error(`${path}: FastNEAR answered 429, wait before the next read`);
-  if (!resp.ok) throw new Error(`${path}: HTTP ${resp.status}, an answer this page does not know`);
+  if (resp.status === 429) throw httpStatusError(`${path}: FastNEAR answered 429, wait before the next read`, resp);
+  if (!resp.ok) throw httpStatusError(`${path}: HTTP ${resp.status}, an answer this page does not know`, resp);
   return (await resp.json()) as T;
 }

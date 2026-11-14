@@ -4,6 +4,8 @@ import { landingCopy as copy } from "./landing-copy.ts";
 import { sampleLabel } from "./sample-label.ts";
 import { screenHeader, turnedOffButton } from "./screen-chrome.ts";
 import { screenLink } from "./screen-route.ts";
+import { isOwnMachineHost } from "./local-host.ts";
+import { drawTryItBox } from "./render-try-it-box.ts";
 
 function itemCard(id: string, block: { kicker: string; title: string; items: { b: string; t: string }[]; note?: string }): HTMLElement {
   return el(
@@ -33,8 +35,10 @@ export function drawLanding(app: HTMLElement, href: string): void {
         turnedOffButton("launch-coin", copy.actions[1].label, copy.launchOffNote),
         el("a", { class: "text-link", id: "see-rules", href: coins }, copy.actions[2].label),
       ),
-      el("div", { class: "proof", id: "proof" }, sampleLabel(copy.proof.label), el("p", {}, copy.proof.sentence)),
+      // The example receipt is made up, so only the visitor's own machine shows it.
+      isOwnMachineHost(new URL(href).hostname) && el("div", { class: "proof", id: "proof" }, sampleLabel(copy.proof.label), el("p", {}, copy.proof.sentence)),
     ),
+    drawTryItBox(),
     el("section", { "aria-label": "The problem", class: "problem" }, el("p", {}, copy.problem)),
     itemCard("buyers-h", copy.buyers),
     itemCard("creators-h", copy.creators),

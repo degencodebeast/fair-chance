@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { chainReader, configFromUrl } from "../src/chain.ts";
 import { fastNearEvents } from "../src/fastnear-events.ts";
+import { HttpStatusError } from "../src/refresher.ts";
 
 const dir = join(import.meta.dirname, "../../testdata/hand-written-fastnear-testnet");
 const coin = "walk.factory.sandbox";
@@ -36,6 +37,13 @@ describe("FastNEAR event source", () => {
     const { fetchFn } = fakeFastNear();
     const { events } = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 25, fetchFn });
     expect(events.map((e) => e.name)).toEqual(["fc_sell"]);
+  });
+
+  it("passes a 429 with its Retry-After on, so the screen can back off", async () => {
+    const fetchFn = (async () => new Response("slow down", { status: 429, headers: { "Retry-After": "20" } })) as typeof fetch;
+    const err = await fastNearEvents({ baseUrl: "https://fastnear.test", coin, since: 0, fetchFn }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpStatusError);
+    expect([(err as HttpStatusError).status, (err as HttpStatusError).retryAfterMs]).toEqual([429, 20_000]);
   });
 
   it("stops on a 403 and does not retry", async () => {
