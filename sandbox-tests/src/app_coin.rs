@@ -6,11 +6,25 @@
 use std::future::Future;
 use std::time::{Duration, Instant};
 
-use anyhow::{bail, Result};
-use near_api::types::AccountId;
+use anyhow::{bail, Context, Result};
+use near_api::types::transaction::result::TransactionResult;
+use near_api::types::{AccountId, CryptoHash, NearToken, Reference};
+use near_api::NetworkConfig;
+use near_openapi_client::types;
+use serde_json::{json, Value};
 
-use crate::option_t::OptionTArguments;
-use crate::rate_limit::{without_urls, Budget};
+use crate::burst::{send_burst, BurstSettings};
+use crate::option_t::{
+    balance, burst_guard, check_after_burst, make_buyer_accounts, measured_block_s,
+    presign_snipers, send_call_s, AfterBurst, OptionTArguments, OptionTReport, OptionTSetup,
+    EARLY_SELL_GAP,
+};
+use crate::pass_list::PassList;
+use crate::rate_limit::{run_budget, with_rate_limit_backoff, without_urls, Budget};
+use crate::spend_guard::check_funder;
+use crate::{
+    account_view, events, launch_args, transaction_hash, view_on, Account, LAUNCH_DEPOSIT,
+};
 
 /// What `--coin` asks for: the coin account and its label, the first part of its name, which
 /// names the runner's accounts (`<label>-buyer-01`, `<label>-later-buyer`).
@@ -191,4 +205,405 @@ where
         }
         tokio::time::sleep(interval).await;
     }
+}
+
+/// The code hash of the testnet coin (the reproducible build the factory deployed; the page's
+/// known-deployments file names the same hash).
+pub const TESTNET_COIN_CODE_HASH: &str = "6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3";
+/// Blocks from the coin's launch block to the read that finds it, in the burst plan: the coin is
+/// in the optimistic head from its launch block, one poll interval and the account read find it,
+/// and one `fc_rules` read follows.
+pub const DETECT_BLOCKS: u64 = 2;
+/// Time between two reads of the coin while it is missing.
+pub const POLL_INTERVAL: Duration = Duration::from_millis(300);
+/// The longest wait for the app's launch; then the run stops with no buy sent.
+pub const COIN_WAIT_LIMIT: Duration = Duration::from_secs(30 * 60);
+/// Blocks before the coin's launch block in which the run looks for the launch transaction.
+pub const LAUNCH_SEARCH_BLOCKS: u64 = 10;
+
+/// The run on a coin the app launched: the Option T report, and what the chain says about the
+/// launch.
+#[derive(Debug)]
+pub struct AppCoinReport {
+    pub run: OptionTReport,
+    pub launch_tx: CryptoHash,
+    pub creator: AccountId,
+    pub launch_block: u64,
+}
+
+/// What one read found when the coin appeared.
+#[derive(Debug, Clone)]
+struct FoundCoin {
+    facts: AppCoinFacts,
+    launch_block: u64,
+    /// The block of the `fc_rules` read: how far the head was when the run found the coin.
+    read_block: u64,
+}
+
+/// One read of the coin at the optimistic head: its account (missing until the launch), then its
+/// `fc_rules`. A node that knows the account but not yet its state counts as missing.
+async fn read_coin(
+    network: &NetworkConfig,
+    coin: &AccountId,
+) -> std::result::Result<Probe<FoundCoin>, String> {
+    let missing = |text: &str| text.contains("UnknownAccount") || text.contains("UNKNOWN_ACCOUNT");
+    let account = match near_api::Account(coin.clone())
+        .view()
+        .at(Reference::Optimistic)
+        .fetch_from(network)
+        .await
+    {
+        Ok(view) => view.data,
+        Err(e) => {
+            let text = format!("{e:?}");
+            return if missing(&text) {
+                Ok(Probe::Missing)
+            } else {
+                Err(text)
+            };
+        }
+    };
+    let rules = match near_api::Contract(coin.clone())
+        .call_function("fc_rules", json!({}))
+        .read_only::<Value>()
+        .at(Reference::Optimistic)
+        .fetch_from(network)
+        .await
+    {
+        Ok(rules) => rules,
+        Err(e) => {
+            let text = format!("{e:?}");
+            return if missing(&text) {
+                Ok(Probe::Missing)
+            } else {
+                Err(text)
+            };
+        }
+    };
+    let launch_block = rules.data["launch_block"]
+        .as_u64()
+        .ok_or_else(|| "fc_rules has no launch_block".to_string())?;
+    let text = |name: &str| rules.data[name].as_str().unwrap_or_default().to_string();
+    Ok(Probe::Found(FoundCoin {
+        facts: AppCoinFacts {
+            account_code_hash: code_hash(&account.contract_state),
+            rules_code_hash: text("code_hash"),
+            creator: text("creator"),
+            early_blocks: rules.data["early_blocks"].as_u64().unwrap_or_default(),
+        },
+        launch_block,
+        read_block: rules.block_height,
+    }))
+}
+
+/// The code hash an account runs: its global or local code hash; otherwise a text that matches no
+/// hash.
+fn code_hash(state: &near_api::types::account::ContractState) -> String {
+    use near_api::types::account::ContractState;
+    match state {
+        ContractState::GlobalHash(hash) | ContractState::LocalHash(hash) => hash.to_string(),
+        ContractState::GlobalAccountId(id) => format!("the code of {id}"),
+        ContractState::None => "no code".to_string(),
+    }
+}
+
+/// The run on a coin the app launches, start to end. Before any signature: the factory makes coins
+/// with the known code, the burst guard passes, and the coin does not exist yet. Then it makes the
+/// buyers, signs every buy and early sell, calls `ready` and waits for the coin. When the coin is
+/// there and passes [`check_app_coin`] and [`check_detection`], it sends the burst at once, finds
+/// the launch transaction on chain and runs the same checks as a run that launches.
+pub async fn run_app_coin(
+    setup: &OptionTSetup,
+    request: &AppCoinRequest,
+    known_code_hash: &str,
+    list: &mut PassList,
+    ready: impl FnOnce(),
+) -> Result<AppCoinReport> {
+    let say = |text: &str| println!("option-t: {text}");
+    let coin = setup.coin()?;
+    if coin != request.coin {
+        bail!(
+            "the run would buy {coin}, not {}; nothing was signed",
+            request.coin
+        );
+    }
+    let funder_before = balance(&setup.network, &setup.funder.id).await?;
+    say(&format!(
+        "make {} buyer accounts{} under {}; the app launches {coin}",
+        setup.buyers,
+        if setup.later_buy.is_zero() {
+            ""
+        } else {
+            " and one later buyer"
+        },
+        setup.funder.id
+    ));
+    let factory_hash = view_on(&setup.network, &setup.factory, "coin_code_hash", json!({})).await?;
+    if factory_hash.as_str() != Some(known_code_hash) {
+        bail!(
+            "the factory {} makes coins with code {factory_hash}, not the known {known_code_hash}; nothing was signed",
+            setup.factory
+        );
+    }
+    let block_s = measured_block_s(&setup.network).await?;
+    let (_, first_estimate) =
+        burst_guard(setup, block_s, send_call_s(setup).await?, DETECT_BLOCKS)?;
+    say(&format!(
+        "burst guard before any signature: {block_s:.4} s per block; the last early sell lands by block {first_estimate} (estimate)"
+    ));
+    if account_view(&setup.network, &coin).await?.is_some() {
+        bail!("{coin} exists already; the run must wait before the app launches it. Nothing was signed");
+    }
+    let (buyers, later) = make_buyer_accounts(setup).await?;
+    check_funder(
+        setup.limits.as_ref(),
+        &setup.network,
+        &setup.funder.id,
+        NearToken::from_yoctonear(0),
+        "the wait for the coin",
+    )
+    .await?;
+
+    let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
+    let (snipers, send_s) = presign_snipers(setup, &coin, &buyers).await?;
+    let (burst_timing, estimate) = burst_guard(setup, block_s, send_s, DETECT_BLOCKS)?;
+    say(&format!(
+        "signed {} buys and {} early sells before the coin exists; {block_s:.4} s per block, {:.2} s per send call; the last early sell lands by block {estimate} of 0 to {early_blocks} (estimate)",
+        snipers.len(),
+        snipers.len(),
+        burst_timing.send_s
+    ));
+    say(&format!(
+        "waiting for {coin}: a read every {} ms, {} min at most; launch it in the app now",
+        POLL_INTERVAL.as_millis(),
+        COIN_WAIT_LIMIT.as_secs() / 60
+    ));
+    ready();
+    let found = wait_for_app_coin(
+        || read_coin(&setup.network, &coin),
+        POLL_INTERVAL,
+        run_budget(),
+        COIN_WAIT_LIMIT,
+    )
+    .await?;
+    let lag = found.read_block.saturating_sub(found.launch_block);
+    check_app_coin(
+        &found.facts,
+        &setup.funder.id,
+        known_code_hash,
+        early_blocks,
+    )?;
+    check_detection(&burst_timing, early_blocks, lag)?;
+    let started = Instant::now();
+    let burst = send_burst(
+        &setup.network,
+        &setup.send_network,
+        snipers,
+        BurstSettings {
+            early_sell_gap: EARLY_SELL_GAP,
+            send_delay: setup.send_delay,
+        },
+    )
+    .await?;
+    let seconds = started.elapsed().as_secs_f64();
+    say(&format!(
+        "found {coin} in block {lag} after its launch block {}: creator {}, code {}",
+        found.launch_block, found.facts.creator, found.facts.account_code_hash
+    ));
+    let creator: AccountId = found.facts.creator.parse()?;
+    let (launch_tx, launched) = find_launch_tx(
+        &setup.network,
+        &setup.factory,
+        &creator,
+        &coin,
+        found.launch_block,
+    )
+    .await?;
+    say(&format!(
+        "launch tx {launch_tx} by {creator}, read from the chain"
+    ));
+    let run = check_after_burst(
+        setup,
+        list,
+        AfterBurst {
+            coin: &coin,
+            creator: None,
+            buyers: &buyers,
+            later: later.as_ref(),
+            launched: &launched,
+            burst,
+            seconds,
+            block_s,
+            funder_before,
+        },
+    )
+    .await?;
+    Ok(AppCoinReport {
+        run,
+        launch_tx,
+        creator,
+        launch_block: found.launch_block,
+    })
+}
+
+/// The block at `height`, or `None` when the chain has no block there (a skipped height).
+async fn block_at(
+    network: &NetworkConfig,
+    height: u64,
+) -> Result<Option<near_api::types::RpcBlockResponse>> {
+    with_rate_limit_backoff(&format!("block {height}"), run_budget(), || async {
+        match near_api::Chain::block()
+            .at(Reference::AtBlock(height))
+            .fetch_from(network)
+            .await
+        {
+            Ok(block) => Ok(Some(block)),
+            Err(e) if format!("{e:?}").contains("UnknownBlock") => Ok(None),
+            Err(e) => Err(e),
+        }
+    })
+    .await
+}
+
+/// Finds the launch transaction of `coin` on chain: in the chunks of the blocks from
+/// [`LAUNCH_SEARCH_BLOCKS`] before the launch block up to it, a transaction of `creator` to the
+/// factory whose outcome logs `fc_launch` for `coin`. Reads only; the first read RPC answers.
+pub async fn find_launch_tx(
+    network: &NetworkConfig,
+    factory: &AccountId,
+    creator: &AccountId,
+    coin: &AccountId,
+    launch_block: u64,
+) -> Result<(CryptoHash, TransactionResult)> {
+    let endpoint = network
+        .rpc_endpoints
+        .first()
+        .context("the read network has no RPC")?;
+    let client = near_openapi_client::Client::new(endpoint.url.as_str().trim_end_matches('/'));
+    let from = launch_block.saturating_sub(LAUNCH_SEARCH_BLOCKS);
+    let mut candidates = Vec::new();
+    for height in from..=launch_block {
+        let Some(block) = block_at(network, height).await? else {
+            continue;
+        };
+        for chunk in &block.chunks {
+            // A chunk header repeated from an earlier block holds no new transaction.
+            if chunk.height_included != height {
+                continue;
+            }
+            let request = types::JsonRpcRequestForChunk {
+                id: "fc".to_string(),
+                jsonrpc: "2.0".to_string(),
+                method: types::JsonRpcRequestForChunkMethod::Chunk,
+                params: types::RpcChunkRequest::ChunkHash {
+                    chunk_id: chunk.chunk_hash.clone(),
+                },
+            };
+            let answer = with_rate_limit_backoff(
+                &format!("a chunk of block {height}"),
+                run_budget(),
+                || client.chunk(&request),
+            )
+            .await?
+            .into_inner();
+            let chunk = match answer {
+                types::JsonRpcResponseForRpcChunkResponseAndRpcChunkError::Variant0 {
+                    result,
+                    ..
+                } => result,
+                types::JsonRpcResponseForRpcChunkResponseAndRpcChunkError::Variant1 {
+                    error,
+                    ..
+                } => bail!(
+                    "a chunk of block {height} gave an error: {}; stopped",
+                    without_urls(&format!("{error:?}"))
+                ),
+            };
+            for tx in chunk.transactions {
+                if &tx.receiver_id == factory && &tx.signer_id == creator {
+                    candidates.push(CryptoHash::from(tx.hash));
+                }
+            }
+        }
+    }
+    for hash in candidates {
+        let outcome =
+            with_rate_limit_backoff(&format!("the status of tx {hash}"), run_budget(), || {
+                near_api::Transaction::status_with_options(
+                    creator.clone(),
+                    hash,
+                    near_api::types::TxExecutionStatus::Final,
+                )
+                .fetch_from(network)
+            })
+            .await?;
+        let result = TransactionResult::Full(Box::new(outcome));
+        let names_coin = events(&result, "fair_chance_factory", "fc_launch")
+            .iter()
+            .any(|e| e.event["data"][0]["coin"] == coin.as_str());
+        if result.is_success() && names_coin {
+            return Ok((hash, result));
+        }
+    }
+    bail!(
+        "no transaction of {creator} to {factory} that logs fc_launch for {coin} in blocks {from} to {launch_block}"
+    )
+}
+
+/// A stand-in for the app, for a sandbox rehearsal only: when `go` fires (the runner waits for the
+/// coin), it waits a random time up to `max_delay`, then `launcher` launches the coin `<label>`
+/// through the factory, as the app's launch form does. Returns the launch transaction's hash.
+pub async fn stand_in_launch(
+    network: NetworkConfig,
+    factory: AccountId,
+    launcher: Account,
+    label: String,
+    max_delay: Duration,
+    go: tokio::sync::oneshot::Receiver<()>,
+) -> Result<CryptoHash> {
+    go.await
+        .context("the runner stopped before it waited for the coin")?;
+    let delay = random_delay(max_delay);
+    println!(
+        "stand-in: the app launches {label} as {} in {:.1} s",
+        launcher.id,
+        delay.as_secs_f64()
+    );
+    tokio::time::sleep(delay).await;
+    let launched = near_api::Contract(factory)
+        .call_function(
+            "launch",
+            launch_args(
+                "Cabal Test",
+                &label.to_uppercase(),
+                None,
+                Some("A stand-in launch for a sandbox rehearsal."),
+                None,
+            ),
+        )
+        .transaction()
+        .deposit(LAUNCH_DEPOSIT)
+        .gas(near_api::types::NearGas::from_tgas(300))
+        .with_signer(launcher.id.clone(), launcher.signer.clone())
+        .send_to(&network)
+        .await?;
+    if !launched.is_success() {
+        bail!("the stand-in launch failed: {launched:?}");
+    }
+    let hash = transaction_hash(&launched)?;
+    println!("stand-in: launch tx {hash}");
+    Ok(hash)
+}
+
+/// A delay from 0 up to `max`, from the clock's nanoseconds: enough spread for a rehearsal.
+fn random_delay(max: Duration) -> Duration {
+    let millis = max.as_millis();
+    if millis == 0 {
+        return Duration::ZERO;
+    }
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or_default();
+    Duration::from_millis((u128::from(nanos) % millis) as u64)
 }

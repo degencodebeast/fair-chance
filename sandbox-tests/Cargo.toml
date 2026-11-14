@@ -10,9 +10,12 @@ description = "Fair Chance sandbox tests and the walking-path runner."
 anyhow = "1"
 rule_engine = { package = "fair-chance-rule-engine", path = "../rule-engine" }
 near-api = "0.8.7"
+# The chunk reads that find a launch transaction on chain; near-api has no chunk call. Already in
+# the lock through near-api.
+near-openapi-client = "0.8.0"
 near-sandbox = { version = "0.3.16", features = ["generate"] }
 serde_json.workspace = true
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "signal"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "time", "signal", "sync"] }
 
 [dev-dependencies]
 ethnum = "1"

@@ -961,6 +961,7 @@ dependencies = [
  "ethnum",
  "fair-chance-rule-engine",
  "near-api",
+ "near-openapi-client",
  "near-sandbox",
  "serde_json",
  "tokio",
