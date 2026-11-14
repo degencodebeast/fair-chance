@@ -430,14 +430,14 @@ def cap_cases(output=None):
                         token_base_floor(requested) if amount_base is None else amount_base)
         prior_penalty=e.band_penalties;cap_left_before=e.cap_left(h);filled,paid=e.sell(name,requested,h,block,wanted_base=requested_base);class_after=e.account_class(name,h);reason=e.last_limit_reason.get(name)
         filled_base=e.last_sell_tokens_base.get(name,0)
-        action={'account':name,'kind':'sell','amount':'all' if all_balance else (str(amount_base) if amount_base is not None else unit(requested,1e18)),'time_s':second,'block':block,
+        action={'account':name,'kind':'sell','amount':'all' if all_balance else str(requested_base),'time_s':second,'block':block,
                 'result':{'tokens_filled_base':str(filled_base),'near_out_yocto':unit(paid,1e24),'counted_near_yocto':unit(e.last_counted_near.get(name,0.),1e24),'fill':'full' if filled_base>=requested_base else ('none' if filled_base==0 else 'partial'),'limit_reason':reason,'penalty_near':unit(e.band_penalties-prior_penalty,1e24),'cap_used_yocto':unit(e.cap_used(h),1e24),'cap_left_before_yocto':unit_floor(cap_left_before,1e24),'cap_left_yocto':unit_floor(e.cap_left(h),1e24),'class_before':class_before,'class_after':class_after}}
         if e.last_refusal_code.get(name):action['result']['refusal_code']=e.last_refusal_code[name]
         actions.append(action)
     p=Policy(17,.02,None,.1)
     # The band holder starts at 2%; a buy crosses the 5% threshold.
     band_policy=Policy(17,.05,None,.1);e=Engine(band_policy,Pool(token=SUPPLY-20_000_000.,near=100.,real=0.));e.wallet('band').tokens=20_000_000.;state=start(e);actions=[];buy(e,actions,'band',4.,100);sell(e,actions,'band','all',1);case('threshold-cross-at-2-percent',state,actions,note='Cap is measured in real NEAR.')
-    e=Engine(band_policy,Pool(token=SUPPLY-20_000_000.,near=105.,real=5.));e.wallet('band').tokens=20_000_000.;state=start(e);actions=[];buy(e,actions,'band',.1,100);sell(e,actions,'band',e.wallet('band').tokens,1);case('band-sell-above-allowance',state,actions)
+    e=Engine(band_policy,Pool(token=SUPPLY-20_000_000.,near=105.,real=5.));e.wallet('band').tokens=20_000_000.;state=start(e);actions=[];buy(e,actions,'band',.1,100);sell(e,actions,'band','all',1);case('band-sell-above-allowance',state,actions)
     e=Engine(band_policy,Pool(token=SUPPLY-12_000_000.,near=110.,real=10.));e.wallet('band').tokens=12_000_000.;state=start(e);actions=[];sell(e,actions,'band',5_000_000.,0);sell(e,actions,'band',7_000_000.,1);case('band-class-floor-two-sells',state,actions)
     # Each launch-relative block has an explicit buy vector.
     for b in range(18):
@@ -465,7 +465,7 @@ def cap_cases(output=None):
         case(f'order-independence-{"buy-first" if buy_first else "sell-first"}',state,actions)
     e=Engine(p,Pool(token=SUPPLY-11_000_000.,near=110.,real=10.));e.wallet('band').tokens=11_000_000.;state=start(e);actions=[]
     for i in range(10):
-        second=2*i;out=buy(e,actions,'band',.01,100,second);sell(e,actions,'band',out,second+1)
+        second=2*i;buy(e,actions,'band',.01,100,second);bought_base=e.pool.last_buy_tokens_base;sell(e,actions,'band',bought_base/1e18,second+1,amount_base=bought_base)
     buy(e,actions,'band',1.2,100,20);sell(e,actions,'band','all',21);case('band-round-trip-credit',state,actions)
     e=Engine(band_policy,Pool(token=SUPPLY-40_000_000.,near=110.,real=10.));holder=e.wallet('holder');holder.tokens=40_000_000;holder.marked=20_000_000;holder.ever_large=True
     e.wallet('cap-other');e.cap_net['cap-other',0]=CAP*e.pool.real
@@ -506,7 +506,7 @@ def cap_cases(output=None):
     sell(e,actions,'band',25_000_000,1);case('band-above-allowance-cap-left',state,actions)
     # Marked payout is gross; a later unmarked resale is netted separately.
     e=Engine(p,Pool(token=SUPPLY-1_000_000.,near=110.,real=10.));e.wallet('marked').tokens=1_000_000;e.wallet('marked').marked=1_000_000
-    state=start(e);actions=[];sell(e,actions,'marked','all',1);buy(e,actions,'marked',.1,100,2);bought_base=e.pool.last_buy_tokens_base;sell(e,actions,'marked',bought_base/1e18,3,amount_base=bought_base)
+    state=start(e);actions=[];sell(e,actions,'marked','all',1);buy(e,actions,'marked',.1,100,2);sell(e,actions,'marked','all',3)
     case('marked-sell-buy-resell',state,actions)
     # The same account's resale and another marked holder compete for one cap.
     e=Engine(p,Pool(token=SUPPLY-20_000_000.,near=200.,real=100.));e.wallet('a').tokens=10_000_000;e.wallet('a').marked=10_000_000
@@ -521,12 +521,12 @@ def cap_cases(output=None):
     e=Engine(p,Pool(token=SUPPLY-200_000_000.,near=110.,real=10.));e.wallet('small-buyer')
     e.wallet('cap-other');e.wallet('price-buyer');e.wallet('large-seller').tokens=200_000_000;e.wallet('large-seller').ever_large=True
     e.cap_net['cap-other',0]=CAP*e.pool.real;state=start(e);actions=[]
-    bought=buy(e,actions,'small-buyer',.1,100,1);buy(e,actions,'price-buyer',10.,100,2)
-    sell(e,actions,'large-seller',2_900_000,3);sell(e,actions,'small-buyer',bought,4)
+    buy(e,actions,'small-buyer',.1,100,1);buy(e,actions,'price-buyer',10.,100,2)
+    sell(e,actions,'large-seller',2_900_000,3);sell(e,actions,'small-buyer','all',4)
     case('small-buy-price-rise-cap',state,actions)
     # A holder with old unmarked tokens resells a same-window buy after its marked allowance.
     e=Engine(p,Pool(token=SUPPLY-30_000_000.,near=110.,real=10.));e.wallet('mixed').tokens=30_000_000;e.wallet('mixed').marked=10_000_000;e.wallet('mixed').ever_large=True
-    state=start(e);actions=[];sell(e,actions,'mixed','all',1);bought=buy(e,actions,'mixed',.1,100,2);sell(e,actions,'mixed',bought,3)
+    state=start(e);actions=[];sell(e,actions,'mixed','all',1);buy(e,actions,'mixed',.1,100,2);bought_base=e.pool.last_buy_tokens_base;sell(e,actions,'mixed',bought_base/1e18,3,amount_base=bought_base)
     case('marked-and-unmarked-old-plus-buy-resell',state,actions)
     # Marked sales reduce the later unmarked floor within the same 1-hour window.
     e=Engine(band_policy,Pool(token=SUPPLY-40_000_000.,near=110.,real=10.));holder=e.wallet('holder');holder.tokens=30_000_000;holder.marked=10_000_000;holder.ever_large=True

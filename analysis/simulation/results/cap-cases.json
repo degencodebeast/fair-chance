@@ -159,7 +159,7 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "20923129620643392000000000",
+          "amount": "all",
           "time_s": 1,
           "block": 100,
           "result": {
@@ -2070,12 +2070,12 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001989820916100000000",
+          "amount": "89001989820916117549420",
           "time_s": 1,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001989820916100000000",
-            "near_out_yocto": "9801008909198170000000",
+            "tokens_filled_base": "89001989820916117549420",
+            "near_out_yocto": "9801008909198172000000",
             "counted_near_yocto": "9801008909198170000000",
             "fill": "full",
             "limit_reason": null,
@@ -2107,13 +2107,13 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001828830214350000000",
+          "amount": "89001828830214344261210",
           "time_s": 3,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001828830214350000000",
-            "near_out_yocto": "9801008909182060000000",
-            "counted_near_yocto": "9801008909182060000000",
+            "tokens_filled_base": "89001828830214344261210",
+            "near_out_yocto": "9801008909182058000000",
+            "counted_near_yocto": "9801008909182058000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
@@ -2144,11 +2144,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001667840094960000000",
+          "amount": "89001667840094967819969",
           "time_s": 5,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001667840094960000000",
+            "tokens_filled_base": "89001667840094967819969",
             "near_out_yocto": "9801008909165942000000",
             "counted_near_yocto": "9801008909165942000000",
             "fill": "full",
@@ -2181,11 +2181,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001506850557980000000",
+          "amount": "89001506850557993155675",
           "time_s": 7,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001506850557980000000",
+            "tokens_filled_base": "89001506850557993155675",
             "near_out_yocto": "9801008909149827000000",
             "counted_near_yocto": "9801008909149827000000",
             "fill": "full",
@@ -2218,11 +2218,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001345861603420000000",
+          "amount": "89001345861603417107967",
           "time_s": 9,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001345861603420000000",
+            "tokens_filled_base": "89001345861603417107967",
             "near_out_yocto": "9801008909133714000000",
             "counted_near_yocto": "9801008909133714000000",
             "fill": "full",
@@ -2255,13 +2255,13 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001184873231240000000",
+          "amount": "89001184873231228426293",
           "time_s": 11,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001184873231240000000",
-            "near_out_yocto": "9801008909117597000000",
-            "counted_near_yocto": "9801008909117597000000",
+            "tokens_filled_base": "89001184873231228426293",
+            "near_out_yocto": "9801008909117595000000",
+            "counted_near_yocto": "9801008909117595000000",
             "fill": "full",
             "limit_reason": null,
             "penalty_near": "0",
@@ -2292,12 +2292,12 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89001023885441420000000",
+          "amount": "89001023885441423950425",
           "time_s": 13,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89001023885441420000000",
-            "near_out_yocto": "9801008909101480000000",
+            "tokens_filled_base": "89001023885441423950425",
+            "near_out_yocto": "9801008909101482000000",
             "counted_near_yocto": "9801008909101480000000",
             "fill": "full",
             "limit_reason": null,
@@ -2329,11 +2329,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000862898234030000000",
+          "amount": "89000862898234016700473",
           "time_s": 15,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000862898234030000000",
+            "tokens_filled_base": "89000862898234016700473",
             "near_out_yocto": "9801008909085368000000",
             "counted_near_yocto": "9801008909085368000000",
             "fill": "full",
@@ -2366,11 +2366,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000701911608970000000",
+          "amount": "89000701911608971155570",
           "time_s": 17,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000701911608970000000",
+            "tokens_filled_base": "89000701911608971155570",
             "near_out_yocto": "9801008909069252000000",
             "counted_near_yocto": "9801008909069252000000",
             "fill": "full",
@@ -2403,11 +2403,11 @@
         {
           "account": "band",
           "kind": "sell",
-          "amount": "89000540925566300000000",
+          "amount": "89000540925566308426028",
           "time_s": 19,
           "block": 100,
           "result": {
-            "tokens_filled_base": "89000540925566300000000",
+            "tokens_filled_base": "89000540925566308426028",
             "near_out_yocto": "9801008909053137000000",
             "counted_near_yocto": "9801008909053137000000",
             "fill": "full",
@@ -3115,7 +3115,7 @@
         {
           "account": "marked",
           "kind": "sell",
-          "amount": "900081007290656069046214",
+          "amount": "all",
           "time_s": 3,
           "block": 100,
           "result": {
@@ -3525,7 +3525,7 @@
         {
           "account": "small-buyer",
           "kind": "sell",
-          "amount": "719352582675591900000000",
+          "amount": "all",
           "time_s": 4,
           "block": 100,
           "result": {
@@ -3632,7 +3632,7 @@
         {
           "account": "mixed",
           "kind": "sell",
-          "amount": "879851173965764500000000",
+          "amount": "879851173965764377498814",
           "time_s": 3,
           "block": 100,
           "result": {

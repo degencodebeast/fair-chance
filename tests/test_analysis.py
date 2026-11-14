@@ -371,8 +371,17 @@ class SimulationTests(unittest.TestCase):
             self.assertEqual(c['actions'][1]['result']['fill'],'partial')
             self.assertEqual(c['actions'][1]['result']['limit_reason'],'cap_full')
         marked_resell=next(c for c in data['cases'] if c['name']=='marked-sell-buy-resell')
-        self.assertEqual(marked_resell['actions'][2]['amount'],marked_resell['actions'][1]['result']['tokens_filled_base'])
+        self.assertEqual(marked_resell['actions'][2]['amount'],'all')
+        self.assertEqual(marked_resell['actions'][2]['result']['tokens_filled_base'],marked_resell['actions'][1]['result']['tokens_filled_base'])
         self.assertEqual(marked_resell['actions'][2]['result']['fill'],'full')
+        for name in ('band-sell-above-allowance','small-buy-price-rise-cap'):
+            c=next(c for c in data['cases'] if c['name']==name)
+            self.assertEqual(c['actions'][-1]['amount'],'all')
+        credit=next(c for c in data['cases'] if c['name']=='band-round-trip-credit')
+        for i in range(1,20,2):
+            self.assertEqual(credit['actions'][i]['amount'],credit['actions'][i-1]['result']['tokens_filled_base'])
+        old_plus_buy=next(c for c in data['cases'] if c['name']=='marked-and-unmarked-old-plus-buy-resell')
+        self.assertEqual(old_plus_buy['actions'][-1]['amount'],old_plus_buy['actions'][-2]['result']['tokens_filled_base'])
         small_round=next(c for c in data['cases'] if c['name']=='small-buy-sell-at-full-cap')
         self.assertEqual(small_round['actions'][-1]['result']['fill'],'full')
         price_rise=next(c for c in data['cases'] if c['name']=='small-buy-price-rise-cap')
