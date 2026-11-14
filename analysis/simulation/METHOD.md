@@ -29,8 +29,9 @@ Unmarked sell room nets tokens bought against tokens sold. For cap accounting,
 a sell consumes marked tokens first, then tokens bought in the current window,
 then tokens held from before it. Current-window purchases count toward the cap
 for every class, including small holders. A small holder's sale of older tokens
-does not count. For a band wallet, only `allowance - tokens already sold` is
-penalty-free; the allowance portion fills and the rest pays the configured
+does not count. For a band wallet, penalty-free room is
+`max(0, allowance + tokens bought - tokens sold)`; that allowance portion fills
+and the rest pays the configured
 10/20/30% penalty and is cap-limited. Large and marked sales remain
 allowance-limited. For every account, cap usage is gross marked NEAR out plus
 the maximum of zero and its other counted sell payouts minus buys. Uncounted
@@ -65,8 +66,9 @@ The early buy fee is `1% + 49% × (18 − b) / 18` for launch-relative blocks
 
 The main grid is T=2%, N={5,17,50}, D={off,10%,20%,30%}, penalty={10%,20%,30%},
 s={0%,30%}. T=1% and 5% plus 10-minute and 24-hour windows are sensitivity
-checks. Test 11 scales marked early supply to 9%, 23%, and 41%, retaining a
-0.05 NEAR early buyer at block 3.
+checks. Test 11 scales all marked wallet balances and their integer base-unit
+balances together to early supply shares of 9%, 23%, and 41%, retaining a
+0.05 NEAR early buyer at block 3, and measures the `early-0` holder's exit.
 
 `results/cap-cases.json` contains the 1.0.0-rc.7 contract-comparison vectors.
 It includes both one-floor sell orders, a marked sell held at the cap with the
@@ -77,20 +79,22 @@ floored from a high-precision decimal quote; gross output, fees and penalties
 are quantized to yoctoNEAR. `cap_left` is calculated from binary-float pool and
 cap state, then serialized by rounding down.
 
-The simulation is derived from the published rules. Contract code was consulted
-only to settle implementation details: class is large while its large flag
-remains set, class floors are recorded before an action and raised after it,
-a marked sell in blocks 0 to N refuses the whole sell, each sell is one swap,
-and the cap check uses real NEAR after the actual net payout, including the
-penalty retained in the pool. The rc.7 `cap_left` formula was implemented from
-the interface text and checked against the pool's post-sell equation. These
-details are implemented independently in Python. After the sell-amount fixes,
-the remaining differences reported by the reviewer are numeric only: the
-`cap_left_yocto` field can differ by up to 1e9 yoctoNEAR because pool reserves
-and cap records remain binary floats. The affected cases are
+The sell planner follows the structure of the contract's fill plan: marked
+tokens first, allowance and floor constraints, integer fill search, and the
+contract's `limit_reason` order. Pool math, class rules, and test scenarios are
+written separately from the contract. Code was consulted to settle specific
+implementation details: class is large while its large flag remains set,
+class floors are recorded before an action and raised after it, a marked sell
+in blocks 0 to N refuses the whole sell, each sell is one swap, and the cap
+check uses real NEAR after the actual net payout, including the penalty
+retained in the pool. The `cap_left` formula comes from the interface text and
+was checked against the pool's post-sell equation. After the sell-amount fixes,
+the remaining differences are numeric only: `cap_left_yocto` and
+`cap_left_before_yocto` may differ by up to 1e9 yoctoNEAR because pool state is
+binary floats. The affected cases are
 `band-sell-above-allowance`, `post-sell-cap-s-0`, `post-sell-cap-s-30`,
 `band-round-trip-credit`, `small-buy-price-rise-cap`, and
-`marked-and-unmarked-old-plus-buy-resell`; the reviewer accepts this tolerance.
+`marked-and-unmarked-old-plus-buy-resell`.
 rc.6 resolved the earlier band allowance wording difference.
 
 The model stores reserve state as binary floats and uses high-precision decimal

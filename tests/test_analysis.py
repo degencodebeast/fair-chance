@@ -105,6 +105,12 @@ class SimulationTests(unittest.TestCase):
         e = sim.Engine(self.policy()); e.buy("creator", 4, 0, True, 0, True)
         self.assertEqual(e.buy("creator.child", 1_000, 1, creator=True), 0)
 
+    def test_creator_group_transfer_stops_at_four_percent(self):
+        e=sim.Engine(sim.Policy(17,.5,None,.1));e.wallet('sender').tokens=50_000_000
+        self.assertTrue(e.transfer('sender','creator',40_000_000,100,target_creator=True,hour=1))
+        self.assertEqual(e.creator_tokens(),40_000_000)
+        self.assertFalse(e.transfer('sender','creator',1,100,target_creator=True,hour=1))
+
     def test_post_sell_cap_uses_real_near_left(self):
         e = sim.Engine(self.policy(), sim.Pool(near=110, real=10)); w = e.wallet("large")
         w.tokens = sim.SUPPLY / 2; w.ever_large = True
@@ -176,6 +182,63 @@ class SimulationTests(unittest.TestCase):
         self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-200_000,places=6)
         e.marked_sold_hour['big',e.cap_bucket(1)]=300_000
         self.assertAlmostEqual(e.floor_tokens('big',1,False),sim.FLOOR*sim.SUPPLY-500_000,places=6)
+
+    def test_marked_floor_uses_24h_reserve_and_subtracts_unmarked_sales(self):
+        e=sim.Engine(self.policy(),sim.Pool(token=331_000_000,near=110,real=10))
+        e.wallet('holder').tokens=100_000_000;e.wallet('holder').marked=100_000_000
+        e.reserve_snaps[1]=331_000_000
+        e.snaps[0]=({'holder':100_000_000},100_000_000,480_000_000)
+        e.unmarked_sold['holder',1]=12_345
+        self.assertEqual(e.floor_tokens('holder',1,True),480_000-12_345)
+
+    def test_small_seller_counts_window_buy_and_can_sell_old_balance(self):
+        e=sim.Engine(self.policy(),sim.Pool(near=110,real=10));e.wallet('other')
+        e.cap_net['other',1]=sim.CAP*e.pool.real;e.wallet('small').tokens=100_000
+        e.buy('small',.1,1,block=100);balance=e.wallet_base('small')
+        filled,_=e.sell('small',e.wallet('small').tokens,1,wanted_base=balance)
+        self.assertEqual(e.last_sell_tokens_base['small'],balance)
+        self.assertGreater(e.last_counted_near['small'],0)
+        self.assertEqual(e.cap_used(1),sim.CAP*10)
+
+    def test_transfer_debits_marked_tokens_first(self):
+        e=sim.Engine(self.policy());sender=e.wallet('sender');sender.tokens=100;sender.marked=60
+        self.assertTrue(e.transfer('sender','receiver',50,100,hour=1))
+        self.assertEqual(sender.marked_base,10*sim.TOKEN_BASE)
+        self.assertEqual(sender.tokens_base,50*sim.TOKEN_BASE)
+        self.assertEqual(e.wallet_base('receiver',True),50*sim.TOKEN_BASE)
+
+    def test_band_boundary_is_strictly_above_small_allowance(self):
+        boundary=sim.ALLOWANCE*sim.SUPPLY
+        small=sim.Engine(self.policy());small.wallet('holder').tokens=boundary
+        above=sim.Engine(self.policy());above.wallet('holder').tokens=boundary+1
+        self.assertEqual(small.live_class('holder',0),'small')
+        self.assertEqual(above.live_class('holder',0),'band')
+
+    def test_brake_trips_at_exact_drop_boundary(self):
+        e=sim.Engine(sim.Policy(17,.5,.125,.1),sim.Pool(token=8,near=7,real=0))
+        e.wallet('band').tokens=1;e.prices[e.cap_bucket(1)]=1.
+        filled,_=e.sell('band',1,1)
+        self.assertEqual(e.brakes,1)
+        self.assertEqual(e.last_sell_tokens_base['band'],sim.token_base_floor(sim.ALLOWANCE*8))
+        self.assertLess(filled,1)
+
+    def test_marked_out_uses_ceil_yocto_rounding(self):
+        e=sim.Engine(self.policy(),sim.Pool(token=1e9,near=1e-15,real=1e-15))
+        marked_base=1_002*sim.TOKEN_BASE;unmarked_base=10_000*sim.TOKEN_BASE
+        gross_yocto=int(sim.unit_floor(e.pool.gross(sim.token_amount(marked_base)),1e24))
+        q=e.quote_sell('holder',marked_base,unmarked_base,0,0,float('inf'),1)
+        expected=(gross_yocto*99+99)//100
+        floored=(gross_yocto*99)//100
+        self.assertEqual(expected,floored+1)
+        self.assertEqual(int(sim.unit(q['marked_out'],1e24)),expected)
+
+    def test_test11_scales_integer_wallet_balances_with_marked_supply(self):
+        e=sim.seed(self.policy());sim.scale_marked_supply(e,.41)
+        expected=sim.token_base_floor(Decimal('.41')*Decimal(str(sim.SUPPLY)))
+        self.assertEqual(sum(w.marked_base for w in e.wallets.values()),expected)
+        self.assertTrue(all(w.tokens_base==w.marked_base for w in e.wallets.values() if w.marked_base))
+        result=sim.early_exit(self.policy(),.41)
+        self.assertAlmostEqual(result['remaining_marked_tokens'],22_847_279.47834015,places=3)
 
     def test_marked_sell_preserves_unmarked_balance(self):
         e=sim.Engine(self.policy(),sim.Pool(token=sim.SUPPLY,near=200,real=100));w=e.wallet('holder')
@@ -400,6 +463,12 @@ class SimulationTests(unittest.TestCase):
                         self.assertEqual(action['result']['fill'],'none')
                     else:self.assertNotIn('refusal_code',action['result'])
                     self.assertEqual(action['time_s'],int(action['time_s']))
+
+    def test_cap_cases_regenerate_committed_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            generated=Path(tmp)/'cap-cases.json';sim.cap_cases(generated)
+            committed=ROOT/'analysis/simulation/results/cap-cases.json'
+            self.assertEqual(generated.read_bytes(),committed.read_bytes())
 
     def test_runs_are_deterministic(self):
         a, b = sim.normal(self.policy()), sim.normal(self.policy())

@@ -177,8 +177,8 @@ class Engine:
     def floor_tokens(self, name, hour, marked):
         reserve=self.reserve_snapshot(hour);cap_bucket=self.cap_bucket(hour)
         if marked:
-            bucket=self.bucket(hour,True);amounts,total,_=self.snaps[bucket]
-            allowance=FLOOR*reserve*amounts.get(name,0.)/total if total else 0.
+            bucket=self.bucket(hour,True);amounts,total,marked_reserve=self.snaps[bucket]
+            allowance=FLOOR*marked_reserve*amounts.get(name,0.)/total if total else 0.
             used=self.marked_sold[name,bucket]+self.unmarked_sold[name,cap_bucket]
         else:
             allowance=FLOOR*reserve
@@ -367,10 +367,21 @@ def creator_exit(p,snipers=False):
         e.sell('creator',e.wallet('creator').tokens,h)
         if e.wallet('creator').tokens<1:break
     return {'start_tokens':start,'remaining_tokens':e.wallet('creator').tokens,'days':h/24,'exit_status':'out' if e.wallet('creator').tokens<1 else 'not out by day 60'}
+def scale_marked_supply(e,share):
+    wallets=[w for w in e.wallets.values() if e.wallet_base(w.name,True)>0]
+    total=sum(e.wallet_base(w.name,True) for w in wallets)
+    target=token_base_floor(Decimal(str(share))*Decimal(str(SUPPLY)))
+    scaled=[]
+    for w in wallets:
+        base=e.wallet_base(w.name,True);whole,remainder=divmod(base*target,total)
+        scaled.append([w,whole,remainder])
+    leftover=target-sum(item[1] for item in scaled)
+    for item in sorted(scaled,key=lambda item:(-item[2],item[0].name))[:leftover]:item[1]+=1
+    for w,base,_ in scaled:
+        w.marked_base=w.tokens_base=base
+        w.marked=w.tokens=base/TOKEN_BASE
 def early_exit(p,share):
-    e=seed(p);total=sum(w.marked for w in e.wallets.values());f=share*SUPPLY/total
-    for w in e.wallets.values():
-        if w.marked:w.marked*=f;w.tokens=w.marked
+    e=seed(p);scale_marked_supply(e,share)
     w=e.wallet('early-0')
     for h in range(1440):
         e.sell(w.name,w.tokens,h)
