@@ -235,13 +235,30 @@ flowchart LR
 
 ## Network
 
-The testnet buys in the recorded run landed after the early window. So the early fee and marked tokens show on the sandbox, not on testnet. The early window is blocks 0 to 17. It lasts about 10.5 seconds at the measured testnet block time: 0.5812 seconds per block, from 1,000 final blocks in 581.165 seconds. <!-- waits on: evidence/testnet-run.json (the recorded run that this paragraph describes) -->
+Testnet only. Testnet NEAR and these tokens have no value.
 
-<!-- waits on: the testnet deploy (factory account, coin code hash, deployed commit, explorer links) -->
+- Factory: `factory.fairchance.testnet`
+- Demo coin BAG: `bag.factory.fairchance.testnet`
+- Coin code hash: `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3`
+- Launch of BAG: [explorer](https://testnet.nearblocks.io/txns/8imSWsNDvu6xSJtBdeEZ4x4URWPoYCjuhjf5D93UYHKZ "claim: launch")
 
-The code hash of the deployed coin is a reproducible-build hash of one commit.
+- Deployed commit, from the coin's source metadata: `b42fdde`
 
-<!-- waits on: the deployed commit and its code hash (they come with the testnet deploy): the line "Deployed commit <commit>, code hash <hash>" goes here -->
+<!-- waits on: the line that says the factory keys are deleted -->
+
+The coin's source metadata lists a non-reproducible build command, so the match between a reproducible build of that commit and the hash above is not shown yet. <!-- waits on: the reproducible build of that commit and the hash it prints (match or no match) -->
+
+### Recorded testnet runs
+
+Three runs are recorded, each in a file in `evidence/`. Text here gives group totals and percentages. Each sell and each hash is in the file. The two early-supply totals were read from `fc_early_window.shared_allowance_used` on the chain; the other amounts are rounded as the run log printed them.
+
+- **BAG** ([`evidence/testnet-run.json`](evidence/testnet-run.json)). 20 buyers bought after the early window, so nothing is marked. 18 of them sold: 17 in full and 1 in part at the pool cap (limit `cap_full`). Together they sold 99.5% of what they asked to sell. Partial fill: [explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill").
+- **CABAL** ([`evidence/testnet-cabal-run.json`](evidence/testnet-cabal-run.json)). 10 wallets funded directly by the same wallet bought in block 12 after launch, inside the early window. Everything they bought is marked. All 10 early sells (10 of 10) were refused with `FC_EARLY_WINDOW`. After the window they asked to sell 134.1M and sold 6.91M (5.2%); the rest stayed in their wallets. The later buy, made after the window with nothing marked, was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA "claim: launch"). An early sell, refused: [explorer](https://testnet.nearblocks.io/txns/4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm "claim: refusal:FC_EARLY_WINDOW"). A later sell, in full: [explorer](https://testnet.nearblocks.io/txns/jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8 "claim: full_fill").
+- **CABAL2** ([`evidence/testnet-cabal2-run.json`](evidence/testnet-cabal2-run.json)). The same test on a second coin with smaller buys. 10 of 10 early sells were refused with `FC_EARLY_WINDOW`. The 10 wallets asked to sell 39.5M and sold 2.98M (7.5%). The later buy was sold 100% in full. Launch: [explorer](https://testnet.nearblocks.io/txns/BgzcrdkorKb9iLzoS4a4WqVrTkL8ihXssb15wAmpw5RP "claim: launch").
+
+In both CABAL runs the 10 wallets share one early-supply allowance. Each partial fill ends at the allowance, the pool cap or the floor, and the sell's `limit_reason` says which.
+
+The BAG buys landed in block 23 after launch, after the early window, so the BAG run shows no early fee and no marked token. The CABAL runs bought inside the window and show marked tokens and the early-window refusal on testnet. The early window is blocks 0 to 17. It lasts about 10.5 seconds at the measured testnet block time: 0.5812 seconds per block, from 1,000 final blocks in 581.165 seconds ([`evidence/testnet-run.json`](evidence/testnet-run.json)).
 
 ## Check it yourself
 
@@ -262,10 +279,14 @@ Read the code hash the chain holds for a deployed coin, from any machine:
 
 ```sh
 curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"<COIN ACCOUNT>"}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_account","finality":"final","account_id":"bag.factory.fairchance.testnet"}}'
 ```
 
-A coin runs a global contract used by hash, so the field to read is `global_contract_hash` in the reply, not `code_hash`. The chain sets that field when the factory's launch batch runs. It must equal the hash the build prints for the deployed commit. If it differs, the deployed code is not that commit. <!-- waits on: the real reply of this call for the deployed coin (confirms which field holds the hash) -->
+```json
+{"result":{"code_hash":"11111111111111111111111111111111","global_contract_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3","storage_usage":6486, ...}}
+```
+
+A coin runs a global contract used by hash, so the field to read is `global_contract_hash` in the reply, not `code_hash`. The chain sets that field when the factory's launch batch runs. It must equal the hash the build prints for the deployed commit. If it differs, the deployed code is not that commit.
 
 The coin also reports a hash itself. This read shows what the coin says, not what the chain holds. The factory passes that hash to `new` at launch.
 
@@ -274,31 +295,49 @@ curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"fc_rules","args_base64":"e30="}}'
 ```
 
-The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_hash` field is the hash the coin reports. It should equal the chain's `global_contract_hash`.
+For BAG the reply gives `6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3` in both reads. The reply holds the bytes of the `fc_rules` JSON in `result.result`. Its `code_hash` field is the hash the coin reports. It should equal the chain's `global_contract_hash`.
 
-<!-- waits on: the deployed commit and its code hash (the expected hash goes next to this command) -->
+The coin's source metadata names commit `b42fdde`. A reproducible build of that commit must print the hash above. <!-- waits on: the result of that reproducible build -->
 
 Open `docs/evidence.md` for what each test proves. Sandbox tests need `NEAR_SANDBOX_BIN_PATH` and a built wasm (`scripts/build-contracts.sh`).
 
 ## Check it from a terminal
 
-These calls only read. They need no wallet and no key. Replace `<COIN ACCOUNT>` and `<FACTORY ACCOUNT>` with the accounts in [Network](#network).
+These calls only read. They need no wallet and no key. They use the demo coin `bag.factory.fairchance.testnet`. Each output is cut to the fields that matter, and `...` marks a cut.
 
 ```sh
-# The coin and the factory have no access keys: "keys" must be an empty list.
+# The coin has no access keys: "keys" must be an empty list.
 curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"<COIN ACCOUNT>"}}'
-
-# The coin's fixed rules (the reply holds the bytes of a JSON text).
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"fc_rules","args_base64":"e30="}}'
-
-# Where the code comes from: repository link and commit.
-curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"<COIN ACCOUNT>","method_name":"contract_source_metadata","args_base64":"e30="}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"view_access_key_list","finality":"final","account_id":"bag.factory.fairchance.testnet"}}'
 ```
 
-<!-- waits on: the testnet deploy (the real accounts, and the real output pasted under each call, and one transaction that shows a partial fill) -->
+```json
+{"jsonrpc":"2.0","result":{"block_hash":"...","block_height":277644204,"keys":[]},"id":1}
+```
+
+```sh
+# The coin's fixed rules (the reply holds the bytes of a JSON text in result.result).
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"bag.factory.fairchance.testnet","method_name":"fc_rules","args_base64":"e30="}}'
+```
+
+```json
+{"launch_block":277565791,"p_bps":200,"window_unmarked_s":3600,"window_early_s":86400,"early_blocks":17,"large_threshold_bps":200,"creator_cap_bps":400,"real_cap_c_bps":500,"floor_bps":10,"penalty_bps":1000,"swap_fee_bps":100,"creator_fee_share_bps":3000,"code_hash":"6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3", ...}
+```
+
+```sh
+# Where the code comes from: the source link and commit the coin names.
+curl -s https://rpc.testnet.near.org -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"bag.factory.fairchance.testnet","method_name":"contract_source_metadata","args_base64":"e30="}}'
+```
+
+```json
+{"version":"1.0.0-rc.7","link":"https://github.com/degencodebeast/fair-chance/tree/b42fddecd94f75904636f912c4ce0dccb7e437d9", ...}
+```
+
+The factory account still has an access key. Its keys are deleted after the runs, and the same call on the factory then returns an empty list. <!-- waits on: the factory key deletion and the real output of the call on the factory account -->
+
+The partial fill of the BAG run is in [the explorer](https://testnet.nearblocks.io/txns/F9jXaqTQeb1gB1CcaHP8fkKk1SLv9iiwYKLKZWVFFnDj "claim: partial_fill") and in `evidence/testnet-run.json`.
 
 ## Measured results
 
@@ -325,6 +364,7 @@ Numbers from a replay or a simulation show how the rules behave. They are simula
 
 The rule slows a dump. Each line below is a way around it or a cost it leaves. Details and tests are in [docs/evidence.md](docs/evidence.md) and [OVERVIEW](docs/OVERVIEW.md).
 
+- The rules slow a dump. They do not stop it. The shared early-supply allowance refills every 24 hours, and it grows with the pool's depth, so early supply can leave in parts over several days.
 - Wallet splitting. Small sells of tokens held from before the window never count toward the cap. A band holder or a late buyer who splits into small wallets skips the cap. Each fresh small wallet carries at most one allowance per window. Measured at a full cap: up to 0.31 of one allowance's NEAR per fresh wallet ([ADR 0005](docs/adr/0005-live-pool-wide-cap-on-real-near.md#consequences)).
 - Creator-funded wallets. The contract cannot see who funded an account. A wallet the creator funds that buys after block N is unmarked.
 - Late splitters. People who buy after block N through many small wallets at market price skip the early-supply rules.
@@ -337,7 +377,7 @@ The rule slows a dump. Each line below is a way around it or a cost it leaves. D
 
 ## Not in this release
 
-- An independent Python model of the cap rules, written apart from the Rust code and compared with it case by case. It does not exist yet. The cap rules have rule tests, property tests, sandbox tests and a TLA+ model of one sell ([how we checked it](docs/evidence.md#how-we-checked-it)).
+- A separate Python model of the cap rules, written apart from the Rust code and compared with it case by case. It is not merged yet. The cap rules have rule tests, property tests, sandbox tests and a TLA+ model of one sell ([how we checked it](docs/evidence.md#how-we-checked-it)).
 
 ## Libraries, templates and AI tools
 
