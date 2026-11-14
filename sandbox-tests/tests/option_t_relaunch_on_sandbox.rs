@@ -66,3 +66,21 @@ async fn a_burst_that_cannot_fit_the_window_is_refused_before_any_account_is_mad
     );
     Ok(())
 }
+
+#[tokio::test]
+async fn a_coin_that_exists_stops_the_run_before_any_account_is_made() -> Result<()> {
+    // The World's coin is walk.<factory>, so a run with the ticker walk finds it launched.
+    let world = World::launch_with_block_ms(600).await?;
+    let setup = OptionTSetup::sandbox_defaults(&world, "walk", 2);
+    let mut list = PassList::default();
+    let error = run(&setup, &mut list).await.unwrap_err().to_string();
+    assert!(error.contains("exists already"), "{error}");
+    let creator = fair_chance_sandbox_tests::option_t::creator_account_id("walk", &world.bob.id)?;
+    assert!(
+        fair_chance_sandbox_tests::account_view(&world.network, &creator)
+            .await?
+            .is_none(),
+        "the run made {creator} before it found the coin"
+    );
+    Ok(())
+}

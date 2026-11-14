@@ -65,6 +65,11 @@ async fn start(list: &mut PassList) -> Result<()> {
         std::env::var(TESTNET_YES_FLAG).ok().as_deref(),
     )?;
     let sell_plan = fair_chance_sandbox_tests::sells_only::sells_only_request(&args)?;
+    fair_chance_sandbox_tests::option_t::check_ticker(
+        args.ticker.as_deref().unwrap_or("optiont"),
+        network,
+        sell_plan.is_some(),
+    )?;
     if sell_plan.is_some() && network != DemoNetwork::Testnet {
         anyhow::bail!(
             "--sells-only runs on testnet only (the sandbox check is the bag_sells_on_sandbox test); nothing was run"

@@ -163,6 +163,23 @@ pub fn choose_network(
     }
 }
 
+/// The ticker of the testnet coin that only the sells-only step may touch.
+pub const SELLS_ONLY_ONLY_TICKER: &str = "BAG";
+
+/// On testnet, the ticker BAG (any case) is refused for every path but `--sells-only`: a run, a
+/// resume or the delete step on BAG would touch the BAG creator and buyer accounts.
+pub fn check_ticker(ticker: &str, network: DemoNetwork, sells_only: bool) -> Result<()> {
+    if network == DemoNetwork::Testnet
+        && !sells_only
+        && ticker.eq_ignore_ascii_case(SELLS_ONLY_ONLY_TICKER)
+    {
+        bail!(
+            "the ticker {SELLS_ONLY_ONLY_TICKER} on testnet is for --sells-only only; give a new ticker; nothing was run"
+        );
+    }
+    Ok(())
+}
+
 /// The rehearsal flags change the sandbox only; on testnet they are refused, so a testnet run
 /// never waits on purpose before a send.
 pub fn check_sandbox_only_flags(args: &OptionTArguments, network: DemoNetwork) -> Result<()> {
@@ -834,11 +851,11 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     say(&format!(
         "burst guard before any signature: {block_s:.4} s per block; the last early sell lands by block {first_estimate} (estimate)"
     ));
-    let (creator, buyers, later) = make_all_accounts(setup).await?;
-
+    // Before any account step: a coin that exists means its launch already ran.
     if account_view(&setup.network, &coin).await?.is_some() {
-        bail!("{coin} exists already; a rerun resumes only before the launch. Nothing more was signed");
+        bail!("{coin} exists already; a rerun resumes only before the launch. Nothing was signed");
     }
+    let (creator, buyers, later) = make_all_accounts(setup).await?;
     check_funder(
         setup.limits.as_ref(),
         &setup.network,
