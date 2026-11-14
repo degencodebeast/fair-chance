@@ -362,7 +362,7 @@ impl OptionTSetup {
         }
     }
 
-    fn coin(&self) -> Result<AccountId> {
+    pub(crate) fn coin(&self) -> Result<AccountId> {
         coin_account_id(&self.ticker, &self.factory)
     }
 
@@ -577,12 +577,19 @@ pub fn plan_accounts(entries: Vec<SurveyEntry>) -> Result<Vec<(SurveyEntry, Acco
 /// Time between the survey's reads, so one pass over 21 accounts stays well under a rate limit.
 const SURVEY_SPACING: std::time::Duration = std::time::Duration::from_millis(500);
 
-/// Reads the creator and every buyer once, spaced, and prints one line per account.
-async fn survey(setup: &OptionTSetup) -> Result<Vec<(SurveyEntry, AccountPlan)>> {
-    let mut names = vec![(
-        creator_account_id(&setup.ticker, &setup.funder.id)?,
-        setup.launch_deposit.saturating_add(CREATOR_EXTRA),
-    )];
+/// Reads the creator (when the run launches) and every buyer once, spaced, and prints one line
+/// per account.
+async fn survey(
+    setup: &OptionTSetup,
+    with_creator: bool,
+) -> Result<Vec<(SurveyEntry, AccountPlan)>> {
+    let mut names = Vec::new();
+    if with_creator {
+        names.push((
+            creator_account_id(&setup.ticker, &setup.funder.id)?,
+            setup.launch_deposit.saturating_add(CREATOR_EXTRA),
+        ));
+    }
     for id in buyer_account_ids(&setup.ticker, &setup.funder.id, setup.buyers)? {
         names.push((id, setup.buy_near.saturating_add(setup.buyer_extra)));
     }
@@ -636,7 +643,31 @@ pub async fn make_accounts(setup: &OptionTSetup) -> Result<(Account, Vec<Account
 pub async fn make_all_accounts(
     setup: &OptionTSetup,
 ) -> Result<(Account, Vec<Account>, Option<Account>)> {
-    let plan = survey(setup).await?;
+    let mut accounts = make_planned_accounts(setup, true).await?;
+    let creator = accounts.remove(0);
+    let later = if setup.later_buy.is_zero() {
+        None
+    } else {
+        accounts.pop()
+    };
+    Ok((creator, accounts, later))
+}
+
+/// As [`make_all_accounts`] for a run on a coin the app launches: the buyers and the later buyer
+/// only, no creator.
+pub async fn make_buyer_accounts(setup: &OptionTSetup) -> Result<(Vec<Account>, Option<Account>)> {
+    let mut accounts = make_planned_accounts(setup, false).await?;
+    let later = if setup.later_buy.is_zero() {
+        None
+    } else {
+        accounts.pop()
+    };
+    Ok((accounts, later))
+}
+
+/// The survey, then each account made or reused, in survey order; then a wait until they are final.
+async fn make_planned_accounts(setup: &OptionTSetup, with_creator: bool) -> Result<Vec<Account>> {
+    let plan = survey(setup, with_creator).await?;
     let mut accounts = Vec::new();
     for (entry, decision) in &plan {
         match decision {
@@ -660,13 +691,7 @@ pub async fn make_all_accounts(
     })
     .await?;
     wait_for_final_height(&setup.network, head).await?;
-    let creator = accounts.remove(0);
-    let later = if setup.later_buy.is_zero() {
-        None
-    } else {
-        accounts.pop()
-    };
-    Ok((creator, accounts, later))
+    Ok(accounts)
 }
 
 /// The delete step: deletes each buyer account that exists, and the later buyer, with its NEAR
@@ -707,7 +732,7 @@ pub async fn delete_buyers(setup: &OptionTSetup) -> Result<Vec<AccountId>> {
     Ok(deleted)
 }
 
-async fn balance(network: &NetworkConfig, account: &AccountId) -> Result<NearToken> {
+pub(crate) async fn balance(network: &NetworkConfig, account: &AccountId) -> Result<NearToken> {
     Ok(account_view(network, account)
         .await?
         .with_context(|| format!("{account} does not exist"))?
@@ -812,7 +837,7 @@ pub async fn presign_snipers(
 
 /// Seconds one read of the funder's access key takes on the send RPC: the send RPC's time per
 /// call, before any account is made.
-async fn send_call_s(setup: &OptionTSetup) -> Result<f64> {
+pub(crate) async fn send_call_s(setup: &OptionTSetup) -> Result<f64> {
     let public_key = setup.funder.signer.get_public_key().await?;
     let started = Instant::now();
     with_rate_limit_backoff("the funder's access key", run_budget(), || {
@@ -825,11 +850,16 @@ async fn send_call_s(setup: &OptionTSetup) -> Result<f64> {
 }
 
 /// The burst guard of [`check_burst_timing`] for this run, with `send_s` measured on the send RPC.
-fn burst_guard(setup: &OptionTSetup, block_s: f64, send_s: f64) -> Result<(BurstTiming, u64)> {
+pub(crate) fn burst_guard(
+    setup: &OptionTSetup,
+    block_s: f64,
+    send_s: f64,
+    tail_blocks: u64,
+) -> Result<(BurstTiming, u64)> {
     let timing = BurstTiming {
         block_s,
         send_s: send_s + setup.send_delay.as_secs_f64(),
-        launch_tail_blocks: LAUNCH_TAIL_BLOCKS,
+        launch_tail_blocks: tail_blocks,
         early_sell_gap_s: EARLY_SELL_GAP.as_secs_f64(),
     };
     let last = check_burst_timing(&timing, rule_engine::FixedValues::fixed().early_blocks)?;
@@ -837,7 +867,10 @@ fn burst_guard(setup: &OptionTSetup, block_s: f64, send_s: f64) -> Result<(Burst
 }
 
 /// The height of a block by its hash.
-async fn height_of(network: &NetworkConfig, hash: near_api::types::CryptoHash) -> Result<u64> {
+pub(crate) async fn height_of(
+    network: &NetworkConfig,
+    hash: near_api::types::CryptoHash,
+) -> Result<u64> {
     Ok(
         with_rate_limit_backoff("a block by its hash", run_budget(), || {
             near_api::Chain::block()
@@ -895,7 +928,12 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     // The guard first, before any account is made: the block time and one timed read on the
     // send RPC. It runs again on the nonce reads just before the launch.
     let block_s = measured_block_s(&setup.network).await?;
-    let (_, first_estimate) = burst_guard(setup, block_s, send_call_s(setup).await?)?;
+    let (_, first_estimate) = burst_guard(
+        setup,
+        block_s,
+        send_call_s(setup).await?,
+        LAUNCH_TAIL_BLOCKS,
+    )?;
     say(&format!(
         "burst guard before any signature: {block_s:.4} s per block; the last early sell lands by block {first_estimate} (estimate)"
     ));
@@ -917,7 +955,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     // recent block hash, all buys and early sells signed, and the guard.
     let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
     let (snipers, send_s) = presign_snipers(setup, &coin, &buyers).await?;
-    let (burst_timing, estimate) = burst_guard(setup, block_s, send_s)?;
+    let (burst_timing, estimate) = burst_guard(setup, block_s, send_s, LAUNCH_TAIL_BLOCKS)?;
     say(&format!(
         "signed {} buys and {} early sells before the launch; {block_s:.4} s per block, {:.2} s per send call; the last early sell lands by block {estimate} of 0 to {early_blocks} (estimate)",
         snipers.len(),
@@ -972,6 +1010,58 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         transaction_hash(&launched)?
     ));
 
+    check_after_burst(
+        setup,
+        list,
+        AfterBurst {
+            coin: &coin,
+            creator: Some(&creator),
+            buyers: &buyers,
+            later: later.as_ref(),
+            launched: &launched,
+            burst,
+            seconds,
+            block_s,
+            funder_before,
+        },
+    )
+    .await
+}
+
+/// What the run knows when the burst is back: the coin, the runner's accounts (no creator when
+/// the app launched the coin), the launch transaction's result and the burst's results.
+pub(crate) struct AfterBurst<'a> {
+    pub coin: &'a AccountId,
+    pub creator: Option<&'a Account>,
+    pub buyers: &'a [Account],
+    pub later: Option<&'a Account>,
+    pub launched: &'a TransactionResult,
+    pub burst: crate::burst::BurstResult,
+    pub seconds: f64,
+    pub block_s: f64,
+    pub funder_before: NearToken,
+}
+
+/// Everything after the burst, the same for a run that launches and a run on a coin the app
+/// launched: the buy and early-sell lines, the later buyer, the sells, the checks and the cost.
+pub(crate) async fn check_after_burst(
+    setup: &OptionTSetup,
+    list: &mut PassList,
+    after: AfterBurst<'_>,
+) -> Result<OptionTReport> {
+    let AfterBurst {
+        coin,
+        creator,
+        buyers,
+        later,
+        launched,
+        burst,
+        seconds,
+        block_s,
+        funder_before,
+    } = after;
+    let say = |text: &str| println!("option-t: {text}");
+    let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
     let rules = view_on(&setup.network, &coin, "fc_rules", json!({})).await?;
     let launch_block = rules["launch_block"]
         .as_u64()
@@ -982,7 +1072,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
             rules["early_blocks"]
         );
     }
-    if let TransactionResult::Full(full) = &launched {
+    if let TransactionResult::Full(full) = launched {
         let mut last = 0;
         for outcome in full.receipt_outcomes() {
             last = last.max(height_of(&setup.network, outcome.block_hash).await?);
@@ -1339,10 +1429,7 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
     )?;
     let funder_after = balance(&setup.network, &setup.funder.id).await?;
     let mut left = NearToken::from_yoctonear(0);
-    for account in std::iter::once(&creator)
-        .chain(&buyers)
-        .chain(later.as_ref())
-    {
+    for account in creator.into_iter().chain(buyers).chain(later) {
         left = left.saturating_add(balance(&setup.network, &account.id).await?);
     }
     let coin_state = account_view(&setup.network, &coin)
@@ -1357,8 +1444,13 @@ pub async fn run(setup: &OptionTSetup, list: &mut PassList) -> Result<OptionTRep
         ),
     };
     say(&format!(
-        "the funder paid {}; {} is still in the creator and buyer accounts; the coin locks {} for its storage",
+        "the funder paid {}; {} is still in the {} accounts; the coin locks {} for its storage",
         near(report.funder_paid.as_yoctonear()),
+        if creator.is_some() {
+            "creator and buyer"
+        } else {
+            "buyer"
+        },
         near(report.left_in_new_accounts.as_yoctonear()),
         near(report.coin_storage_lock.as_yoctonear())
     ));
