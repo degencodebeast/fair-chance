@@ -15,19 +15,29 @@ export interface KnownNetwork extends KnownDeployment {
   fastNearUrl: string;
   /** The block to read the factory's `fc_launch` events from; the builder sets it after the deploy. */
   factoryFromBlock: number;
+  /** The coin a hosted page opens on when its link has no parameters; null until the demo coin exists. */
+  demoCoin: string | null;
+  /** The explorer address a transaction hash is appended to, for the receipt links. */
+  explorerTxUrl: string;
+  /** The same-site file the "Recorded testnet run" receipts load from; null until the evidence file exists. */
+  recordedRunFile: string | null;
 }
 
 /**
- * Fill `factory` and `codeHash` after the testnet deploy. Until then the checks show "not checked".
+ * Values read from the testnet chain by view calls: the factory's `coin_code_hash`, the coin's
+ * global contract hash, and the block of the factory's first `fc_launch` transaction.
  * The RPC URL is the public FastNEAR testnet endpoint from the NEAR RPC providers list.
  */
 export const KNOWN_NETWORKS = {
   testnet: {
     rpcUrl: "https://test.rpc.fastnear.com",
     fastNearUrl: "https://tx.test.fastnear.com",
-    factoryFromBlock: 0,
-    factory: null,
-    codeHash: null,
+    factoryFromBlock: 277565789,
+    demoCoin: "bag.factory.fairchance.testnet",
+    explorerTxUrl: "https://testnet.nearblocks.io/txns/",
+    recordedRunFile: "recorded-run.json",
+    factory: "factory.fairchance.testnet",
+    codeHash: "6Ld5DFTJ1BYc6uzb6YYvdK3yAMHdfBsvrwNEhsKE9er3",
   },
 } as const satisfies Record<string, KnownNetwork>;
 

@@ -120,5 +120,5 @@
   ],
   "check_command": "/check moth.factory.testnet",
   "check_time": "14:24",
-  "check_reply": "Moth Lamp (MOTH)\nAs of 14:24 UTC.\n\nCreator group: 3.9% of supply\nEarly supply: 14.5% of supply\nShared allowance for this 24 h window: 3.4M MOTH\nRefills 13:02 UTC tomorrow, in 22 h 38 min\n\nLarge holders: 3\nLarge accounts cannot send.\n\nPool cap this hour: full, 2.13 of 2.13 NEAR out\nLarge and early-supply sells fill a small floor until 15:02 UTC, in 38 min.\n\nNobody can change these rules."
+  "check_reply": "Moth Lamp (MOTH)\nRead at 14:24 UTC.\n\nThe creator group holds 3.9% of supply.\nEarly supply holds 14.5% of supply.\nEarly supply can sell 3.4M MOTH in total in this 24 h window. The limit refills at 13:02 UTC tomorrow, in 22 h 38 min.\n\nLarge holders: 3. A large holder cannot send tokens to another account.\n\nPool cap this hour: full, 2.13 NEAR of 2.13 NEAR out.\nLarge and early-supply sells fill a small floor until 15:02 UTC, in 38 min.\n\nNobody can change these rules, not even the creator."
 }

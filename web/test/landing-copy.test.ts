@@ -5,7 +5,7 @@ import { allText, copyViolations } from "./copy-rules.ts";
 
 describe("landing copy", () => {
   it("uses the builder's headline", () => {
-    expect(landingCopy.headline).toBe("You buy. The creator dumps on you. You hold the bag.");
+    expect(landingCopy.headline).toBe("You buy. The cabal dumps on you. You're left holding the bag.");
     expect(allText(landingCopy).join("\n")).not.toContain("The creator sells.");
   });
 
@@ -63,7 +63,11 @@ describe("README pitch line", () => {
     const head = lines.indexOf(`**${landingCopy.headline}**`);
     expect(head).toBeGreaterThan(-1);
     expect(lines[head + 1]).toBe("");
-    expect(lines[head + 2]).toBe(landingCopy.subheadline);
+    expect(lines[head + 2]).toBe(
+      "The coin cannot know who is in a cabal, so it gives a tighter limit to whoever bought in the first blocks.",
+    );
     expect(lines[head + 3]).toBe("");
+    expect(lines[head + 4]).toBe(landingCopy.subheadline);
+    expect(lines[head + 5]).toBe("");
   });
 });

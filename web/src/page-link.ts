@@ -4,6 +4,7 @@
 // RPC host is exactly `localhost` or `127.0.0.1` (exact match, no suffix or label match), the link
 // may give the RPC URL, the factory and the code hash. A hostile RPC could otherwise answer every
 // chain check with false facts.
+import { isSandboxRpcHost } from "./local-host.ts";
 import { isNetworkName, KNOWN_NETWORKS, type KnownDeployment } from "./known-deployments.ts";
 
 export interface PageLink {
@@ -24,7 +25,7 @@ function localSandboxUrl(text: string | null): URL | null {
     return null;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  return url.hostname === "localhost" || url.hostname === "127.0.0.1" ? url : null;
+  return isSandboxRpcHost(url.hostname) ? url : null;
 }
 
 export function resolvePageLink(href: string): PageLink {

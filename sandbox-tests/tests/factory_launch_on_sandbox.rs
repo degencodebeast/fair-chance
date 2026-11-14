@@ -183,6 +183,21 @@ fn shared_rules(mut rules: serde_json::Value) -> serde_json::Value {
     rules
 }
 
+/// A yoctoNEAR amount that a view returns as a decimal string.
+fn yocto(value: &serde_json::Value) -> u128 {
+    value.as_str().unwrap().parse().unwrap()
+}
+
+/// The creator share of a buy's normal swap fee, from `fc_rules` (INTERFACE.md, `fc_buy`):
+/// the fee is `swap_fee_bps` of `near_in`, rounded up; the share is `creator_fee_share_bps` of
+/// that fee, rounded down.
+fn creator_fee_on_buy(rules: &serde_json::Value, near_in: u128) -> u128 {
+    let swap_fee_bps = rules["swap_fee_bps"].as_u64().unwrap() as u128;
+    let share_bps = rules["creator_fee_share_bps"].as_u64().unwrap() as u128;
+    let fee = (near_in * swap_fee_bps).div_ceil(10_000);
+    fee * share_bps / 10_000
+}
+
 /// One event's data object without the named fields.
 fn data_without(event: &serde_json::Value, fields: &[&str]) -> serde_json::Value {
     let mut data = event["data"][0].clone();
@@ -227,6 +242,8 @@ async fn two_coins_have_equal_fixed_rules_and_independent_state() -> Result<()> 
 
     let second_pool = world.view(&second, "fc_pool", json!({})).await?;
     let _ = world.register(&world.creator, &world.coin).await?;
+    let first_pool_before = world.view(&world.coin, "fc_pool", json!({})).await?;
+    let near_in = NearToken::from_near(1).as_yoctonear();
     let _bought = world
         .call(
             &world.creator,
@@ -237,9 +254,16 @@ async fn two_coins_have_equal_fixed_rules_and_independent_state() -> Result<()> 
         )
         .await?;
     let first_pool = world.view(&world.coin, "fc_pool", json!({})).await?;
+    // The creator share of the normal swap fee leaves the pool (ADR 0010); the rest stays.
+    let creator_fee_near = creator_fee_on_buy(&first_rules, near_in);
     assert_eq!(
-        first_pool["real_near"],
-        NearToken::from_near(1).as_yoctonear().to_string()
+        yocto(&first_pool["real_near"]) - yocto(&first_pool_before["real_near"]),
+        near_in - creator_fee_near
+    );
+    assert_eq!(
+        yocto(&first_pool["creator_fee_balance"])
+            - yocto(&first_pool_before["creator_fee_balance"]),
+        creator_fee_near
     );
     let second_pool_after = world.view(&second, "fc_pool", json!({})).await?;
     assert_eq!(

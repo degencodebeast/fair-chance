@@ -26,38 +26,41 @@ func Render(v eventsource.PreBuyViews, now time.Time, loc *time.Location) string
 		symbol = "tokens"
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s (%s)\nAs of %s.\n\n", telegram.Label(v.Name), telegram.Label(v.Symbol), now.In(loc).Format("15:04 MST"))
+	fmt.Fprintf(&b, "%s (%s)\nRead at %s.\n\n", telegram.Label(v.Name), telegram.Label(v.Symbol), now.In(loc).Format("15:04 MST"))
 
 	if v.CreatorGroupShareBps == nil {
-		fmt.Fprintf(&b, "Creator group: %s\n", notAvailable)
+		fmt.Fprintf(&b, "The creator group's share of supply is %s.\n", notAvailable)
 	} else {
-		fmt.Fprintf(&b, "Creator group: %s of supply\n", alerts.FormatBps(int64(*v.CreatorGroupShareBps)))
+		fmt.Fprintf(&b, "The creator group holds %s of supply.\n", alerts.FormatBps(int64(*v.CreatorGroupShareBps)))
 	}
-	fmt.Fprintf(&b, "Early supply: %s of supply\n", alerts.SupplyShare(v.EarlySupplyTotal))
+	fmt.Fprintf(&b, "Early supply holds %s of supply.\n", alerts.SupplyShare(v.EarlySupplyTotal))
 	if v.BlocksLeft > 0 {
-		fmt.Fprintf(&b, "Early supply cannot sell for %d more blocks.\n", v.BlocksLeft)
+		unit := "blocks"
+		if v.BlocksLeft == 1 {
+			unit = "block"
+		}
+		fmt.Fprintf(&b, "Early supply cannot sell for %d more %s.\n", v.BlocksLeft, unit)
 	} else {
-		fmt.Fprintf(&b, "Shared allowance for this 24 h window: %s %s\n", alerts.Compact(v.SharedAllowance), symbol)
-		fmt.Fprintf(&b, "Refills %s\n", whenText(nextRefill(v, now), now, loc))
+		fmt.Fprintf(&b, "Early supply can sell %s %s in total in this 24 h window. The limit refills at %s.\n", alerts.Compact(v.SharedAllowance), symbol, whenText(nextRefill(v, now), now, loc))
 	}
 
 	b.WriteString("\n")
 	if v.LargeHolders == nil {
-		fmt.Fprintf(&b, "Large holders: %s\n", notAvailable)
+		fmt.Fprintf(&b, "The number of large holders is %s.\n", notAvailable)
 	} else {
-		fmt.Fprintf(&b, "Large holders: %d\nLarge accounts cannot send.\n", *v.LargeHolders)
+		fmt.Fprintf(&b, "Large holders: %d. A large holder cannot send tokens to another account.\n", *v.LargeHolders)
 	}
 
 	b.WriteString("\n")
 	reset := whenText(time.Unix(0, parseNs(v.CapWindowEndNs)), now, loc)
 	if v.CapIsFull {
-		fmt.Fprintf(&b, "Pool cap this hour: full, %s of %s NEAR out\n", near(v.CapUsed), near(v.CapTotal))
+		fmt.Fprintf(&b, "Pool cap this hour: full, %s NEAR of %s NEAR out.\n", near(v.CapUsed), near(v.CapTotal))
 		fmt.Fprintf(&b, "Large and early-supply sells fill a small floor until %s.\n", reset)
 	} else {
-		fmt.Fprintf(&b, "Pool cap this hour: has room, %s NEAR left of %s\nResets %s.\n", near(v.CapLeft), near(v.CapTotal), reset)
+		fmt.Fprintf(&b, "Pool cap this hour: %s NEAR left of %s NEAR. It resets at %s.\n", near(v.CapLeft), near(v.CapTotal), reset)
 	}
 
-	b.WriteString("\nNobody can change these rules.")
+	b.WriteString("\nNobody can change these rules, not even the creator.")
 	return b.String()
 }
 

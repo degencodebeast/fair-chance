@@ -1229,8 +1229,13 @@ fn window_sells(history: &[Step], who: usize, trades: &[WindowTrade]) -> Vec<FcS
                 attached: 1,
             },
         };
-        let applied = apply(&coin.state, coin.holders(&[account.clone()]), &action, at)
-            .expect("window trade");
+        let applied = apply(
+            &coin.state,
+            coin.holders(std::slice::from_ref(&account)),
+            &action,
+            at,
+        )
+        .expect("window trade");
         coin.state = applied.state.clone();
         coin.ledger.extend(applied.holders.clone());
         sells.extend(applied.events.into_iter().filter_map(|e| match e {

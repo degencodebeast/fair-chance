@@ -116,7 +116,7 @@ try {
       proofSample: document.querySelector("#proof .sample-label")?.textContent,
       buttonsThatDoNothing: [...document.querySelectorAll("button:not([disabled])")].map((b) => b.textContent),
     }));
-    if (landing.headline !== "You buy. The creator dumps on you. You hold the bag.") fail(label, `headline is "${landing.headline}"`);
+    if (landing.headline !== "You buy. The cabal dumps on you. You're left holding the bag.") fail(label, `headline is "${landing.headline}"`);
     if (landing.pitch !== "Fair Chance slows the dump at launch, inside the coin contract.") fail(label, `the line under the headline is "${landing.pitch}"`);
     if (!/view=coins/.test(landing.openApp ?? "")) fail(label, `Open app goes to ${landing.openApp}`);
     if (landing.launchOff !== true || landing.launchReason !== "Launching signs a transaction. This page does not sign yet.") fail(label, `Launch a coin must be turned off with its reason: ${landing.launchReason}`);
