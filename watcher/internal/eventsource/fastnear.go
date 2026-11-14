@@ -136,7 +136,7 @@ func eventsOfTx(tx fastNearTx, coin string, height uint64, seen map[string]bool)
 		}
 		for _, line := range r.ExecutionOutcome.Outcome.Logs {
 			if ev, ok := parseLog(line); ok {
-				ev.Coin, ev.ReceiptID, ev.Block = coin, r.Receipt.ReceiptID, block
+				ev.Coin, ev.ReceiptID, ev.Block, ev.Included = coin, r.Receipt.ReceiptID, block, height
 				ev.TxHash, ev.TxSigner = tx.Transaction.Hash, tx.Transaction.SignerID
 				out = append(out, ev)
 			}
@@ -200,12 +200,15 @@ func (f *FastNear) post(ctx context.Context, path string, body any, out any) err
 	case http.StatusTooManyRequests:
 		return fmt.Errorf("%s: %w", path, &RateLimitedError{RetryAfter: retryAfter(resp.Header.Get("Retry-After"))})
 	default:
-		if resp.StatusCode >= 500 {
+		if transientStatus(resp.StatusCode) {
 			return fmt.Errorf("%s: HTTP %d: %w", path, resp.StatusCode, ErrTransient)
 		}
 		return fmt.Errorf("%s: HTTP %d: %w", path, resp.StatusCode, ErrUnexpectedResponse)
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		if transientBodyError(err) {
+			return fmt.Errorf("%s: %v: %w", path, withoutURL(err), ErrTransient)
+		}
 		return fmt.Errorf("%s: %v: %w", path, err, ErrUnexpectedResponse)
 	}
 	return nil

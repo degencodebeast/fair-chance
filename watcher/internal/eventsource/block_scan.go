@@ -153,7 +153,7 @@ func (s *RPCScan) Events(ctx context.Context, coins []string, since Cursor) ([]E
 							return fail(h, err)
 						}
 						for _, ev := range evs {
-							ev.Block = block
+							ev.Block, ev.Included = block, h
 							out = append(out, found{ev, h})
 						}
 					}

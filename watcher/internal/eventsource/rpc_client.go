@@ -58,7 +58,7 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 	if resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("%s: HTTP 403: %w", method, ErrRPCForbidden)
 	}
-	if resp.StatusCode >= 500 {
+	if transientStatus(resp.StatusCode) {
 		return fmt.Errorf("%s: HTTP %d: %w", method, resp.StatusCode, ErrTransient)
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -69,6 +69,9 @@ func (c *rpcClient) call(ctx context.Context, method string, params any, out any
 		Error  *rpcError       `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		if transientBodyError(err) {
+			return fmt.Errorf("%s: %v: %w", method, withoutURL(err), ErrTransient)
+		}
 		return fmt.Errorf("%s: %w", method, err)
 	}
 	if envelope.Error != nil {

@@ -40,7 +40,7 @@ func TestWatchFromRefusesABlockBeforeLaunchOrAfterTheHead(t *testing.T) {
 	for _, tc := range []struct {
 		block uint64
 		want  error
-	}{{19, watchedcoins.ErrBeforeLaunch}, {50, watchedcoins.ErrAfterHead}, {9000, watchedcoins.ErrAfterHead}} {
+	}{{19, watchedcoins.ErrBeforeLaunch}, {49, watchedcoins.ErrAfterHead}, {50, watchedcoins.ErrAfterHead}, {9000, watchedcoins.ErrAfterHead}} {
 		set := launchedSet(sourceByBlock{}, &telegram.Fake{})
 		err := set.WatchFrom(ctx, "a.testnet", tc.block)
 		if !errors.Is(err, tc.want) {
@@ -50,7 +50,7 @@ func TestWatchFromRefusesABlockBeforeLaunchOrAfterTheHead(t *testing.T) {
 			t.Errorf("block %d: a refused block still started a watch", tc.block)
 		}
 	}
-	for _, ok := range []uint64{20, 49} {
+	for _, ok := range []uint64{20, 48} {
 		if err := launchedSet(sourceByBlock{}, &telegram.Fake{}).WatchFrom(ctx, "a.testnet", ok); err != nil {
 			t.Errorf("block %d: %v", ok, err)
 		}

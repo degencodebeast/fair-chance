@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fairchance/watcher/internal/eventsource"
+	"fairchance/watcher/internal/telegram"
 )
 
 // scriptedSource answers each call with the next scripted error (nil is a good read) and records the cursors it was given.
@@ -106,4 +107,40 @@ func TestWrongSetupAnswersStillStopAllReads(t *testing.T) {
 			t.Errorf("%v: %d calls, stopped %v", bad, src.calls, set.Stopped())
 		}
 	}
+}
+
+// A good read of coin A must not reset the pause that coin B's fault set.
+func TestAGoodReadOfOneCoinDoesNotResetTheBackoffOfAFaultOnAnother(t *testing.T) {
+	src := &perCoinSource{bad: "b.testnet"}
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	set := newSet(src, &telegram.Fake{})
+	set.Now = func() time.Time { return now }
+	for _, c := range []string{"a.testnet", "b.testnet"} {
+		if err := set.Watch(context.Background(), c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var waits []string
+	for range 3 {
+		err := set.Poll(context.Background())
+		if err == nil {
+			t.Fatal("want the fault of b")
+		}
+		waits = append(waits, err.Error())
+		now = now.Add(time.Minute)
+	}
+	for i, want := range []string{"next read in 2s", "next read in 4s", "next read in 8s"} {
+		if !strings.Contains(waits[i], want) {
+			t.Fatalf("pass %d: %q, want %q (coin a read well and must not reset b's pause)", i, waits[i], want)
+		}
+	}
+}
+
+type perCoinSource struct{ bad string }
+
+func (s *perCoinSource) Events(_ context.Context, coins []string, since eventsource.Cursor) ([]eventsource.Event, eventsource.Cursor, error) {
+	if coins[0] == s.bad {
+		return nil, since, transient(503)
+	}
+	return nil, since, nil
 }

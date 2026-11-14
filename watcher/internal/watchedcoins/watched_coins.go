@@ -58,7 +58,7 @@ func (s *Set) Watch(ctx context.Context, coin string) error {
 }
 
 // WatchFrom starts alerts for a coin from a block on, to read past events. The block must be the
-// coin's launch block or later, and not after the final head (ErrBeforeLaunch, ErrAfterHead). When
+// coin's launch block or later, and before the final head (ErrBeforeLaunch, ErrAfterHead; /watch alone starts from now). When
 // the coin is already watched, its cursor moves to the block.
 func (s *Set) WatchFrom(ctx context.Context, coin string, block uint64) error {
 	return s.start(ctx, coin, &block)
@@ -78,7 +78,7 @@ func (s *Set) start(ctx context.Context, coin string, from *uint64) error {
 		if *from < facts.LaunchBlock {
 			return fmt.Errorf("%w: block %d, launch block %d", ErrBeforeLaunch, *from, facts.LaunchBlock)
 		}
-		if eventsource.Cursor(*from) >= head {
+		if eventsource.Cursor(*from)+1 >= head { // head is the block after the final head; a watch from now on is /watch alone
 			return fmt.Errorf("%w: block %d, final head %d", ErrAfterHead, *from, head-1)
 		}
 		cursor = eventsource.Cursor(*from)
@@ -151,9 +151,6 @@ func (s *Set) Poll(ctx context.Context) error {
 			w.cursor = next
 		}
 		s.mu.Unlock()
-		if err == nil {
-			s.noteGoodRead()
-		}
 		if err = s.noteFailure(err); s.Stopped() != nil {
 			return err
 		}
@@ -163,6 +160,9 @@ func (s *Set) Poll(ctx context.Context) error {
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
+	}
+	if firstErr == nil {
+		s.noteGoodRead() // a full pass with no fault ends the run of faults
 	}
 	return firstErr
 }
