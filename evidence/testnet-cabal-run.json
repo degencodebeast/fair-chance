@@ -1,0 +1,482 @@
+{
+  "network": "testnet",
+  "coin": "cabal.factory.fairchance.testnet",
+  "runner_commit": "5dafb73",
+  "source": "Copied from the run log. Token amounts in M or K and NEAR amounts with 4 decimals are rounded as the log printed them. Spend-check balances are exact, in NEAR, as logged. Block numbers after the launch count from the launch block.",
+  "creator": "cabal-creator.fairchance.testnet",
+  "accounts_created": [
+    {
+      "account": "cabal-creator.fairchance.testnet",
+      "near": "1.5"
+    },
+    {
+      "account": "cabal-buyer-01.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-02.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-03.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-04.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-05.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-06.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-07.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-08.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-09.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-buyer-10.fairchance.testnet",
+      "near": "2.1"
+    },
+    {
+      "account": "cabal-later-buyer.fairchance.testnet",
+      "near": "0.5"
+    }
+  ],
+  "guard": {
+    "before_accounts": {
+      "seconds_per_block": "0.6013",
+      "last_early_sell_block_estimate": 13
+    },
+    "before_launch": {
+      "seconds_per_block": "0.6013",
+      "seconds_per_send_call": "3.77",
+      "last_early_sell_block_estimate": 14,
+      "early_window_last_block": 17
+    }
+  },
+  "spend_checks": [
+    {
+      "time_utc": "2026-11-14T09:00:26.198Z",
+      "before": "funding cabal-creator.fairchance.testnet",
+      "balance_near": "33.713073876111213252089042",
+      "spent_near": "0",
+      "cap_near": "25",
+      "step_up_to_near": "1.6"
+    },
+    {
+      "time_utc": "2026-11-14T09:00:37.869Z",
+      "before": "funding cabal-buyer-01.fairchance.testnet",
+      "balance_near": "32.205958886573713252089042",
+      "spent_near": "1.507114113426286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:00:49.381Z",
+      "before": "funding cabal-buyer-02.fairchance.testnet",
+      "balance_near": "30.098843897036213252089042",
+      "spent_near": "3.614229102963786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:00.735Z",
+      "before": "funding cabal-buyer-03.fairchance.testnet",
+      "balance_near": "27.991728907498713252089042",
+      "spent_near": "5.721344092501286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:12.047Z",
+      "before": "funding cabal-buyer-04.fairchance.testnet",
+      "balance_near": "25.884613917961213252089042",
+      "spent_near": "7.828459082038786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:23.756Z",
+      "before": "funding cabal-buyer-05.fairchance.testnet",
+      "balance_near": "23.777498928423713252089042",
+      "spent_near": "9.935574071576286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:35.309Z",
+      "before": "funding cabal-buyer-06.fairchance.testnet",
+      "balance_near": "21.670383938886213252089042",
+      "spent_near": "12.042689061113786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:47.138Z",
+      "before": "funding cabal-buyer-07.fairchance.testnet",
+      "balance_near": "19.563268949348713252089042",
+      "spent_near": "14.149804050651286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:01:58.292Z",
+      "before": "funding cabal-buyer-08.fairchance.testnet",
+      "balance_near": "17.456153959811213252089042",
+      "spent_near": "16.256919040188786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:02:09.825Z",
+      "before": "funding cabal-buyer-09.fairchance.testnet",
+      "balance_near": "15.349038970273713252089042",
+      "spent_near": "18.364034029726286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:02:21.151Z",
+      "before": "funding cabal-buyer-10.fairchance.testnet",
+      "balance_near": "13.241923980736213252089042",
+      "spent_near": "20.471149019263786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "2.2"
+    },
+    {
+      "time_utc": "2026-11-14T09:02:32.643Z",
+      "before": "funding cabal-later-buyer.fairchance.testnet",
+      "balance_near": "11.134808991198713252089042",
+      "spent_near": "22.578264008801286747910958",
+      "cap_near": "25",
+      "step_up_to_near": "0.6"
+    },
+    {
+      "time_utc": "2026-11-14T09:02:46.585Z",
+      "before": "the launch",
+      "balance_near": "10.627694001661213252089042",
+      "spent_near": "23.085378998338786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "0"
+    },
+    {
+      "time_utc": "2026-11-14T09:04:03.159Z",
+      "before": "the later buy",
+      "balance_near": "10.627694001661213252089042",
+      "spent_near": "23.085378998338786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "0"
+    },
+    {
+      "time_utc": "2026-11-14T09:04:15.031Z",
+      "before": "the 10 sells",
+      "balance_near": "10.627694001661213252089042",
+      "spent_near": "23.085378998338786747910958",
+      "cap_near": "25",
+      "step_up_to_near": "0"
+    }
+  ],
+  "launch": {
+    "tx": "3H5bnbX8v29eiN4e8NaY5nT5dhEpMscan89mFwVBeHyA",
+    "answer_seconds": "8.0",
+    "launch_block": 277635900,
+    "last_receipt_blocks_after_launch": 3
+  },
+  "buys": [
+    {
+      "account": "cabal-buyer-01.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "11.9M",
+      "marked_rounded": "11.9M",
+      "tx": "4kndfrpPtbrKSm86bnRw9bNEQCqpaxkW3BGRCu4NjSX8"
+    },
+    {
+      "account": "cabal-buyer-02.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "13.5M",
+      "marked_rounded": "13.5M",
+      "tx": "3ESs3YontS3bQPLh44b5wvvbGyK2pmLp1uCT4LZYfcXe"
+    },
+    {
+      "account": "cabal-buyer-03.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "13.1M",
+      "marked_rounded": "13.1M",
+      "tx": "BYMTUf2xZTDmau1mQeKHmMh9F1afV5MfQntZ4V5PDK6u"
+    },
+    {
+      "account": "cabal-buyer-04.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "14.9M",
+      "marked_rounded": "14.9M",
+      "tx": "DP1eUB75stGDbPA1Q2S6GG1dYGfr3pxhckBUnWgKKMyj"
+    },
+    {
+      "account": "cabal-buyer-05.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "15.4M",
+      "marked_rounded": "15.4M",
+      "tx": "3QS7YD3686vLonrWmwmy9tqiMJppTWDA5RZYhFgmaaE2"
+    },
+    {
+      "account": "cabal-buyer-06.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "11.6M",
+      "marked_rounded": "11.6M",
+      "tx": "HDxGY4wovRdorwkHJDR9kkJUNuUL2xRnhjJvwS4k9tJ3"
+    },
+    {
+      "account": "cabal-buyer-07.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "14.4M",
+      "marked_rounded": "14.4M",
+      "tx": "99vAfCykKmRKgE6q2fDvgwg26RNXBJP1TXuZWLBME3eD"
+    },
+    {
+      "account": "cabal-buyer-08.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "13.9M",
+      "marked_rounded": "13.9M",
+      "tx": "GZAD992xEe2VJ3HqED2ARQSWw2u9DYetxLXJ8pCtRvcW"
+    },
+    {
+      "account": "cabal-buyer-09.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "12.3M",
+      "marked_rounded": "12.3M",
+      "tx": "Vwd7JrKxPLVTUDSMyqu5rZtf47ueSbbPa48aPsPTiof"
+    },
+    {
+      "account": "cabal-buyer-10.fairchance.testnet",
+      "block_after_launch": 12,
+      "tokens_rounded": "12.7M",
+      "marked_rounded": "12.7M",
+      "tx": "Ft5NndMrkFidK9SC77HoDV2cy4kcGpKRfeQVWmZWZcRj"
+    }
+  ],
+  "buys_seconds": "9.2",
+  "early_sells": [
+    {
+      "account": "cabal-buyer-01.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "4Xu56idMDiLPvq7REK7Tt3uotogc4MCS2othPy6dvbxm"
+    },
+    {
+      "account": "cabal-buyer-02.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "BmXw5mFGVbAawLzhfrpv8mJBE9tjM2M3mWqcYoQhHcG3"
+    },
+    {
+      "account": "cabal-buyer-03.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "oSoUkfYTCpxrCGh5RSDjwcrNeHCZHH5D3A9NuRiPFWS"
+    },
+    {
+      "account": "cabal-buyer-04.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "FCho5bPhuieb57TacEdZ7G12QgZAr6eCaYa5gtga6Nq7"
+    },
+    {
+      "account": "cabal-buyer-05.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "28e5Jipxaf8W3oaimMoU5uR47cSWr9HfDReEhbtY5QNc"
+    },
+    {
+      "account": "cabal-buyer-06.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "2rQSR4gJNSeaR2RhaK8x6wNNCMsAvrnYpGbhqXwFg922"
+    },
+    {
+      "account": "cabal-buyer-07.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "9KdQcXvBtChNCYXhhRRcxpUvDVQwP1iCX27BXpaGiEaV"
+    },
+    {
+      "account": "cabal-buyer-08.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "5ieGVJwYbdj7GZNZVqfLYoTUZ7m6KAJy2JYqHwPJHkFg"
+    },
+    {
+      "account": "cabal-buyer-09.fairchance.testnet",
+      "block_after_launch": 15,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "D92fLaV637uvmVyFapeXdQjEYYd55oW1BnYZ9MsiXSxz"
+    },
+    {
+      "account": "cabal-buyer-10.fairchance.testnet",
+      "block_after_launch": 14,
+      "error": "FC_EARLY_WINDOW",
+      "tx": "B71BXnHenaCoBobvejm8azr7f8DZizhaVaaiLp9i6nVh"
+    }
+  ],
+  "later_buy": {
+    "account": "cabal-later-buyer.fairchance.testnet",
+    "block_after_launch": 57,
+    "tokens_rounded": "2.1M",
+    "near_in_rounded": "0.3000",
+    "marked": "0",
+    "tx": "4FK4K9xjsqzeZMBEGaHPZ8aG4bGrLwhgr5JTrjs9PLK5"
+  },
+  "sells": [
+    {
+      "account": "cabal-buyer-01.fairchance.testnet",
+      "tx": "7Lwb8D19FRbx4zK91n3vdA39tZbVhitvWA2NPqZv5pHh",
+      "receipt": "D5qBVfoyigGwpatP13PSokHPSsSNCKit51eBSFv61C38",
+      "asked_rounded": "11.9M",
+      "sold_rounded": "77.2K",
+      "marked_sold_rounded": "77.2K",
+      "near_out_rounded": "0.0103",
+      "fill": "partial",
+      "limit_reason": "floor"
+    },
+    {
+      "account": "cabal-buyer-02.fairchance.testnet",
+      "tx": "2CX2rDAQRNtoscsGo4SdYyg9SQBjC5NyHhotgbfCtcss",
+      "receipt": "9u2XQg4zVJdJgR77nDtHZTytCk7Gjt2Z1s4gbjYiDKaw",
+      "asked_rounded": "13.5M",
+      "sold_rounded": "887.4K",
+      "marked_sold_rounded": "887.4K",
+      "near_out_rounded": "0.1198",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-03.fairchance.testnet",
+      "tx": "BG2Zm1S7z2bRxgHJgVdjuP7MVsPyrVgPYqjySqT4RTWR",
+      "receipt": "GW2kCKq93LGSTqmMKzkoZr4RS8YZTZVmVLVo5P3vJpqH",
+      "asked_rounded": "13.1M",
+      "sold_rounded": "859.7K",
+      "marked_sold_rounded": "859.7K",
+      "near_out_rounded": "0.1159",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-04.fairchance.testnet",
+      "tx": "5szf1aiELT1xP8Bv7ZnEj9sjKUqd882EXXqdR8Aq8FTJ",
+      "receipt": "3o7aAtpaP8T8rrYiGxEQivuJgH4ZTEdTovWtgAC4hGjm",
+      "asked_rounded": "14.9M",
+      "sold_rounded": "979.3K",
+      "marked_sold_rounded": "979.3K",
+      "near_out_rounded": "0.1331",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-05.fairchance.testnet",
+      "tx": "91W1Pfv2DLhyz3a6hwGrRPm8mzkWqRLE879KsEHscZPD",
+      "receipt": "3AGBuDto8y66WVmd8sxRLytV6SLNZv93aTkyETPkGprk",
+      "asked_rounded": "15.4M",
+      "sold_rounded": "1.0M",
+      "marked_sold_rounded": "1.0M",
+      "near_out_rounded": "0.1380",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-06.fairchance.testnet",
+      "tx": "4Z11QpZ8w59amdG3mWCHvJNE9Yt6dhvKxQSmYmP2VBjv",
+      "receipt": "6XsGiY1C6bnKmKJ9uCfpyM4ZUYyfdsL8wC1wF7abKNKj",
+      "asked_rounded": "11.6M",
+      "sold_rounded": "761.3K",
+      "marked_sold_rounded": "761.3K",
+      "near_out_rounded": "0.1039",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-07.fairchance.testnet",
+      "tx": "JDhUU6rYeYCk4RCXqKBA9cxZnPT4dShqy5VowvKvDSP8",
+      "receipt": "AbxgYdXAH3uLDrYccgu8acRAnXk1oZxsmFAhdxfpkVWS",
+      "asked_rounded": "14.4M",
+      "sold_rounded": "947.1K",
+      "marked_sold_rounded": "947.1K",
+      "near_out_rounded": "0.1284",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-08.fairchance.testnet",
+      "tx": "Fvs7qfLdSBf2BNgJXPABuJ58Yrcw3F5uNh3jTmTmgYzM",
+      "receipt": "2rEKwypRK7hUScrTNo6m5FDiH76ynZgn4E7Z7amM44ir",
+      "asked_rounded": "13.9M",
+      "sold_rounded": "916.5K",
+      "marked_sold_rounded": "916.5K",
+      "near_out_rounded": "0.1240",
+      "fill": "partial",
+      "limit_reason": "allowance"
+    },
+    {
+      "account": "cabal-buyer-09.fairchance.testnet",
+      "tx": "5fnCPQ9xf9QTMxK4BuaRfauNRL2DufURnQRi8r74r17q",
+      "receipt": "E6CBs84mMCgpG7smXjcxh8pmeJz7x7QgZee3AGtZqCvY",
+      "asked_rounded": "12.3M",
+      "sold_rounded": "79.6K",
+      "marked_sold_rounded": "79.6K",
+      "near_out_rounded": "0.0107",
+      "fill": "partial",
+      "limit_reason": "floor"
+    },
+    {
+      "account": "cabal-buyer-10.fairchance.testnet",
+      "tx": "9qkZdY1qAZhNuy41goapuErZF63T4o176FLNKzPdX817",
+      "receipt": "H157YqVv8GJuNG2Rgq3k2K81Aa9tq38sHufnsHCSjR9C",
+      "asked_rounded": "12.7M",
+      "sold_rounded": "390.4K",
+      "marked_sold_rounded": "390.4K",
+      "near_out_rounded": "0.0525",
+      "fill": "partial",
+      "limit_reason": "cap_full"
+    }
+  ],
+  "later_sell": {
+    "account": "cabal-later-buyer.fairchance.testnet",
+    "tx": "jy6vFrc3QSunB5NprSyc7aNT4exGxsjdwbTX8duwMY8",
+    "asked_rounded": "2.1M",
+    "sold_rounded": "2.1M",
+    "marked_sold": "0",
+    "near_out_rounded": "0.2894",
+    "class": "small",
+    "fill": "full",
+    "limit_reason": "none"
+  },
+  "funder_paid_near_rounded": "23.0853",
+  "left_in_creator_and_buyer_accounts_near_rounded": "3.8726",
+  "coin_storage_lock_near_rounded": "0.0400",
+  "blocks_per_second": {
+    "before_account_step": "1.663",
+    "before_account_step_blocks": 100,
+    "at_end": "1.653",
+    "at_end_blocks": 100
+  },
+  "checks": [
+    "PASS 10 buyers bought in blocks 0 to 17: 10 buys of 1.9000 NEAR landed in blocks 12 to 12 after the launch, 9.2 s from the launch result",
+    "PASS every early sell is refused with FC_EARLY_WINDOW: 10 early sells of 1 token each were refused in blocks 14, 14, 14, 14, 14, 14, 14, 14, 15, 14 after the launch",
+    "PASS every buy is marked: all 134.1M early-supply tokens of the 10 buys are marked (fc_early_window.early_supply_total)",
+    "PASS one shared allowance: 10 sells took 6.9M of one shared early-supply allowance of 8.7M tokens (fc_early_window.shared_allowance_used = the marked tokens sold); 10 filled in part or not at all",
+    "PASS most of the dump is held back: the 10 buyers asked to sell 134.1M tokens and sold 6.9M (5.2%); 127.2M stay in their wallets",
+    "PASS the later buyer sells all of its tokens: cabal-later-buyer.fairchance.testnet bought after the window with none marked and sold all 2.1M tokens for 0.2894 NEAR after the dump (class small, fill full)",
+    "PASS cap full: fc_cap_filled by cabal-buyer-10.fairchance.testnet in receipt H157YqVv8GJuNG2Rgq3k2K81Aa9tq38sHufnsHCSjR9C with cap_used 0.9161 NEAR of cap_total 0.9161 NEAR; limit_reason per sell: allowance 7, cap_full 1, floor 2"
+  ],
+  "exit_code": 0
+}
