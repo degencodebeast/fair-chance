@@ -26,22 +26,35 @@ fn millinear(n: u128) -> NearToken {
 
 #[test]
 fn the_price_is_the_higher_of_the_raised_gas_price_and_the_purchase_price() {
-    assert_eq!(price_used(100_000_000, PURCHASE_PRICE), 1_000_000_000);
-    assert_eq!(price_used(1_000_000_000, PURCHASE_PRICE), 1_250_000_000);
-    assert_eq!(price_used(2_000_000_000, PURCHASE_PRICE), 2_500_000_000);
-    assert_eq!(price_used(100_000_000, 0), 125_000_000);
+    assert_eq!(
+        price_used(100_000_000, PURCHASE_PRICE).unwrap(),
+        1_000_000_000
+    );
+    assert_eq!(
+        price_used(1_000_000_000, PURCHASE_PRICE).unwrap(),
+        1_250_000_000
+    );
+    assert_eq!(
+        price_used(2_000_000_000, PURCHASE_PRICE).unwrap(),
+        2_500_000_000
+    );
+    assert_eq!(price_used(100_000_000, 0).unwrap(), 125_000_000);
 }
 
 #[test]
 fn an_early_buyer_needs_the_larger_of_its_two_moments() {
     // Burst: 0.5 + 0.005 + (100 + 50 + 2 x 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        buyer_need(millinear(500), GAS_100, PURCHASE_PRICE).as_yoctonear(),
+        buyer_need(millinear(500), GAS_100, PURCHASE_PRICE)
+            .unwrap()
+            .as_yoctonear(),
         675_000_000_000_000_000_000_001
     );
     // Burst: 0.5 + 0.005 + (300 + 50 + 2 x 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        buyer_need(millinear(500), GAS_300, PURCHASE_PRICE).as_yoctonear(),
+        buyer_need(millinear(500), GAS_300, PURCHASE_PRICE)
+            .unwrap()
+            .as_yoctonear(),
         875_000_000_000_000_000_000_001
     );
 }
@@ -50,14 +63,21 @@ fn an_early_buyer_needs_the_larger_of_its_two_moments() {
 fn the_need_covers_what_the_node_charges_at_the_burst() {
     // The probe's buy at 100 Tgas, plus an early sell of 50 Tgas with the same send fees.
     let node = 606_719_159_630_831_000_000_000u128 + (50_000 + 1_719) * 1_000_000_000_000_000_000;
-    assert!(buyer_need(millinear(500), GAS_100, PURCHASE_PRICE).as_yoctonear() > node);
+    assert!(
+        buyer_need(millinear(500), GAS_100, PURCHASE_PRICE)
+            .unwrap()
+            .as_yoctonear()
+            > node
+    );
 }
 
 #[test]
 fn the_later_buyer_needs_its_sell_after_its_buy_burnt() {
     // Sell moment: 0.3 + 0.005 + 10 Tgas burnt + (100 + 5) Tgas x 1e9 + 0.01 + 1 yocto.
     assert_eq!(
-        later_buyer_need(millinear(300), GAS_100, PURCHASE_PRICE).as_yoctonear(),
+        later_buyer_need(millinear(300), GAS_100, PURCHASE_PRICE)
+            .unwrap()
+            .as_yoctonear(),
         430_000_000_000_000_000_000_001
     );
 }
@@ -65,15 +85,15 @@ fn the_later_buyer_needs_its_sell_after_its_buy_burnt() {
 #[test]
 fn the_extra_is_the_larger_shortfall_rounded_up_to_a_millinear() {
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE),
+        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE).unwrap(),
         millinear(176)
     );
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(300), GAS_300, PURCHASE_PRICE),
+        buyer_extra_for(millinear(500), millinear(300), GAS_300, PURCHASE_PRICE).unwrap(),
         millinear(376)
     );
     assert_eq!(
-        buyer_extra_for(millinear(500), millinear(0), GAS_100, PURCHASE_PRICE),
+        buyer_extra_for(millinear(500), millinear(0), GAS_100, PURCHASE_PRICE).unwrap(),
         millinear(176)
     );
 }
@@ -126,6 +146,31 @@ fn the_sandbox_rehearsal_uses_the_testnet_amounts_and_they_are_enough() {
         "the app coin default must apply"
     );
     assert!(
-        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE) <= millinear(200)
+        buyer_extra_for(millinear(500), millinear(300), GAS_100, PURCHASE_PRICE).unwrap()
+            <= millinear(200)
     );
+}
+
+#[test]
+fn a_gas_price_too_large_to_raise_stops_and_names_it() {
+    let huge = u128::MAX / 100;
+    let error = price_used(huge, PURCHASE_PRICE).unwrap_err().to_string();
+    assert!(error.contains(&huge.to_string()), "{error}");
+    assert!(error.contains("nothing was signed"), "{error}");
+}
+
+#[test]
+fn a_price_too_large_to_count_stops_the_check_and_names_it() {
+    let huge = u128::MAX / 1000;
+    let error = check_buyer_funding(
+        millinear(500),
+        millinear(300),
+        millinear(200),
+        GAS_100,
+        huge,
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains(&huge.to_string()), "{error}");
+    assert!(error.contains("nothing was signed"), "{error}");
 }
