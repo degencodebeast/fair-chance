@@ -42,7 +42,7 @@ const MIN_BLOCK_S: f64 = 0.001;
 
 /// Blocks after the send of an early sell until its receipt runs: one to get into a block, one to
 /// run the receipt on the coin.
-const INCLUDE_AND_EXECUTE_BLOCKS: u64 = 2;
+pub(crate) const INCLUDE_AND_EXECUTE_BLOCKS: u64 = 2;
 
 /// The block, counted from the launch block, where the last early sell of the burst lands by this
 /// estimate: tail + ceil((send + gap) / block) + 2. It refuses the run when that is after

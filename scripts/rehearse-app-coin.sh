@@ -8,7 +8,8 @@
 #
 #   scripts/rehearse-app-coin.sh [runs]     (default 5)
 #
-# It prints, per run, the blocks the buys landed in and PASS or FAIL, then how many runs had every
+# It prints, per run, the stand-in delay, the detection line (launch block, detect block, expected
+# buy block), the blocks the buys landed in and PASS or FAIL, then how many runs had every
 # buy and early sell inside blocks 0 to 17. Exit 0 only when every run passed every check.
 # Needs NEAR_SANDBOX_BIN_PATH (near-sandbox 2.13.4). Sandbox only: it never signs on testnet.
 set -uo pipefail
@@ -26,7 +27,7 @@ for i in $(seq 1 "$runs"); do
     --sandbox-block-ms 577 --sandbox-send-delay-ms 3700 > "$log" 2>&1
   code=$?
   buys="$(grep -o 'landed in blocks [0-9]* to [0-9]* after the launch' "$log" | head -1)"
-  found="$(grep -o 'found cabal3.factory.sandbox in block [0-9]*' "$log" | head -1)"
+  found="$(grep -o 'launch block [0-9]*, detect block [0-9]* ([0-9]* after the launch block), buys expected by block [0-9]*' "$log" | head -1)"
   delay="$(grep -o 'launches cabal3 as alice.sandbox in [0-9.]* s' "$log" | head -1)"
   if grep -q '^PASS 10 buyers bought in blocks 0 to 17' "$log" \
     && grep -q '^PASS every early sell is refused with FC_EARLY_WINDOW' "$log"; then

@@ -139,6 +139,14 @@ pub fn check_detection(
     Ok(())
 }
 
+/// The block, counted from the launch block, where the buys should land when the coin was found
+/// `lag_blocks` after its launch block: one send call, then one block to get in and one to run on
+/// the coin (the estimate of [`crate::burst::check_burst_timing`] without the early-sell gap).
+pub fn expected_buy_block(timing: &crate::burst::BurstTiming, lag_blocks: u64) -> u64 {
+    let send_blocks = (timing.send_s / timing.block_s).ceil() as u64;
+    lag_blocks + send_blocks + crate::burst::INCLUDE_AND_EXECUTE_BLOCKS
+}
+
 /// One read of the coin: not there yet, or there with what the read found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Probe<T> {
@@ -394,6 +402,14 @@ pub async fn run_app_coin(
         early_blocks,
     )?;
     check_detection(&burst_timing, early_blocks, lag)?;
+    say(&format!(
+        "detected {coin}: launch block {}, detect block {} ({lag} after the launch block), buys expected by block {} after the launch block; creator {}, code {}",
+        found.launch_block,
+        found.read_block,
+        expected_buy_block(&burst_timing, lag),
+        found.facts.creator,
+        found.facts.account_code_hash
+    ));
     let started = Instant::now();
     let burst = send_burst(
         &setup.network,
@@ -406,10 +422,6 @@ pub async fn run_app_coin(
     )
     .await?;
     let seconds = started.elapsed().as_secs_f64();
-    say(&format!(
-        "found {coin} in block {lag} after its launch block {}: creator {}, code {}",
-        found.launch_block, found.facts.creator, found.facts.account_code_hash
-    ));
     let creator: AccountId = found.facts.creator.parse()?;
     let (launch_tx, launched) = find_launch_tx(
         &setup.network,
