@@ -35,7 +35,7 @@ describe("landing copy", () => {
 
   it("shows the real CABAL2 testnet result with its source, no sample data", () => {
     expect(landingCopy.proof.source).toBe("From the Cabal Test 2 coin · 14 Nov, 10:12 UTC · NEAR testnet");
-    expect(landingCopy.proof.sentence).toBe("Our test cabal of 10 wallets bought in block 12 and tried to sell 39.5M CABAL2. 2.98M went through, 7.5%. The rest stayed in their wallets.");
+    expect(landingCopy.proof.sentence).toBe("Our test cabal of 10 wallets bought within 8 seconds of launch. Together they held 3.95% of the supply. Then they tried to sell all 39.5M CABAL2 at once. 2.98M sold, 7.5% of what they asked for. The other 36.6M stayed in their wallets, because the sell limit slows early buyers.");
     expect(landingCopy.proof.coin).toBe("cabal2.factory.fairchance.testnet");
   });
 

@@ -19,7 +19,7 @@ export const landingCopy = {
   // from the chain, fc_early_window.shared_allowance_used.
   proof: {
     source: "From the Cabal Test 2 coin · 14 Nov, 10:12 UTC · NEAR testnet",
-    sentence: "Our test cabal of 10 wallets bought in block 12 and tried to sell 39.5M CABAL2. 2.98M went through, 7.5%. The rest stayed in their wallets.",
+    sentence: "Our test cabal of 10 wallets bought within 8 seconds of launch. Together they held 3.95% of the supply. Then they tried to sell all 39.5M CABAL2 at once. 2.98M sold, 7.5% of what they asked for. The other 36.6M stayed in their wallets, because the sell limit slows early buyers.",
     coin: "cabal2.factory.fairchance.testnet",
     link: "See the coin",
   },
@@ -35,7 +35,7 @@ export const landingCopy = {
       { k: "Paid in", v: "5.00 NEAR" },
       { k: "Asked", v: "39.5M CABAL2" },
       { k: "Went through", v: "2.98M CABAL2" },
-      { k: "Stays in wallets", v: "36.5M CABAL2" },
+      { k: "Stays in wallets", v: "36.6M CABAL2" },
       { k: "NEAR out", v: "0.32 NEAR" },
       { k: "Early sells refused", v: "10 of 10" },
     ],

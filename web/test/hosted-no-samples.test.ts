@@ -52,7 +52,7 @@ describe("the landing screen", () => {
   it("shows the same real testnet result on the local machine, with no sample label", () => {
     const t = text("http://localhost:5173/");
     expect(t).not.toMatch(/sample data/i);
-    expect(t).toContain("2.98M went through");
+    expect(t).toContain("2.98M sold, 7.5% of what they asked for");
   });
 });
 
