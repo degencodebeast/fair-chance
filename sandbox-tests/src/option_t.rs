@@ -1062,7 +1062,7 @@ pub(crate) async fn check_after_burst(
     } = after;
     let say = |text: &str| println!("option-t: {text}");
     let early_blocks = rule_engine::FixedValues::fixed().early_blocks;
-    let rules = view_on(&setup.network, &coin, "fc_rules", json!({})).await?;
+    let rules = view_on(&setup.network, coin, "fc_rules", json!({})).await?;
     let launch_block = rules["launch_block"]
         .as_u64()
         .context("fc_rules.launch_block")?;
@@ -1113,7 +1113,7 @@ pub(crate) async fn check_after_burst(
 
     let mut early_sells = Vec::new();
     for (buyer, result) in buyers.iter().zip(&burst.early_sells) {
-        let (block, code) = coin_receipt(&setup.network, &coin, launch_block, result).await?;
+        let (block, code) = coin_receipt(&setup.network, coin, launch_block, result).await?;
         println!(
             "option-t:   early sell {} block {block:>2}: {}, tx {}",
             buyer.id,
@@ -1162,7 +1162,7 @@ pub(crate) async fn check_after_burst(
         })(),
     )?;
 
-    let early = view_on(&setup.network, &coin, "fc_early_window", json!({})).await?;
+    let early = view_on(&setup.network, coin, "fc_early_window", json!({})).await?;
     list.check(
         "every buy is marked",
         (|| {
@@ -1214,7 +1214,7 @@ pub(crate) async fn check_after_burst(
             &setup.network,
             &setup.send_network,
             later,
-            &coin,
+            coin,
             calls,
             setup.buyer_gas,
         )
@@ -1308,7 +1308,7 @@ pub(crate) async fn check_after_burst(
             &setup.network,
             &setup.send_network,
             later,
-            &coin,
+            coin,
             "sell",
             json!({ "amount": bought["tokens_out"], "min_near_out": "0" }),
             NearToken::from_yoctonear(1),
@@ -1334,7 +1334,7 @@ pub(crate) async fn check_after_burst(
         later_sold = Some(data);
     }
 
-    let early = view_on(&setup.network, &coin, "fc_early_window", json!({})).await?;
+    let early = view_on(&setup.network, coin, "fc_early_window", json!({})).await?;
     list.check(
         "one shared allowance",
         (|| {
@@ -1432,7 +1432,7 @@ pub(crate) async fn check_after_burst(
     for account in creator.into_iter().chain(buyers).chain(later) {
         left = left.saturating_add(balance(&setup.network, &account.id).await?);
     }
-    let coin_state = account_view(&setup.network, &coin)
+    let coin_state = account_view(&setup.network, coin)
         .await?
         .with_context(|| format!("{coin} does not exist"))?;
     let report = OptionTReport {
