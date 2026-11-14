@@ -69,13 +69,18 @@ Fair Chance is a launchpad where each coin limits its own sells, so snipers, the
 
 ## What is new here
 
-A falling fee on early buys is not new, and Fair Chance uses one. A fixed cap per sell is not new either: it refuses any sell above the cap. These parts are what Fair Chance adds, all inside the coin contract:
+Each row is a common anti-dump tool, where it falls short, and what Fair Chance does in its place. The last row is a tool Fair Chance uses as it is.
 
-- **A limited sell fills in part.** It does not fail. The seller gets what the limit allows, and the rest stays in the wallet.
-- **The limit follows the pool's depth.** One allowance moves the price by 2% at most, at any pool size.
-- **All early supply shares one allowance per 24 hours.** That is every wallet that bought in blocks 0 to 17, plus the creator group. In our testnet runs, 10 sniper wallets shared one allowance and sold 5.2% to 7.8% of what they asked.
-- **A large holder cannot send tokens.** Large means 2% of supply or more. A send that would make the receiver large is refused too, so a big bag cannot be split across new wallets.
-- **One cap per window on real NEAR.** Large, band and early-supply sells together can take out at most 5% of the pool's real NEAR per window.
+| Common tool | Where it falls short | What Fair Chance does |
+| --- | --- | --- |
+| A max sell per transaction | It refuses a sell above a fixed amount. The seller splits the sell into many small sells. | The limit is per account per hour, not per sell, so many small sells in one hour fill the same as one sell. A sell above the limit fills in part instead of failing, and the rest stays in the wallet. |
+| A cap with a fixed size | The same number is too loose in a thin pool and too tight in a deep one. | The limit follows the pool's depth. One allowance moves the price by 2% at most, at any pool size. |
+| A lock or vesting for the team | It covers only the wallets the team names. Snipers who buy in the first seconds are free to dump. | Every wallet that buys in blocks 0 to 17 is treated like the creator group: all of them share one allowance per 24 hours. In our testnet runs, 10 sniper wallets shared one allowance and sold 5.2% to 7.8% of what they asked. |
+| A limit per wallet | A whale sends its bag to many new wallets and sells from each one. | A large holder (2% of supply or more) cannot send tokens, and a send that would make the receiver large is refused. A buy is the one way to become large. |
+| Limits per account only | Many accounts that each stay inside their limit can still drain the pool together. | One pool-wide cap: large, band and early-supply sells together can take out at most 5% of the pool's real NEAR per window. |
+| A high fee on early buys | It is paid once and does not limit later sells. | Fair Chance uses one too: 50% at launch, falling to 1% by block 17. This part is not new. |
+
+All of these rules run inside the coin contract, and the coin has no keys.
 
 ## Why memecoins
 
