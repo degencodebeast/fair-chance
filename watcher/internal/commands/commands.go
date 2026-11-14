@@ -43,7 +43,7 @@ const retryAfterFailure = 3 * time.Second
 var nearAccount = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,63}$`)
 
 // Handle answers one message. A message from any chat but the configured one gets no reply and starts
-// nothing, except /start, /help and a public /check when Public is set.
+// nothing, except /start, /help, a public /check and the one line answer to /watch when Public is set.
 func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
 	fields := strings.Fields(msg.Text)
 	if len(fields) == 0 {
@@ -54,6 +54,10 @@ func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
 	switch {
 	case command == "/watch" && own:
 		b.handleWatch(ctx, fields)
+	case command == "/watch" && b.Public != nil:
+		if b.Public.takeHelpSlot(msg.ChatID) {
+			b.reply(ctx, msg.ChatID, strangerWatchReply)
+		}
 	case command == "/check" && own:
 		b.handleCheck(ctx, msg.ChatID, fields)
 	case command == "/check" && b.Public != nil:
@@ -64,6 +68,8 @@ func (b Bot) Handle(ctx context.Context, msg telegram.Incoming) {
 		}
 	}
 }
+
+const strangerWatchReply = "Alerts are for the coin's team for now. Use /check to read a coin's rules."
 
 const watchUsage = "Send /watch and one coin account, for example /watch moth.factory.testnet. To read past events, add a start block: /watch moth.factory.testnet from 12345."
 

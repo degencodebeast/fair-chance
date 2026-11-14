@@ -65,7 +65,7 @@ func TestStrangerWatchAndOtherTextGetNoAnswerAndChangeNothing(t *testing.T) {
 			t.Fatalf("a stranger got a watch answer: %+v", m)
 		}
 	}
-	if len(fake.Sent) > 1 {
+	if len(fake.Sent) > 2 { // the one line /watch reply and the /check usage line
 		t.Fatalf("sent %+v", fake.Sent)
 	}
 }
